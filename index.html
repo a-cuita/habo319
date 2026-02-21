@@ -419,10 +419,11 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
 
     // ── SESSION ─────────────────────────────
-    function saveSession(token, volunteerId, preferredName) {
+    function saveSession(token, volunteerId, preferredName, username) {
       sessionStorage.setItem('habo_token', token);
       sessionStorage.setItem('habo_volunteer_id', volunteerId);
       sessionStorage.setItem('habo_name', preferredName);
+      sessionStorage.setItem('habo_username', username || '');
     }
 
     function getToken() {
@@ -511,7 +512,7 @@
         }
 
         // Save session
-        saveSession(result.data.session_token, result.data.volunteer_id, name);
+        saveSession(result.data.session_token, result.data.volunteer_id, name, result.data.username);
 
         // Show credentials
         document.getElementById('cred-username').textContent = result.data.username;
@@ -545,7 +546,7 @@
           return;
         }
 
-        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name);
+        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name, result.data.username);
         window.location.href = 'app.html';
 
       } catch (err) {
@@ -561,7 +562,18 @@
     }
 
     // ── ON LOAD — redirect if already logged in ──
-    window.addEventListener('load', function() {
+    window.addEventListener('load', async function() {
+      // Killswitch check
+      try {
+        const status = await apiCall('getAppStatus', {});
+        if (status.success && status.data.app_active === false) {
+          window.location.href = 'maintenance.html';
+          return;
+        }
+      } catch (err) {
+        // If check fails, allow through — don't lock out on network error
+      }
+
       if (getToken()) {
         window.location.href = 'app.html';
       }
