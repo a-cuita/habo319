@@ -382,6 +382,7 @@
     function getToken()       { return sessionStorage.getItem('habo_token'); }
     function getVolunteerId() { return sessionStorage.getItem('habo_volunteer_id'); }
     function getName()        { return sessionStorage.getItem('habo_name'); }
+    function getUsername()    { return sessionStorage.getItem('habo_username'); }
 
     function clearSession() {
       sessionStorage.removeItem('habo_token');
@@ -415,9 +416,9 @@
     // ── POPULATE HEADER ──────────────────────
     function populateHeader() {
       const name = getName();
-      const volunteerId = getVolunteerId();
+      const username = getUsername();
       if (name) document.getElementById('header-name').textContent = name;
-      if (volunteerId) document.getElementById('header-username').textContent = volunteerId;
+      if (username) document.getElementById('header-username').textContent = username;
     }
 
     // ── LOAD ACTIVE EVENT ────────────────────
@@ -473,8 +474,21 @@
     }
 
     // ── ON LOAD ──────────────────────────────
-    window.addEventListener('load', function() {
+    window.addEventListener('load', async function() {
       if (!requireAuth()) return;
+
+      // Killswitch check
+      try {
+        const status = await apiCall('getAppStatus', {});
+        if (status.success && status.data.app_active === false) {
+          clearSession();
+          window.location.href = 'maintenance.html';
+          return;
+        }
+      } catch (err) {
+        // If check fails, allow through
+      }
+
       populateHeader();
       loadActiveEvent();
     });
