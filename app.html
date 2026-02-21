@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HABO Cleanup — Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── VARIABLES ─────────────────────────── */
+    :root {
+      --bg:        #0f1210;
+      --surface:   #1a1f1c;
+      --border:    #2e3530;
+      --accent:    #b5f033;
+      --accent-dk: #8abe1a;
+      --text:      #f0f4f1;
+      --text-muted:#8a9e8f;
+      --error:     #ff5c5c;
+      --warning:   #f0a500;
+      --radius:    12px;
+      --font-head: 'Barlow Condensed', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    /* ── RESET ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 0 60px;
+    }
+
+    /* ── HEADER ────────────────────────────── */
+    header {
+      width: 100%;
+      background: var(--surface);
+      border-bottom: 2px solid var(--accent);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .app-title {
+      font-family: var(--font-head);
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .volunteer-name {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    .volunteer-name strong {
+      display: block;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    /* ── MAIN CONTAINER ────────────────────── */
+    main {
+      width: 100%;
+      max-width: 480px;
+      padding: 28px 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── SECTION HEADING ───────────────────── */
+    .section-label {
+      font-family: var(--font-head);
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .section-label span { color: var(--accent); }
+
+    /* ── CARD ──────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .card-title {
+      font-family: var(--font-head);
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    /* ── EVENT CARD ────────────────────────── */
+    .event-card {
+      background: var(--surface);
+      border: 2px solid var(--accent);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .event-name {
+      font-family: var(--font-head);
+      font-size: 1.6rem;
+      font-weight: 900;
+      text-transform: uppercase;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .event-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .event-meta-row {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .event-meta-row strong {
+      color: var(--text);
+    }
+
+    .event-badge {
+      display: inline-block;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: var(--font-head);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 4px;
+      align-self: flex-start;
+    }
+
+    /* ── NO EVENT STATE ────────────────────── */
+    .no-event {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .no-event-icon {
+      font-size: 2.5rem;
+      line-height: 1;
+    }
+
+    .no-event-title {
+      font-family: var(--font-head);
+      font-size: 1.3rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .no-event-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    /* ── PLACEHOLDER ACTION ────────────────── */
+    .action-placeholder {
+      background: var(--surface);
+      border: 1px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 28px 20px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .action-placeholder-title {
+      font-family: var(--font-head);
+      font-size: 1.2rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    .action-placeholder-text {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      opacity: 0.7;
+    }
+
+    /* ── BUTTONS ───────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 16px;
+      text-transform: uppercase;
+      transition: background 0.15s, transform 0.1s;
+      width: 100%;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .btn-primary:hover { background: var(--accent-dk); }
+    .btn-primary:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      padding: 13px;
+    }
+    .btn-ghost:hover { border-color: var(--error); color: var(--error); }
+
+    /* ── LOADING SKELETON ──────────────────── */
+    .skeleton {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    .skeleton-line {
+      height: 14px;
+      background: var(--border);
+      border-radius: 4px;
+    }
+
+    .skeleton-line.short { width: 40%; }
+    .skeleton-line.medium { width: 65%; }
+    .skeleton-line.full { width: 100%; }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50%       { opacity: 0.5; }
+    }
+
+    /* ── ERROR MESSAGE ─────────────────────── */
+    .error-msg {
+      background: rgba(255, 92, 92, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      color: var(--error);
+      font-size: 0.85rem;
+      padding: 12px 14px;
+      display: none;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── ANIMATIONS ────────────────────────── */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── DIVIDER ───────────────────────────── */
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 4px 0;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="app-title">HABO Cleanup</div>
+    <div class="volunteer-name">
+      <strong id="header-name">...</strong>
+      <span id="header-username"></span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- ── EVENT SECTION ────────────────── -->
+    <div class="section-label">Today's<br /><span>Event</span></div>
+
+    <!-- Loading skeleton -->
+    <div class="skeleton" id="event-skeleton">
+      <div class="skeleton-line short"></div>
+      <div class="skeleton-line full"></div>
+      <div class="skeleton-line medium"></div>
+    </div>
+
+    <!-- Event card — shown when active event found -->
+    <div class="event-card" id="event-card" style="display:none;">
+      <div class="event-badge">Active</div>
+      <div class="event-name" id="event-name"></div>
+      <div class="event-meta">
+        <div class="event-meta-row">📅 <strong id="event-date"></strong></div>
+        <div class="event-meta-row">📍 <strong id="event-location"></strong></div>
+        <div class="event-meta-row">🌊 <strong id="event-watershed"></strong></div>
+      </div>
+    </div>
+
+    <!-- No event state — shown when no active event -->
+    <div class="no-event" id="no-event" style="display:none;">
+      <div class="no-event-icon">🌿</div>
+      <div class="no-event-title">No Active Event</div>
+      <div class="no-event-text">There's no cleanup event running right now. Check back when your coordinator announces the next one.</div>
+    </div>
+
+    <div class="error-msg" id="event-error"></div>
+
+    <!-- ── LOG COLLECTION ───────────────── -->
+    <hr class="divider" />
+    <div class="section-label">Log Your<br /><span>Collection</span></div>
+
+    <div class="action-placeholder">
+      <div class="action-placeholder-title">Coming Soon</div>
+      <div class="action-placeholder-text">Collection logging will be available once an event is active and categories are configured.</div>
+    </div>
+
+    <!-- ── LOGOUT ───────────────────────── -->
+    <hr class="divider" />
+    <button class="btn btn-ghost" onclick="handleLogout()">Log Out</button>
+
+  </main>
+
+  <script>
+    // ── CONFIG ──────────────────────────────
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
+
+    // ── SESSION ─────────────────────────────
+    function getToken()       { return sessionStorage.getItem('habo_token'); }
+    function getVolunteerId() { return sessionStorage.getItem('habo_volunteer_id'); }
+    function getName()        { return sessionStorage.getItem('habo_name'); }
+
+    function clearSession() {
+      sessionStorage.removeItem('habo_token');
+      sessionStorage.removeItem('habo_volunteer_id');
+      sessionStorage.removeItem('habo_name');
+    }
+
+    // ── API HELPER ───────────────────────────
+    async function apiCall(action, payload, token) {
+      const body = { action, payload: payload || {} };
+      if (token) body.token = token;
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(body)
+      });
+
+      return res.json();
+    }
+
+    // ── AUTH GUARD ───────────────────────────
+    function requireAuth() {
+      if (!getToken()) {
+        window.location.href = 'index.html';
+        return false;
+      }
+      return true;
+    }
+
+    // ── POPULATE HEADER ──────────────────────
+    function populateHeader() {
+      const name = getName();
+      const volunteerId = getVolunteerId();
+      if (name) document.getElementById('header-name').textContent = name;
+      if (volunteerId) document.getElementById('header-username').textContent = volunteerId;
+    }
+
+    // ── LOAD ACTIVE EVENT ────────────────────
+    async function loadActiveEvent() {
+      const skeleton = document.getElementById('event-skeleton');
+      const eventCard = document.getElementById('event-card');
+      const noEvent = document.getElementById('no-event');
+      const errorEl = document.getElementById('event-error');
+
+      try {
+        const result = await apiCall('getActiveEvent', {}, getToken());
+
+        skeleton.style.display = 'none';
+
+        if (!result.success) {
+          // Surface a clean error
+          errorEl.textContent = result.error || 'Could not load event data.';
+          errorEl.classList.add('visible');
+          return;
+        }
+
+        if (!result.data || !result.data.event_id) {
+          // No active event
+          noEvent.style.display = 'flex';
+          return;
+        }
+
+        // Populate event card
+        const ev = result.data;
+        document.getElementById('event-name').textContent = ev.event_name;
+        document.getElementById('event-date').textContent = ev.event_date;
+        document.getElementById('event-location').textContent = ev.location_name;
+        document.getElementById('event-watershed').textContent = ev.watershed;
+        eventCard.style.display = 'flex';
+
+      } catch (err) {
+        skeleton.style.display = 'none';
+        errorEl.textContent = 'Connection error. Please refresh.';
+        errorEl.classList.add('visible');
+      }
+    }
+
+    // ── LOGOUT ───────────────────────────────
+    async function handleLogout() {
+      try {
+        await apiCall('logout', {}, getToken());
+      } catch (err) {
+        // Logout best-effort — clear session regardless
+      } finally {
+        clearSession();
+        window.location.href = 'index.html';
+      }
+    }
+
+    // ── ON LOAD ──────────────────────────────
+    window.addEventListener('load', function() {
+      if (!requireAuth()) return;
+      populateHeader();
+      loadActiveEvent();
+    });
+  </script>
+
+</body>
+</html>
