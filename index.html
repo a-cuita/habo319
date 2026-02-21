@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HABO Litter Cleanup</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ── VARIABLES ─────────────────────────── */
+    :root {
+      --bg:        #0f1210;
+      --surface:   #1a1f1c;
+      --border:    #2e3530;
+      --accent:    #b5f033;
+      --accent-dk: #8abe1a;
+      --text:      #f0f4f1;
+      --text-muted:#8a9e8f;
+      --error:     #ff5c5c;
+      --radius:    12px;
+      --font-head: 'Barlow Condensed', sans-serif;
+      --font-body: 'DM Sans', sans-serif;
+    }
+
+    /* ── RESET ─────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 0 60px;
+    }
+
+    /* ── HEADER ────────────────────────────── */
+    header {
+      width: 100%;
+      background: var(--surface);
+      border-bottom: 2px solid var(--accent);
+      padding: 20px 24px 16px;
+      text-align: center;
+    }
+
+    .app-title {
+      font-family: var(--font-head);
+      font-size: 2.4rem;
+      font-weight: 900;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: var(--accent);
+      line-height: 1;
+    }
+
+    .app-subtitle {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+
+    /* ── MAIN CONTAINER ────────────────────── */
+    main {
+      width: 100%;
+      max-width: 480px;
+      padding: 32px 20px 0;
+    }
+
+    /* ── PANELS ────────────────────────────── */
+    .panel {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeIn 0.25s ease;
+    }
+    .panel.active { display: flex; }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── SECTION HEADING ───────────────────── */
+    .section-label {
+      font-family: var(--font-head);
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--text);
+      line-height: 1.1;
+    }
+
+    .section-label span {
+      color: var(--accent);
+    }
+
+    /* ── CARD ──────────────────────────────── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    /* ── FORM ELEMENTS ─────────────────────── */
+    label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+
+    input[type="text"],
+    input[type="password"],
+    input[type="number"] {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 1rem;
+      padding: 14px 16px;
+      width: 100%;
+      transition: border-color 0.15s;
+      -webkit-appearance: none;
+    }
+
+    input[type="text"]:focus,
+    input[type="password"]:focus,
+    input[type="number"]:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    input[type="text"]::placeholder,
+    input[type="password"]::placeholder,
+    input[type="number"]::placeholder {
+      color: var(--text-muted);
+      opacity: 0.5;
+    }
+
+    /* ── CHECKBOX ACK ──────────────────────── */
+    .ack-wrap {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      cursor: pointer;
+    }
+
+    .ack-wrap input[type="checkbox"] {
+      width: 20px;
+      height: 20px;
+      flex-shrink: 0;
+      accent-color: var(--accent);
+      margin-top: 2px;
+      cursor: pointer;
+    }
+
+    .ack-text {
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      line-height: 1.5;
+    }
+
+    .ack-text strong {
+      color: var(--text);
+    }
+
+    /* ── BUTTONS ───────────────────────────── */
+    .btn {
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 1.25rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 16px;
+      text-transform: uppercase;
+      transition: background 0.15s, transform 0.1s;
+      width: 100%;
+    }
+
+    .btn:active { transform: scale(0.98); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: var(--bg);
+    }
+    .btn-primary:hover { background: var(--accent-dk); }
+
+    .btn-ghost {
+      background: transparent;
+      border: 1.5px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      padding: 13px;
+    }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── TOGGLE LINK ───────────────────────── */
+    .toggle-link {
+      text-align: center;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+    }
+
+    .toggle-link button {
+      background: none;
+      border: none;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    /* ── ERROR MESSAGE ─────────────────────── */
+    .error-msg {
+      background: rgba(255, 92, 92, 0.1);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      color: var(--error);
+      display: none;
+      font-size: 0.85rem;
+      padding: 12px 14px;
+    }
+    .error-msg.visible { display: block; }
+
+    /* ── CREDENTIALS REVEAL ────────────────── */
+    .cred-box {
+      background: var(--bg);
+      border: 2px solid var(--accent);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .cred-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+    }
+
+    .cred-row + .cred-row {
+      border-top: 1px solid var(--border);
+    }
+
+    .cred-label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      flex-shrink: 0;
+    }
+
+    .cred-value {
+      font-family: monospace;
+      font-size: 1rem;
+      color: var(--accent);
+      word-break: break-all;
+      text-align: right;
+    }
+
+    .warning-badge {
+      background: rgba(255, 92, 92, 0.12);
+      border: 1px solid var(--error);
+      border-radius: 8px;
+      color: var(--error);
+      font-size: 0.82rem;
+      font-weight: 600;
+      padding: 10px 14px;
+      text-align: center;
+    }
+
+    /* ── LOADING STATE ─────────────────────── */
+    .btn.loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .btn.loading::after {
+      content: ' ...';
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="app-title">HABO Cleanup</div>
+    <div class="app-subtitle">Help A Brother Out Foundation</div>
+  </header>
+
+  <main>
+
+    <!-- ── REGISTER PANEL ───────────────── -->
+    <div class="panel active" id="panel-register">
+      <div class="section-label">Join the<br /><span>Cleanup Crew</span></div>
+
+      <div class="card">
+        <label>
+          Your First Name
+          <input type="text" id="reg-name" placeholder="e.g. Marcus" autocomplete="off" />
+        </label>
+
+        <label>
+          Birth Month & Day
+          <input type="text" id="reg-birthday" placeholder="MM-DD  e.g. 03-15" maxlength="5" autocomplete="off" />
+        </label>
+
+        <label>
+          Your Age
+          <input type="number" id="reg-age" placeholder="e.g. 28" min="5" max="120" autocomplete="off" />
+        </label>
+
+        <label class="ack-wrap" for="reg-ack">
+          <input type="checkbox" id="reg-ack" />
+          <span class="ack-text">
+            I understand this event involves outdoor physical activity and I participate at my own risk.
+            <strong>Data collected</strong> (name, birth month/day, age) is used only for HABO grant reporting
+            and event coordination. It is not sold or shared outside of HABO and ADEM requirements.
+          </span>
+        </label>
+
+        <div class="error-msg" id="reg-error"></div>
+
+        <button class="btn btn-primary" id="btn-register" onclick="handleRegister()">
+          Get My Credentials
+        </button>
+      </div>
+
+      <div class="toggle-link">
+        Already have credentials? <button onclick="showPanel('login')">Log in here</button>
+      </div>
+    </div>
+
+    <!-- ── LOGIN PANEL ──────────────────── -->
+    <div class="panel" id="panel-login">
+      <div class="section-label">Welcome<br /><span>Back</span></div>
+
+      <div class="card">
+        <label>
+          Username
+          <input type="text" id="login-username" placeholder="e.g. BlueHeron42" autocomplete="off" />
+        </label>
+
+        <label>
+          Password
+          <input type="password" id="login-password" placeholder="Your password" />
+        </label>
+
+        <div class="error-msg" id="login-error"></div>
+
+        <button class="btn btn-primary" id="btn-login" onclick="handleLogin()">
+          Log In
+        </button>
+      </div>
+
+      <div class="toggle-link">
+        New volunteer? <button onclick="showPanel('register')">Register here</button>
+      </div>
+    </div>
+
+    <!-- ── CREDENTIALS REVEAL PANEL ────── -->
+    <div class="panel" id="panel-credentials">
+      <div class="section-label">Save Your<br /><span>Credentials</span></div>
+
+      <div class="warning-badge">
+        ⚠️ These will NOT be shown again. Write them down now.
+      </div>
+
+      <div class="card">
+        <div class="cred-box">
+          <div class="cred-row">
+            <span class="cred-label">Username</span>
+            <span class="cred-value" id="cred-username"></span>
+          </div>
+          <div class="cred-row">
+            <span class="cred-label">Password</span>
+            <span class="cred-value" id="cred-password"></span>
+          </div>
+        </div>
+
+        <div class="error-msg" id="cred-error"></div>
+
+        <button class="btn btn-primary" onclick="handleCredentialsContinue()">
+          I've Saved Them — Continue
+        </button>
+      </div>
+    </div>
+
+  </main>
+
+  <script>
+    // ── CONFIG ──────────────────────────────
+    const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
+
+    // ── SESSION ─────────────────────────────
+    function saveSession(token, volunteerId, preferredName) {
+      sessionStorage.setItem('habo_token', token);
+      sessionStorage.setItem('habo_volunteer_id', volunteerId);
+      sessionStorage.setItem('habo_name', preferredName);
+    }
+
+    function getToken() {
+      return sessionStorage.getItem('habo_token');
+    }
+
+    // ── API HELPER ───────────────────────────
+    async function apiCall(action, payload, token) {
+      const body = { action, payload: payload || {} };
+      if (token) body.token = token;
+
+      const res = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+
+      return res.json();
+    }
+
+    // ── PANEL NAVIGATION ─────────────────────
+    function showPanel(name) {
+      document.querySelectorAll('.panel').forEach(function(p) {
+        p.classList.remove('active');
+      });
+      document.getElementById('panel-' + name).classList.add('active');
+      clearErrors();
+    }
+
+    function clearErrors() {
+      document.querySelectorAll('.error-msg').forEach(function(el) {
+        el.classList.remove('visible');
+        el.textContent = '';
+      });
+    }
+
+    function showError(id, msg) {
+      const el = document.getElementById(id);
+      el.textContent = msg;
+      el.classList.add('visible');
+    }
+
+    function setLoading(btnId, loading) {
+      const btn = document.getElementById(btnId);
+      if (loading) {
+        btn.classList.add('loading');
+      } else {
+        btn.classList.remove('loading');
+      }
+    }
+
+    // ── FORMAT BIRTHDAY ──────────────────────
+    document.getElementById('reg-birthday').addEventListener('input', function(e) {
+      let val = e.target.value.replace(/\D/g, '');
+      if (val.length > 2) val = val.slice(0, 2) + '-' + val.slice(2, 4);
+      e.target.value = val;
+    });
+
+    // ── REGISTER ─────────────────────────────
+    async function handleRegister() {
+      clearErrors();
+
+      const name     = document.getElementById('reg-name').value.trim();
+      const birthday = document.getElementById('reg-birthday').value.trim();
+      const age      = document.getElementById('reg-age').value.trim();
+      const ack      = document.getElementById('reg-ack').checked;
+
+      if (!name)                          return showError('reg-error', 'Please enter your name.');
+      if (!/^\d{2}-\d{2}$/.test(birthday)) return showError('reg-error', 'Enter birth month and day as MM-DD.');
+      if (!age || isNaN(age))             return showError('reg-error', 'Please enter your age.');
+      if (!ack)                           return showError('reg-error', 'You must acknowledge the safety and privacy statement.');
+
+      setLoading('btn-register', true);
+
+      try {
+        const result = await apiCall('register', {
+          preferred_name:   name,
+          birth_month_day:  birthday,
+          self_reported_age: parseInt(age, 10),
+          safety_ack:       true
+        });
+
+        if (!result.success) {
+          showError('reg-error', result.error || 'Registration failed. Please try again.');
+          return;
+        }
+
+        // Save session
+        saveSession(result.data.session_token, result.data.volunteer_id, name);
+
+        // Show credentials
+        document.getElementById('cred-username').textContent = result.data.username;
+        document.getElementById('cred-password').textContent = result.data.password;
+        showPanel('credentials');
+
+      } catch (err) {
+        showError('reg-error', 'Connection error. Please try again.');
+      } finally {
+        setLoading('btn-register', false);
+      }
+    }
+
+    // ── LOGIN ─────────────────────────────────
+    async function handleLogin() {
+      clearErrors();
+
+      const username = document.getElementById('login-username').value.trim();
+      const password = document.getElementById('login-password').value;
+
+      if (!username) return showError('login-error', 'Please enter your username.');
+      if (!password) return showError('login-error', 'Please enter your password.');
+
+      setLoading('btn-login', true);
+
+      try {
+        const result = await apiCall('login', { username, password });
+
+        if (!result.success) {
+          showError('login-error', result.error || 'Login failed. Please try again.');
+          return;
+        }
+
+        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name);
+        window.location.href = 'app.html';
+
+      } catch (err) {
+        showError('login-error', 'Connection error. Please try again.');
+      } finally {
+        setLoading('btn-login', false);
+      }
+    }
+
+    // ── CREDENTIALS CONTINUE ──────────────────
+    function handleCredentialsContinue() {
+      window.location.href = 'app.html';
+    }
+
+    // ── ON LOAD — redirect if already logged in ──
+    window.addEventListener('load', function() {
+      if (getToken()) {
+        window.location.href = 'app.html';
+      }
+    });
+  </script>
+
+</body>
+</html>
