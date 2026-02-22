@@ -373,6 +373,50 @@
     }
     .success-msg.visible { display: block; }
 
+    /* ── ITEM EDITOR ROW ──────────────────── */
+    .item-editor-row {
+      display: grid;
+      grid-template-columns: 1fr 80px 80px 32px;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .item-editor-row select,
+    .item-editor-row input {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.88rem;
+      padding: 10px 10px;
+      width: 100%;
+      -webkit-appearance: none;
+    }
+
+    .item-editor-row select:focus,
+    .item-editor-row input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .item-remove-btn {
+      background: none;
+      border: 1px solid var(--error);
+      border-radius: 6px;
+      color: var(--error);
+      cursor: pointer;
+      font-size: 0.9rem;
+      height: 36px;
+      width: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .item-remove-btn:hover { background: rgba(255,92,92,0.1); }
+    
     /* ── ANIMATIONS ────────────────────────── */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(8px); }
@@ -599,9 +643,75 @@
     <hr class="divider" />
     <div class="section-label">Log Your<br /><span>Collection</span></div>
 
-    <div class="action-placeholder">
-      <div class="action-placeholder-title">Coming Soon</div>
-      <div class="action-placeholder-text">Collection logging will be available once an event is active and categories are configured.</div>
+    <!-- Loading skeleton -->
+    <div class="skeleton" id="collection-skeleton">
+      <div class="skeleton-line short"></div>
+      <div class="skeleton-line full"></div>
+      <div class="skeleton-line medium"></div>
+    </div>
+
+    <!-- No active event / timer not started -->
+    <div class="no-event" id="collection-unavailable" style="display:none;">
+      <div class="no-event-icon">⏳</div>
+      <div class="no-event-title">Not Yet Open</div>
+      <div class="no-event-text" id="collection-unavailable-text">Collection logging will open once the timer has been started.</div>
+    </div>
+
+    <!-- Already submitted -->
+    <div class="card" id="collection-submitted" style="display:none;">
+      <div class="card-title">Your Collection</div>
+      <div class="cred-box">
+        <div class="cred-row">
+          <span class="cred-label">Segments</span>
+          <span class="cred-value" id="submitted-segments">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Weight</span>
+          <span class="cred-value" id="submitted-weight">—</span>
+        </div>
+        <div class="cred-row">
+          <span class="cred-label">Duration</span>
+          <span class="cred-value" id="submitted-duration">—</span>
+        </div>
+      </div>
+      <div id="items-section">
+        <div class="card-title" style="margin-top:4px;">Categories</div>
+        <div id="submitted-items"></div>
+        <button class="btn btn-secondary" id="btn-edit-items" onclick="showItemEditor()" style="margin-top:8px;">Edit Categories</button>
+      </div>
+      <div id="item-editor" style="display:none;">
+        <div id="item-rows"></div>
+        <button class="btn btn-ghost" onclick="addItemRow()" style="margin-top:8px;">+ Add Category</button>
+        <div class="error-msg" id="items-error"></div>
+        <div class="success-msg" id="items-success"></div>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn btn-primary" id="btn-save-items" onclick="handleSaveItems()" style="flex:1;">Save</button>
+          <button class="btn btn-ghost" onclick="hideItemEditor()" style="flex:0 0 auto; width:auto; padding:16px 20px;">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Check-in form -->
+    <div class="card" id="collection-form" style="display:none;">
+      <div class="card-title">Check In &amp; Log Collection</div>
+
+      <!-- Segment display -->
+      <div>
+        <div class="card-title" style="font-size:0.72rem;">Your Segment(s)</div>
+        <div id="segment-display"></div>
+      </div>
+
+      <!-- Weight -->
+      <label>
+        Total Weight (lbs)
+        <input type="number" id="col-weight" placeholder="e.g. 14.5" min="0.1" step="0.1" autocomplete="off" />
+      </label>
+
+      <div class="error-msg" id="col-error"></div>
+
+      <button class="btn btn-primary" id="btn-submit-collection" onclick="handleSubmitCollection()">
+        Submit Collection
+      </button>
     </div>
 
   </main>
@@ -736,6 +846,7 @@
 
         if (!result.data || !result.data.event_id) {
           noEvent.style.display = 'flex';
+          loadCollectionSection(null);
           return;
         }
 
@@ -747,6 +858,8 @@
         const directionsUrl = 'https://www.google.com/maps?q=' + ev.latitude + ',' + ev.longitude;
         document.getElementById('event-directions').href = directionsUrl;
         eventCard.style.display = 'flex';
+
+        loadCollectionSection(ev);
 
       } catch (err) {
         skeleton.style.display = 'none';
@@ -886,6 +999,313 @@
       populateHeader();
       loadActiveEvent();
     });
+
+    // ── COLLECTION STATE ─────────────────────
+    var activeEventData = null;
+    var myAssignment = null;
+    var myCollection = null;
+    var availableCategories = [
+      { category_id: 'CAT_SYSTEM_UNCATEGORIZED', category_name: 'Uncategorized Litter' }
+    ];
+
+    // ── LOAD COLLECTION SECTION ──────────────
+    async function loadCollectionSection(eventData) {
+      activeEventData = eventData;
+
+      const skeleton    = document.getElementById('collection-skeleton');
+      const unavailable = document.getElementById('collection-unavailable');
+      const form        = document.getElementById('collection-form');
+      const submitted   = document.getElementById('collection-submitted');
+
+      skeleton.style.display = 'none';
+
+      // No active event
+      if (!eventData || !eventData.event_id) {
+        unavailable.style.display = 'flex';
+        document.getElementById('collection-unavailable-text').textContent =
+          'No active event right now.';
+        return;
+      }
+
+      // Timer not started
+      if (!eventData.collection_start_time) {
+        unavailable.style.display = 'flex';
+        document.getElementById('collection-unavailable-text').textContent =
+          'Collection logging will open once your coordinator starts the timer.';
+        return;
+      }
+
+      // Check for existing submission
+      try {
+        const colResult = await apiCall('getMyCollection', { event_id: eventData.event_id }, getToken());
+        if (colResult.success && colResult.data && colResult.data.collection_id) {
+          myCollection = colResult.data;
+          renderSubmittedView();
+          submitted.style.display = 'flex';
+          return;
+        }
+      } catch(err) {}
+
+      // Load assignment
+      try {
+        const asnResult = await apiCall('getMyAssignment', {}, getToken());
+        if (asnResult.success) {
+          myAssignment = asnResult.data.assigned_segments || [];
+        }
+      } catch(err) {
+        myAssignment = [];
+      }
+
+      renderSegmentDisplay();
+      form.style.display = 'flex';
+    }
+
+    // ── SEGMENT DISPLAY ──────────────────────
+    function renderSegmentDisplay() {
+      const el = document.getElementById('segment-display');
+
+      if (myAssignment && myAssignment.length > 0) {
+        el.innerHTML = myAssignment.map(function(seg) {
+          return '<div class="segment-item" style="margin-top:6px;">' +
+            '<div>' +
+              '<div class="segment-item-name">' + escHtml(seg.street_name) + '</div>' +
+              '<div class="segment-item-meta">' +
+                escHtml(seg.from_cross_street || '') +
+                (seg.to_cross_street ? ' → ' + escHtml(seg.to_cross_street) : '') +
+                ' · ' + (seg.length_mi || '?') + ' mi' +
+              '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      } else {
+        // Self-select fallback
+        const segments = (activeEventData && activeEventData.segments) || [];
+        if (!segments.length) {
+          el.innerHTML = '<div style="font-size:0.82rem;color:var(--text-muted);">No segments found for this event.</div>';
+          return;
+        }
+        el.innerHTML = '<div style="font-size:0.78rem;color:var(--text-muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.08em;">Select your segment(s)</div>' +
+          segments.map(function(seg) {
+            return '<label style="display:flex;gap:10px;align-items:center;padding:8px 0;cursor:pointer;">' +
+              '<input type="checkbox" class="seg-checkbox" value="' + escHtml(seg.segment_id) + '" style="accent-color:var(--accent);width:18px;height:18px;flex-shrink:0;" />' +
+              '<span>' +
+                '<span style="font-weight:600;font-size:0.88rem;">' + escHtml(seg.street_name) + '</span>' +
+                '<span style="font-size:0.75rem;color:var(--text-muted);display:block;">' +
+                  escHtml(seg.from_cross_street || '') +
+                  (seg.to_cross_street ? ' → ' + escHtml(seg.to_cross_street) : '') +
+                  ' · ' + (seg.length_mi || '?') + ' mi' +
+                '</span>' +
+              '</span>' +
+            '</label>';
+          }).join('');
+      }
+    }
+
+    // ── SUBMIT COLLECTION ────────────────────
+    async function handleSubmitCollection() {
+      const errorEl = document.getElementById('col-error');
+      errorEl.classList.remove('visible');
+
+      const weight = parseFloat(document.getElementById('col-weight').value);
+      if (!weight || weight <= 0) {
+        errorEl.textContent = 'Total weight is required and must be greater than zero.';
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      // Get segment IDs
+      var segmentIds = [];
+      if (myAssignment && myAssignment.length > 0) {
+        segmentIds = myAssignment.map(function(s) { return s.segment_id; });
+      } else {
+        document.querySelectorAll('.seg-checkbox:checked').forEach(function(cb) {
+          segmentIds.push(cb.value);
+        });
+      }
+
+      if (!segmentIds.length) {
+        errorEl.textContent = 'Please select at least one segment.';
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      const btn = document.getElementById('btn-submit-collection');
+      btn.classList.add('loading');
+
+      try {
+        const result = await apiCall('submitCollection', {
+          event_id:        activeEventData.event_id,
+          segment_ids:     segmentIds,
+          total_weight_lbs: weight,
+          items: [{
+            category_id: 'CAT_SYSTEM_UNCATEGORIZED',
+            quantity:    1,
+            weight_lbs:  weight
+          }]
+        }, getToken());
+
+        if (!result.success) {
+          errorEl.textContent = result.error || 'Submission failed. Please try again.';
+          errorEl.classList.add('visible');
+          return;
+        }
+
+        myCollection = result.data;
+        myCollection.segments = segmentIds.map(function(id) { return { segment_id: id }; });
+        myCollection.items = [{
+          category_id: 'CAT_SYSTEM_UNCATEGORIZED',
+          quantity: 1,
+          weight_lbs: weight
+        }];
+
+        document.getElementById('collection-form').style.display = 'none';
+        renderSubmittedView();
+        document.getElementById('collection-submitted').style.display = 'flex';
+
+      } catch(err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.classList.add('visible');
+      } finally {
+        btn.classList.remove('loading');
+      }
+    }
+
+    // ── SUBMITTED VIEW ───────────────────────
+    function renderSubmittedView() {
+      if (!myCollection) return;
+
+      // Segments
+      const segs = (myCollection.segments || []).map(function(s) {
+        if (myAssignment) {
+          const match = myAssignment.find(function(a) { return a.segment_id === s.segment_id; });
+          if (match) return match.street_name;
+        }
+        return s.segment_id;
+      }).join(', ');
+      document.getElementById('submitted-segments').textContent = segs || '—';
+      document.getElementById('submitted-weight').textContent = myCollection.total_weight_lbs + ' lbs';
+      document.getElementById('submitted-duration').textContent = myCollection.collection_duration_hours + ' hrs';
+
+      // Items
+      renderSubmittedItems();
+    }
+
+    function renderSubmittedItems() {
+      const el = document.getElementById('submitted-items');
+      const items = myCollection.items || [];
+      if (!items.length) {
+        el.innerHTML = '<div style="font-size:0.82rem;color:var(--text-muted);">No categories recorded.</div>';
+        return;
+      }
+      el.innerHTML = items.map(function(item) {
+        const name = getCategoryName(item.category_id);
+        return '<div class="cred-row">' +
+          '<span class="cred-label">' + escHtml(name) + '</span>' +
+          '<span class="cred-value" style="font-size:0.88rem;">' +
+            (item.weight_lbs ? item.weight_lbs + ' lbs' : item.quantity + ' units') +
+          '</span>' +
+        '</div>';
+      }).join('');
+    }
+
+    function getCategoryName(categoryId) {
+      const cat = availableCategories.find(function(c) { return c.category_id === categoryId; });
+      return cat ? cat.category_name : categoryId;
+    }
+
+    // ── ITEM EDITOR ──────────────────────────
+    function showItemEditor() {
+      document.getElementById('btn-edit-items').style.display = 'none';
+      document.getElementById('item-editor').style.display = 'block';
+      document.getElementById('item-rows').innerHTML = '';
+
+      const items = (myCollection && myCollection.items) || [{
+        category_id: 'CAT_SYSTEM_UNCATEGORIZED',
+        quantity: 1,
+        weight_lbs: myCollection ? myCollection.total_weight_lbs : ''
+      }];
+
+      items.forEach(function(item) { addItemRow(item); });
+    }
+
+    function hideItemEditor() {
+      document.getElementById('item-editor').style.display = 'none';
+      document.getElementById('btn-edit-items').style.display = 'block';
+      hideMsg('items-error');
+      hideMsg('items-success');
+    }
+
+    function addItemRow(item) {
+      item = item || {};
+      const container = document.getElementById('item-rows');
+      const div = document.createElement('div');
+      div.className = 'item-editor-row';
+
+      const categoryOptions = availableCategories.map(function(c) {
+        const selected = (item.category_id === c.category_id) ? 'selected' : '';
+        return '<option value="' + escHtml(c.category_id) + '" ' + selected + '>' + escHtml(c.category_name) + '</option>';
+      }).join('');
+
+      div.innerHTML =
+        '<select>' + categoryOptions + '</select>' +
+        '<input type="number" placeholder="Qty" min="0" step="0.1" value="' + (item.quantity || '') + '" />' +
+        '<input type="number" placeholder="Lbs" min="0" step="0.1" value="' + (item.weight_lbs || '') + '" />' +
+        '<button class="item-remove-btn" onclick="this.parentElement.remove()">✕</button>';
+
+      container.appendChild(div);
+    }
+
+    async function handleSaveItems() {
+      hideMsg('items-error');
+      hideMsg('items-success');
+
+      const rows = document.querySelectorAll('.item-editor-row');
+      const items = [];
+
+      rows.forEach(function(row) {
+        const inputs = row.querySelectorAll('input, select');
+        const categoryId = inputs[0].value;
+        const quantity   = parseFloat(inputs[1].value) || 0;
+        const weightLbs  = parseFloat(inputs[2].value) || '';
+        if (categoryId) {
+          items.push({ category_id: categoryId, quantity: quantity, weight_lbs: weightLbs });
+        }
+      });
+
+      if (!items.length) {
+        document.getElementById('items-error').textContent = 'At least one category is required.';
+        document.getElementById('items-error').classList.add('visible');
+        return;
+      }
+
+      const btn = document.getElementById('btn-save-items');
+      btn.classList.add('loading');
+
+      try {
+        const result = await apiCall('updateCollectionItems', {
+          collection_id: myCollection.collection_id,
+          items: items
+        }, getToken());
+
+        if (!result.success) {
+          document.getElementById('items-error').textContent = result.error || 'Could not save. Please try again.';
+          document.getElementById('items-error').classList.add('visible');
+          return;
+        }
+
+        myCollection.items = items;
+        renderSubmittedItems();
+        document.getElementById('items-success').textContent = 'Categories saved.';
+        document.getElementById('items-success').classList.add('visible');
+        setTimeout(hideItemEditor, 1500);
+
+      } catch(err) {
+        document.getElementById('items-error').textContent = 'Connection error. Please try again.';
+        document.getElementById('items-error').classList.add('visible');
+      } finally {
+        btn.classList.remove('loading');
+      }
+    }
   </script>
 
 </body>
