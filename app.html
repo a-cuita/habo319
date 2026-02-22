@@ -168,6 +168,26 @@
       align-self: flex-start;
     }
 
+    /* ── DIRECTIONS LINK ──────────────────── */
+    .directions-link {
+      display: inline-block;
+      margin-top: 8px;
+      background: var(--accent);
+      color: var(--bg);
+      font-family: var(--font-head);
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-decoration: none;
+      padding: 10px 16px;
+      border-radius: 8px;
+      align-self: flex-start;
+      transition: background 0.15s;
+    }
+
+    .directions-link:hover { background: var(--accent-dk); }
+
     /* ── NO EVENT STATE ────────────────────── */
     .no-event {
       background: var(--surface);
@@ -347,6 +367,7 @@
         <div class="event-meta-row">📅 <strong id="event-date"></strong></div>
         <div class="event-meta-row">📍 <strong id="event-location"></strong></div>
         <div class="event-meta-row">🌊 <strong id="event-watershed"></strong></div>
+        <a id="event-directions" href="#" target="_blank" class="directions-link">📍 Get Directions</a>
       </div>
     </div>
 
@@ -462,6 +483,8 @@
         document.getElementById('event-date').textContent = formatDate(ev.event_date);
         document.getElementById('event-location').textContent = ev.location_name;
         document.getElementById('event-watershed').textContent = ev.watershed;
+        const directionsUrl = 'https://www.google.com/maps?q=' + ev.latitude + ',' + ev.longitude;
+        document.getElementById('event-directions').href = directionsUrl;
         eventCard.style.display = 'flex';
 
       } catch (err) {
