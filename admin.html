@@ -21,6 +21,7 @@
       --text-muted:#8a9e8f;
       --error:     #ff5c5c;
       --warning:   #f0a500;
+      --assigned:  #f0a500;
       --radius:    12px;
       --font-head: 'Barlow Condensed', sans-serif;
       --font-body: 'DM Sans', sans-serif;
@@ -28,13 +29,8 @@
       --nav-h:     52px;
     }
 
-    /* ── RESET ─────────────────────────────── */
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-    html, body {
-      height: 100%;
-      overflow: hidden;
-    }
+    html, body { height: 100%; overflow: hidden; }
 
     body {
       background: var(--bg);
@@ -108,9 +104,7 @@
       height: 100%;
     }
 
-    #page-dashboard.active {
-      display: flex;
-    }
+    #page-dashboard.active { display: flex; }
 
     /* ── HEADER ────────────────────────────── */
     .dash-header {
@@ -176,19 +170,10 @@
     }
 
     .nav-tab:hover { color: var(--text); }
-
-    .nav-tab.active {
-      color: var(--accent);
-      border-bottom-color: var(--accent);
-    }
+    .nav-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 
     /* ── VIEWS ─────────────────────────────── */
-    .view {
-      display: none;
-      flex: 1;
-      overflow: hidden;
-    }
-
+    .view { display: none; flex: 1; overflow: hidden; }
     .view.active { display: flex; }
 
     /* ── EVENTS VIEW ───────────────────────── */
@@ -257,10 +242,7 @@
       text-overflow: ellipsis;
     }
 
-    .event-item-meta {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
+    .event-item-meta { font-size: 0.78rem; color: var(--text-muted); }
 
     .event-item-right {
       display: flex;
@@ -311,11 +293,7 @@
       padding-top: 12px;
     }
 
-    .segment-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
+    .segment-list { display: flex; flex-direction: column; gap: 8px; }
 
     .segment-item {
       background: var(--bg);
@@ -328,16 +306,8 @@
       gap: 12px;
     }
 
-    .segment-item-name {
-      font-size: 0.88rem;
-      color: var(--text);
-      font-weight: 600;
-    }
-
-    .segment-item-meta {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-    }
+    .segment-item-name { font-size: 0.88rem; color: var(--text); font-weight: 600; }
+    .segment-item-meta { font-size: 0.75rem; color: var(--text-muted); }
 
     .btn-icon {
       background: none;
@@ -354,17 +324,9 @@
 
     .btn-icon:hover { background: rgba(255,92,92,0.1); }
 
-    .no-segments {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
+    .no-segments { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
 
-    .status-controls {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
+    .status-controls { display: flex; gap: 8px; flex-wrap: wrap; }
 
     .status-btn {
       background: var(--bg);
@@ -383,6 +345,25 @@
 
     .status-btn:hover { border-color: var(--accent); color: var(--accent); }
     .status-btn.current { border-color: var(--accent); color: var(--accent); }
+
+    /* ── VIEW ON MAP BUTTON ────────────────── */
+    .view-on-map-btn {
+      background: none;
+      border: 1.5px solid var(--accent);
+      border-radius: 6px;
+      color: var(--accent);
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 0.85rem;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      padding: 8px 16px;
+      text-transform: uppercase;
+      transition: background 0.15s;
+      align-self: flex-start;
+    }
+
+    .view-on-map-btn:hover { background: rgba(181,240,51,0.08); }
 
     /* ── CREATE EVENT FORM ─────────────────── */
     .create-toggle {
@@ -404,15 +385,8 @@
     .create-toggle:hover { border-color: var(--accent); color: var(--accent); }
 
     /* ── MAP VIEW ──────────────────────────── */
-    #view-map {
-      position: relative;
-      flex-direction: column;
-    }
-
-    #map {
-      flex: 1;
-      width: 100%;
-    }
+    #view-map { position: relative; flex-direction: column; }
+    #map { flex: 1; width: 100%; }
 
     /* ── MAP TOOLBAR ───────────────────────── */
     .map-toolbar {
@@ -440,10 +414,7 @@
       min-width: 0;
     }
 
-    .map-event-select:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    .map-event-select:focus { outline: none; border-color: var(--accent); }
 
     .map-btn {
       background: var(--surface);
@@ -462,14 +433,31 @@
     }
 
     .map-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .map-btn.active-mode { background: var(--accent); border-color: var(--accent); color: var(--bg); }
+    .map-btn:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 
-    .map-btn.drawing {
-      background: var(--accent);
-      border-color: var(--accent);
-      color: var(--bg);
+    /* ── MAP MODE BAR ──────────────────────── */
+    .map-mode-bar {
+      position: absolute;
+      top: 56px;
+      left: 12px;
+      z-index: 1000;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 5px 12px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      display: none;
     }
 
-    /* ── SEGMENT INFO PANEL ────────────────── */
+    .map-mode-bar.visible { display: block; }
+    .map-mode-bar.draw    { border-color: var(--accent); color: var(--accent); }
+    .map-mode-bar.assign  { border-color: var(--assigned); color: var(--assigned); }
+
+    /* ── SEGMENT PANEL ─────────────────────── */
     .seg-panel {
       position: absolute;
       bottom: 12px;
@@ -495,11 +483,7 @@
       color: var(--text);
     }
 
-    .seg-field-row {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
+    .seg-field-row { display: flex; flex-direction: column; gap: 4px; }
 
     .seg-field-label {
       font-size: 0.72rem;
@@ -507,11 +491,6 @@
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--text-muted);
-    }
-
-    .seg-field-value {
-      font-size: 0.92rem;
-      color: var(--text);
     }
 
     .seg-field-input {
@@ -526,23 +505,13 @@
       transition: border-color 0.15s;
     }
 
-    .seg-field-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
+    .seg-field-input:focus { outline: none; border-color: var(--accent); }
 
-    .seg-panel-hint {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-      font-style: italic;
-    }
+    .seg-field-value { font-size: 0.92rem; color: var(--text); }
+    .seg-panel-hint  { font-size: 0.78rem; color: var(--text-muted); font-style: italic; }
+    .seg-panel-actions { display: flex; gap: 8px; }
 
-    .seg-panel-actions {
-      display: flex;
-      gap: 8px;
-    }
-
-    /* ── MAP LOADING OVERLAY ───────────────── */
+    /* ── MAP LOADING ───────────────────────── */
     .map-loading {
       position: absolute;
       top: 60px;
@@ -561,11 +530,7 @@
     .map-loading.visible { display: block; }
 
     /* ── FORMS ─────────────────────────────── */
-    .field-wrap {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
+    .field-wrap { display: flex; flex-direction: column; gap: 6px; }
 
     .field-label {
       font-size: 0.75rem;
@@ -588,21 +553,9 @@
       -webkit-appearance: none;
     }
 
-    .field-input:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    .field-input::placeholder {
-      color: var(--text-muted);
-      opacity: 0.5;
-    }
-
-    .field-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+    .field-input:focus { outline: none; border-color: var(--accent); }
+    .field-input::placeholder { color: var(--text-muted); opacity: 0.5; }
+    .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 
     /* ── BUTTONS ───────────────────────────── */
     .btn {
@@ -620,42 +573,13 @@
     }
 
     .btn:active { transform: scale(0.98); }
-
-    .btn-primary {
-      background: var(--accent);
-      color: var(--bg);
-    }
+    .btn-primary { background: var(--accent); color: var(--bg); }
     .btn-primary:hover { background: var(--accent-dk); }
-
-    .btn-secondary {
-      background: var(--surface);
-      border: 1.5px solid var(--accent);
-      color: var(--accent);
-    }
-    .btn-secondary:hover { background: rgba(181,240,51,0.08); }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1.5px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
+    .btn-ghost { background: transparent; border: 1.5px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-    .btn-danger {
-      background: transparent;
-      border: 1.5px solid var(--error);
-      color: var(--error);
-    }
-    .btn-danger:hover { background: rgba(255,92,92,0.1); }
-
     .btn.loading { opacity: 0.6; pointer-events: none; }
     .btn.loading::after { content: ' ...'; }
-
-    .btn-sm {
-      font-size: 0.85rem;
-      padding: 9px 14px;
-    }
+    .btn-sm { font-size: 0.85rem; padding: 9px 14px; }
 
     /* ── MESSAGES ──────────────────────────── */
     .error-msg {
@@ -697,15 +621,11 @@
     }
     .logout-btn:hover { border-color: var(--error); color: var(--error); }
 
-    /* ── ANIMATIONS ────────────────────────── */
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
-
     .fade-in { animation: fadeIn 0.2s ease; }
-
-    /* ── LEAFLET OVERRIDES ─────────────────── */
     .leaflet-container { background: #1a1f1c; }
   </style>
 </head>
@@ -720,10 +640,8 @@
       <div class="login-title">HABO Admin</div>
       <div class="login-subtitle">Help A Brother Out Foundation</div>
     </header>
-
     <div class="login-wrap">
       <div class="section-label">Admin<br /><span>Login</span></div>
-
       <div class="card">
         <div class="field-wrap">
           <label class="field-label">Username</label>
@@ -765,18 +683,14 @@
 
       <div class="view-heading">Events</div>
 
-      <!-- Create event toggle -->
       <button class="create-toggle" id="create-toggle" onclick="toggleCreateForm()">+ New Event</button>
 
-      <!-- Create event form -->
       <div class="card fade-in" id="create-form" style="display:none;">
         <div class="view-heading" style="font-size:1.1rem;">New Event</div>
-
         <div class="field-wrap">
           <label class="field-label">Event Name</label>
           <input class="field-input" type="text" id="new-name" placeholder="e.g. Jackson Lake Cleanup — March 2026" />
         </div>
-
         <div class="field-row">
           <div class="field-wrap">
             <label class="field-label">Date</label>
@@ -787,12 +701,10 @@
             <input class="field-input" type="text" id="new-watershed" placeholder="e.g. Jackson Lake" />
           </div>
         </div>
-
         <div class="field-wrap">
           <label class="field-label">Location Name</label>
           <input class="field-input" type="text" id="new-location" placeholder="e.g. Jackson Lake Boat Ramp" />
         </div>
-
         <div class="field-row">
           <div class="field-wrap">
             <label class="field-label">Latitude</label>
@@ -803,26 +715,21 @@
             <input class="field-input" type="text" id="new-lon" placeholder="e.g. -86.3077" />
           </div>
         </div>
-
         <div class="field-wrap">
           <label class="field-label">Notes (optional)</label>
           <input class="field-input" type="text" id="new-notes" placeholder="Internal notes" />
         </div>
-
         <div class="error-msg" id="create-error"></div>
         <div class="success-msg" id="create-success"></div>
-
         <div style="display:flex; gap:10px;">
           <button class="btn btn-primary btn-sm" id="btn-create" onclick="handleCreateEvent()" style="flex:1;">Save Event</button>
-          <button class="btn btn-ghost btn-sm" onclick="toggleCreateForm()" style="flex:0 0 auto; width:auto; padding: 9px 20px;">Cancel</button>
+          <button class="btn btn-ghost btn-sm" onclick="toggleCreateForm()" style="flex:0 0 auto; width:auto; padding:9px 20px;">Cancel</button>
         </div>
       </div>
 
-      <!-- Events list -->
       <div id="events-list">
         <div style="color:var(--text-muted); font-size:0.85rem;">Loading events...</div>
       </div>
-
       <div class="error-msg" id="events-error"></div>
 
     </div>
@@ -830,29 +737,25 @@
     <!-- ── MAP VIEW ─────────────────────── -->
     <div class="view" id="view-map">
 
-      <!-- Map toolbar -->
       <div class="map-toolbar">
-        <select class="map-event-select" id="map-event-select">
-          <option value="">— Select event to assign segments —</option>
+        <select class="map-event-select" id="map-event-select" onchange="onEventSelectChange()">
+          <option value="">— Select event —</option>
         </select>
         <button class="map-btn" id="btn-draw" onclick="toggleDrawMode()">+ Segment</button>
+        <button class="map-btn" id="btn-assign" onclick="toggleAssignMode()" disabled>Assign</button>
       </div>
 
-      <!-- Loading indicator -->
+      <div class="map-mode-bar" id="map-mode-bar"></div>
       <div class="map-loading" id="map-loading">Snapping to road...</div>
 
-      <!-- Leaflet map -->
       <div id="map"></div>
 
-      <!-- Segment info panel -->
       <div class="seg-panel" id="seg-panel">
-        <div class="seg-panel-title" id="seg-panel-title">New Segment</div>
-
+        <div class="seg-panel-title">New Segment</div>
         <div class="seg-field-row">
           <div class="seg-field-label">Street</div>
           <input class="seg-field-input" type="text" id="seg-street" placeholder="Street name" />
         </div>
-
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div class="seg-field-row">
             <div class="seg-field-label">From</div>
@@ -863,7 +766,6 @@
             <input class="seg-field-input" type="text" id="seg-to" placeholder="Cross street" />
           </div>
         </div>
-
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
           <div class="seg-field-row">
             <div class="seg-field-label">Length</div>
@@ -874,10 +776,8 @@
             <input class="seg-field-input" type="text" id="seg-watershed" placeholder="Watershed" />
           </div>
         </div>
-
         <div class="seg-panel-hint" id="seg-hint"></div>
         <div class="error-msg" id="seg-error"></div>
-
         <div class="seg-panel-actions">
           <button class="btn btn-primary btn-sm" id="btn-save-seg" onclick="handleSaveSegment()" style="flex:1;">Save Segment</button>
           <button class="btn btn-ghost btn-sm" onclick="cancelSegment()" style="flex:0 0 auto; width:auto; padding:9px 18px;">Cancel</button>
@@ -891,17 +791,16 @@
 
   <script>
     // ── CONFIG ──────────────────────────────
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
+    const API_URL      = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
     const OVERPASS_URL = 'https://overpass-api.de/api/interpreter';
-    const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse';
-
-    // Map centered on Montgomery, AL
-    const MAP_CENTER = [32.3792, -86.3077];
-    const MAP_ZOOM = 14;
+    const NOMINATIM_URL= 'https://nominatim.openstreetmap.org/reverse';
+    const MAP_CENTER   = [32.3792, -86.3077];
+    const MAP_ZOOM     = 14;
+    const COLOR_UNASSIGNED = '#b5f033';
+    const COLOR_ASSIGNED   = '#f0a500';
 
     // ── SESSION ─────────────────────────────
     function getToken()     { return sessionStorage.getItem('habo_admin_token'); }
-    function getAdminId()   { return sessionStorage.getItem('habo_admin_id'); }
     function getAdminName() { return sessionStorage.getItem('habo_admin_name'); }
     function getAdminRole() { return sessionStorage.getItem('habo_admin_role'); }
 
@@ -913,10 +812,8 @@
     }
 
     function clearSession() {
-      sessionStorage.removeItem('habo_admin_token');
-      sessionStorage.removeItem('habo_admin_id');
-      sessionStorage.removeItem('habo_admin_name');
-      sessionStorage.removeItem('habo_admin_role');
+      ['habo_admin_token','habo_admin_id','habo_admin_name','habo_admin_role']
+        .forEach(function(k) { sessionStorage.removeItem(k); });
     }
 
     // ── API HELPER ───────────────────────────
@@ -932,30 +829,17 @@
     }
 
     // ── MESSAGES ─────────────────────────────
-    function showError(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = msg;
-      el.classList.add('visible');
-    }
-
-    function hideMsg(id) {
-      const el = document.getElementById(id);
-      el.classList.remove('visible');
-      el.textContent = '';
-    }
-
+    function showError(id, msg)   { const el = document.getElementById(id); el.textContent = msg; el.classList.add('visible'); }
+    function hideMsg(id)          { const el = document.getElementById(id); el.classList.remove('visible'); el.textContent = ''; }
     function showSuccess(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = msg;
-      el.classList.add('visible');
+      const el = document.getElementById(id); el.textContent = msg; el.classList.add('visible');
       setTimeout(function() { el.classList.remove('visible'); el.textContent = ''; }, 3000);
     }
 
     // ── PAGE NAVIGATION ──────────────────────
     function showDashboard() {
       document.getElementById('page-login').style.display = 'none';
-      const dash = document.getElementById('page-dashboard');
-      dash.classList.add('active');
+      document.getElementById('page-dashboard').classList.add('active');
       document.getElementById('admin-display-name').textContent = getAdminName() || '—';
       document.getElementById('admin-display-role').textContent = getAdminRole() || '';
     }
@@ -971,10 +855,28 @@
       document.querySelectorAll('.nav-tab').forEach(function(t) { t.classList.remove('active'); });
       document.getElementById('view-' + name).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
+      if (name === 'map') initMap();
+    }
 
-      if (name === 'map') {
-        initMap();
-      }
+    // Called from Events page "View on Map" button
+    function viewEventOnMap(eventId) {
+      switchView('map');
+      const sel = document.getElementById('map-event-select');
+      sel.value = eventId;
+      onEventSelectChange();
+      setTimeout(function() { flyToEventSegments(eventId); }, 400);
+    }
+
+    function flyToEventSegments(eventId) {
+      const assigned = assignedSegmentIds[eventId] || [];
+      if (!assigned.length) return;
+      const bounds = [];
+      segmentLayers.forEach(function(entry) {
+        if (assigned.indexOf(entry.segmentId) !== -1) {
+          entry.layer.getLatLngs().forEach(function(p) { bounds.push(p); });
+        }
+      });
+      if (bounds.length) map.fitBounds(L.latLngBounds(bounds), { padding: [40, 40] });
     }
 
     // ── LOGIN ─────────────────────────────────
@@ -982,25 +884,15 @@
       hideMsg('login-error');
       const username = document.getElementById('login-username').value.trim();
       const password = document.getElementById('login-password').value;
-
       if (!username) return showError('login-error', 'Please enter your username.');
       if (!password) return showError('login-error', 'Please enter your password.');
 
       const btn = document.getElementById('btn-login');
       btn.classList.add('loading');
-
       try {
         const result = await apiCall('adminLogin', { username, password });
-        if (!result.success) {
-          showError('login-error', result.error || 'Login failed. Please try again.');
-          return;
-        }
-        saveSession(
-          result.data.session_token,
-          result.data.admin_id,
-          result.data.preferred_name,
-          result.data.role
-        );
+        if (!result.success) { showError('login-error', result.error || 'Login failed.'); return; }
+        saveSession(result.data.session_token, result.data.admin_id, result.data.preferred_name, result.data.role);
         showDashboard();
         loadEvents();
         populateMapEventSelect();
@@ -1013,9 +905,7 @@
 
     // ── LOGOUT ───────────────────────────────
     async function handleLogout() {
-      try {
-        await apiCall('adminLogout', {}, getToken());
-      } catch (err) { /* best effort */ }
+      try { await apiCall('adminLogout', {}, getToken()); } catch (err) {}
       clearSession();
       showLogin();
     }
@@ -1023,18 +913,14 @@
     // ── EVENTS ───────────────────────────────
     var allEvents = [];
     var allSegments = [];
+    var assignedSegmentIds = {}; // { eventId: [segment_id, ...] }
 
     async function loadEvents() {
       hideMsg('events-error');
       document.getElementById('events-list').innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading...</div>';
-
       try {
         const result = await apiCall('getEvents', {}, getToken());
-        if (!result.success) {
-          showError('events-error', result.error || 'Could not load events.');
-          document.getElementById('events-list').innerHTML = '';
-          return;
-        }
+        if (!result.success) { showError('events-error', result.error || 'Could not load events.'); document.getElementById('events-list').innerHTML = ''; return; }
         allEvents = result.data.events || [];
         renderEventsList();
       } catch (err) {
@@ -1043,36 +929,21 @@
       }
     }
 
-    async function loadSegments() {
-      try {
-        const result = await apiCall('getSegments', {}, getToken());
-        if (result.success) {
-          allSegments = result.data.segments || [];
-        }
-      } catch (err) { /* silent */ }
-    }
-
     function renderEventsList() {
       const list = document.getElementById('events-list');
       if (!allEvents.length) {
-        list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No events yet. Create one above.</div>';
+        list.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No events yet.</div>';
         return;
       }
-
-      // Sort: active first, then upcoming, then by date desc
       const order = { active: 0, upcoming: 1, completed: 2, cancelled: 3 };
       const sorted = allEvents.slice().sort(function(a, b) {
         if (order[a.status] !== order[b.status]) return order[a.status] - order[b.status];
         return a.event_date > b.event_date ? -1 : 1;
       });
-
-      list.innerHTML = sorted.map(function(ev) {
-        return renderEventItem(ev);
-      }).join('');
+      list.innerHTML = sorted.map(renderEventItem).join('');
     }
 
     function renderEventItem(ev) {
-      const badgeClass = 'status-' + ev.status;
       const dateStr = ev.event_date ? ev.event_date.toString().split('T')[0] : '—';
       return [
         '<div class="event-item" id="evitem-' + ev.event_id + '">',
@@ -1082,7 +953,7 @@
               '<div class="event-item-meta">' + dateStr + ' &middot; ' + escHtml(ev.location_name || '') + '</div>',
             '</div>',
             '<div class="event-item-right">',
-              '<span class="status-badge ' + badgeClass + '">' + ev.status + '</span>',
+              '<span class="status-badge status-' + ev.status + '">' + ev.status + '</span>',
               '<span class="expand-arrow">▼</span>',
             '</div>',
           '</div>',
@@ -1096,14 +967,15 @@
     function renderEventBody(ev) {
       const statuses = ['upcoming', 'active', 'completed', 'cancelled'];
       const statusBtns = statuses.map(function(s) {
-        const cls = s === ev.status ? 'status-btn current' : 'status-btn';
-        return '<button class="' + cls + '" onclick="handleStatusChange(\'' + ev.event_id + '\',\'' + s + '\')">' + s + '</button>';
+        return '<button class="status-btn' + (s === ev.status ? ' current' : '') +
+               '" onclick="handleStatusChange(\'' + ev.event_id + '\',\'' + s + '\')">' + s + '</button>';
       }).join('');
 
       return [
         '<div class="event-body-label">Status</div>',
         '<div class="status-controls">' + statusBtns + '</div>',
-        '<div class="event-body-label">Assigned Segments</div>',
+        '<div class="event-body-label">Segments</div>',
+        '<button class="view-on-map-btn" onclick="viewEventOnMap(\'' + ev.event_id + '\')">View on Map →</button>',
         '<div class="segment-list" id="seglist-' + ev.event_id + '">',
           '<div class="no-segments">Loading...</div>',
         '</div>',
@@ -1113,53 +985,38 @@
     function toggleEventItem(eventId) {
       const item = document.getElementById('evitem-' + eventId);
       const wasOpen = item.classList.contains('open');
-      // Close all
-      document.querySelectorAll('.event-item.open').forEach(function(el) {
-        el.classList.remove('open');
-      });
-      if (!wasOpen) {
-        item.classList.add('open');
-        loadEventSegments(eventId);
-      }
+      document.querySelectorAll('.event-item.open').forEach(function(el) { el.classList.remove('open'); });
+      if (!wasOpen) { item.classList.add('open'); loadEventSegmentList(eventId); }
     }
 
-    async function loadEventSegments(eventId) {
+    async function loadEventSegmentList(eventId) {
       const listEl = document.getElementById('seglist-' + eventId);
       if (!listEl) return;
-
-      await loadSegments();
-
-      // Filter segments assigned to this event
-      // We need Event_Segments data — for now, getSegments returns Street_Segments
-      // We'll query all segments and cross-reference via a getEventSegments call
-      // For v1, reload all events to get fresh data (simple approach)
       try {
-        const result = await apiCall('getEvents', {}, getToken());
+        const result = await apiCall('getEventSegments', { event_id: eventId }, getToken());
         if (!result.success) { listEl.innerHTML = '<div class="no-segments">Could not load.</div>'; return; }
+        const segs = result.data.segments || [];
+        assignedSegmentIds[eventId] = segs.map(function(s) { return s.segment_id; });
 
-        // The events endpoint doesn't return segment assignments directly.
-        // We need a getEventSegments endpoint — for now show all available segments
-        // with assign buttons. This is a known v1 limitation.
-        if (!allSegments.length) {
-          listEl.innerHTML = '<div class="no-segments">No segments defined yet. Use the Map tab to create segments.</div>';
+        if (!segs.length) {
+          listEl.innerHTML = '<div class="no-segments">No segments assigned. Use the Map tab to assign segments to this event.</div>';
           return;
         }
-
-        listEl.innerHTML = allSegments.map(function(seg) {
+        listEl.innerHTML = segs.map(function(seg) {
           return [
             '<div class="segment-item">',
               '<div>',
                 '<div class="segment-item-name">' + escHtml(seg.street_name) + '</div>',
                 '<div class="segment-item-meta">',
-                  escHtml(seg.from_cross_street || '') + (seg.to_cross_street ? ' → ' + escHtml(seg.to_cross_street) : '') +
+                  escHtml(seg.from_cross_street || '') +
+                  (seg.to_cross_street ? ' → ' + escHtml(seg.to_cross_street) : '') +
                   ' &middot; ' + (seg.length_mi || '?') + ' mi',
                 '</div>',
               '</div>',
-              '<button class="btn-icon" onclick="handleAssignSegment(\'' + eventId + '\',\'' + seg.segment_id + '\')">+ Assign</button>',
+              '<button class="btn-icon" onclick="handleRemoveSegment(\'' + seg.event_segment_id + '\',\'' + eventId + '\')">Remove</button>',
             '</div>'
           ].join('');
         }).join('');
-
       } catch (err) {
         listEl.innerHTML = '<div class="no-segments">Connection error.</div>';
       }
@@ -1170,38 +1027,35 @@
         const result = await apiCall('updateEventStatus', { event_id: eventId, status: newStatus }, getToken());
         if (!result.success) { alert(result.error); return; }
         await loadEvents();
-        // Re-open the item
         const item = document.getElementById('evitem-' + eventId);
-        if (item) {
-          item.classList.add('open');
-          loadEventSegments(eventId);
+        if (item) { item.classList.add('open'); loadEventSegmentList(eventId); }
+        populateMapEventSelect();
+      } catch (err) { alert('Connection error.'); }
+    }
+
+    async function handleRemoveSegment(eventSegmentId, eventId) {
+      try {
+        const result = await apiCall('removeSegment', { event_segment_id: eventSegmentId }, getToken());
+        if (!result.success) { alert(result.error); return; }
+        loadEventSegmentList(eventId);
+        if (mapInitialized) {
+          delete assignedSegmentIds[eventId];
+          refreshSegmentColors();
         }
       } catch (err) { alert('Connection error.'); }
     }
 
-    async function handleAssignSegment(eventId, segmentId) {
-      try {
-        const result = await apiCall('assignSegment', { event_id: eventId, segment_id: segmentId }, getToken());
-        if (!result.success) { alert(result.error); return; }
-        // Refresh segment list
-        loadEventSegments(eventId);
-      } catch (err) { alert('Connection error.'); }
-    }
-
-    // ── CREATE EVENT FORM ────────────────────
+    // ── CREATE EVENT ─────────────────────────
     var createFormOpen = false;
 
     function toggleCreateForm() {
       createFormOpen = !createFormOpen;
-      const form = document.getElementById('create-form');
-      form.style.display = createFormOpen ? 'flex' : 'none';
+      document.getElementById('create-form').style.display = createFormOpen ? 'flex' : 'none';
       document.getElementById('create-toggle').textContent = createFormOpen ? '✕ Cancel' : '+ New Event';
     }
 
     async function handleCreateEvent() {
-      hideMsg('create-error');
-      hideMsg('create-success');
-
+      hideMsg('create-error'); hideMsg('create-success');
       const name      = document.getElementById('new-name').value.trim();
       const date      = document.getElementById('new-date').value.trim();
       const watershed = document.getElementById('new-watershed').value.trim();
@@ -1211,42 +1065,28 @@
       const notes     = document.getElementById('new-notes').value.trim();
 
       if (!name)      return showError('create-error', 'Event name is required.');
-      if (!date)      return showError('create-error', 'Date is required (YYYY-MM-DD).');
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return showError('create-error', 'Date must be YYYY-MM-DD.');
+      if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return showError('create-error', 'Date must be YYYY-MM-DD.');
       if (!watershed) return showError('create-error', 'Watershed is required.');
       if (!location)  return showError('create-error', 'Location name is required.');
       if (!lat || !lon) return showError('create-error', 'Latitude and longitude are required.');
 
       const btn = document.getElementById('btn-create');
       btn.classList.add('loading');
-
       try {
         const result = await apiCall('createEvent', {
-          event_name:    name,
-          event_date:    date,
-          location_name: location,
-          latitude:      parseFloat(lat),
-          longitude:     parseFloat(lon),
-          watershed:     watershed,
-          notes:         notes
+          event_name: name, event_date: date, location_name: location,
+          latitude: parseFloat(lat), longitude: parseFloat(lon),
+          watershed: watershed, notes: notes
         }, getToken());
-
-        if (!result.success) {
-          showError('create-error', result.error || 'Could not create event.');
-          return;
-        }
-
+        if (!result.success) { showError('create-error', result.error || 'Could not create event.'); return; }
         showSuccess('create-success', 'Event created.');
-        // Clear form
-        ['new-name','new-date','new-watershed','new-location','new-lat','new-lon','new-notes'].forEach(function(id) {
-          document.getElementById(id).value = '';
-        });
+        ['new-name','new-date','new-watershed','new-location','new-lat','new-lon','new-notes']
+          .forEach(function(id) { document.getElementById(id).value = ''; });
         toggleCreateForm();
         loadEvents();
         populateMapEventSelect();
-
       } catch (err) {
-        showError('create-error', 'Connection error. Please try again.');
+        showError('create-error', 'Connection error.');
       } finally {
         btn.classList.remove('loading');
       }
@@ -1255,28 +1095,27 @@
     // ── MAP ───────────────────────────────────
     var map = null;
     var mapInitialized = false;
-    var drawMode = false;
-    var drawStep = 0; // 0 = idle, 1 = waiting for start, 2 = waiting for end
+    var mapMode = 'none'; // 'none' | 'draw' | 'assign'
+
+    // Draw state
+    var drawStep = 0;
     var startMarker = null;
     var endMarker = null;
     var drawPolyline = null;
     var pendingSegment = null;
+
+    // Segment layers: [{ segmentId, layer }]
     var segmentLayers = [];
 
     function initMap() {
       if (mapInitialized) return;
       mapInitialized = true;
-
       map = L.map('map', { zoomControl: true }).setView(MAP_CENTER, MAP_ZOOM);
-
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         maxZoom: 19
       }).addTo(map);
-
       map.on('click', onMapClick);
-
-      // Load existing segments
       loadSegmentsOnMap();
     }
 
@@ -1286,120 +1125,173 @@
         if (!result.success) return;
         allSegments = result.data.segments || [];
         renderSegmentsOnMap();
-      } catch (err) { /* silent */ }
+      } catch (err) {}
     }
 
     function renderSegmentsOnMap() {
-      // Clear existing
-      segmentLayers.forEach(function(l) { map.removeLayer(l); });
+      segmentLayers.forEach(function(entry) { map.removeLayer(entry.layer); });
       segmentLayers = [];
 
       allSegments.forEach(function(seg) {
         if (!seg.start_lat || !seg.end_lat) return;
-        const line = L.polyline(
+        const layer = L.polyline(
           [[seg.start_lat, seg.start_lon], [seg.end_lat, seg.end_lon]],
-          { color: '#b5f033', weight: 4, opacity: 0.8 }
+          { color: COLOR_UNASSIGNED, weight: 4, opacity: 0.8 }
         ).addTo(map);
 
-        line.bindPopup([
-          '<strong>' + escHtml(seg.street_name) + '</strong><br/>',
-          seg.from_cross_street ? escHtml(seg.from_cross_street) + ' → ' + escHtml(seg.to_cross_street) + '<br/>' : '',
+        layer.bindPopup(
+          '<strong>' + escHtml(seg.street_name) + '</strong><br/>' +
+          (seg.from_cross_street ? escHtml(seg.from_cross_street) + ' → ' + escHtml(seg.to_cross_street) + '<br/>' : '') +
           (seg.length_mi || '?') + ' mi'
-        ].join(''));
+        );
 
-        segmentLayers.push(line);
+        layer.on('click', function(e) {
+          if (mapMode === 'assign') {
+            L.DomEvent.stopPropagation(e);
+            handleSegmentAssignClick(seg.segment_id);
+          }
+        });
+
+        segmentLayers.push({ segmentId: seg.segment_id, layer: layer });
+      });
+
+      refreshSegmentColors();
+    }
+
+    function refreshSegmentColors() {
+      const selectedEventId = document.getElementById('map-event-select').value;
+      const assigned = selectedEventId ? (assignedSegmentIds[selectedEventId] || []) : [];
+      segmentLayers.forEach(function(entry) {
+        const isAssigned = assigned.indexOf(entry.segmentId) !== -1;
+        entry.layer.setStyle({ color: isAssigned ? COLOR_ASSIGNED : COLOR_UNASSIGNED });
       });
     }
 
-    function toggleDrawMode() {
-      drawMode = !drawMode;
-      const btn = document.getElementById('btn-draw');
-      if (drawMode) {
-        btn.classList.add('drawing');
-        btn.textContent = 'Cancel';
-        drawStep = 1;
-        map.getContainer().style.cursor = 'crosshair';
-        showSegPanel('Click the start point of the segment.');
+    // ── MAP EVENT SELECT ─────────────────────
+    async function onEventSelectChange() {
+      const eventId = document.getElementById('map-event-select').value;
+      const assignBtn = document.getElementById('btn-assign');
+      if (eventId) {
+        assignBtn.disabled = false;
+        if (!assignedSegmentIds[eventId]) {
+          try {
+            const result = await apiCall('getEventSegments', { event_id: eventId }, getToken());
+            if (result.success) {
+              assignedSegmentIds[eventId] = (result.data.segments || []).map(function(s) { return s.segment_id; });
+            }
+          } catch (err) {}
+        }
       } else {
-        cancelSegment();
+        assignBtn.disabled = true;
+        if (mapMode === 'assign') exitAssignMode();
       }
+      refreshSegmentColors();
     }
 
-    function cancelSegment() {
-      drawMode = false;
-      drawStep = 0;
-      pendingSegment = null;
-      const btn = document.getElementById('btn-draw');
-      btn.classList.remove('drawing');
-      btn.textContent = '+ Segment';
+    // ── DRAW MODE ────────────────────────────
+    function toggleDrawMode() {
+      if (mapMode === 'draw') { cancelSegment(); }
+      else { if (mapMode === 'assign') exitAssignMode(); enterDrawMode(); }
+    }
+
+    function enterDrawMode() {
+      mapMode = 'draw'; drawStep = 1;
+      document.getElementById('btn-draw').classList.add('active-mode');
+      document.getElementById('btn-draw').textContent = 'Cancel';
+      map.getContainer().style.cursor = 'crosshair';
+      setModeBar('draw', 'Draw Mode — click the start point of the segment');
+      showSegPanel('Click the start point of the segment.');
+    }
+
+    function exitDrawMode() {
+      mapMode = 'none'; drawStep = 0;
+      document.getElementById('btn-draw').classList.remove('active-mode');
+      document.getElementById('btn-draw').textContent = '+ Segment';
       map.getContainer().style.cursor = '';
-
-      if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
-      if (endMarker)   { map.removeLayer(endMarker);   endMarker = null; }
-      if (drawPolyline){ map.removeLayer(drawPolyline); drawPolyline = null; }
-
-      document.getElementById('seg-panel').classList.remove('visible');
-      hideMsg('seg-error');
+      hideModeBar();
     }
 
+    // ── ASSIGN MODE ──────────────────────────
+    function toggleAssignMode() {
+      if (mapMode === 'assign') { exitAssignMode(); }
+      else { if (mapMode === 'draw') cancelSegment(); enterAssignMode(); }
+    }
+
+    function enterAssignMode() {
+      mapMode = 'assign';
+      document.getElementById('btn-assign').classList.add('active-mode');
+      document.getElementById('btn-assign').textContent = 'Done';
+      map.getContainer().style.cursor = 'pointer';
+      setModeBar('assign', 'Assign Mode — tap segments to assign / unassign');
+    }
+
+    function exitAssignMode() {
+      mapMode = 'none';
+      document.getElementById('btn-assign').classList.remove('active-mode');
+      document.getElementById('btn-assign').textContent = 'Assign';
+      map.getContainer().style.cursor = '';
+      hideModeBar();
+    }
+
+    async function handleSegmentAssignClick(segmentId) {
+      const eventId = document.getElementById('map-event-select').value;
+      if (!eventId) return;
+      const assigned = assignedSegmentIds[eventId] || [];
+      const isAssigned = assigned.indexOf(segmentId) !== -1;
+
+      if (isAssigned) {
+        try {
+          const result = await apiCall('getEventSegments', { event_id: eventId }, getToken());
+          if (!result.success) return;
+          const seg = result.data.segments.find(function(s) { return s.segment_id === segmentId; });
+          if (!seg) return;
+          await apiCall('removeSegment', { event_segment_id: seg.event_segment_id }, getToken());
+          assignedSegmentIds[eventId] = assigned.filter(function(id) { return id !== segmentId; });
+        } catch (err) {}
+      } else {
+        try {
+          const result = await apiCall('assignSegment', { event_id: eventId, segment_id: segmentId }, getToken());
+          if (!result.success) { alert(result.error); return; }
+          assignedSegmentIds[eventId] = assigned.concat([segmentId]);
+        } catch (err) {}
+      }
+      refreshSegmentColors();
+    }
+
+    // ── MAP CLICK ────────────────────────────
     async function onMapClick(e) {
-      if (!drawMode) return;
-
-      const lat = e.latlng.lat;
-      const lon = e.latlng.lng;
-
+      if (mapMode !== 'draw') return;
+      const lat = e.latlng.lat, lon = e.latlng.lng;
       setMapLoading(true);
-
       try {
         const snapped = await snapToNearestIntersection(lat, lon);
         const snapLat = snapped ? snapped.lat : lat;
         const snapLon = snapped ? snapped.lon : lon;
 
         if (drawStep === 1) {
-          // Place start marker
           if (startMarker) map.removeLayer(startMarker);
-          startMarker = L.marker([snapLat, snapLon], {
-            draggable: true,
-            icon: makeIcon('#b5f033', 'S')
-          }).addTo(map);
-
+          startMarker = L.marker([snapLat, snapLon], { draggable: true, icon: makeIcon('#b5f033', 'S') }).addTo(map);
           startMarker.on('dragend', updateDrawLine);
-
-          // Pre-fill street name from Nominatim
           const streetInfo = await reverseGeocode(snapLat, snapLon);
           if (streetInfo) {
             document.getElementById('seg-street').value = streetInfo.road || '';
-            document.getElementById('seg-watershed').value = document.getElementById('map-event-select').value
-              ? getWatershedForEvent(document.getElementById('map-event-select').value)
-              : '';
-            if (snapped && snapped.crossStreet) {
-              document.getElementById('seg-from').value = snapped.crossStreet;
-            }
+            const evWatershed = getWatershedForEvent(document.getElementById('map-event-select').value);
+            if (evWatershed) document.getElementById('seg-watershed').value = evWatershed;
+            if (snapped && snapped.crossStreet) document.getElementById('seg-from').value = snapped.crossStreet;
           }
-
           drawStep = 2;
-          updateSegHint('Start point placed. Now click the end point.');
+          updateSegHint('Start placed. Now click the end point.');
 
         } else if (drawStep === 2) {
-          // Place end marker
           if (endMarker) map.removeLayer(endMarker);
-          endMarker = L.marker([snapLat, snapLon], {
-            draggable: true,
-            icon: makeIcon('#ff5c5c', 'E')
-          }).addTo(map);
-
+          endMarker = L.marker([snapLat, snapLon], { draggable: true, icon: makeIcon('#ff5c5c', 'E') }).addTo(map);
           endMarker.on('dragend', updateDrawLine);
-
-          // Get cross street for end point
-          if (snapped && snapped.crossStreet) {
-            document.getElementById('seg-to').value = snapped.crossStreet;
-          }
-
+          if (snapped && snapped.crossStreet) document.getElementById('seg-to').value = snapped.crossStreet;
           updateDrawLine();
           drawStep = 0;
           updateSegHint('Adjust markers if needed, then save.');
+          setModeBar('draw', 'Draw Mode — adjust endpoints or save segment');
         }
-
       } catch (err) {
         updateSegHint('Could not snap to road. Marker placed at click point.');
       } finally {
@@ -1409,124 +1301,105 @@
 
     function updateDrawLine() {
       if (!startMarker || !endMarker) return;
-      const start = startMarker.getLatLng();
-      const end   = endMarker.getLatLng();
-
+      const start = startMarker.getLatLng(), end = endMarker.getLatLng();
       if (drawPolyline) map.removeLayer(drawPolyline);
-      drawPolyline = L.polyline(
-        [[start.lat, start.lng], [end.lat, end.lng]],
-        { color: '#b5f033', weight: 4, dashArray: '6 4', opacity: 0.9 }
-      ).addTo(map);
-
+      drawPolyline = L.polyline([[start.lat, start.lng],[end.lat, end.lng]], {
+        color: COLOR_UNASSIGNED, weight: 4, dashArray: '6 4', opacity: 0.9
+      }).addTo(map);
       const dist = haversine(start.lat, start.lng, end.lat, end.lng);
       document.getElementById('seg-length').textContent = dist + ' mi';
+      pendingSegment = { start_lat: start.lat, start_lon: start.lng, end_lat: end.lat, end_lon: end.lng, length_mi: parseFloat(dist) };
+    }
 
-      pendingSegment = {
-        start_lat: start.lat,
-        start_lon: start.lng,
-        end_lat:   end.lat,
-        end_lon:   end.lng,
-        length_mi: parseFloat(dist)
-      };
+    function cancelSegment() {
+      exitDrawMode();
+      pendingSegment = null;
+      if (startMarker) { map.removeLayer(startMarker); startMarker = null; }
+      if (endMarker)   { map.removeLayer(endMarker);   endMarker = null; }
+      if (drawPolyline){ map.removeLayer(drawPolyline); drawPolyline = null; }
+      document.getElementById('seg-panel').classList.remove('visible');
+      hideMsg('seg-error');
+      ['seg-street','seg-from','seg-to','seg-watershed'].forEach(function(id) { document.getElementById(id).value = ''; });
+      document.getElementById('seg-length').textContent = '—';
     }
 
     async function handleSaveSegment() {
       hideMsg('seg-error');
-
-      if (!pendingSegment) {
-        showError('seg-error', 'Place start and end points first.');
-        return;
-      }
-
+      if (!pendingSegment) { showError('seg-error', 'Place start and end points first.'); return; }
       const streetName = document.getElementById('seg-street').value.trim();
       const watershed  = document.getElementById('seg-watershed').value.trim();
-
       if (!streetName) return showError('seg-error', 'Street name is required.');
       if (!watershed)  return showError('seg-error', 'Watershed is required.');
 
       const btn = document.getElementById('btn-save-seg');
       btn.classList.add('loading');
-
       try {
         const result = await apiCall('createSegment', {
           street_name:       streetName,
           from_cross_street: document.getElementById('seg-from').value.trim(),
           to_cross_street:   document.getElementById('seg-to').value.trim(),
-          start_lat:         pendingSegment.start_lat,
-          start_lon:         pendingSegment.start_lon,
-          end_lat:           pendingSegment.end_lat,
-          end_lon:           pendingSegment.end_lon,
-          length_mi:         pendingSegment.length_mi,
-          is_custom_length:  false,
-          watershed:         watershed
+          start_lat:  pendingSegment.start_lat,
+          start_lon:  pendingSegment.start_lon,
+          end_lat:    pendingSegment.end_lat,
+          end_lon:    pendingSegment.end_lon,
+          length_mi:  pendingSegment.length_mi,
+          is_custom_length: false,
+          watershed:  watershed
         }, getToken());
 
-        if (!result.success) {
-          showError('seg-error', result.error || 'Could not save segment.');
-          return;
-        }
+        if (!result.success) { showError('seg-error', result.error || 'Could not save segment.'); return; }
 
-        // Optionally assign to selected event
         const selectedEventId = document.getElementById('map-event-select').value;
         if (selectedEventId && result.data.segment_id) {
-          await apiCall('assignSegment', {
-            event_id:   selectedEventId,
-            segment_id: result.data.segment_id
+          const assignResult = await apiCall('assignSegment', {
+            event_id: selectedEventId, segment_id: result.data.segment_id
           }, getToken());
+          if (assignResult.success) {
+            const assigned = assignedSegmentIds[selectedEventId] || [];
+            assignedSegmentIds[selectedEventId] = assigned.concat([result.data.segment_id]);
+          }
         }
 
-        // Reload segments on map
         await loadSegmentsOnMap();
         cancelSegment();
-
       } catch (err) {
-        showError('seg-error', 'Connection error. Please try again.');
+        showError('seg-error', 'Connection error.');
       } finally {
         btn.classList.remove('loading');
       }
     }
 
-    // ── OVERPASS SNAP ────────────────────────
+    // ── MODE BAR ─────────────────────────────
+    function setModeBar(mode, text) {
+      const bar = document.getElementById('map-mode-bar');
+      bar.textContent = text;
+      bar.className = 'map-mode-bar visible ' + mode;
+    }
+
+    function hideModeBar() { document.getElementById('map-mode-bar').classList.remove('visible'); }
+
+    // ── OSM SNAP ─────────────────────────────
     async function snapToNearestIntersection(lat, lon) {
-      // Query all highway ways within 50m and their nodes
-      const query = [
-        '[out:json][timeout:15];',
-        '(way(around:50,' + lat + ',' + lon + ')["highway"];);',
-        '(._;>;);',
-        'out body;'
-      ].join('');
-
-      const res = await fetch(OVERPASS_URL, {
-        method: 'POST',
-        body: 'data=' + encodeURIComponent(query)
-      });
+      const query = '[out:json][timeout:15];(way(around:50,' + lat + ',' + lon + ')["highway"];);(._;>;);out body;';
+      const res = await fetch(OVERPASS_URL, { method: 'POST', body: 'data=' + encodeURIComponent(query) });
       const data = await res.json();
-
       if (!data.elements || !data.elements.length) return null;
 
-      // Separate nodes and ways
-      const nodes = {};
-      const ways = [];
+      const nodes = {}, ways = [];
       data.elements.forEach(function(el) {
         if (el.type === 'node') nodes[el.id] = el;
         if (el.type === 'way')  ways.push(el);
       });
 
-      // Count how many ways each node appears in
       const nodeWayCount = {};
       ways.forEach(function(way) {
-        (way.nodes || []).forEach(function(nid) {
-          nodeWayCount[nid] = (nodeWayCount[nid] || 0) + 1;
-        });
+        (way.nodes || []).forEach(function(nid) { nodeWayCount[nid] = (nodeWayCount[nid] || 0) + 1; });
       });
 
-      // Find the clicked way (nearest way to click point)
-      let clickedWay = null;
-      let minDist = Infinity;
+      let clickedWay = null, minDist = Infinity;
       ways.forEach(function(way) {
         (way.nodes || []).forEach(function(nid) {
-          const node = nodes[nid];
-          if (!node) return;
+          const node = nodes[nid]; if (!node) return;
           const d = haversineRaw(lat, lon, node.lat, node.lon);
           if (d < minDist) { minDist = d; clickedWay = way; }
         });
@@ -1534,50 +1407,34 @@
 
       if (!clickedWay) return null;
 
-      // Find nearest intersection node on the clicked way
-      let nearestIntersection = null;
-      let nearestDist = Infinity;
-      let nearestNode = null;
-      let nearestNodeDist = Infinity;
+      let nearestIntersection = null, nearestDist = Infinity;
+      let nearestNode = null, nearestNodeDist = Infinity;
 
       clickedWay.nodes.forEach(function(nid) {
-        const node = nodes[nid];
-        if (!node) return;
+        const node = nodes[nid]; if (!node) return;
         const d = haversineRaw(lat, lon, node.lat, node.lon);
-
-        // Track nearest node regardless
         if (d < nearestNodeDist) { nearestNodeDist = d; nearestNode = node; }
-
-        // Track nearest intersection
-        if (nodeWayCount[nid] > 1 && d < nearestDist) {
-          nearestDist = d;
-          nearestIntersection = node;
-        }
+        if (nodeWayCount[nid] > 1 && d < nearestDist) { nearestDist = d; nearestIntersection = node; }
       });
 
       const snapNode = nearestIntersection || nearestNode;
       if (!snapNode) return null;
 
-      // Get cross street name at intersection
       let crossStreet = null;
       if (nearestIntersection) {
-        // Find another way at this node that isn't the clicked way
         const otherWay = ways.find(function(w) {
           return w.id !== clickedWay.id && w.nodes.indexOf(nearestIntersection.id) !== -1;
         });
-        if (otherWay && otherWay.tags && otherWay.tags.name) {
-          crossStreet = otherWay.tags.name;
-        }
+        if (otherWay && otherWay.tags && otherWay.tags.name) crossStreet = otherWay.tags.name;
       }
 
       return { lat: snapNode.lat, lon: snapNode.lon, crossStreet: crossStreet };
     }
 
-    // ── NOMINATIM REVERSE GEOCODE ─────────────
+    // ── NOMINATIM ────────────────────────────
     async function reverseGeocode(lat, lon) {
       try {
-        const url = NOMINATIM_URL + '?lat=' + lat + '&lon=' + lon + '&format=json';
-        const res = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+        const res = await fetch(NOMINATIM_URL + '?lat=' + lat + '&lon=' + lon + '&format=json', { headers: { 'Accept-Language': 'en' } });
         const data = await res.json();
         return data.address || null;
       } catch (err) { return null; }
@@ -1585,14 +1442,10 @@
 
     // ── HAVERSINE ────────────────────────────
     function haversine(lat1, lon1, lat2, lon2) {
-      // Returns distance in miles, rounded to nearest 0.01
-      const raw = haversineRaw(lat1, lon1, lat2, lon2);
-      const miles = raw / 1609.344;
-      return Math.round(miles * 100) / 100;
+      return Math.round(haversineRaw(lat1, lon1, lat2, lon2) / 1609.344 * 100) / 100;
     }
 
     function haversineRaw(lat1, lon1, lat2, lon2) {
-      // Returns distance in meters
       const R = 6371000;
       const dLat = (lat2 - lat1) * Math.PI / 180;
       const dLon = (lon2 - lon1) * Math.PI / 180;
@@ -1607,24 +1460,13 @@
       return L.divIcon({
         className: '',
         html: '<div style="background:' + color + ';color:#0f1210;width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;font-family:sans-serif;border:2px solid #0f1210;">' + letter + '</div>',
-        iconSize: [24, 24],
-        iconAnchor: [12, 12]
+        iconSize: [24, 24], iconAnchor: [12, 12]
       });
     }
 
-    function setMapLoading(visible) {
-      const el = document.getElementById('map-loading');
-      el.classList.toggle('visible', visible);
-    }
-
-    function showSegPanel(hint) {
-      document.getElementById('seg-panel').classList.add('visible');
-      updateSegHint(hint);
-    }
-
-    function updateSegHint(msg) {
-      document.getElementById('seg-hint').textContent = msg;
-    }
+    function setMapLoading(visible) { document.getElementById('map-loading').classList.toggle('visible', visible); }
+    function showSegPanel(hint)     { document.getElementById('seg-panel').classList.add('visible'); updateSegHint(hint); }
+    function updateSegHint(msg)     { document.getElementById('seg-hint').textContent = msg; }
 
     function getWatershedForEvent(eventId) {
       const ev = allEvents.find(function(e) { return e.event_id === eventId; });
@@ -1638,7 +1480,7 @@
         allEvents = result.data.events || [];
         const sel = document.getElementById('map-event-select');
         const current = sel.value;
-        sel.innerHTML = '<option value="">— Select event to assign segments —</option>';
+        sel.innerHTML = '<option value="">— Select event —</option>';
         allEvents.filter(function(ev) {
           return ev.status === 'upcoming' || ev.status === 'active';
         }).forEach(function(ev) {
@@ -1648,25 +1490,22 @@
           if (ev.event_id === current) opt.selected = true;
           sel.appendChild(opt);
         });
-      } catch (err) { /* silent */ }
+        document.getElementById('btn-assign').disabled = !sel.value;
+      } catch (err) {}
     }
 
     // ── UTILITIES ────────────────────────────
     function escHtml(str) {
       return String(str)
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     // ── ON LOAD ──────────────────────────────
     window.addEventListener('load', function() {
-      // Enter key on login
       document.getElementById('login-password').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') handleLogin();
       });
-
       if (getToken()) {
         showDashboard();
         loadEvents();
