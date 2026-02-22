@@ -326,6 +326,13 @@
 
     .no-segments { font-size: 0.82rem; color: var(--text-muted); font-style: italic; }
 
+    .timer-started {
+      font-size: 0.85rem;
+      color: var(--accent);
+      font-weight: 600;
+      padding: 8px 0;
+    }
+    
     .status-controls { display: flex; gap: 8px; flex-wrap: wrap; }
 
     .status-btn {
@@ -964,6 +971,15 @@
       ].join('');
     }
 
+    function renderTimerSection(ev) {
+      if (ev.status !== 'active') {
+        return '<div class="no-segments">Timer only available on active events.</div>';
+      }
+      if (ev.collection_start_time) {
+        return '<div class="timer-started">✓ Timer started — ' + ev.collection_start_time.toString().split('T')[0] + ' ' + ev.collection_start_time.toString().split('T')[1].substring(0, 5) + '</div>';
+      }
+      return '<button class="btn btn-primary btn-sm" onclick="handleStartCollectionTimer(\'' + ev.event_id + '\')" style="align-self:flex-start; width:auto; padding:9px 20px;">Start Collection Timer</button>';
+    }
     function renderEventBody(ev) {
       const statuses = ['upcoming', 'active', 'completed', 'cancelled'];
       const statusBtns = statuses.map(function(s) {
@@ -974,6 +990,12 @@
       return [
         '<div class="event-body-label">Status</div>',
         '<div class="status-controls">' + statusBtns + '</div>',
+        '<div class="event-body-label">Collection Timer</div>',
+        renderTimerSection(ev),
+        '<div class="event-body-label">Returns</div>',
+        '<div class="collection-status-list" id="colstatus-' + ev.event_id + '">',
+          ev.status === 'active' ? '<div class="no-segments">Loading...</div>' : '<div class="no-segments">Event not active.</div>',
+        '</div>',
         '<div class="event-body-label">Segments</div>',
         '<button class="view-on-map-btn" onclick="viewEventOnMap(\'' + ev.event_id + '\')">View on Map →</button>',
         '<div class="segment-list" id="seglist-' + ev.event_id + '">',
@@ -986,7 +1008,11 @@
       const item = document.getElementById('evitem-' + eventId);
       const wasOpen = item.classList.contains('open');
       document.querySelectorAll('.event-item.open').forEach(function(el) { el.classList.remove('open'); });
-      if (!wasOpen) { item.classList.add('open'); loadEventSegmentList(eventId); }
+      if (!wasOpen) { 
+        item.classList.add('open'); 
+        loadEventSegmentList(eventId);
+        loadCollectionStatus(eventId);
+      }
     }
 
     async function loadEventSegmentList(eventId) {
@@ -1045,6 +1071,50 @@
       } catch (err) { alert('Connection error.'); }
     }
 
+    async function handleStartCollectionTimer(eventId) {
+      if (!confirm('Start the collection timer for this event? This cannot be undone.')) return;
+      try {
+        const result = await apiCall('startCollectionTimer', { event_id: eventId }, getToken());
+        if (!result.success) { alert(result.error); return; }
+        await loadEvents();
+        const item = document.getElementById('evitem-' + eventId);
+        if (item) { item.classList.add('open'); loadCollectionStatus(eventId); }
+      } catch (err) { alert('Connection error.'); }
+    }
+
+    async function loadCollectionStatus(eventId) {
+      const listEl = document.getElementById('colstatus-' + eventId);
+      if (!listEl) return;
+      try {
+        const result = await apiCall('getCollectionStatus', { event_id: eventId }, getToken());
+        if (!result.success) { listEl.innerHTML = '<div class="no-segments">Could not load.</div>'; return; }
+        const data = result.data;
+        if (!data.timer_started) {
+          listEl.innerHTML = '<div class="no-segments">Timer not started yet.</div>';
+          return;
+        }
+        if (!data.collections || !data.collections.length) {
+          listEl.innerHTML = '<div class="no-segments">No returns yet.</div>';
+          return;
+        }
+        listEl.innerHTML = data.collections.map(function(c) {
+          return [
+            '<div class="segment-item">',
+              '<div>',
+                '<div class="segment-item-name">' + escHtml(c.preferred_name) + ' <span style="color:var(--text-muted);font-size:0.78rem;">@' + escHtml(c.username) + '</span></div>',
+                '<div class="segment-item-meta">',
+                  c.collection_duration_hours + ' hrs &middot; ' + c.total_weight_lbs + ' lbs',
+                '</div>',
+              '</div>',
+              '<span style="color:var(--accent);font-size:0.8rem;font-weight:700;">RETURNED</span>',
+            '</div>'
+          ].join('');
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = '<div class="no-segments">Connection error.</div>';
+      }
+    }
+    
     // ── CREATE EVENT ─────────────────────────
     var createFormOpen = false;
 
