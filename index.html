@@ -207,6 +207,13 @@
     }
     .btn-primary:hover { background: var(--accent-dk); }
 
+    .btn-secondary {
+      background: var(--surface);
+      border: 1.5px solid var(--accent);
+      color: var(--accent);
+    }
+    .btn-secondary:hover { background: rgba(181, 240, 51, 0.08); }
+
     .btn-ghost {
       background: transparent;
       border: 1.5px solid var(--border);
@@ -215,6 +222,31 @@
       padding: 13px;
     }
     .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── LANDING SPLIT ─────────────────────── */
+    .landing-split {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .landing-divider {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+
+    .landing-divider::before,
+    .landing-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
 
     /* ── TOGGLE LINK ───────────────────────── */
     .toggle-link {
@@ -316,8 +348,25 @@
 
   <main>
 
+    <!-- ── LANDING PANEL ───────────────── -->
+    <div class="panel active" id="panel-landing">
+      <div class="section-label">Ready to<br /><span>Clean Up?</span></div>
+
+      <div class="landing-split">
+        <button class="btn btn-primary" onclick="showPanel('register')">
+          I'm New — Sign Me Up
+        </button>
+
+        <div class="landing-divider">or</div>
+
+        <button class="btn btn-secondary" onclick="showPanel('login')">
+          I Have Credentials
+        </button>
+      </div>
+    </div>
+
     <!-- ── REGISTER PANEL ───────────────── -->
-    <div class="panel active" id="panel-register">
+    <div class="panel" id="panel-register">
       <div class="section-label">Join the<br /><span>Cleanup Crew</span></div>
 
       <div class="card">
@@ -355,6 +404,10 @@
       <div class="toggle-link">
         Already have credentials? <button onclick="showPanel('login')">Log in here</button>
       </div>
+
+      <div class="toggle-link">
+        <button onclick="showPanel('landing')">← Back</button>
+      </div>
     </div>
 
     <!-- ── LOGIN PANEL ──────────────────── -->
@@ -381,6 +434,10 @@
 
       <div class="toggle-link">
         New volunteer? <button onclick="showPanel('register')">Register here</button>
+      </div>
+
+      <div class="toggle-link">
+        <button onclick="showPanel('landing')">← Back</button>
       </div>
     </div>
 
@@ -419,11 +476,10 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
 
     // ── SESSION ─────────────────────────────
-    function saveSession(token, volunteerId, preferredName, username) {
+    function saveSession(token, volunteerId, preferredName) {
       sessionStorage.setItem('habo_token', token);
       sessionStorage.setItem('habo_volunteer_id', volunteerId);
       sessionStorage.setItem('habo_name', preferredName);
-      sessionStorage.setItem('habo_username', username || '');
     }
 
     function getToken() {
@@ -512,7 +568,7 @@
         }
 
         // Save session
-        saveSession(result.data.session_token, result.data.volunteer_id, name, result.data.username);
+        saveSession(result.data.session_token, result.data.volunteer_id, name);
 
         // Show credentials
         document.getElementById('cred-username').textContent = result.data.username;
@@ -546,7 +602,7 @@
           return;
         }
 
-        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name, result.data.username);
+        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name);
         window.location.href = 'app.html';
 
       } catch (err) {
@@ -562,18 +618,7 @@
     }
 
     // ── ON LOAD — redirect if already logged in ──
-    window.addEventListener('load', async function() {
-      // Killswitch check
-      try {
-        const status = await apiCall('getAppStatus', {});
-        if (status.success && status.data.app_active === false) {
-          window.location.href = 'maintenance.html';
-          return;
-        }
-      } catch (err) {
-        // If check fails, allow through — don't lock out on network error
-      }
-
+    window.addEventListener('load', function() {
       if (getToken()) {
         window.location.href = 'app.html';
       }
