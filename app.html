@@ -929,6 +929,13 @@
       el.textContent = '';
     }
 
+    // ── UTILITIES ────────────────────────────
+    function escHtml(str) {
+      return String(str)
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
     async function handleChangePassword() {
       hideMsg('chpw-error');
       hideMsg('chpw-success');
