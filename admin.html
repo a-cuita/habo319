@@ -676,6 +676,7 @@
           <strong id="admin-display-name">—</strong>
           <span id="admin-display-role"></span>
         </div>
+        <button class="logout-btn" id="btn-switch-vol" onclick="window.location.href='app.html'" style="display:none; border-color:var(--accent); color:var(--accent);">Volunteer View</button>
         <button class="logout-btn" onclick="handleLogout()">Log Out</button>
       </div>
     </header>
@@ -849,6 +850,9 @@
       document.getElementById('page-dashboard').classList.add('active');
       document.getElementById('admin-display-name').textContent = getAdminName() || '—';
       document.getElementById('admin-display-role').textContent = getAdminRole() || '';
+      if (sessionStorage.getItem('habo_token')) {
+        document.getElementById('btn-switch-vol').style.display = '';
+      }
     }
 
     function showLogin() {
