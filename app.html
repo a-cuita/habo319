@@ -776,9 +776,9 @@
     function getUsername()    { return sessionStorage.getItem('habo_username'); }
 
     function clearSession() {
-      sessionStorage.removeItem('habo_token');
-      sessionStorage.removeItem('habo_volunteer_id');
-      sessionStorage.removeItem('habo_name');
+      ['habo_token','habo_volunteer_id','habo_name',
+       'habo_admin_token','habo_admin_id','habo_admin_name','habo_admin_role']
+        .forEach(function(k) { sessionStorage.removeItem(k); });
     }
 
     // ── API HELPER ───────────────────────────
