@@ -602,6 +602,7 @@
         <strong id="header-name">...</strong>
         <span id="header-username"></span>
       </div>
+      <button class="hamburger-btn" id="btn-switch-admin" onclick="window.location.href='admin.html'" style="display:none; font-size:1.2rem;" title="Switch to Admin View" aria-label="Admin view">⚙</button>
       <button class="hamburger-btn" onclick="openMenu()" aria-label="Open menu">☰</button>
     </div>
   </header>
@@ -814,6 +815,11 @@
       const info = document.getElementById('modal-volunteer-info');
       if (name || username) {
         info.innerHTML = 'Signed in as <strong>' + (username || name) + '</strong>';
+      }
+
+      // Show admin switch button if admin token present
+      if (sessionStorage.getItem('habo_admin_token')) {
+        document.getElementById('btn-switch-admin').style.display = '';
       }
     }
 
