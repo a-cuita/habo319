@@ -634,6 +634,108 @@
     }
     .fade-in { animation: fadeIn 0.2s ease; }
     .leaflet-container { background: #1a1f1c; }
+
+    /* ── NOTES VIEW ───────────────────────── */
+    #view-notes {
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    .notes-wrap {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      max-width: 600px;
+      width: 100%;
+    }
+
+    .notes-input {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      padding: 12px 14px;
+      width: 100%;
+      resize: vertical;
+      transition: border-color 0.15s;
+    }
+
+    .notes-input:focus { outline: none; border-color: var(--accent); }
+    .notes-input::placeholder { color: var(--text-muted); opacity: 0.5; }
+
+    .note-item {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .note-meta {
+      font-size: 0.72rem;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .note-body {
+      font-size: 0.9rem;
+      color: var(--text);
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
+
+    .note-response {
+      background: var(--bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 6px 6px 0;
+      padding: 8px 12px;
+      font-size: 0.85rem;
+      color: var(--accent);
+      line-height: 1.5;
+    }
+
+    .note-response-label {
+      font-size: 0.68rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 4px;
+    }
+
+    .note-edit-btn {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: var(--font-head);
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      padding: 3px 10px;
+      text-transform: uppercase;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .note-edit-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    .note-edit-area {
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .note-edit-area.visible { display: flex; }
   </style>
 </head>
 
@@ -684,6 +786,7 @@
     <nav class="dash-nav">
       <button class="nav-tab active" id="tab-events" onclick="switchView('events')">Events</button>
       <button class="nav-tab" id="tab-map" onclick="switchView('map')">Map</button>
+      <button class="nav-tab" id="tab-notes" onclick="switchView('notes')">Notes</button>
     </nav>
 
     <!-- ── EVENTS VIEW ──────────────────── -->
@@ -793,6 +896,27 @@
       </div>
 
     </div>
+
+    <!-- ── NOTES VIEW ─────────────────────── -->
+    <div class="view" id="view-notes">
+      <div class="notes-wrap">
+
+        <div class="view-heading">Notes for Jeremy</div>
+
+        <div class="card">
+          <textarea class="notes-input" id="note-input" placeholder="Leave a note, question, or edit request for Jeremy..." rows="4"></textarea>
+          <div class="error-msg" id="note-error"></div>
+          <div class="success-msg" id="note-success"></div>
+          <button class="btn btn-primary btn-sm" id="btn-save-note" onclick="handleSaveNote()">Save Note</button>
+        </div>
+
+        <div id="notes-list">
+          <div style="color:var(--text-muted);font-size:0.85rem;">Loading...</div>
+        </div>
+
+      </div>
+    </div>
+
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -868,6 +992,7 @@
       document.getElementById('view-' + name).classList.add('active');
       document.getElementById('tab-' + name).classList.add('active');
       if (name === 'map') initMap();
+      if (name === 'notes' && !notesLoaded) loadNotes();
     }
 
     // Called from Events page "View on Map" button
@@ -1574,6 +1699,100 @@
       return String(str)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;')
         .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // ── NOTES ────────────────────────────────
+    var notesLoaded = false;
+
+    async function loadNotes() {
+      const listEl = document.getElementById('notes-list');
+      try {
+        const result = await apiCall('getAdminNotes', {}, getToken());
+        if (!result.success) { listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Could not load notes.</div>'; return; }
+        const notes = result.data.notes || [];
+        notesLoaded = true;
+        if (!notes.length) {
+          listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No notes yet.</div>';
+          return;
+        }
+        listEl.innerHTML = notes.map(function(n) {
+          const ts = n.updated_at ? n.updated_at.toString().replace('T',' ').substring(0,16) : '';
+          const adminLabel = escHtml(n.admin_name || '') + (n.updated_at !== n.created_at ? ' · edited' : '');
+          const responseHtml = n.response ? [
+            '<div class="note-response">',
+              '<div class="note-response-label">Jeremy</div>',
+              escHtml(n.response),
+            '</div>'
+          ].join('') : '';
+          return [
+            '<div class="note-item" id="note-' + n.note_id + '">',
+              '<div class="note-meta">',
+                '<span>' + adminLabel + '</span>',
+                '<span style="display:flex;gap:8px;align-items:center;">',
+                  '<span>' + ts + '</span>',
+                  '<button class="note-edit-btn" onclick="toggleNoteEdit(\'' + n.note_id + '\', \'' + escHtml(n.note_text).replace(/'/g, "\\'") + '\')">Edit</button>',
+                '</span>',
+              '</div>',
+              '<div class="note-body" id="notebody-' + n.note_id + '">' + escHtml(n.note_text) + '</div>',
+              '<div class="note-edit-area" id="noteedit-' + n.note_id + '">',
+                '<textarea class="notes-input" id="notetextarea-' + n.note_id + '" rows="3"></textarea>',
+                '<div style="display:flex;gap:8px;">',
+                  '<button class="btn btn-primary btn-sm" onclick="handleUpdateNote(\'' + n.note_id + '\')" style="flex:1;">Save</button>',
+                  '<button class="btn btn-ghost btn-sm" onclick="toggleNoteEdit(\'' + n.note_id + '\', null)" style="flex:0 0 auto;width:auto;padding:9px 16px;">Cancel</button>',
+                '</div>',
+              '</div>',
+              responseHtml,
+            '</div>'
+          ].join('');
+        }).join('');
+      } catch (err) {
+        listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Connection error.</div>';
+      }
+    }
+
+    function toggleNoteEdit(noteId, currentText) {
+      const editArea = document.getElementById('noteedit-' + noteId);
+      const bodyEl   = document.getElementById('notebody-' + noteId);
+      const isOpen   = editArea.classList.contains('visible');
+      if (isOpen) {
+        editArea.classList.remove('visible');
+        bodyEl.style.display = '';
+      } else {
+        document.getElementById('notetextarea-' + noteId).value = currentText || '';
+        editArea.classList.add('visible');
+        bodyEl.style.display = 'none';
+      }
+    }
+
+    async function handleSaveNote() {
+      hideMsg('note-error'); hideMsg('note-success');
+      const text = document.getElementById('note-input').value.trim();
+      if (!text) return showError('note-error', 'Note cannot be empty.');
+      const btn = document.getElementById('btn-save-note');
+      btn.classList.add('loading');
+      try {
+        const result = await apiCall('saveAdminNote', { note_text: text }, getToken());
+        if (!result.success) { showError('note-error', result.error || 'Could not save note.'); return; }
+        document.getElementById('note-input').value = '';
+        showSuccess('note-success', 'Note saved.');
+        loadNotes();
+      } catch (err) {
+        showError('note-error', 'Connection error.');
+      } finally {
+        btn.classList.remove('loading');
+      }
+    }
+
+    async function handleUpdateNote(noteId) {
+      const text = document.getElementById('notetextarea-' + noteId).value.trim();
+      if (!text) return;
+      try {
+        const result = await apiCall('updateAdminNote', { note_id: noteId, note_text: text }, getToken());
+        if (!result.success) { alert(result.error); return; }
+        loadNotes();
+      } catch (err) {
+        alert('Connection error.');
+      }
     }
 
     // ── ON LOAD ──────────────────────────────
