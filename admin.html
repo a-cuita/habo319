@@ -786,7 +786,7 @@
     <nav class="dash-nav">
       <button class="nav-tab active" id="tab-events" onclick="switchView('events')">Events</button>
       <button class="nav-tab" id="tab-map" onclick="switchView('map')">Map</button>
-      <button class="nav-tab" id="tab-notes" onclick="switchView('notes')">Notes</button>
+      <button class="nav-tab" id="tab-notes" onclick="switchView('notes')">Messages</button>
     </nav>
 
     <!-- ── EVENTS VIEW ──────────────────── -->
@@ -901,7 +901,7 @@
     <div class="view" id="view-notes">
       <div class="notes-wrap">
 
-        <div class="view-heading">Notes for Jeremy</div>
+        <div class="view-heading">Admin Message Board</div>
 
         <div class="card">
           <textarea class="notes-input" id="note-input" placeholder="Leave a note, question, or edit request for Jeremy..." rows="4"></textarea>
@@ -1712,12 +1712,14 @@
         const notes = result.data.notes || [];
         notesLoaded = true;
         if (!notes.length) {
-          listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No notes yet.</div>';
+          listEl.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;font-style:italic;">No messages yet.</div>';
           return;
         }
         listEl.innerHTML = notes.map(function(n) {
-          const ts = n.updated_at ? n.updated_at.toString().replace('T',' ').substring(0,16) : '';
-          const adminLabel = escHtml(n.admin_name || '') + (n.updated_at !== n.created_at ? ' · edited' : '');
+          const rawTs = n.updated_at || n.created_at || '';
+          const ts = rawTs ? new Date(rawTs).toLocaleString('en-US', { timeZone: 'America/Chicago', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : '';
+          const edited = n.updated_at && n.updated_at !== n.created_at ? ' · edited' : '';
+          const adminLabel = escHtml(n.admin_name || '') + edited;
           const responseHtml = n.response ? [
             '<div class="note-response">',
               '<div class="note-response-label">Jeremy</div>',
@@ -1730,15 +1732,15 @@
                 '<span>' + adminLabel + '</span>',
                 '<span style="display:flex;gap:8px;align-items:center;">',
                   '<span>' + ts + '</span>',
-                  '<button class="note-edit-btn" onclick="toggleNoteEdit(\'' + n.note_id + '\', \'' + escHtml(n.note_text).replace(/'/g, "\\'") + '\')">Edit</button>',
+                  '<button class="note-edit-btn" data-noteid="' + n.note_id + '" data-notetext="' + escHtml(n.note_text) + '" onclick="toggleNoteEdit(this.dataset.noteid, this.dataset.notetext)">Edit</button>',
                 '</span>',
               '</div>',
               '<div class="note-body" id="notebody-' + n.note_id + '">' + escHtml(n.note_text) + '</div>',
               '<div class="note-edit-area" id="noteedit-' + n.note_id + '">',
                 '<textarea class="notes-input" id="notetextarea-' + n.note_id + '" rows="3"></textarea>',
                 '<div style="display:flex;gap:8px;">',
-                  '<button class="btn btn-primary btn-sm" onclick="handleUpdateNote(\'' + n.note_id + '\')" style="flex:1;">Save</button>',
-                  '<button class="btn btn-ghost btn-sm" onclick="toggleNoteEdit(\'' + n.note_id + '\', null)" style="flex:0 0 auto;width:auto;padding:9px 16px;">Cancel</button>',
+                  '<button class="btn btn-primary btn-sm" data-noteid="' + n.note_id + '" onclick="handleUpdateNote(this.dataset.noteid)" style="flex:1;">Save</button>',
+                  '<button class="btn btn-ghost btn-sm" data-noteid="' + n.note_id + '" onclick="toggleNoteEdit(this.dataset.noteid, null)" style="flex:0 0 auto;width:auto;padding:9px 16px;">Cancel</button>',
                 '</div>',
               '</div>',
               responseHtml,
