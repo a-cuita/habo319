@@ -476,14 +476,30 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
 
     // ── SESSION ─────────────────────────────
-    function saveSession(token, volunteerId, preferredName) {
+    function saveVolunteerSession(token, volunteerId, preferredName) {
       sessionStorage.setItem('habo_token', token);
       sessionStorage.setItem('habo_volunteer_id', volunteerId);
       sessionStorage.setItem('habo_name', preferredName);
     }
 
+    function saveAdminSession(adminToken, adminId, adminName, adminRole, volunteerToken, volunteerId) {
+      sessionStorage.setItem('habo_admin_token', adminToken);
+      sessionStorage.setItem('habo_admin_id', adminId);
+      sessionStorage.setItem('habo_admin_name', adminName);
+      sessionStorage.setItem('habo_admin_role', adminRole);
+      if (volunteerToken) {
+        sessionStorage.setItem('habo_token', volunteerToken);
+        sessionStorage.setItem('habo_volunteer_id', volunteerId);
+        sessionStorage.setItem('habo_name', adminName);
+      }
+    }
+
     function getToken() {
       return sessionStorage.getItem('habo_token');
+    }
+
+    function getAdminToken() {
+      return sessionStorage.getItem('habo_admin_token');
     }
 
     // ── API HELPER ───────────────────────────
@@ -595,15 +611,31 @@
       setLoading('btn-login', true);
 
       try {
-        const result = await apiCall('login', { username, password });
-
-        if (!result.success) {
-          showError('login-error', result.error || 'Login failed. Please try again.');
+        // Try volunteer login first
+        const volResult = await apiCall('login', { username, password });
+        if (volResult.success) {
+          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name);
+          window.location.href = 'app.html';
           return;
         }
 
-        saveSession(result.data.session_token, result.data.volunteer_id, result.data.preferred_name);
-        window.location.href = 'app.html';
+        // Try admin login
+        const adminResult = await apiCall('adminLogin', { username, password });
+        if (adminResult.success) {
+          saveAdminSession(
+            adminResult.data.session_token,
+            adminResult.data.admin_id,
+            adminResult.data.preferred_name,
+            adminResult.data.role,
+            adminResult.data.volunteer_token,
+            adminResult.data.volunteer_id
+          );
+          window.location.href = 'admin.html';
+          return;
+        }
+
+        // Both failed
+        showError('login-error', 'Invalid username or password.');
 
       } catch (err) {
         showError('login-error', 'Connection error. Please try again.');
@@ -619,6 +651,10 @@
 
     // ── ON LOAD — redirect if already logged in ──
     window.addEventListener('load', function() {
+      if (getAdminToken()) {
+        window.location.href = 'admin.html';
+        return;
+      }
       if (getToken()) {
         window.location.href = 'app.html';
       }
