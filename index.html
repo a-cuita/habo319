@@ -611,15 +611,7 @@
       setLoading('btn-login', true);
 
       try {
-        // Try volunteer login first
-        const volResult = await apiCall('login', { username, password });
-        if (volResult.success) {
-          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name);
-          window.location.href = 'app.html';
-          return;
-        }
-
-        // Try admin login
+        // Try admin login first
         const adminResult = await apiCall('adminLogin', { username, password });
         if (adminResult.success) {
           saveAdminSession(
@@ -631,6 +623,14 @@
             adminResult.data.volunteer_id
           );
           window.location.href = 'admin.html';
+          return;
+        }
+
+        // Try volunteer login
+        const volResult = await apiCall('login', { username, password });
+        if (volResult.success) {
+          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name);
+          window.location.href = 'app.html';
           return;
         }
 
