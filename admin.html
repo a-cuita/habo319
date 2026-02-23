@@ -820,7 +820,8 @@
     }
 
     function clearSession() {
-      ['habo_admin_token','habo_admin_id','habo_admin_name','habo_admin_role']
+      ['habo_admin_token','habo_admin_id','habo_admin_name','habo_admin_role',
+       'habo_token','habo_volunteer_id','habo_name']
         .forEach(function(k) { sessionStorage.removeItem(k); });
     }
 
@@ -918,7 +919,7 @@
     async function handleLogout() {
       try { await apiCall('adminLogout', {}, getToken()); } catch (err) {}
       clearSession();
-      showLogin();
+      window.location.href = 'index.html';
     }
 
     // ── EVENTS ───────────────────────────────
