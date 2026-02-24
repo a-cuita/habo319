@@ -1234,7 +1234,6 @@
 
       const items = (myCollection && myCollection.items) || [{
         category_id: 'CAT_SYSTEM_UNCATEGORIZED',
-        quantity: 1,
         weight_lbs: myCollection ? myCollection.total_weight_lbs : ''
       }];
 
@@ -1261,7 +1260,6 @@
 
       div.innerHTML =
         '<select>' + categoryOptions + '</select>' +
-        '<input type="number" placeholder="Qty" min="0" step="0.1" value="' + (item.quantity || '') + '" />' +
         '<input type="number" placeholder="Lbs" min="0" step="0.1" value="' + (item.weight_lbs || '') + '" />' +
         '<button class="item-remove-btn" onclick="this.parentElement.remove()">✕</button>';
 
@@ -1278,10 +1276,9 @@
       rows.forEach(function(row) {
         const inputs = row.querySelectorAll('input, select');
         const categoryId = inputs[0].value;
-        const quantity   = parseFloat(inputs[1].value) || 0;
-        const weightLbs  = parseFloat(inputs[2].value) || '';
+        const weightLbs  = parseFloat(inputs[1].value) || '';
         if (categoryId) {
-          items.push({ category_id: categoryId, quantity: quantity, weight_lbs: weightLbs });
+          items.push({ category_id: categoryId, weight_lbs: weightLbs });
         }
       });
 
