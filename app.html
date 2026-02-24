@@ -600,7 +600,7 @@
     <div class="header-right">
       <div class="volunteer-name">
         <strong id="header-name">...</strong>
-        <span id="header-username"></span>
+        <span id="header-username" style="font-size:0.72rem;color:var(--text-muted);letter-spacing:0.06em;">username: <span id="header-username-value"></span></span>
       </div>
       <button class="hamburger-btn" id="btn-switch-admin" onclick="window.location.href='admin.html'" style="display:none; font-size:1.2rem;" title="Switch to Admin View" aria-label="Admin view">⚙</button>
       <button class="hamburger-btn" onclick="openMenu()" aria-label="Open menu">☰</button>
@@ -809,7 +809,7 @@
       const name = getName();
       const username = getUsername();
       if (name) document.getElementById('header-name').textContent = name;
-      if (username) document.getElementById('header-username').textContent = username;
+      if (username) document.getElementById('header-username-value').textContent = username;
 
       // Populate modal volunteer info
       const info = document.getElementById('modal-volunteer-info');
