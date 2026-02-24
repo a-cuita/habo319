@@ -590,11 +590,76 @@
       color: var(--text-muted);
       opacity: 0.5;
     }
+
+    /* ── MODALS ───────────────────────────── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 9000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      max-width: 480px;
+      width: 100%;
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .modal-title {
+      font-family: var(--font-head);
+      font-size: 1.8rem;
+      font-weight: 900;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: var(--accent);
+      line-height: 1.1;
+    }
+    .modal-body {
+      font-size: 0.92rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+    .modal-step {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
   </style>
 </head>
 
 <body>
+<!-- ── LIABILITY MODAL ─────────────────── -->
+  <div class="modal-overlay hidden" id="modal-liability">
+    <div class="modal-box">
+      <div class="modal-title">Before You Begin</div>
+      <div class="modal-body">
+        <!-- LIABILITY TEXT TBD — pending Sam + Brittany review -->
+        <p>Liability and terms of participation content will appear here.</p>
+      </div>
+      <button class="btn btn-primary" onclick="handleLiabilityAck()">I Understand — Continue</button>
+    </div>
+  </div>
 
+  <!-- ── ONBOARDING MODALS ───────────────── -->
+  <div class="modal-overlay hidden" id="modal-onboarding">
+    <div class="modal-box">
+      <div class="modal-step" id="onboarding-step-label">Step 1 of 3</div>
+      <div class="modal-title" id="onboarding-title">Welcome</div>
+      <div class="modal-body" id="onboarding-body">Onboarding content loads here.</div>
+      <button class="btn btn-primary" id="btn-onboarding-next" onclick="handleOnboardingNext()">Next</button>
+    </div>
+  </div>
   <header>
     <div class="app-title">HABO Cleanup</div>
     <div class="header-right">
@@ -853,6 +918,7 @@
         if (!result.data || !result.data.event_id) {
           noEvent.style.display = 'flex';
           loadCollectionSection(null);
+          checkFirstLogin(result.data.safety_ack);
           return;
         }
 
@@ -864,8 +930,8 @@
         const directionsUrl = 'https://www.google.com/maps?q=' + ev.latitude + ',' + ev.longitude;
         document.getElementById('event-directions').href = directionsUrl;
         eventCard.style.display = 'flex';
-
         loadCollectionSection(ev);
+        checkFirstLogin(ev.safety_ack);
 
       } catch (err) {
         skeleton.style.display = 'none';
@@ -993,6 +1059,58 @@
       }
     }
 
+    // ── FIRST LOGIN / ONBOARDING ─────────────
+    const ONBOARDING_STEPS = [
+      {
+        title: 'Today\'s Event',
+        body: 'When a cleanup event is active, you\'ll see it here. Tap "Get Directions" to navigate to the meeting point.'
+      },
+      {
+        title: 'Log Your Collection',
+        body: 'Once your coordinator starts the timer, you\'ll be able to log the litter you collected — by weight and category.'
+      },
+      {
+        title: 'Your Menu',
+        body: 'Tap ☰ in the top right to access your account settings, change your password, or log out.'
+      }
+    ];
+    var onboardingIndex = 0;
+
+    function checkFirstLogin(safetyAck) {
+      if (safetyAck === false) {
+        document.getElementById('modal-liability').classList.remove('hidden');
+      }
+    }
+
+    async function handleLiabilityAck() {
+      document.getElementById('modal-liability').classList.add('hidden');
+      // TODO: call backend to mark safety_ack = true
+      startOnboarding();
+    }
+
+    function startOnboarding() {
+      onboardingIndex = 0;
+      renderOnboardingStep();
+      document.getElementById('modal-onboarding').classList.remove('hidden');
+    }
+
+    function renderOnboardingStep() {
+      const step = ONBOARDING_STEPS[onboardingIndex];
+      document.getElementById('onboarding-step-label').textContent = 'Step ' + (onboardingIndex + 1) + ' of ' + ONBOARDING_STEPS.length;
+      document.getElementById('onboarding-title').textContent = step.title;
+      document.getElementById('onboarding-body').textContent = step.body;
+      document.getElementById('btn-onboarding-next').textContent = onboardingIndex < ONBOARDING_STEPS.length - 1 ? 'Next' : 'Get Started';
+    }
+
+    function handleOnboardingNext() {
+      if (onboardingIndex < ONBOARDING_STEPS.length - 1) {
+        onboardingIndex++;
+        renderOnboardingStep();
+      } else {
+        document.getElementById('modal-onboarding').classList.add('hidden');
+      }
+    }
+    
     // ── ON LOAD ──────────────────────────────
     window.addEventListener('load', async function() {
       if (!requireAuth()) return;
@@ -1011,6 +1129,7 @@
 
       populateHeader();
       loadActiveEvent();
+      checkFirstLogin();
     });
 
     // ── COLLECTION STATE ─────────────────────
