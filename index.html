@@ -376,8 +376,32 @@
         </label>
 
         <label>
-          Birth Month & Day
-          <input type="text" id="reg-birthday" placeholder="MM-DD  e.g. 03-15" maxlength="5" autocomplete="off" />
+          Birth Month
+          <select id="reg-month" autocomplete="off">
+            <option value="">— Select month —</option>
+            <option value="01">January</option>
+            <option value="02">February</option>
+            <option value="03">March</option>
+            <option value="04">April</option>
+            <option value="05">May</option>
+            <option value="06">June</option>
+            <option value="07">July</option>
+            <option value="08">August</option>
+            <option value="09">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </label>
+        <label>
+          Birth Day
+          <select id="reg-day" autocomplete="off">
+            <option value="">— Select day —</option>
+          </select>
+        </label>
+        <label>
+          Your Age
+          <input type="number" id="reg-age" placeholder="e.g. 28" min="5" max="120" autocomplete="off" />
         </label>
 
         <label>
@@ -547,11 +571,23 @@
       }
     }
 
-    // ── FORMAT BIRTHDAY ──────────────────────
-    document.getElementById('reg-birthday').addEventListener('input', function(e) {
-      let val = e.target.value.replace(/\D/g, '');
-      if (val.length > 2) val = val.slice(0, 2) + '-' + val.slice(2, 4);
-      e.target.value = val;
+    // ── BIRTHDAY DROPDOWNS ───────────────────
+    const DAYS_IN_MONTH = [0,31,29,31,30,31,30,31,31,30,31,30,31];
+    document.getElementById('reg-month').addEventListener('change', function() {
+      const month = parseInt(this.value, 10);
+      const daySelect = document.getElementById('reg-day');
+      const current = daySelect.value;
+      daySelect.innerHTML = '<option value="">— Select day —</option>';
+      if (!month) return;
+      const days = DAYS_IN_MONTH[month];
+      for (var i = 1; i <= days; i++) {
+        const val = ('0' + i).slice(-2);
+        const opt = document.createElement('option');
+        opt.value = val;
+        opt.textContent = i;
+        if (val === current) opt.selected = true;
+        daySelect.appendChild(opt);
+      }
     });
 
     // ── REGISTER ─────────────────────────────
@@ -559,12 +595,15 @@
       clearErrors();
 
       const name     = document.getElementById('reg-name').value.trim();
-      const birthday = document.getElementById('reg-birthday').value.trim();
+      const month    = document.getElementById('reg-month').value;
+      const day      = document.getElementById('reg-day').value;
+      const birthday = month && day ? month + '-' + day : '';
       const age      = document.getElementById('reg-age').value.trim();
       const ack      = document.getElementById('reg-ack').checked;
 
       if (!name)                          return showError('reg-error', 'Please enter your name.');
-      if (!/^\d{2}-\d{2}$/.test(birthday)) return showError('reg-error', 'Enter birth month and day as MM-DD.');
+      if (!month) return showError('reg-error', 'Please select your birth month.');
+      if (!day)   return showError('reg-error', 'Please select your birth day.');
       if (!age || isNaN(age))             return showError('reg-error', 'Please enter your age.');
       if (!ack)                           return showError('reg-error', 'You must acknowledge the safety and privacy statement.');
 
