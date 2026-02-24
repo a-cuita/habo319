@@ -779,7 +779,7 @@
         // Try volunteer login
         const volResult = await apiCall('login', { username, password });
         if (volResult.success) {
-          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name);
+          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name, volResult.data.username);
           window.location.href = 'app.html';
           return;
         }
