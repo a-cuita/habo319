@@ -584,7 +584,7 @@
         }
 
         // Save session
-        saveSession(result.data.session_token, result.data.volunteer_id, name);
+        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, name);
 
         // Show credentials
         document.getElementById('cred-username').textContent = result.data.username;
