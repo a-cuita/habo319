@@ -1106,7 +1106,9 @@
         return '<div class="no-segments">Timer only available on active events.</div>';
       }
       if (ev.collection_start_time) {
-        return '<div class="timer-started">✓ Timer started — ' + ev.collection_start_time.toString().split('T')[0] + ' ' + ev.collection_start_time.toString().split('T')[1].substring(0, 5) + '</div>';
+        const timerDate = new Date(ev.collection_start_time);
+const timerStr = timerDate.toLocaleString('en-US', { month: 'numeric', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' });
+return '<div class="timer-started">✓ Timer started — ' + timerStr + '</div>';
       }
       return '<button class="btn btn-primary btn-sm" onclick="handleStartCollectionTimer(\'' + ev.event_id + '\')" style="align-self:flex-start; width:auto; padding:9px 20px;">Start Collection Timer</button>';
     }
