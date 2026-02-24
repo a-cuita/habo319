@@ -537,10 +537,11 @@
     const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
 
     // ── SESSION ─────────────────────────────
-    function saveVolunteerSession(token, volunteerId, preferredName) {
+    function saveVolunteerSession(token, volunteerId, preferredName, username) {
       sessionStorage.setItem('habo_token', token);
       sessionStorage.setItem('habo_volunteer_id', volunteerId);
       sessionStorage.setItem('habo_name', preferredName);
+      if (username) sessionStorage.setItem('habo_username', username);
     }
 
     function saveAdminSession(adminToken, adminId, adminName, adminRole, volunteerToken, volunteerId) {
@@ -737,7 +738,7 @@
           errorEl.classList.add('visible');
           return;
         }
-        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, pendingRegistration.preferred_name);
+        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, pendingRegistration.preferred_name, selectedUsername);
         window.location.href = 'app.html';
       } catch (err) {
         errorEl.textContent = 'Connection error. Please try again.';
