@@ -404,15 +404,6 @@
           <input type="number" id="reg-age" placeholder="e.g. 28" min="5" max="120" autocomplete="off" />
         </label>
 
-        <label class="ack-wrap" for="reg-ack">
-          <input type="checkbox" id="reg-ack" />
-          <span class="ack-text">
-            I understand this event involves outdoor physical activity and I participate at my own risk.
-            <strong>Data collected</strong> (name, birth month/day, age) is used only for HABO grant reporting
-            and event coordination. It is not sold or shared outside of HABO and ADEM requirements.
-          </span>
-        </label>
-
         <div class="error-msg" id="reg-error"></div>
 
         <button class="btn btn-primary" id="btn-register" onclick="handleRegister()">
@@ -594,13 +585,11 @@
       const day      = document.getElementById('reg-day').value;
       const birthday = month && day ? month + '-' + day : '';
       const age      = document.getElementById('reg-age').value.trim();
-      const ack      = document.getElementById('reg-ack').checked;
 
       if (!name)                          return showError('reg-error', 'Please enter your name.');
       if (!month) return showError('reg-error', 'Please select your birth month.');
       if (!day)   return showError('reg-error', 'Please select your birth day.');
       if (!age || isNaN(age))             return showError('reg-error', 'Please enter your age.');
-      if (!ack)                           return showError('reg-error', 'You must acknowledge the safety and privacy statement.');
 
       setLoading('btn-register', true);
 
