@@ -280,42 +280,6 @@
     .error-msg.visible { display: block; }
 
     /* ── CREDENTIALS REVEAL ────────────────── */
-    .cred-box {
-      background: var(--bg);
-      border: 2px solid var(--accent);
-      border-radius: 8px;
-      padding: 16px;
-    }
-
-    .cred-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      padding: 8px 0;
-    }
-
-    .cred-row + .cred-row {
-      border-top: 1px solid var(--border);
-    }
-
-    .cred-label {
-      font-size: 0.72rem;
-      font-weight: 600;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-      flex-shrink: 0;
-    }
-
-    .cred-value {
-      font-family: monospace;
-      font-size: 1rem;
-      color: var(--accent);
-      word-break: break-all;
-      text-align: right;
-    }
-
     .warning-badge {
       background: rgba(255, 92, 92, 0.12);
       border: 1px solid var(--error);
@@ -327,6 +291,88 @@
       text-align: center;
     }
 
+    /* ── USERNAME OPTIONS ──────────────────── */
+    .username-options {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .username-option {
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      font-family: monospace;
+      font-size: 1rem;
+      padding: 12px 16px;
+      text-align: left;
+      transition: border-color 0.15s, background 0.15s;
+      width: 100%;
+    }
+    .username-option:hover { border-color: var(--accent); }
+    .username-option.selected {
+      border-color: var(--accent);
+      background: rgba(181, 240, 51, 0.08);
+      color: var(--accent);
+    }
+    .username-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    .username-section-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+    }
+    .btn-refresh {
+      background: none;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.78rem;
+      padding: 4px 10px;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
+    .tip-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+    }
+    .tip-icon {
+      background: none;
+      border: 1px solid var(--text-muted);
+      border-radius: 50%;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 0.7rem;
+      height: 18px;
+      line-height: 18px;
+      padding: 0;
+      text-align: center;
+      width: 18px;
+      flex-shrink: 0;
+    }
+    .tip-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-muted);
+      display: none;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      padding: 12px 14px;
+    }
+    .tip-box.visible { display: block; }
+    
     /* ── LOADING STATE ─────────────────────── */
     .btn.loading {
       opacity: 0.6;
@@ -451,25 +497,38 @@
       </div>
     </div>
 
-    <!-- ── CREDENTIALS REVEAL PANEL ────── -->
+    <!-- ── CREDENTIALS PANEL ────────────── -->
     <div class="panel" id="panel-credentials">
-      <div class="section-label">Save Your<br /><span>Credentials</span></div>
-
-      <div class="warning-badge">
-        ⚠️ These will NOT be shown again. Write them down now.
-      </div>
-
+      <div class="section-label">Choose Your<br /><span>Identity</span></div>
       <div class="card">
-        <div class="cred-box">
-          <div class="cred-row">
-            <span class="cred-label">Username</span>
-            <span class="cred-value" id="cred-username"></span>
-          </div>
-          <div class="cred-row">
-            <span class="cred-label">Password</span>
-            <span class="cred-value" id="cred-password"></span>
-          </div>
+        <div class="username-meta">
+          <span class="username-section-label">Pick a Username</span>
+          <button class="btn-refresh" onclick="handleRefreshUsernames()">↻ Refresh</button>
         </div>
+        <div class="tip-wrap">
+          <button class="tip-icon" onclick="document.getElementById('username-tip').classList.toggle('visible')">ⓘ</button>
+          <span>Why not use my real name?</span>
+        </div>
+        <div class="tip-box" id="username-tip">
+          Your username is intentionally decoupled from your personal identity. This protects your privacy — your cleanup contributions are tracked without linking to your name or personal accounts.
+        </div>
+        <div class="username-options" id="username-options">
+          <div style="color:var(--text-muted);font-size:0.85rem;">Loading options...</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="field-label">Create a Password</label>
+          <input type="password" id="cred-password" placeholder="Choose a password" autocomplete="new-password" />
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <label class="field-label">Confirm Password</label>
+          <input type="password" id="cred-password-confirm" placeholder="Repeat your password" autocomplete="new-password" />
+        </div>
+        <div class="error-msg" id="cred-error"></div>
+        <button class="btn btn-primary" onclick="handleFinalRegister()">
+          Create My Account
+        </button>
+      </div>
+    </div>
 
         <div class="error-msg" id="cred-error"></div>
 
@@ -577,47 +636,122 @@
     });
 
     // ── REGISTER ─────────────────────────────
+    // Stored registration data — held until final submit
+    var pendingRegistration = null;
+    var selectedUsername = null;
+
     async function handleRegister() {
       clearErrors();
-
-      const name     = document.getElementById('reg-name').value.trim();
-      const month    = document.getElementById('reg-month').value;
-      const day      = document.getElementById('reg-day').value;
+      const name  = document.getElementById('reg-name').value.trim();
+      const month = document.getElementById('reg-month').value;
+      const day   = document.getElementById('reg-day').value;
+      const age   = document.getElementById('reg-age').value.trim();
       const birthday = month && day ? month + '-' + day : '';
-      const age      = document.getElementById('reg-age').value.trim();
-
-      if (!name)                          return showError('reg-error', 'Please enter your name.');
-      if (!month) return showError('reg-error', 'Please select your birth month.');
-      if (!day)   return showError('reg-error', 'Please select your birth day.');
-      if (!age || isNaN(age))             return showError('reg-error', 'Please enter your age.');
+      if (!name)    return showError('reg-error', 'Please enter your name.');
+      if (!month)   return showError('reg-error', 'Please select your birth month.');
+      if (!day)     return showError('reg-error', 'Please select your birth day.');
+      if (!age || isNaN(age)) return showError('reg-error', 'Please enter your age.');
 
       setLoading('btn-register', true);
-
       try {
-        const result = await apiCall('register', {
-          preferred_name:   name,
-          birth_month_day:  birthday,
-          self_reported_age: parseInt(age, 10),
-          safety_ack:       true
-        });
-
+        const result = await apiCall('generateUsernameOptions', {});
         if (!result.success) {
-          showError('reg-error', result.error || 'Registration failed. Please try again.');
+          showError('reg-error', result.error || 'Could not load username options. Please try again.');
           return;
         }
-
-        // Save session
-        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, name);
-
-        // Show credentials
-        document.getElementById('cred-username').textContent = result.data.username;
-        document.getElementById('cred-password').textContent = result.data.password;
+        pendingRegistration = {
+          preferred_name:    name,
+          birth_month_day:   birthday,
+          self_reported_age: parseInt(age, 10)
+        };
+        selectedUsername = null;
+        renderUsernameOptions(result.data.options);
         showPanel('credentials');
-
       } catch (err) {
         showError('reg-error', 'Connection error. Please try again.');
       } finally {
         setLoading('btn-register', false);
+      }
+    }
+
+    function renderUsernameOptions(options) {
+      const container = document.getElementById('username-options');
+      selectedUsername = null;
+      container.innerHTML = options.map(function(u) {
+        return '<button class="username-option" onclick="selectUsername(this, \'' + u + '\')">' + u + '</button>';
+      }).join('');
+    }
+
+    function selectUsername(el, username) {
+      document.querySelectorAll('.username-option').forEach(function(btn) {
+        btn.classList.remove('selected');
+      });
+      el.classList.add('selected');
+      selectedUsername = username;
+    }
+
+    async function handleRefreshUsernames() {
+      const container = document.getElementById('username-options');
+      container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading...</div>';
+      selectedUsername = null;
+      try {
+        const result = await apiCall('generateUsernameOptions', {});
+        if (!result.success) { container.innerHTML = '<div style="color:var(--error);font-size:0.85rem;">Could not refresh. Try again.</div>'; return; }
+        renderUsernameOptions(result.data.options);
+      } catch (err) {
+        container.innerHTML = '<div style="color:var(--error);font-size:0.85rem;">Connection error.</div>';
+      }
+    }
+
+    async function handleFinalRegister() {
+      const errorEl = document.getElementById('cred-error');
+      errorEl.classList.remove('visible');
+
+      if (!selectedUsername) {
+        errorEl.textContent = 'Please choose a username.';
+        errorEl.classList.add('visible');
+        return;
+      }
+      const password = document.getElementById('cred-password').value;
+      const confirm  = document.getElementById('cred-password-confirm').value;
+      if (!password) {
+        errorEl.textContent = 'Please create a password.';
+        errorEl.classList.add('visible');
+        return;
+      }
+      if (password !== confirm) {
+        errorEl.textContent = 'Passwords do not match.';
+        errorEl.classList.add('visible');
+        return;
+      }
+      if (password.length < 6) {
+        errorEl.textContent = 'Password must be at least 6 characters.';
+        errorEl.classList.add('visible');
+        return;
+      }
+
+      const btn = document.getElementById('btn-register');
+      btn.classList.add('loading');
+      try {
+        const result = await apiCall('register', {
+          preferred_name:    pendingRegistration.preferred_name,
+          birth_month_day:   pendingRegistration.birth_month_day,
+          self_reported_age: pendingRegistration.self_reported_age,
+          username:          selectedUsername,
+          password:          password
+        });
+        if (!result.success) {
+          errorEl.textContent = result.error || 'Registration failed. Please try again.';
+          errorEl.classList.add('visible');
+          return;
+        }
+        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, pendingRegistration.preferred_name);
+        window.location.href = 'app.html';
+      } catch (err) {
+        errorEl.textContent = 'Connection error. Please try again.';
+        errorEl.classList.add('visible');
+      } finally {
+        btn.classList.remove('loading');
       }
     }
 
@@ -665,11 +799,6 @@
       } finally {
         setLoading('btn-login', false);
       }
-    }
-
-    // ── CREDENTIALS CONTINUE ──────────────────
-    function handleCredentialsContinue() {
-      window.location.href = 'app.html';
     }
 
     // ── ON LOAD — redirect if already logged in ──
