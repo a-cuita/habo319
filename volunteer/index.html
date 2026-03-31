@@ -40,55 +40,17 @@
     .screen { display: none; flex-direction: column; flex: 1; }
     .screen.active { display: flex; }
 
-    /* ─── Header ─── */
-    .app-header {
-      text-align: center; padding: 20px 0 16px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 20px;
-    }
-    .app-header h1 {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.1rem; color: var(--accent);
-      letter-spacing: 2px; text-transform: uppercase;
-    }
-    .app-header .event-name {
-      font-size: 0.8rem; color: var(--text-dim); margin-top: 4px;
-    }
+    .app-header { text-align: center; padding: 20px 0 16px; border-bottom: 1px solid var(--border); margin-bottom: 20px; }
+    .app-header h1 { font-family: 'Space Mono', monospace; font-size: 1.1rem; color: var(--accent); letter-spacing: 2px; text-transform: uppercase; }
+    .app-header .event-name { font-size: 0.8rem; color: var(--text-dim); margin-top: 4px; }
 
-    /* ─── Big Number ─── */
-    .big-number {
-      font-family: 'Space Mono', monospace;
-      font-size: 6rem; font-weight: 700;
-      color: var(--accent); text-align: center;
-      line-height: 1; padding: 32px 0;
-      text-shadow: 0 0 40px rgba(63, 185, 80, 0.3);
-    }
-    .big-number-label {
-      text-align: center; font-size: 0.9rem;
-      color: var(--text-dim); margin-top: -16px; padding-bottom: 24px;
-    }
+    .big-number { font-family: 'Space Mono', monospace; font-size: 6rem; font-weight: 700; color: var(--accent); text-align: center; line-height: 1; padding: 32px 0; text-shadow: 0 0 40px rgba(63,185,80,0.3); }
+    .big-number-label { text-align: center; font-size: 0.9rem; color: var(--text-dim); margin-top: -16px; padding-bottom: 24px; }
 
-    /* ─── Cards ─── */
-    .card {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 20px;
-      margin-bottom: 16px;
-    }
-    .card h2 {
-      font-size: 1rem; font-weight: 600;
-      color: var(--accent); margin-bottom: 12px;
-    }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 16px; }
+    .card h2 { font-size: 1rem; font-weight: 600; color: var(--accent); margin-bottom: 12px; }
 
-    /* ─── Buttons ─── */
-    .btn {
-      display: block; width: 100%;
-      padding: 16px 24px; border: none;
-      border-radius: var(--radius-sm);
-      font-size: 1.1rem; font-weight: 600;
-      cursor: pointer; min-height: 56px;
-      font-family: 'DM Sans', sans-serif;
-      transition: opacity 0.15s, transform 0.1s;
-    }
+    .btn { display: block; width: 100%; padding: 16px 24px; border: none; border-radius: var(--radius-sm); font-size: 1.1rem; font-weight: 600; cursor: pointer; min-height: 56px; font-family: 'DM Sans', sans-serif; transition: opacity 0.15s, transform 0.1s; }
     .btn:active { opacity: 0.85; transform: scale(0.98); }
     .btn-primary { background: var(--accent); color: var(--bg); }
     .btn-secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
@@ -97,146 +59,47 @@
     .btn + .btn { margin-top: 10px; }
     .btn:disabled { opacity: 0.4; pointer-events: none; }
 
-    /* ─── Stats ─── */
-    .stat-row {
-      display: flex; justify-content: space-between;
-      gap: 10px; margin-bottom: 12px;
-    }
-    .stat-box {
-      flex: 1; background: var(--bg);
-      border-radius: var(--radius-sm); padding: 12px;
-      text-align: center;
-    }
-    .stat-val {
-      font-family: 'Space Mono', monospace;
-      font-size: 1.4rem; font-weight: 700; color: var(--accent);
-    }
+    .stat-row { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .stat-box { flex: 1; background: var(--bg); border-radius: var(--radius-sm); padding: 12px; text-align: center; }
+    .stat-val { font-family: 'Space Mono', monospace; font-size: 1.4rem; font-weight: 700; color: var(--accent); }
     .stat-label { font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; }
 
-    /* ─── Slider ─── */
-    .rating-slider {
-      width: 100%; margin: 12px 0;
-      -webkit-appearance: none; appearance: none;
-      height: 8px; border-radius: 4px;
-      background: var(--border); outline: none;
-    }
-    .rating-slider::-webkit-slider-thumb {
-      -webkit-appearance: none; appearance: none;
-      width: 32px; height: 32px; border-radius: 50%;
-      background: var(--accent); cursor: pointer;
-    }
-    .rating-val {
-      font-family: 'Space Mono', monospace;
-      font-size: 2rem; text-align: center;
-      color: var(--accent);
-    }
+    .rating-slider { width: 100%; margin: 12px 0; -webkit-appearance: none; appearance: none; height: 8px; border-radius: 4px; background: var(--border); outline: none; }
+    .rating-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 36px; height: 36px; border-radius: 50%; background: var(--accent); cursor: pointer; }
+    .rating-val { font-family: 'Space Mono', monospace; font-size: 2rem; text-align: center; color: var(--accent); }
 
-    /* ─── Map ─── */
-    #map-container {
-      width: 100%; height: 250px;
-      border-radius: var(--radius); overflow: hidden;
-      border: 1px solid var(--border); margin-bottom: 16px;
-    }
-    #map-container .leaflet-container { height: 100%; }
+    #map-container, #collect-map-container { width: 100%; height: 250px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); margin-bottom: 16px; }
 
-    /* ─── Pulse / loading ─── */
-    .pulse {
-      display: inline-block; width: 12px; height: 12px;
-      border-radius: 50%; background: var(--accent);
-      animation: pulse-anim 1.5s ease-in-out infinite;
-    }
-    @keyframes pulse-anim {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.4; transform: scale(0.8); }
-    }
+    .pulse { display: inline-block; width: 12px; height: 12px; border-radius: 50%; background: var(--accent); animation: pulse-anim 1.5s ease-in-out infinite; }
+    @keyframes pulse-anim { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.8); } }
 
     .loading-text { color: var(--text-dim); font-size: 0.9rem; text-align: center; padding: 20px; }
+    .tip { background: var(--surface-2); border-left: 3px solid var(--accent); padding: 12px 14px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px; }
 
-    /* ─── Tip box ─── */
-    .tip {
-      background: var(--surface-2); border-left: 3px solid var(--accent);
-      padding: 12px 14px; border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
-      font-size: 0.85rem; color: var(--text-dim); margin-bottom: 16px;
-    }
-
-    /* ─── Pocket mode ─── */
-    #pocket-overlay {
-      display: none; position: fixed; inset: 0;
-      background: #000; z-index: 9999;
-      justify-content: center; align-items: center;
-      flex-direction: column;
-    }
+    #pocket-overlay { display: none; position: fixed; inset: 0; background: #000; z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
     #pocket-overlay.active { display: flex; }
-    #pocket-overlay .pocket-text {
-      color: #333; font-size: 1rem; margin-top: 20px;
-    }
-    #pocket-overlay .pocket-pulse {
-      width: 24px; height: 24px; border-radius: 50%;
-      background: var(--accent); animation: pulse-anim 2s ease-in-out infinite;
-    }
+    #pocket-overlay .pocket-text { color: #333; font-size: 1rem; margin-top: 20px; }
+    #pocket-overlay .pocket-pulse { width: 24px; height: 24px; border-radius: 50%; background: var(--accent); animation: pulse-anim 2s ease-in-out infinite; }
 
-    /* ─── Geofence banner ─── */
-    #geofence-banner {
-      display: none; position: fixed; top: 0; left: 0; right: 0;
-      background: var(--warn); color: var(--bg);
-      text-align: center; padding: 10px; font-weight: 600;
-      font-size: 0.85rem; z-index: 100;
-    }
+    #geofence-banner { display: none; position: fixed; top: 0; left: 0; right: 0; background: var(--warn); color: var(--bg); text-align: center; padding: 10px; font-weight: 600; font-size: 0.85rem; z-index: 100; }
     #geofence-banner.active { display: block; }
 
-    /* ─── Textarea ─── */
-    textarea {
-      width: 100%; min-height: 80px; padding: 12px;
-      background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: var(--radius-sm);
-      font-family: 'DM Sans', sans-serif; font-size: 0.95rem;
-      resize: vertical;
-    }
-
-    /* ─── Input ─── */
-    input[type="number"] {
-      width: 100%; padding: 14px; font-size: 1.2rem;
-      background: var(--bg); border: 1px solid var(--border);
-      color: var(--text); border-radius: var(--radius-sm);
-      font-family: 'Space Mono', monospace;
-      -moz-appearance: textfield;
-    }
+    textarea { width: 100%; min-height: 80px; padding: 12px; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); font-family: 'DM Sans', sans-serif; font-size: 0.95rem; resize: vertical; }
+    input[type="number"] { width: 100%; padding: 14px; font-size: 1.2rem; background: var(--bg); border: 1px solid var(--border); color: var(--text); border-radius: var(--radius-sm); font-family: 'Space Mono', monospace; -moz-appearance: textfield; }
     input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+    .check-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; font-size: 0.95rem; }
+    .check-row input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--accent); }
 
-    /* ─── Checkbox ─── */
-    .check-row {
-      display: flex; align-items: center; gap: 10px;
-      padding: 12px 0; font-size: 0.95rem;
-    }
-    .check-row input[type="checkbox"] {
-      width: 22px; height: 22px; accent-color: var(--accent);
-    }
-
-    /* ─── Desktop block ─── */
-    #desktop-block {
-      display: none; position: fixed; inset: 0;
-      background: var(--bg); z-index: 99999;
-      justify-content: center; align-items: center;
-      flex-direction: column; text-align: center; padding: 40px;
-    }
+    #desktop-block { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 99999; justify-content: center; align-items: center; flex-direction: column; text-align: center; padding: 40px; }
     #desktop-block h2 { color: var(--accent); margin-bottom: 16px; }
     #desktop-block p { color: var(--text-dim); max-width: 400px; }
   </style>
 </head>
 <body>
 
-<div id="desktop-block">
-  <h2>Open on your phone</h2>
-  <p>This app is designed for mobile. Scan the QR code or open this URL on your phone.</p>
-  <div id="qr-placeholder" style="margin-top: 24px; color: var(--text-dim); font-size: 0.85rem;">(QR code here)</div>
-</div>
-
+<div id="desktop-block"><h2>Open on your phone</h2><p>This app is designed for mobile. Scan the QR code or open this URL on your phone.</p></div>
 <div id="geofence-banner">You're outside the cleanup zone</div>
-
-<div id="pocket-overlay">
-  <div class="pocket-pulse"></div>
-  <div class="pocket-text">Tap anywhere to exit pocket mode</div>
-</div>
+<div id="pocket-overlay"><div class="pocket-pulse"></div><div class="pocket-text">Tap anywhere to exit pocket mode</div></div>
 
 <div id="app">
   <div class="app-header">
@@ -244,30 +107,23 @@
     <div class="event-name" id="eventNameHeader"></div>
   </div>
 
-  <!-- SCREEN: Loading -->
   <div class="screen active" id="screen-loading">
     <div class="loading-text"><span class="pulse"></span> Connecting...</div>
   </div>
 
-  <!-- SCREEN: No Event -->
   <div class="screen" id="screen-no-event">
-    <div class="card">
-      <h2>No Active Event</h2>
-      <p style="color:var(--text-dim)">There's no cleanup event happening right now. Check back later.</p>
-    </div>
+    <div class="card"><h2>No Active Event</h2><p style="color:var(--text-dim)">There's no cleanup event happening right now. Check back later.</p></div>
   </div>
 
-  <!-- SCREEN: Join -->
   <div class="screen" id="screen-join">
     <div class="tip">Tap Join to get your volunteer number. You'll write it on the sign-in sheet.</div>
     <div class="card">
       <h2 id="joinEventName"></h2>
       <p style="color:var(--text-dim);margin-bottom:16px" id="joinEventDate"></p>
-      <button class="btn btn-primary" onclick="doJoin()">Join Event</button>
+      <button class="btn btn-primary" id="btnJoin" onclick="doJoin(this)">Join Event</button>
     </div>
   </div>
 
-  <!-- SCREEN: ID Display -->
   <div class="screen" id="screen-id">
     <div class="card" style="text-align:center">
       <div style="color:var(--text-dim);font-size:0.9rem;margin-bottom:8px">Your Volunteer Number</div>
@@ -277,69 +133,48 @@
     </div>
   </div>
 
-  <!-- SCREEN: Waiting Room -->
   <div class="screen" id="screen-waiting">
     <div class="card" style="text-align:center">
       <div class="big-number" id="waitingNumber"></div>
       <div class="big-number-label">Your Number</div>
-      <div style="margin:20px 0">
-        <span class="pulse"></span>
-        <span style="color:var(--text-dim);margin-left:8px">Waiting for approval...</span>
-      </div>
+      <div style="margin:20px 0"><span class="pulse"></span><span style="color:var(--text-dim);margin-left:8px">Waiting for approval...</span></div>
       <div class="tip">A team leader or organizer will approve you shortly. Keep this screen open.</div>
     </div>
   </div>
 
-  <!-- SCREEN: Collection Ready -->
   <div class="screen" id="screen-ready">
     <div id="map-container"></div>
     <div class="card">
       <h2>Ready to Collect</h2>
       <p style="color:var(--text-dim);margin-bottom:16px">GPS will start tracking when you begin.</p>
-      <button class="btn btn-primary" onclick="startCollection()">Start Collecting</button>
+      <button class="btn btn-primary" id="btnStart" onclick="startCollection(this)">Start Collecting</button>
     </div>
   </div>
 
-  <!-- SCREEN: Collecting (active leg) -->
   <div class="screen" id="screen-collecting">
     <div class="stat-row">
-      <div class="stat-box">
-        <div class="stat-val" id="collectTime">0:00</div>
-        <div class="stat-label">Time</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val" id="collectDist">0</div>
-        <div class="stat-label">ft</div>
-      </div>
-      <div class="stat-box">
-        <div class="stat-val" id="collectLeg">1</div>
-        <div class="stat-label">Leg</div>
-      </div>
+      <div class="stat-box"><div class="stat-val" id="collectTime">0:00</div><div class="stat-label">Time</div></div>
+      <div class="stat-box"><div class="stat-val" id="collectDist">0.0</div><div class="stat-label">miles</div></div>
+      <div class="stat-box"><div class="stat-val" id="collectLeg">1</div><div class="stat-label">Leg</div></div>
     </div>
-    <div id="collect-map-container" style="width:100%;height:200px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:16px"></div>
+    <div id="collect-map-container"></div>
     <button class="btn btn-warn" onclick="togglePocket()">Pocket Mode</button>
-    <button class="btn btn-danger" onclick="endCurrentLeg()">End Leg</button>
+    <button class="btn btn-danger" id="btnEndLeg" onclick="endCurrentLeg(this)">End Leg</button>
   </div>
 
-  <!-- SCREEN: Leg Complete -->
   <div class="screen" id="screen-leg-done">
     <div class="card">
       <h2>Leg Complete</h2>
       <div class="stat-row" id="legStats"></div>
       <div style="margin-bottom:12px">
-        <label style="color:var(--text-dim);font-size:0.85rem">Cumulative bag weight (lbs)</label>
+        <label style="color:var(--text-dim);font-size:0.85rem">Weight for this leg (lbs)</label>
         <input type="number" id="legWeight" placeholder="0.0" step="0.1" min="0" style="margin-top:6px">
       </div>
-      <div class="check-row">
-        <input type="checkbox" id="newBag">
-        <label for="newBag">New bag (resets cumulative to 0)</label>
-      </div>
-      <button class="btn btn-primary" onclick="submitLeg()">Save &amp; Continue</button>
+      <button class="btn btn-primary" id="btnSaveLeg" onclick="submitLeg(this)">Save &amp; Start Next Leg</button>
     </div>
-    <button class="btn btn-secondary" onclick="finishSessionPrompt()">Finish Session</button>
+    <button class="btn btn-secondary" id="btnFinish" onclick="finishSessionPrompt(this)">Finish Session</button>
   </div>
 
-  <!-- SCREEN: Session Complete -->
   <div class="screen" id="screen-session-done">
     <div class="card">
       <h2>Rate This Area</h2>
@@ -359,132 +194,116 @@
         <label style="color:var(--text-dim);font-size:0.85rem">Notes (optional)</label>
         <textarea id="sessionNotes" placeholder="Anything to note about this area..."></textarea>
       </div>
-      <button class="btn btn-primary" onclick="submitSession()">Submit</button>
+      <button class="btn btn-primary" id="btnSubmitSession" onclick="submitSession(this)">Submit</button>
     </div>
   </div>
 
-  <!-- SCREEN: Done -->
   <div class="screen" id="screen-done">
     <div class="card" style="text-align:center">
-      <div style="font-size:2.5rem;margin-bottom:12px">🎉</div>
+      <div style="font-size:2.5rem;margin-bottom:12px">&#127881;</div>
       <h2>Session Complete!</h2>
       <div class="stat-row" id="doneStats"></div>
       <p style="color:var(--text-dim);margin:16px 0">Great work! You can start another session or you're done for the day.</p>
-      <button class="btn btn-primary" onclick="startCollection()">Start Another</button>
+      <button class="btn btn-primary" id="btnAnother" onclick="startCollection(this)">Start Another</button>
     </div>
   </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-// ─── Config ───
+/* ─── Config ─── */
 var API_URL = 'https://script.google.com/macros/s/AKfycbx2YuN9ExnRwKVQ63yY5QEPVrsS7lAHQNzBjhO0SJv_6CZEfLufo6P0g7A8sg8_zhvXnQ/exec';
-var GPS_INTERVAL = 5000;
-var GPS_ACCURACY_THRESHOLD = 20; // meters
+var GPS_ACCURACY_THRESHOLD = 20;
 var POLL_INTERVAL = 10000;
 
-// ─── State ───
+/* ─── State ─── */
 var state = {
-  event: null,
-  volunteerId: null,
-  volunteerNumber: null,
-  sessionId: null,
-  legId: null,
-  legNumber: 1,
-  gpsPoints: [],
-  previousCumulative: 0,
-  watchId: null,
-  timerStart: null,
-  timerInterval: null,
-  totalDistance: 0,
-  lastPos: null,
-  map: null,
-  collectMap: null,
-  pathLine: null,
-  pollTimer: null,
-  wakeLock: null
+  event: null, volunteerId: null, volunteerNumber: null,
+  sessionId: null, legId: null, legNumber: 1,
+  gpsPoints: [], legWeights: [],
+  watchId: null, timerStart: null, timerInterval: null,
+  totalDistance: 0, lastPos: null,
+  map: null, collectMap: null, pathLine: null,
+  pollTimer: null, wakeLock: null
 };
 
-// ─── API ───
+/* ─── callWithLock ─── */
+var _locks = {};
+function callWithLock(key, btn, fn) {
+  if (_locks[key]) return;
+  _locks[key] = true;
+  if (btn) { btn.disabled = true; btn._orig = btn.textContent; btn.textContent = 'Working...'; }
+  try { fn(); } catch(e) { unlock(key, btn); throw e; }
+}
+function unlock(key, btn) {
+  _locks[key] = false;
+  if (btn) { btn.disabled = false; btn.textContent = btn._orig || ''; }
+}
+
+/* ─── Helpers ─── */
+function fmtDate(d) {
+  if (!d) return '';
+  var dt = new Date(d); if (isNaN(dt)) return String(d);
+  var m = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return m[dt.getMonth()] + ' ' + dt.getDate() + ', ' + dt.getFullYear();
+}
+function fmtMiles(meters) { return (meters / 1609.34).toFixed(1); }
+function fmtTime(sec) { var m = Math.floor(sec/60), s = sec%60; return m + ':' + (s<10?'0':'') + s; }
+
+/* ─── API ─── */
 function api(action, data) {
   var body = Object.assign({ action: action }, data || {});
   if (state.event) body.eventId = state.event.eventId;
   if (state.volunteerNumber) body.volunteerNumber = state.volunteerNumber;
   return fetch(API_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'text/plain' },
+    method: 'POST', headers: { 'Content-Type': 'text/plain' },
     body: JSON.stringify(body)
-  })
-  .then(function(r) { return r.json(); })
-  .then(function(r) {
+  }).then(function(r) { return r.json(); }).then(function(r) {
     if (!r.success) throw new Error(r.error || 'API error');
     return r.data;
   });
 }
 
-// ─── Screen Nav ───
 function showScreen(id) {
   var screens = document.querySelectorAll('.screen');
   for (var i = 0; i < screens.length; i++) screens[i].classList.remove('active');
   document.getElementById('screen-' + id).classList.add('active');
 }
 
-// ─── Boot ───
+/* ─── Boot ─── */
 function boot() {
-  // Desktop check
-  if (window.innerWidth > 600) {
-    document.getElementById('desktop-block').style.display = 'flex';
-  }
-
-  // Check localStorage for existing session
+  if (window.innerWidth > 600) document.getElementById('desktop-block').style.display = 'flex';
   var saved = localStorage.getItem('cmra_volunteer');
   if (saved) {
-    try {
-      var s = JSON.parse(saved);
-      state.volunteerNumber = s.volunteerNumber;
-      state.volunteerId = s.volunteerId;
-    } catch (e) { localStorage.removeItem('cmra_volunteer'); }
+    try { var s = JSON.parse(saved); state.volunteerNumber = s.volunteerNumber; state.volunteerId = s.volunteerId; }
+    catch(e) { localStorage.removeItem('cmra_volunteer'); }
   }
-
-  // Fetch active event
   api('getActiveEvent').then(function(event) {
     if (!event) { showScreen('no-event'); return; }
     state.event = event;
     document.getElementById('eventNameHeader').textContent = event.name;
-
-    if (state.volunteerNumber) {
-      // Returning volunteer — check status
-      checkStatus();
-    } else {
-      showJoin();
-    }
-  }).catch(function(err) {
-    showScreen('no-event');
-    console.error('Boot error:', err);
-  });
+    state.volunteerNumber ? checkStatus() : showJoin();
+  }).catch(function() { showScreen('no-event'); });
 }
 
 function showJoin() {
   document.getElementById('joinEventName').textContent = state.event.name;
-  document.getElementById('joinEventDate').textContent = state.event.date || '';
+  document.getElementById('joinEventDate').textContent = fmtDate(state.event.date);
   showScreen('join');
 }
 
-// ─── Join ───
-function doJoin() {
-  api('joinEvent', { eventId: state.event.eventId })
-    .then(function(data) {
+/* ─── Join ─── */
+function doJoin(btn) {
+  callWithLock('join', btn, function() {
+    api('joinEvent', { eventId: state.event.eventId }).then(function(data) {
+      unlock('join', btn);
       state.volunteerId = data.volunteerId;
       state.volunteerNumber = data.volunteerNumber;
-      localStorage.setItem('cmra_volunteer', JSON.stringify({
-        volunteerId: data.volunteerId,
-        volunteerNumber: data.volunteerNumber,
-        eventId: state.event.eventId
-      }));
+      localStorage.setItem('cmra_volunteer', JSON.stringify({ volunteerId: data.volunteerId, volunteerNumber: data.volunteerNumber, eventId: state.event.eventId }));
       document.getElementById('myNumber').textContent = '#' + data.volunteerNumber;
       showScreen('id');
-    })
-    .catch(function(err) { alert('Error joining: ' + err.message); });
+    }).catch(function(err) { unlock('join', btn); alert('Error: ' + err.message); });
+  });
 }
 
 function goToWaiting() {
@@ -493,64 +312,38 @@ function goToWaiting() {
   startPolling();
 }
 
-// ─── Status Polling ───
+/* ─── Status Polling ─── */
 function checkStatus() {
-  api('getVolunteerStatus')
-    .then(function(data) {
-      if (!data) { showJoin(); return; }
-      state.volunteerId = data.volunteerId;
-      if (data.status === 'approved') {
-        stopPolling();
-        showReady();
-      } else if (data.status === 'waiting') {
-        document.getElementById('waitingNumber').textContent = '#' + state.volunteerNumber;
-        showScreen('waiting');
-        startPolling();
-      } else {
-        showJoin();
-      }
-    })
-    .catch(function() { showJoin(); });
+  api('getVolunteerStatus').then(function(data) {
+    if (!data) { showJoin(); return; }
+    state.volunteerId = data.volunteerId;
+    if (data.status === 'approved') { stopPolling(); showReady(); }
+    else if (data.status === 'waiting') {
+      document.getElementById('waitingNumber').textContent = '#' + state.volunteerNumber;
+      showScreen('waiting'); startPolling();
+    } else { showJoin(); }
+  }).catch(function() { showJoin(); });
 }
 
 function startPolling() {
   stopPolling();
   state.pollTimer = setInterval(function() {
     api('getVolunteerStatus').then(function(data) {
-      if (data && data.status === 'approved') {
-        stopPolling();
-        showReady();
-      }
+      if (data && data.status === 'approved') { stopPolling(); showReady(); }
     });
   }, POLL_INTERVAL);
 }
+function stopPolling() { if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; } }
 
-function stopPolling() {
-  if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }
-}
+/* ─── Ready / Map ─── */
+function showReady() { showScreen('ready'); setTimeout(function() { initMap('map-container'); }, 100); }
 
-// ─── Ready / Map ───
-function showReady() {
-  showScreen('ready');
-  setTimeout(function() { initMap('map-container'); }, 100);
-}
-
-function initMap(containerId) {
-  var lat = 32.3668, lon = -86.3000;
-  if (state.map && containerId === 'map-container') { state.map.invalidateSize(); return; }
-  if (state.collectMap && containerId === 'collect-map-container') { state.collectMap.invalidateSize(); return; }
-
-  var m = L.map(containerId, { zoomControl: false }).setView([lat, lon], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; OSM &amp; CARTO', maxZoom: 19
-  }).addTo(m);
-
-  if (containerId === 'map-container') {
-    state.map = m;
-    loadZones(m);
-  } else {
-    state.collectMap = m;
-  }
+function initMap(id) {
+  if (id === 'map-container' && state.map) { state.map.invalidateSize(); return; }
+  if (id === 'collect-map-container' && state.collectMap) { state.collectMap.invalidateSize(); return; }
+  var m = L.map(id, { zoomControl: false }).setView([32.3668, -86.3000], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM', maxZoom: 19 }).addTo(m);
+  if (id === 'map-container') { state.map = m; loadZones(m); } else { state.collectMap = m; }
 }
 
 function loadZones(map) {
@@ -559,223 +352,167 @@ function loadZones(map) {
     for (var i = 0; i < zones.length; i++) {
       var z = zones[i];
       if (z.polygon && z.polygon.length > 0) {
-        var latlngs = z.polygon.map(function(p) {
-          return Array.isArray(p) ? [p[0], p[1]] : [p.lat, p.lng];
-        });
-        L.polygon(latlngs, {
-          color: 'var(--accent)', fillColor: '#3fb950', fillOpacity: 0.15, weight: 2
-        }).addTo(map).bindPopup(z.name);
+        var ll = z.polygon.map(function(p) { return Array.isArray(p) ? [p[0],p[1]] : [p.lat,p.lng]; });
+        L.polygon(ll, { color: '#3fb950', fillColor: '#3fb950', fillOpacity: 0.15, weight: 2 }).addTo(map).bindPopup(z.name);
       }
     }
   });
 }
 
-// ─── Collection ───
-function startCollection() {
-  api('startSession', { eventId: state.event.eventId })
-    .then(function(data) {
+/* ─── Collection ─── */
+function startCollection(btn) {
+  callWithLock('start', btn, function() {
+    api('startSession', { eventId: state.event.eventId }).then(function(data) {
+      unlock('start', btn);
       state.sessionId = data.sessionId;
       state.legId = data.legId;
       state.legNumber = data.legNumber || 1;
-      state.gpsPoints = [];
-      state.totalDistance = 0;
-      state.lastPos = null;
-      state.previousCumulative = 0;
-
+      state.gpsPoints = []; state.totalDistance = 0; state.lastPos = null; state.legWeights = [];
       document.getElementById('collectLeg').textContent = state.legNumber;
+      document.getElementById('collectDist').textContent = '0.0';
+      document.getElementById('collectTime').textContent = '0:00';
       showScreen('collecting');
       setTimeout(function() { initMap('collect-map-container'); }, 100);
-      startGPS();
-      startTimer();
-    })
-    .catch(function(err) { alert('Error: ' + err.message); });
+      startGPS(); startTimer();
+    }).catch(function(err) { unlock('start', btn); alert('Error: ' + err.message); });
+  });
 }
 
-// ─── GPS ───
+/* ─── GPS ─── */
 function startGPS() {
   if (!navigator.geolocation) { alert('GPS not available'); return; }
-  state.watchId = navigator.geolocation.watchPosition(
-    onGPSPosition,
-    function(err) { console.warn('GPS error:', err.message); },
-    { enableHighAccuracy: true, maximumAge: GPS_INTERVAL, timeout: 10000 }
-  );
+  state.watchId = navigator.geolocation.watchPosition(onGPS, function(e) { console.warn('GPS:', e.message); }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 10000 });
 }
+function stopGPS() { if (state.watchId !== null) { navigator.geolocation.clearWatch(state.watchId); state.watchId = null; } }
 
-function stopGPS() {
-  if (state.watchId !== null) {
-    navigator.geolocation.clearWatch(state.watchId);
-    state.watchId = null;
-  }
-}
-
-function onGPSPosition(pos) {
-  // Accuracy gate (Ghostwriter finding #4)
+function onGPS(pos) {
   if (pos.coords.accuracy > GPS_ACCURACY_THRESHOLD) return;
-
-  var pt = {
-    lat: pos.coords.latitude,
-    lon: pos.coords.longitude,
-    timestamp: new Date().toISOString()
-  };
-
-  // Distance
-  if (state.lastPos) {
-    state.totalDistance += haversine(state.lastPos.lat, state.lastPos.lon, pt.lat, pt.lon);
-  }
+  var pt = { lat: pos.coords.latitude, lon: pos.coords.longitude, timestamp: new Date().toISOString() };
+  if (state.lastPos) state.totalDistance += haversine(state.lastPos.lat, state.lastPos.lon, pt.lat, pt.lon);
   state.lastPos = pt;
   state.gpsPoints.push(pt);
-
-  // Update display
-  document.getElementById('collectDist').textContent = Math.round(state.totalDistance * 3.28084); // meters to feet
-
-  // Update map
+  document.getElementById('collectDist').textContent = fmtMiles(state.totalDistance);
   if (state.collectMap) {
     state.collectMap.setView([pt.lat, pt.lon], 16);
-    if (!state.pathLine) {
-      state.pathLine = L.polyline([], { color: '#3fb950', weight: 3, opacity: 0.8 }).addTo(state.collectMap);
-    }
+    if (!state.pathLine) state.pathLine = L.polyline([], { color: '#3fb950', weight: 3, opacity: 0.8 }).addTo(state.collectMap);
     state.pathLine.addLatLng([pt.lat, pt.lon]);
   }
 }
 
 function haversine(lat1, lon1, lat2, lon2) {
-  var R = 6371000;
-  var dLat = (lat2 - lat1) * Math.PI / 180;
-  var dLon = (lon2 - lon1) * Math.PI / 180;
-  var a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-          Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-          Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  var R = 6371000, dLat = (lat2-lat1)*Math.PI/180, dLon = (lon2-lon1)*Math.PI/180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
 }
 
-// ─── Timer ───
+/* ─── Timer ─── */
 function startTimer() {
   state.timerStart = Date.now();
   state.timerInterval = setInterval(function() {
-    var elapsed = Math.floor((Date.now() - state.timerStart) / 1000);
-    var min = Math.floor(elapsed / 60);
-    var sec = elapsed % 60;
-    document.getElementById('collectTime').textContent = min + ':' + (sec < 10 ? '0' : '') + sec;
+    var s = Math.floor((Date.now() - state.timerStart) / 1000);
+    document.getElementById('collectTime').textContent = fmtTime(s);
   }, 1000);
 }
+function stopTimer() { if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; } }
 
-function stopTimer() {
-  if (state.timerInterval) { clearInterval(state.timerInterval); state.timerInterval = null; }
-}
-
-// ─── Pocket Mode ───
+/* ─── Pocket Mode ─── */
 function togglePocket() {
-  var overlay = document.getElementById('pocket-overlay');
-  if (overlay.classList.contains('active')) {
-    overlay.classList.remove('active');
-    releaseWakeLock();
-  } else {
-    overlay.classList.add('active');
-    acquireWakeLock();
-  }
+  var o = document.getElementById('pocket-overlay');
+  o.classList.contains('active') ? (o.classList.remove('active'), releaseWakeLock()) : (o.classList.add('active'), acquireWakeLock());
 }
-
-document.getElementById('pocket-overlay').addEventListener('click', function() {
-  togglePocket();
-});
-
-async function acquireWakeLock() {
-  try {
-    if ('wakeLock' in navigator) {
-      state.wakeLock = await navigator.wakeLock.request('screen');
-    }
-  } catch (e) { console.warn('Wake lock failed:', e); }
-}
-
-function releaseWakeLock() {
-  if (state.wakeLock) { state.wakeLock.release(); state.wakeLock = null; }
-}
-
-// Re-acquire wake lock on visibility change
+document.getElementById('pocket-overlay').addEventListener('click', togglePocket);
+async function acquireWakeLock() { try { if ('wakeLock' in navigator) state.wakeLock = await navigator.wakeLock.request('screen'); } catch(e){} }
+function releaseWakeLock() { if (state.wakeLock) { state.wakeLock.release(); state.wakeLock = null; } }
 document.addEventListener('visibilitychange', function() {
-  if (document.visibilityState === 'visible' && document.getElementById('pocket-overlay').classList.contains('active')) {
-    acquireWakeLock();
-  }
+  if (document.visibilityState === 'visible' && document.getElementById('pocket-overlay').classList.contains('active')) acquireWakeLock();
 });
 
-// ─── End Leg ───
-function endCurrentLeg() {
-  stopGPS();
-  stopTimer();
-
+/* ─── End Leg ─── */
+function endCurrentLeg(btn) {
+  if (btn) btn.disabled = true;
+  stopGPS(); stopTimer();
   var elapsed = state.timerStart ? Math.floor((Date.now() - state.timerStart) / 1000) : 0;
-
   document.getElementById('legStats').innerHTML =
-    '<div class="stat-box"><div class="stat-val">' + Math.round(state.totalDistance * 3.28084) + '</div><div class="stat-label">ft walked</div></div>' +
-    '<div class="stat-box"><div class="stat-val">' + Math.floor(elapsed / 60) + ':' + (elapsed % 60 < 10 ? '0' : '') + (elapsed % 60) + '</div><div class="stat-label">time</div></div>' +
+    '<div class="stat-box"><div class="stat-val">' + fmtMiles(state.totalDistance) + '</div><div class="stat-label">miles</div></div>' +
+    '<div class="stat-box"><div class="stat-val">' + fmtTime(elapsed) + '</div><div class="stat-label">time</div></div>' +
     '<div class="stat-box"><div class="stat-val">' + state.gpsPoints.length + '</div><div class="stat-label">GPS pts</div></div>';
-
   document.getElementById('legWeight').value = '';
-  document.getElementById('newBag').checked = false;
   showScreen('leg-done');
+  if (btn) btn.disabled = false;
 }
 
-function submitLeg() {
-  var weight = parseFloat(document.getElementById('legWeight').value) || 0;
-  var newBag = document.getElementById('newBag').checked;
+function submitLeg(btn) {
+  var legWeight = parseFloat(document.getElementById('legWeight').value) || 0;
+  state.legWeights.push(legWeight);
+  var cumulative = 0;
+  for (var i = 0; i < state.legWeights.length; i++) cumulative += state.legWeights[i];
 
-  api('endLeg', {
-    legId: state.legId,
-    gpsPoints: state.gpsPoints,
-    cumulativeWeight: weight,
-    previousCumulative: state.previousCumulative,
-    newBag: newBag,
-    endTime: new Date().toISOString()
-  }).then(function(data) {
-    state.previousCumulative = newBag ? 0 : weight;
-
-    // Start next leg
-    return api('startNextLeg', { sessionId: state.sessionId });
-  }).then(function(data) {
-    state.legId = data.legId;
-    state.legNumber = data.legNumber;
-    state.gpsPoints = [];
-    state.totalDistance = 0;
-    state.lastPos = null;
-    state.pathLine = null;
-
-    document.getElementById('collectLeg').textContent = state.legNumber;
-    document.getElementById('collectDist').textContent = '0';
-    document.getElementById('collectTime').textContent = '0:00';
-    showScreen('collecting');
-    startGPS();
-    startTimer();
-  }).catch(function(err) { alert('Error: ' + err.message); });
+  callWithLock('saveLeg', btn, function() {
+    api('endLeg', {
+      legId: state.legId,
+      gpsPoints: state.gpsPoints,
+      cumulativeWeight: cumulative,
+      previousCumulative: cumulative - legWeight,
+      newBag: false,
+      endTime: new Date().toISOString()
+    }).then(function() {
+      return api('startNextLeg', { sessionId: state.sessionId });
+    }).then(function(data) {
+      unlock('saveLeg', btn);
+      state.legId = data.legId;
+      state.legNumber = data.legNumber;
+      state.gpsPoints = []; state.totalDistance = 0; state.lastPos = null; state.pathLine = null;
+      document.getElementById('collectLeg').textContent = state.legNumber;
+      document.getElementById('collectDist').textContent = '0.0';
+      document.getElementById('collectTime').textContent = '0:00';
+      showScreen('collecting');
+      startGPS(); startTimer();
+    }).catch(function(err) { unlock('saveLeg', btn); alert('Error: ' + err.message); });
+  });
 }
 
-// ─── Finish Session ───
-function finishSessionPrompt() {
-  showScreen('session-done');
+/* ─── Finish Session ─── */
+function finishSessionPrompt(btn) {
+  // Submit current leg weight first
+  var legWeight = parseFloat(document.getElementById('legWeight').value) || 0;
+  state.legWeights.push(legWeight);
+  var cumulative = 0;
+  for (var i = 0; i < state.legWeights.length; i++) cumulative += state.legWeights[i];
+
+  callWithLock('finishLeg', btn, function() {
+    api('endLeg', {
+      legId: state.legId,
+      gpsPoints: state.gpsPoints,
+      cumulativeWeight: cumulative,
+      previousCumulative: cumulative - legWeight,
+      newBag: false,
+      endTime: new Date().toISOString()
+    }).then(function() {
+      unlock('finishLeg', btn);
+      showScreen('session-done');
+    }).catch(function(err) { unlock('finishLeg', btn); alert('Error: ' + err.message); });
+  });
 }
 
-function submitSession() {
-  var preRating = parseInt(document.getElementById('preRating').value, 10);
-  var postRating = parseInt(document.getElementById('postRating').value, 10);
-  var notes = document.getElementById('sessionNotes').value.trim();
-
-  api('finishSession', {
-    sessionId: state.sessionId,
-    preRating: preRating,
-    postRating: postRating,
-    notes: notes
-  }).then(function(data) {
-    document.getElementById('doneStats').innerHTML =
-      '<div class="stat-box"><div class="stat-val">' + (data.totalWeight || 0) + '</div><div class="stat-label">lbs</div></div>' +
-      '<div class="stat-box"><div class="stat-val">' + Math.round((data.totalDistance || 0) * 3.28084) + '</div><div class="stat-label">ft</div></div>' +
-      '<div class="stat-box"><div class="stat-val">' + (data.legCount || 0) + '</div><div class="stat-label">legs</div></div>';
-
-    state.sessionId = null;
-    state.legId = null;
-    showScreen('done');
-  }).catch(function(err) { alert('Error: ' + err.message); });
+function submitSession(btn) {
+  callWithLock('submit', btn, function() {
+    api('finishSession', {
+      sessionId: state.sessionId,
+      preRating: parseInt(document.getElementById('preRating').value, 10),
+      postRating: parseInt(document.getElementById('postRating').value, 10),
+      notes: document.getElementById('sessionNotes').value.trim()
+    }).then(function(data) {
+      unlock('submit', btn);
+      document.getElementById('doneStats').innerHTML =
+        '<div class="stat-box"><div class="stat-val">' + (data.totalWeight || 0) + '</div><div class="stat-label">lbs</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + fmtMiles((data.totalDistance || 0)) + '</div><div class="stat-label">miles</div></div>' +
+        '<div class="stat-box"><div class="stat-val">' + (data.legCount || 0) + '</div><div class="stat-label">legs</div></div>';
+      state.sessionId = null; state.legId = null;
+      showScreen('done');
+    }).catch(function(err) { unlock('submit', btn); alert('Error: ' + err.message); });
+  });
 }
 
-// ─── Init ───
 boot();
 </script>
 </body>
