@@ -107,7 +107,7 @@
   </style>
 </head>
 <body>
-<div id="desktop-block"><h2>Open on your phone</h2><p>This app is designed for mobile.</p><button class="btn btn-secondary" style="margin-top:20px;max-width:200px" onclick="this.parentElement.style.display='none'">Continue Anyway</button></div>
+<div id="desktop-block"><h2>Open on your phone</h2><p>This app is designed for mobile.</p></div>
 <div id="geofence-banner">You're outside the cleanup zone</div>
 <div id="pocket-overlay"><div class="pocket-pulse"></div><div class="pocket-text">Tap anywhere to exit pocket mode</div></div>
 
@@ -479,31 +479,16 @@ function tlMarkAccounted(cb,volId){
 /* ─── Collection (shared) ─── */
 function startCollection(btn) {
   callWithLock('start',btn,function(){
-    // Dupe guard: check for active session first
-    api('getActiveSession',{eventId:state.event.eventId}).then(function(active){
-      if(active && active.sessionId){
-        // Resume existing session
-        state.sessionId=active.sessionId;
-        state.legId=active.activeLeg?active.activeLeg.legId:null;
-        state.legNumber=active.activeLeg?active.activeLeg.legNumber:active.legCount+1;
-        state.gpsPoints=[];state.totalDistance=0;state.lastPos=null;state.legWeights=[];
-        if(!state.legId){
-          // All legs closed, start new one
-          return api('startNextLeg',{sessionId:state.sessionId}).then(function(leg){
-            state.legId=leg.legId;state.legNumber=leg.legNumber;
-            unlock('start',btn); launchCollecting();
-          });
-        }
-        unlock('start',btn); launchCollecting();
-      } else {
-        // New session
-        api('startSession',{eventId:state.event.eventId}).then(function(data){
-          unlock('start',btn);
-          state.sessionId=data.sessionId;state.legId=data.legId;state.legNumber=data.legNumber||1;
-          state.gpsPoints=[];state.totalDistance=0;state.lastPos=null;state.legWeights=[];
-          launchCollecting();
-        });
-      }
+    // Single round trip — dupe guard + start combined (Ghostwriter Safari fix)
+    api('startOrResumeSession',{eventId:state.event.eventId}).then(function(data){
+      unlock('start',btn);
+      // Refresh role from server response (fix #2 — state refresh on promotion)
+      if(data.role) { state.role=data.role; updateRoleBadge(); }
+      state.sessionId=data.sessionId;
+      state.legId=data.activeLeg?data.activeLeg.legId:(data.legId||null);
+      state.legNumber=data.activeLeg?data.activeLeg.legNumber:(data.legNumber||1);
+      state.gpsPoints=[];state.totalDistance=0;state.lastPos=null;state.legWeights=[];
+      launchCollecting();
     }).catch(function(err){unlock('start',btn);alert('Error: '+err.message);});
   });
 }
