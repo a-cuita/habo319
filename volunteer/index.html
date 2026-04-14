@@ -451,8 +451,65 @@ function api(action,data){
   if(S.event)body.eventId=S.event.eventId;
   if(S.volunteerNumber)body.volunteerNumber=S.volunteerNumber;
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
-    .then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
+    .then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;})
+    .catch(function(err){
+      if(err.message&&err.message!=='API error'&&_isWriteAction(action)){
+        _queueOffline(body);
+        throw new Error('Saved offline — will retry when connected');
+      }
+      throw err;
+    });
 }
+
+var _WRITE_ACTIONS=['endLeg','finishSession','submitScoutRating','postChatMessage','postNote','startOrResumeSession','startNextLeg'];
+function _isWriteAction(action){return _WRITE_ACTIONS.indexOf(action)>=0;}
+
+function _queueOffline(body){
+  try{
+    var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');
+    q.push({body:body,timestamp:new Date().toISOString()});
+    localStorage.setItem('cmra_offline_queue',JSON.stringify(q));
+    _showOfflineBadge();
+  }catch(e){}
+}
+
+function _retryOfflineQueue(){
+  var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');
+  if(q.length===0){_hideOfflineBadge();return;}
+  var item=q.shift();
+  localStorage.setItem('cmra_offline_queue',JSON.stringify(q));
+  fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(item.body)})
+    .then(function(r){return r.json()})
+    .then(function(r){
+      if(q.length>0)setTimeout(_retryOfflineQueue,1000);
+      else _hideOfflineBadge();
+    })
+    .catch(function(){
+      q.unshift(item);
+      localStorage.setItem('cmra_offline_queue',JSON.stringify(q));
+    });
+}
+
+function _showOfflineBadge(){
+  var el=document.getElementById('offline-badge');
+  if(!el){
+    el=document.createElement('div');
+    el.id='offline-badge';
+    el.style.cssText='position:fixed;top:0;left:0;right:0;background:var(--danger);color:#fff;text-align:center;padding:8px;font-size:0.8rem;font-weight:600;z-index:200;cursor:pointer;';
+    el.onclick=function(){_retryOfflineQueue();};
+    document.body.insertBefore(el,document.body.firstChild);
+  }
+  var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');
+  el.textContent='Offline: '+q.length+' pending — tap to retry';
+  el.style.display='block';
+}
+
+function _hideOfflineBadge(){
+  var el=document.getElementById('offline-badge');
+  if(el)el.style.display='none';
+}
+
+window.addEventListener('online',function(){_retryOfflineQueue();});
 var _eventAliveTimer=null;
 function startEventAliveCheck(){
   if(_eventAliveTimer)clearInterval(_eventAliveTimer);
@@ -487,6 +544,13 @@ function updateHeader(){
 
 /* ─── Boot ─── */
 function boot(){
+  var isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if(isSafari){
+    var warn=document.createElement('div');
+    warn.style.cssText='background:var(--warn);color:var(--text-inv);text-align:center;padding:10px 16px;font-size:0.85rem;font-weight:600;';
+    warn.innerHTML='Safari may block GPS. For best results, use Chrome. <span onclick="this.parentElement.remove()" style="margin-left:10px;cursor:pointer;opacity:0.7">✕</span>';
+    document.body.insertBefore(warn,document.body.firstChild);
+  }
   if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
   var saved=localStorage.getItem('cmra_volunteer');
   if(saved){try{var p=JSON.parse(saved);S.volunteerNumber=p.volunteerNumber;S.volunteerId=p.volunteerId;S.themeIdx=p.themeIdx||0;applyTheme();}catch(e){localStorage.removeItem('cmra_volunteer');}}
