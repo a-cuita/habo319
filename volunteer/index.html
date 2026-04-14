@@ -729,17 +729,45 @@ function loadZones(map){
 /* ─── Collection ─── */
 function startCollection(btn){
   withLock('start',btn,function(){
-    api('startOrResumeSession').then(function(d){
-      unlock('start',btn);
-      if(d.role)S.role=d.role;
-      S.sessionId=d.sessionId;
-      S.legId=d.activeLeg?d.activeLeg.legId:(d.legId||null);
-      S.legNumber=d.activeLeg?d.activeLeg.legNumber:(d.legNumber||1);
-      S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;S.legWeights=[];
-      S.currentState='collecting';updateHeader();
-      launchCollecting();
-    }).catch(function(e){unlock('start',btn);alert('Error: '+e.message);});
+    if(navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        if(S.event.zones&&S.event.zones.length>0){
+          var inside=false;
+          var pt={lat:pos.coords.latitude,lng:pos.coords.longitude};
+          for(var z=0;z<S.event.zones.length;z++){
+            var poly=S.event.zones[z];
+            if(Array.isArray(poly)&&poly.length>0&&_pointInPoly(pt,poly)){inside=true;break;}
+          }
+          if(!inside){unlock('start',btn);alert('You appear to be outside the cleanup zone. Move closer and try again.');return;}
+        }
+        _doStartCollection(btn);
+      },function(){_doStartCollection(btn);},{enableHighAccuracy:true,timeout:5000});
+    }else{_doStartCollection(btn);}
   });
+}
+
+function _pointInPoly(pt,polygon){
+  var x=pt.lat,y=pt.lng,inside=false;
+  for(var i=0,j=polygon.length-1;i<polygon.length;j=i++){
+    var xi,yi,xj,yj;
+    if(Array.isArray(polygon[i])){xi=polygon[i][0];yi=polygon[i][1];xj=polygon[j][0];yj=polygon[j][1];}
+    else{xi=polygon[i].lat;yi=polygon[i].lng;xj=polygon[j].lat;yj=polygon[j].lng;}
+    if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;
+  }
+  return inside;
+}
+
+function _doStartCollection(btn){
+  api('startOrResumeSession').then(function(d){
+    unlock('start',btn);
+    if(d.role)S.role=d.role;
+    S.sessionId=d.sessionId;
+    S.legId=d.activeLeg?d.activeLeg.legId:(d.legId||null);
+    S.legNumber=d.activeLeg?d.activeLeg.legNumber:(d.legNumber||1);
+    S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;S.legWeights=[];
+    S.currentState='collecting';updateHeader();
+    launchCollecting();
+  }).catch(function(e){unlock('start',btn);alert('Error: '+e.message);});
 }
 
 function resumeCollecting(){
