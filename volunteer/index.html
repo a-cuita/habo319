@@ -352,8 +352,15 @@
   </div>
 
   <!-- PANEL: TL Home -->
-  <div class="panel" id="p-tl-home">
-    <div class="tip tl-tip">You're a Team Leader. Manage your team below.</div>
+<div class="panel" id="p-tl-home">
+    <div class="tip tl-tip" id="tlTutorial">
+      <strong>Quick start:</strong> You're a Team Leader.<br>
+      1. <strong>Approve Queue</strong> — tap to see waiting volunteers, approve them into your team<br>
+      2. <strong>Team Left Garden</strong> — tap when your team leaves the meeting point<br>
+      3. <strong>Team Arrived at Zone</strong> — tap when you reach the cleanup zone<br>
+      4. <strong>Accountability</strong> — after collection, mark everyone as Back Safe, Left Early, or Unable to Reach<br>
+      <span onclick="this.parentElement.style.display='none'" style="display:inline-block;margin-top:8px;color:var(--tl);cursor:pointer;font-size:0.8rem">Got it — hide this</span>
+    </div>
     <div class="stat-row">
       <div class="stat-box"><div class="stat-val" id="tlStatTeam">-</div><div class="stat-label">My Team</div></div>
       <div class="stat-box"><div class="stat-val" id="tlStatWait">-</div><div class="stat-label">Waiting</div></div>
