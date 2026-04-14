@@ -453,6 +453,21 @@ function api(action,data){
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
 }
+var _eventAliveTimer=null;
+function startEventAliveCheck(){
+  if(_eventAliveTimer)clearInterval(_eventAliveTimer);
+  _eventAliveTimer=setInterval(function(){
+    api('getActiveEvent').then(function(ev){
+      if(!ev){
+        clearInterval(_eventAliveTimer);
+        stopGPS();stopTimer();stopPolling();
+        showPanel('p-no-event');
+        document.getElementById('p-no-event').querySelector('.card').innerHTML=
+          '<h2>Event Ended</h2><p style="color:var(--text-dim)">Thanks for participating! The organizer has ended this event.</p>';
+      }
+    }).catch(function(){});
+  },30000);
+}  
 
 function showPanel(id){
   var panels=document.querySelectorAll('.panel');
@@ -481,7 +496,8 @@ function boot(){
     document.getElementById('eventNameHeader').textContent=ev.name;
     // Load rating labels
     api('getRatingLabels').then(function(labels){if(labels&&labels.length)RATING_LABELS=labels;}).catch(function(){});
-    S.volunteerNumber?checkStatus():showJoin();
+    S.volunteerNumber ? checkStatus() : showJoin();
+    startEventAliveCheck();
   }).catch(function(err){
     if(err.message&&err.message.indexOf('maintenance')>=0)showPanel('p-maintenance');
     else showPanel('p-no-event');
