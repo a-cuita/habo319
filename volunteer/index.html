@@ -962,6 +962,21 @@ function showTLHome(){
   document.getElementById('fabTLHome').style.display='block';
   refreshTLStats();refreshTLQueue();
   S.tlPollTimer=setInterval(function(){refreshTLStats();},15000);
+  // Disable check-in buttons based on team state
+  api('getEventVolunteers').then(function(vols){
+    var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId;});
+    var states=myTeam.map(function(v){return v.currentState;});
+    var btnLeft=document.getElementById('btnTLLeftGarden');
+    var btnArrived=document.getElementById('btnTLArrived');
+    if(btnLeft){
+      var pastTransit=states.every(function(s){return['in_transit','scouting','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});
+      if(pastTransit&&states.length>0){btnLeft.disabled=true;btnLeft.textContent='Team Left Garden ✓';}
+    }
+    if(btnArrived){
+      var pastZone=states.every(function(s){return['at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});
+      if(pastZone&&states.length>0){btnArrived.disabled=true;btnArrived.textContent='Team Arrived at Zone ✓';}
+    }
+  });
 }
 function stopTLPoll(){if(S.tlPollTimer){clearInterval(S.tlPollTimer);S.tlPollTimer=null;}}
 
