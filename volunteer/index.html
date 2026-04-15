@@ -88,6 +88,7 @@
     input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
     #pocket-overlay{display:none;position:fixed;inset:0;background:#000;z-index:9999;justify-content:center;align-items:center;flex-direction:column}#pocket-overlay.active{display:flex}#pocket-overlay .pocket-text{color:#333;font-size:1rem;margin-top:20px}#pocket-overlay .pocket-pulse{width:24px;height:24px;border-radius:50%;background:var(--accent);animation:pulse-anim 2s ease-in-out infinite}
     #geofence-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--warn);color:var(--text-inv);text-align:center;padding:10px;font-weight:600;font-size:0.85rem;z-index:100}#geofence-banner.active{display:block}
+    .banner-slot{display:none;width:100%;text-align:center;padding:10px 40px 10px 16px;font-size:0.85rem;font-weight:600;color:#fff;position:relative;z-index:200;cursor:pointer;transition:background 0.3s ease;font-family:var(--font-body)}.banner-text{display:inline}.banner-close{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;opacity:0.7;padding:4px;line-height:1}.banner-close:active{opacity:1}
     #wiki-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:8000;overflow-y:auto;padding:16px}#wiki-overlay.active{display:flex;flex-direction:column}#wiki-overlay .wiki-close{position:sticky;top:0;text-align:right;padding:8px 0}#wiki-overlay .wiki-content{max-width:480px;margin:0 auto}#wiki-overlay .wiki-section{margin-bottom:20px}#wiki-overlay .wiki-section h3{color:var(--accent);font-size:0.95rem;margin:0 0 6px}#wiki-overlay .wiki-section p{color:var(--text-dim);font-size:0.85rem;margin:0}
     #fab{position:fixed;bottom:24px;right:24px;z-index:5000}
     #fab-btn{width:56px;height:56px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:transform 0.15s}#fab-btn:active{transform:scale(0.92)}#fab-btn svg{width:24px;height:24px;fill:var(--text-inv)}
@@ -161,8 +162,17 @@ var _WRITE_ACTIONS=['endLeg','finishSession','submitScoutRating','postChatMessag
 function _isWriteAction(a){return _WRITE_ACTIONS.indexOf(a)>=0;}
 function _queueOffline(body){try{var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');q.push({body:body,timestamp:new Date().toISOString()});localStorage.setItem('cmra_offline_queue',JSON.stringify(q));_showOfflineBadge();}catch(e){}}
 function _retryOfflineQueue(){var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');if(q.length===0){_hideOfflineBadge();return;}var item=q.shift();localStorage.setItem('cmra_offline_queue',JSON.stringify(q));fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(item.body)}).then(function(r){return r.json()}).then(function(){if(q.length>0)setTimeout(_retryOfflineQueue,1000);else _hideOfflineBadge();}).catch(function(){q.unshift(item);localStorage.setItem('cmra_offline_queue',JSON.stringify(q));});}
-function _showOfflineBadge(){var el=document.getElementById('offline-badge');if(!el){el=document.createElement('div');el.id='offline-badge';el.style.cssText='position:fixed;top:0;left:0;right:0;background:var(--danger);color:#fff;text-align:center;padding:8px;font-size:0.8rem;font-weight:600;z-index:200;cursor:pointer;';el.onclick=function(){_retryOfflineQueue();};document.body.insertBefore(el,document.body.firstChild);}var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');el.textContent='Offline: '+q.length+' pending — tap to retry';el.style.display='block';}
-function _hideOfflineBadge(){var el=document.getElementById('offline-badge');if(el)el.style.display='none';}
+/* ─── Banner Rotation (Fifteenth) ─── */
+var _banners={},_bannerOrder=[],_bannerIdx=0,_bannerTimer=null,_bannerEl=null,_bannerTextEl=null,_bannerCloseEl=null;
+function bannerInit(){_bannerEl=document.createElement('div');_bannerEl.className='banner-slot';_bannerTextEl=document.createElement('span');_bannerTextEl.className='banner-text';_bannerCloseEl=document.createElement('span');_bannerCloseEl.className='banner-close';_bannerCloseEl.textContent='\u00d7';_bannerCloseEl.onclick=function(e){e.stopPropagation();_bannerDismissCurrent();};_bannerEl.appendChild(_bannerTextEl);_bannerEl.appendChild(_bannerCloseEl);var app=document.getElementById('app');document.body.insertBefore(_bannerEl,app);_bannerTimer=setInterval(_bannerTick,5000);}
+function bannerAdd(id,text,bgColor){var isNew=!_banners[id];_banners[id]={text:text,color:bgColor};if(isNew)_bannerOrder.push(id);if(id==='offline')_banners[id].onclick=function(){_retryOfflineQueue();};_bannerRender();}
+function bannerRemove(id){if(!_banners[id])return;delete _banners[id];_bannerOrder=_bannerOrder.filter(function(k){return k!==id;});if(_bannerIdx>=_bannerOrder.length)_bannerIdx=0;_bannerRender();}
+function _bannerDismissCurrent(){if(_bannerOrder.length===0)return;bannerRemove(_bannerOrder[_bannerIdx]);}
+function _bannerTick(){if(_bannerOrder.length<=1)return;_bannerIdx=(_bannerIdx+1)%_bannerOrder.length;_bannerRender();}
+function _bannerRender(){if(!_bannerEl)return;if(_bannerOrder.length===0){_bannerEl.style.display='none';_bannerEl.onclick=null;return;}if(_bannerIdx>=_bannerOrder.length)_bannerIdx=0;var id=_bannerOrder[_bannerIdx],b=_banners[id];_bannerTextEl.textContent=b.text;_bannerEl.style.background=b.color;_bannerEl.style.display='block';_bannerEl.onclick=b.onclick||null;}
+/* Drop-in wrappers — same function names, routes through banner system */
+function _showOfflineBadge(){var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');bannerAdd('offline','Offline: '+q.length+' pending \u2014 tap to retry','var(--danger)');}
+function _hideOfflineBadge(){bannerRemove('offline');}
 window.addEventListener('online',function(){_retryOfflineQueue();});
 var _eventAliveTimer=null;
 function startEventAliveCheck(){if(_eventAliveTimer)clearInterval(_eventAliveTimer);_eventAliveTimer=setInterval(function(){api('getActiveEvent').then(function(ev){if(!ev){clearInterval(_eventAliveTimer);stopGPS();stopTimer();stopPolling();showPanel('p-no-event');document.getElementById('p-no-event').querySelector('.card').innerHTML='<h2>Event Ended</h2><p style="color:var(--text-dim)">Thanks for participating! The organizer has ended this event.</p>';}}).catch(function(){});},30000);}
@@ -181,10 +191,10 @@ function ncBuild(id,wrapId,labelId,dotsId,confirmId,onConfirm){
   document.getElementById(labelId).textContent=RATING_LABELS[0]||'';
   document.getElementById(confirmId).innerHTML='';
   _nc[id]={track:track,wrap:wrap,labelId:labelId,dotsId:dotsId,confirmId:confirmId,current:0,selected:null,onConfirm:onConfirm};
-  var sx=0,dragging=false;
-  wrap.addEventListener('touchstart',function(e){dragging=true;sx=e.touches[0].clientX;track.style.transition='none';},{passive:true});
-  wrap.addEventListener('touchmove',function(e){if(!dragging)return;var dx=e.touches[0].clientX-sx;var cw=56;var base=-_nc[id].current*cw+(wrap.offsetWidth/2-cw/2);track.style.transform='translateX('+(base+dx)+'px)';},{passive:true});
-  wrap.addEventListener('touchend',function(e){if(!dragging)return;dragging=false;track.style.transition='transform 0.25s ease';var dx=e.changedTouches[0].clientX-sx;var c=_nc[id];var jump=Math.round(Math.abs(dx)/40);if(jump<1)jump=1;if(dx<-15)c.current=Math.min(10,c.current+jump);else if(dx>15)c.current=Math.max(0,c.current-jump);if(c.selected!==null&&c.current!==c.selected){c.selected=null;document.getElementById(c.confirmId).innerHTML='';}ncScrollTo(id,c.current);});
+  var sx=0,st=0,dragging=false,lastX=0,velocity=0,lastTime=0;
+  wrap.addEventListener('touchstart',function(e){dragging=true;sx=e.touches[0].clientX;lastX=sx;lastTime=Date.now();velocity=0;var m=track.style.transform.match(/translateX\((.+?)px\)/);st=m?parseFloat(m[1]):0;track.style.transition='none';},{passive:true});
+  wrap.addEventListener('touchmove',function(e){if(!dragging)return;var x=e.touches[0].clientX;var now=Date.now();var dt=now-lastTime;if(dt>0)velocity=(x-lastX)/dt;lastX=x;lastTime=now;track.style.transform='translateX('+(st+(x-sx))+'px)';},{passive:true});
+  wrap.addEventListener('touchend',function(e){if(!dragging)return;dragging=false;track.style.transition='transform 0.25s ease';var c=_nc[id];var cw=56;var finalX=st+(e.changedTouches[0].clientX-sx);finalX+=velocity*120;var center=wrap.offsetWidth/2-cw/2;var nearest=Math.round(-(finalX-center)/cw);nearest=Math.max(0,Math.min(10,nearest));if(c.selected!==null&&nearest!==c.selected){c.selected=null;document.getElementById(c.confirmId).innerHTML='';}c.current=nearest;ncScrollTo(id,nearest);});
   ncScrollTo(id,0);
 }
 function ncScrollTo(id,idx){
@@ -226,8 +236,10 @@ function doScoutRate(){closeFAB();S.scoutRating=null;S.scoutPos=S.lastPos||null;
 
 /* ─── Boot ─── */
 function boot(){
-  var isSafari=/^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  if(isSafari){var warn=document.createElement('div');warn.style.cssText='background:var(--warn);color:var(--text-inv);text-align:center;padding:10px 16px;font-size:0.85rem;font-weight:600;';warn.innerHTML='Safari may block GPS. For best results, use Chrome. <span onclick="this.parentElement.remove()" style="margin-left:10px;cursor:pointer;opacity:0.7">✕</span>';document.body.insertBefore(warn,document.body.firstChild);}
+  bannerInit();
+  bannerAdd('version','V1.2 LOADED','var(--danger)');
+  // Safari warning shows on ALL browsers intentionally (Jeremy decision 260414)
+  bannerAdd('safari','Safari may block GPS. For best results, use Chrome.','var(--warn)');
   if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
   var saved=localStorage.getItem('cmra_volunteer');if(saved){try{var p=JSON.parse(saved);S.volunteerNumber=p.volunteerNumber;S.volunteerId=p.volunteerId;S.themeIdx=p.themeIdx||0;applyTheme();}catch(e){localStorage.removeItem('cmra_volunteer');}}
   api('getActiveEvent').then(function(ev){if(!ev){showPanel('p-no-event');return;}S.event=ev;document.getElementById('eventNameHeader').textContent=ev.name;api('getRatingLabels').then(function(labels){if(labels&&labels.length)RATING_LABELS=labels;}).catch(function(){});S.volunteerNumber?checkStatus():showJoin();startEventAliveCheck();}).catch(function(err){if(err.message&&err.message.indexOf('maintenance')>=0)showPanel('p-maintenance');else showPanel('p-no-event');});
