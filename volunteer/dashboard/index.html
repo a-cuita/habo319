@@ -882,7 +882,7 @@ function openStartCollectingPanel(){
   var iframe=document.getElementById('collecting-iframe');
   if(iframe.src==='about:blank'||iframe.src===''){
     // Load the volunteer app in an iframe. It reads the same localStorage.
-    iframe.src='../';
+    iframe.src='/habo319/volunteer/?mode=collect';
   }
 }
 function closeCollectingPanel(){
