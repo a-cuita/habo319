@@ -243,7 +243,7 @@
       <label class="field-label" for="extDuration">Duration (minutes)</label>
       <input type="number" id="extDuration" placeholder="0" step="1" min="0">
       <label class="field-label" for="extWeight">Weight for this leg (lbs)</label>
-      <input type="number" id="extWeight" placeholder="0.0" step="0.1" min="0">
+      <input type="number" id="extWeight" placeholder="0.00" step="0.01" min="0">
       <label class="field-label">Screenshot of tracking app <span style="color:var(--danger)">*required</span></label>
       <label class="ss-picker" id="extScreenshotPicker">
         <input type="file" accept="image/*" id="extScreenshotInput" onchange="handleScreenshotSelect(event)">
@@ -256,7 +256,7 @@
     </div>
   </div>
 
-  <div class="panel" id="p-leg-done"><div class="card"><h2>Leg Complete</h2><div class="stat-row" id="legStats"></div><div style="margin-bottom:12px"><label style="color:var(--text-dim);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px">Weight for this leg (lbs)</label><input type="number" id="legWeight" placeholder="0.0" step="0.1" min="0" style="margin-top:6px"></div><button class="btn btn-primary" id="btnSaveLeg" onclick="submitLeg(this)">Save &amp; Start Next Leg</button></div><button class="btn btn-secondary" id="btnFinish" onclick="finishSessionPrompt(this)">Finish Session</button></div>
+  <div class="panel" id="p-leg-done"><div class="card"><h2>Leg Complete</h2><div class="stat-row" id="legStats"></div><div style="margin-bottom:12px"><label style="color:var(--text-dim);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px">Weight for this leg (lbs)</label><input type="number" id="legWeight" placeholder="0.00" step="0.01" min="0" style="margin-top:6px"></div><button class="btn btn-primary" id="btnSaveLeg" onclick="submitLeg(this)">Save &amp; Start Next Leg</button></div><button class="btn btn-secondary" id="btnFinish" onclick="finishSessionPrompt(this)">Finish Session</button></div>
   <div class="panel" id="p-leg-results"><div class="results-card"><h2 style="text-align:center;margin-bottom:4px">Leg Results</h2><div class="results-vals" id="resultsValues"></div><div class="results-eq" id="resultsEq"></div><div class="results-text" id="resultsText"></div></div><button class="btn btn-primary" onclick="afterLegResults()">Continue</button></div>
   <div class="panel" id="p-session-notes"><div class="card"><h2>Notes (optional)</h2><textarea id="sessionNotes" placeholder="Anything to note about this area..."></textarea><button class="btn btn-primary" id="btnSubmitSession" onclick="doSubmitSession(this)" style="margin-top:12px">Submit Session</button></div></div>
   <div class="panel" id="p-done"><div class="card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:8px">&#127881;</div><h2>Session Complete!</h2><div class="stat-row" id="doneStats"></div><p>Great work!</p><button class="btn btn-primary" onclick="startAnother(this)">Start Another Session</button><button class="btn btn-tl" id="btnBackTL" style="display:none;margin-top:10px" onclick="showTLHome()">Back to Team Dashboard</button></div></div>
