@@ -24,11 +24,12 @@
     html,body{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;-webkit-text-size-adjust:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.5;letter-spacing:0.01em}
 
     /* ═══ Persistent layer scaffold ═══ */
-    /* Header (sticky top) | Tabstrip (sticky) | Content (flows) | Action strip (sticky bottom) */
-    body{display:flex;flex-direction:column;min-height:100vh;min-height:100dvh;max-width:480px;margin:0 auto}
+    /* Header + tabs are position:fixed at top. Action strip is position:fixed at bottom.
+       Body gets top/bottom padding equal to their heights so content doesn't hide behind them. */
+    body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;padding-top:104px;padding-bottom:128px}
 
-    /* Persistent header */
-    .tl-header{flex:0 0 auto;position:sticky;top:0;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px}
+    /* Persistent header — fixed to top of viewport */
+    .tl-header{position:fixed;top:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px}
     .tl-header .h-identity{display:flex;align-items:center;gap:8px}
     .tl-header .h-identity .role-badge{background:var(--tl);color:#fff;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:700;letter-spacing:0.3px}
     .tl-header .h-identity .vol-num{font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--text)}
@@ -44,8 +45,8 @@
     .tl-header .h-ambient .ambient-bell .bell-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);display:none}
     .tl-header .h-ambient .ambient-bell.has-nudge .bell-dot{display:block}
 
-    /* Tab strip */
-    .tab-strip{flex:0 0 auto;position:sticky;top:56px;z-index:49;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px}
+    /* Tab strip — fixed directly below header */
+    .tab-strip{position:fixed;top:56px;left:0;right:0;max-width:480px;margin:0 auto;z-index:49;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px}
     .tab-strip .tab{flex:1;text-align:center;padding:12px 8px;font-size:0.85rem;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s}
     .tab-strip .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
     .tab-strip .tab:active{background:var(--surface-2)}
@@ -58,8 +59,8 @@
     .tab-pane.active{display:block;animation:fadeIn 0.2s ease}
     @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
-    /* Action strip (bottom persistent) */
-    .action-strip{flex:0 0 auto;position:sticky;bottom:0;z-index:50;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+    /* Action strip — fixed to bottom of viewport */
+    .action-strip{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:50;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
     .action-chips{display:flex;gap:8px}
     .action-chip{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;font-size:0.78rem;font-weight:600;color:var(--text);cursor:pointer;text-align:center;position:relative;transition:background 0.15s,border-color 0.15s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
     .action-chip:active{background:var(--surface-2)}
