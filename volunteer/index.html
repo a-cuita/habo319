@@ -240,8 +240,13 @@
       <p>From your external tracking app screenshot:</p>
       <label class="field-label" for="extDistance">Distance (miles)</label>
       <input type="number" id="extDistance" placeholder="0.0" step="0.01" min="0">
-      <label class="field-label" for="extDuration">Duration (minutes)</label>
-      <input type="number" id="extDuration" placeholder="0" step="1" min="0">
+      <label class="field-label">Duration</label>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="number" id="extDurationMin" placeholder="min" step="1" min="0" style="flex:1">
+        <span style="color:var(--text-dim);font-size:0.9rem">min</span>
+        <input type="number" id="extDurationSec" placeholder="sec" step="1" min="0" max="59" style="flex:1">
+        <span style="color:var(--text-dim);font-size:0.9rem">sec</span>
+      </div>
       <label class="field-label" for="extWeight">Weight for this leg (lbs)</label>
       <input type="number" id="extWeight" placeholder="0.00" step="0.01" min="0">
       <label class="field-label">Screenshot of tracking app <span style="color:var(--danger)">*required</span></label>
@@ -443,17 +448,19 @@ function launchExtCollecting(){document.getElementById('extLegNum').textContent=
 function endExtLeg(){S.currentState='between_legs';updateHeader();showExtLegEntry();}
 function showExtLegEntry(){
   S.extScreenshotBase64=null;S.extScreenshotMime=null;
-  document.getElementById('extDistance').value='';document.getElementById('extDuration').value='';document.getElementById('extWeight').value='';
+  document.getElementById('extDistance').value='';document.getElementById('extDurationMin').value='';document.getElementById('extDurationSec').value='';document.getElementById('extWeight').value='';
   document.getElementById('extScreenshotPreview').innerHTML='<div class="ss-placeholder">Tap to choose screenshot from your photos</div>';
   document.getElementById('extScreenshotPicker').classList.remove('has-image');
   updateExtSubmitButtons();
-  ['extDistance','extDuration','extWeight'].forEach(function(id){document.getElementById(id).oninput=updateExtSubmitButtons;});
+  ['extDistance','extDurationMin','extDurationSec','extWeight'].forEach(function(id){document.getElementById(id).oninput=updateExtSubmitButtons;});
   showPanel('p-ext-leg-entry');
 }
 function updateExtSubmitButtons(){
   var d=parseFloat(document.getElementById('extDistance').value)||0;
-  var t=parseFloat(document.getElementById('extDuration').value)||0;
-  var ok=d>0&&t>0&&!!S.extScreenshotBase64;
+  var mins=parseInt(document.getElementById('extDurationMin').value,10)||0;
+  var secs=parseInt(document.getElementById('extDurationSec').value,10)||0;
+  var totalMinutes=mins+(secs/60);
+  var ok=d>0&&totalMinutes>0&&secs>=0&&secs<=59&&!!S.extScreenshotBase64;
   document.getElementById('btnSubmitExtLeg').disabled=!ok;
   document.getElementById('btnFinishExtSession').disabled=!ok;
 }
@@ -482,11 +489,14 @@ function submitExtLeg(btn){_doSubmitExtLeg(btn,false);}
 function finishExtSession(btn){_doSubmitExtLeg(btn,true);}
 function _doSubmitExtLeg(btn,finishing){
   var distance=parseFloat(document.getElementById('extDistance').value);
-  var duration=parseFloat(document.getElementById('extDuration').value);
+  var mins=parseInt(document.getElementById('extDurationMin').value,10)||0;
+  var secs=parseInt(document.getElementById('extDurationSec').value,10)||0;
+  var duration=mins+(secs/60);
   var weight=parseFloat(document.getElementById('extWeight').value)||0;
   if(!S.extScreenshotBase64){alert('Screenshot required');return;}
   if(!distance||distance<=0){alert('Distance must be greater than 0');return;}
   if(!duration||duration<=0){alert('Duration must be greater than 0');return;}
+  if(secs<0||secs>59){alert('Seconds must be between 0 and 59');return;}
   S._finishingSession=finishing;
   withLock('extLeg',btn,function(){
     api('submitManualLeg',{
@@ -508,7 +518,7 @@ function _doSubmitExtLeg(btn,finishing){
 }
 
 function doSubmitSession(btn){withLock('submit',btn,function(){api('finishSession',{sessionId:S.sessionId,preRating:S.preRating,postRating:S.postRating,notes:document.getElementById('sessionNotes').value.trim()}).then(function(d){unlock('submit',btn);document.getElementById('doneStats').innerHTML='<div class="stat-box"><div class="stat-val">'+(d.totalWeight||0)+'</div><div class="stat-label">lbs</div></div><div class="stat-box"><div class="stat-val">'+fmtMiles(d.totalDistance||0)+'</div><div class="stat-label">miles</div></div><div class="stat-box"><div class="stat-val">'+(d.legCount||0)+'</div><div class="stat-label">legs</div></div>';if(d.sqrtCpue!==null)document.getElementById('doneStats').innerHTML+='<div class="stat-box"><div class="stat-val">'+d.sqrtCpue+'</div><div class="stat-label">\u221aCPUE</div></div>';S.sessionId=null;S.legId=null;S.externalTracking=false;saveLocal();S.currentState='session_complete';updateHeader();document.getElementById('btnBackTL').style.display=S.role==='team_leader'?'block':'none';showPanel('p-done');}).catch(function(e){unlock('submit',btn);alert('Error: '+e.message);});});}
-function startAnother(btn){startCollection(btn,false);}
+function startAnother(btn){S.externalTracking=false;saveLocal();showAtZone();}
 
 function showTLHome(){stopTLPoll();showPanel('p-tl-home');document.getElementById('btnBackTL').style.display='block';document.getElementById('fabTLHome').style.display='block';refreshTLStats();refreshTLQueue();S.tlPollTimer=setInterval(function(){refreshTLStats();},15000);api('getEventVolunteers').then(function(vols){var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId;});var states=myTeam.map(function(v){return v.currentState;});var bl=document.getElementById('btnTLLeftGarden'),ba=document.getElementById('btnTLArrived');if(bl){var pt=states.every(function(s){return['in_transit','scouting','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pt&&states.length>0){bl.disabled=true;bl.textContent='Team Left Garden \u2713';}}if(ba){var pz=states.every(function(s){return['at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pz&&states.length>0){ba.disabled=true;ba.textContent='Team Arrived at Zone \u2713';}}});}
 function stopTLPoll(){if(S.tlPollTimer){clearInterval(S.tlPollTimer);S.tlPollTimer=null;}}
