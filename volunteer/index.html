@@ -7,78 +7,37 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root{
-      /* Surfaces */
-      --bg:#f2f2f7;
-      --surface:#ffffff;
-      --surface-hi:#fafafa;
-      --surface-2:#f0f0f5;
-      /* Borders */
-      --border:#d1d1d6;
-      --border-hi:#c7c7cc;
-      /* Primary — standard actions */
-      --primary:#2563eb;
-      --primary-dim:#dbeafe;
-      --primary-text:#1d4ed8;
-      /* Accent — AI territory (reserved for future) */
-      --accent-ai:#7c3aed;
-      --accent-ai-dim:#f5f3ff;
-      /* Success — CMRA's brand green for volunteer actions */
-      --accent:#2c8a3d;
-      --accent-dim:#d4f1dc;
-      --accent-glow:rgba(44,138,61,0.15);
-      /* Amber — caution, offline, left-early */
-      --amber:#d97706;
-      --amber-dim:#fef3c7;
-      --warn:#d97706;
-      /* Danger */
-      --danger:#dc2626;
-      --danger-dim:#fee2e2;
-      --error:#dc2626;
-      /* Text */
-      --text:#1c1c1e;
-      --text-hi:#000000;
-      --text-dim:#8e8e93;
-      --text-label:#aeaeb2;
-      --text-inv:#ffffff;
-      /* TL role color — blue (shares primary family, distinct from AI violet) */
+      --bg:#f2f2f7;--surface:#ffffff;--surface-hi:#fafafa;--surface-2:#f0f0f5;
+      --border:#d1d1d6;--border-hi:#c7c7cc;
+      --primary:#2563eb;--primary-dim:#dbeafe;--primary-text:#1d4ed8;
+      --accent-ai:#7c3aed;--accent-ai-dim:#f5f3ff;
+      --accent:#2c8a3d;--accent-dim:#d4f1dc;--accent-glow:rgba(44,138,61,0.15);
+      --amber:#d97706;--amber-dim:#fef3c7;--warn:#d97706;
+      --danger:#dc2626;--danger-dim:#fee2e2;--error:#dc2626;
+      --text:#1c1c1e;--text-hi:#000000;--text-dim:#8e8e93;--text-label:#aeaeb2;--text-inv:#ffffff;
       --tl:#2563eb;
-      /* Radii */
-      --radius:14px;
-      --radius-sm:10px;
-      /* Fonts */
+      --radius:14px;--radius-sm:10px;
       --font-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
       --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,"Roboto Mono",monospace;
     }
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;-webkit-text-size-adjust:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.5;letter-spacing:0.01em}
     #app{max-width:480px;margin:0 auto;padding:0 16px 140px;min-height:100vh;display:flex;flex-direction:column}
-
-    /* Header */
     .app-header{text-align:center;padding:20px 0 14px;border-bottom:1px solid var(--border);margin-bottom:16px}
     .app-header h1{font-size:1.25rem;font-weight:800;letter-spacing:-0.5px;color:var(--text-hi);margin:0}
     .app-header .event-name{font-size:0.85rem;color:var(--text-dim);margin-top:4px}
-
-    /* Role & state badges */
     .role-badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:600;margin-top:6px}
     .role-vol{background:var(--accent);color:#fff}
     .role-tl{background:var(--tl);color:#fff}
     .state-pill{display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:600;background:var(--surface-2);color:var(--text-dim);margin-top:4px;margin-left:6px}
-
-    /* Panels */
     .panel{display:none}
     .panel.active{display:block;animation:fadeIn 0.2s ease}
     @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
-
-    /* Cards */
     .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:14px}
     .card h2{font-size:0.95rem;font-weight:700;color:var(--text);margin:0 0 10px}
     .card p{margin:0 0 12px;color:var(--text-dim);font-size:0.9rem}
-
-    /* Big number display */
     .big-number{font-family:var(--font-mono);font-size:4.5rem;font-weight:700;color:var(--accent);text-align:center;line-height:1;padding:24px 0}
     .big-number-label{text-align:center;font-size:0.8rem;color:var(--text-dim);margin-top:-12px;padding-bottom:20px;text-transform:uppercase;letter-spacing:0.5px}
-
-    /* Buttons */
     .btn{display:block;width:100%;padding:14px 24px;border:none;border-radius:var(--radius-sm);font-size:1rem;font-weight:600;cursor:pointer;min-height:52px;font-family:var(--font-body);transition:opacity 0.15s,transform 0.1s;position:relative}
     .btn:active{opacity:0.85;transform:scale(0.98)}
     .btn-primary{background:var(--accent);color:#fff}
@@ -95,23 +54,15 @@
     .btn-sm{padding:10px 16px;font-size:0.85rem;min-height:44px;border-radius:8px;border:none;font-weight:600;cursor:pointer;position:relative;display:inline-block;width:auto}
     .btn-sm:disabled{opacity:0.4;pointer-events:none}
     @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* Stats */
     .stat-row{display:flex;justify-content:space-between;gap:10px;margin-bottom:12px}
     .stat-box{flex:1;background:var(--bg);border-radius:var(--radius-sm);padding:12px;text-align:center;border:1px solid var(--border)}
     .stat-val{font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--text-hi)}
     .stat-label{font-size:0.68rem;color:var(--text-dim);margin-top:4px;text-transform:uppercase;letter-spacing:0.5px}
-
-    /* Map */
     .map-wrap{width:100%;height:240px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:14px}
-
-    /* Gates */
     .gate-row{display:flex;align-items:flex-start;gap:12px;padding:14px 0;border-bottom:0.5px solid var(--border);font-size:0.9rem}
     .gate-row:last-child{border-bottom:none}
     .gate-row input[type="checkbox"]{width:24px;height:24px;accent-color:var(--accent);margin-top:2px;flex-shrink:0}
     .gate-label{flex:1}
-
-    /* Number Carousel */
     .nc-wrap{position:relative;overflow:hidden;touch-action:pan-y;margin:20px 0;height:80px}
     .nc-track{display:flex;align-items:center;height:100%;transition:transform 0.25s ease}
     .nc-item{flex:0 0 56px;text-align:center;cursor:pointer;transition:all 0.2s ease;user-select:none}
@@ -126,13 +77,9 @@
     .nc-dots{display:flex;justify-content:center;gap:5px;margin-top:6px}
     .nc-dot{width:6px;height:6px;border-radius:50%;background:var(--border);transition:background 0.2s}
     .nc-dot.active{background:var(--accent)}
-
-    /* Rating phase label */
     .rating-phase-label{text-align:center;font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;padding:6px 14px;border-radius:10px;display:inline-block;margin-bottom:12px}
     .phase-before{background:var(--primary-dim);color:var(--primary-text)}
     .phase-after{background:var(--accent-dim);color:var(--accent)}
-
-    /* Results Card */
     .results-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin:14px 0}
     .results-vals{display:flex;justify-content:space-around;gap:10px;margin:16px 0}
     .results-item{text-align:center;flex:1}
@@ -144,26 +91,20 @@
     .results-eq .eq-val{font-weight:700;color:var(--accent)}
     .results-eq .eq-result{font-size:1.4rem;font-weight:700;color:var(--accent);margin-top:6px}
     .results-text{font-size:0.88rem;color:var(--text-dim);line-height:1.5;margin-top:14px;text-align:center}
-
-    /* Tip boxes */
     .tip{background:var(--primary-dim);border:1px solid #bfdbfe;padding:12px 14px;border-radius:var(--radius-sm);font-size:0.88rem;color:var(--text);margin-bottom:14px;line-height:1.5}
     .tip strong{color:var(--primary-text)}
     .tip.tl-tip{background:var(--primary-dim);border-color:#bfdbfe}
     .tip.tl-tip strong{color:var(--tl)}
-
-    /* Contact row */
+    .tip.warn-tip{background:var(--amber-dim);border-color:#fde68a}
+    .tip.warn-tip strong{color:var(--amber)}
     .contact-row{display:flex;align-items:center;gap:10px;padding:10px 0;font-size:0.9rem}
     .contact-row a{color:var(--primary);text-decoration:none;font-weight:600}
-
-    /* Volunteer rows */
     .vol-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:0.5px solid var(--border);flex-wrap:wrap;gap:8px}
     .vol-num{font-family:var(--font-mono);font-size:1.1rem;font-weight:700;color:var(--accent);min-width:40px}
     .vol-actions{display:flex;gap:8px;flex-wrap:wrap}
     .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:0.72rem;font-weight:600}
     .badge-waiting{background:var(--amber-dim);color:var(--amber)}
     .badge-state{background:var(--surface-2);color:var(--text-dim)}
-
-    /* Chat */
     .chat-wrap{max-height:300px;overflow-y:auto;margin-bottom:12px}
     .chat-msg{padding:10px 0;border-bottom:0.5px solid var(--border);font-size:0.88rem}
     .chat-msg .cm-author{font-weight:700;color:var(--accent);font-size:0.8rem}
@@ -173,31 +114,32 @@
     .chat-input-row input{flex:1;padding:12px 14px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:0.9rem;min-height:44px;outline:none}
     .chat-input-row input:focus{border-color:var(--primary)}
     .chat-input-row .btn-sm{flex-shrink:0}
-
-    /* Text inputs */
     textarea{width:100%;min-height:70px;padding:12px 14px;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-family:var(--font-body);font-size:0.9rem;resize:vertical;box-sizing:border-box;outline:none}
     textarea:focus{border-color:var(--primary)}
-    input[type="number"]{width:100%;padding:14px;font-size:1.2rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-family:var(--font-mono);-moz-appearance:textfield;box-sizing:border-box;min-height:52px;outline:none}
-    input[type="number"]:focus{border-color:var(--primary)}
+    input[type="number"],input[type="text"]{width:100%;padding:14px;font-size:1.1rem;background:var(--bg);border:1px solid var(--border);color:var(--text);border-radius:var(--radius-sm);font-family:var(--font-mono);box-sizing:border-box;min-height:52px;outline:none}
+    input[type="number"]{font-size:1.2rem;-moz-appearance:textfield}
+    input[type="number"]:focus,input[type="text"]:focus{border-color:var(--primary)}
     input[type="number"]::-webkit-inner-spin-button{-webkit-appearance:none}
-
-    /* Pocket overlay */
+    label.field-label{display:block;color:var(--text-dim);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;margin:14px 0 6px;font-weight:600}
+    .ss-picker{display:block;padding:16px;border:2px dashed var(--border-hi);border-radius:var(--radius-sm);background:var(--bg);text-align:center;cursor:pointer}
+    .ss-picker.has-image{border-style:solid;border-color:var(--accent);background:var(--accent-dim)}
+    .ss-picker img{max-width:100%;max-height:220px;border-radius:6px;display:block;margin:0 auto}
+    .ss-picker .ss-placeholder{color:var(--text-dim);font-size:0.9rem;padding:20px 0}
+    .ss-picker input[type="file"]{display:none}
+    .preflight-status{padding:14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:12px;font-size:0.85rem}
+    .preflight-status .pf-count{font-family:var(--font-mono);font-weight:700;color:var(--accent)}
+    .preflight-status.pf-failed{background:var(--danger-dim);border-color:#fecaca;color:var(--danger)}
+    .preflight-status.pf-passed{background:var(--accent-dim);border-color:#86efac;color:var(--accent)}
     #pocket-overlay{display:none;position:fixed;inset:0;background:#000;z-index:9999;justify-content:center;align-items:center;flex-direction:column}
     #pocket-overlay.active{display:flex}
     #pocket-overlay .pocket-text{color:#ccc;font-size:1rem;margin-top:20px}
     #pocket-overlay .pocket-pulse{width:24px;height:24px;border-radius:50%;background:var(--accent);animation:pulse-anim 2s ease-in-out infinite}
-
-    /* Geofence banner */
     #geofence-banner{display:none;position:fixed;top:0;left:0;right:0;background:var(--amber);color:#fff;text-align:center;padding:10px;font-weight:600;font-size:0.85rem;z-index:100}
     #geofence-banner.active{display:block}
-
-    /* Banner rotation system */
     .banner-slot{display:none;width:100%;text-align:center;padding:10px 40px 10px 16px;font-size:0.85rem;font-weight:600;color:#fff;position:relative;z-index:200;cursor:pointer;transition:background 0.3s ease;font-family:var(--font-body)}
     .banner-text{display:inline}
     .banner-close{position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;font-size:1.1rem;opacity:0.7;padding:4px;line-height:1}
     .banner-close:active{opacity:1}
-
-    /* Wiki overlay */
     #wiki-overlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:8000;overflow-y:auto;padding:16px}
     #wiki-overlay.active{display:flex;flex-direction:column}
     #wiki-overlay .wiki-close{position:sticky;top:0;text-align:right;padding:8px 0}
@@ -205,8 +147,6 @@
     #wiki-overlay .wiki-section{margin-bottom:20px}
     #wiki-overlay .wiki-section h3{color:var(--text-hi);font-size:1rem;margin:0 0 6px;font-weight:700}
     #wiki-overlay .wiki-section p{color:var(--text-dim);font-size:0.88rem;margin:0;line-height:1.5}
-
-    /* FAB */
     #fab{position:fixed;bottom:24px;right:24px;z-index:5000}
     #fab-btn{width:56px;height:56px;border-radius:50%;background:var(--accent);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.2);transition:transform 0.15s}
     #fab-btn:active{transform:scale(0.92)}
@@ -219,22 +159,20 @@
     .fab-item .fi-icon{font-size:1.1rem;width:24px;text-align:center}
     .fab-dot{position:absolute;top:0;right:0;width:14px;height:14px;border-radius:50%;background:var(--amber);border:2px solid var(--bg);display:none}
     .fab-dot.active{display:block}
-
-    /* Pulse */
     .pulse{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse-anim 1.5s ease-in-out infinite}
     @keyframes pulse-anim{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
-
-    /* Misc */
     .loading-text{color:var(--text-dim);font-size:0.9rem;text-align:center;padding:20px}
     .dot-legend{display:flex;gap:16px;font-size:0.8rem;color:var(--text-dim);margin-bottom:10px;justify-content:center}
     .dot-legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
     .dot-mine::before{background:var(--accent)}
     .dot-team::before{background:#58a6ff}
-
-    /* Desktop block */
     #desktop-block{display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;justify-content:center;align-items:center;flex-direction:column;text-align:center;padding:40px}
     #desktop-block h2{color:var(--text-hi);margin-bottom:16px;font-weight:800}
     #desktop-block p{color:var(--text-dim);max-width:400px}
+    .ext-collecting-hero{text-align:center;padding:40px 20px}
+    .ext-collecting-hero .ech-icon{font-size:3rem;margin-bottom:12px}
+    .ext-collecting-hero .ech-title{font-size:1.15rem;font-weight:700;color:var(--text);margin-bottom:8px}
+    .ext-collecting-hero .ech-sub{color:var(--text-dim);font-size:0.9rem;margin-bottom:20px}
   </style>
 </head>
 <body>
@@ -244,33 +182,86 @@
 <div id="wiki-overlay"><div class="wiki-close"><button class="btn-sm btn-secondary" onclick="closeWiki()">Close</button></div><div class="wiki-content" id="wikiContent"></div></div>
 <div id="app">
   <div class="app-header"><h1>CMRA</h1><div class="event-name" id="eventNameHeader"></div><div id="roleBadge"></div></div>
+
   <div class="panel active" id="p-loading"><div class="loading-text"><span class="pulse"></span> Connecting...</div></div>
   <div class="panel" id="p-no-event"><div class="card"><h2>No Active Event</h2><p>There's no cleanup event right now. Check back later.</p></div></div>
   <div class="panel" id="p-maintenance"><div class="card"><h2>Maintenance</h2><p>The app is temporarily offline. Please check back shortly.</p></div></div>
+
   <div class="panel" id="p-join"><div class="tip">Tap Join to get your volunteer number.</div><div class="card"><h2 id="joinEventName"></h2><p id="joinEventDate"></p><button class="btn btn-primary" id="btnJoin" onclick="doJoin(this)">Join Event</button></div></div>
   <div class="panel" id="p-number"><div class="card" style="text-align:center"><div style="color:var(--text-dim);font-size:0.8rem;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Your Volunteer Number</div><div class="big-number" id="myNumber"></div><div class="big-number-label">Write this on the sign-in sheet</div><button class="btn btn-primary" onclick="showGates()">Continue</button></div></div>
   <div class="panel" id="p-gates"><div class="card"><h2>Before You Start</h2><div class="gate-row"><input type="checkbox" id="gateNumber" onchange="checkGates()"><div class="gate-label"><strong>I wrote my number on the sign-in sheet</strong></div></div><div class="gate-row"><input type="checkbox" id="gateDriving" onchange="checkGates()"><div class="gate-label"><strong>I won't use this app while driving</strong></div></div><div class="gate-row"><input type="checkbox" id="gateData" onchange="checkGates()"><div class="gate-label"><strong>I understand what data is collected</strong><br><span style="font-size:0.8rem;color:var(--text-dim)" id="gateDataDetail">GPS location is collected during your session and used to measure cleanup impact.</span></div></div><div style="margin-top:12px"><button class="btn btn-secondary" onclick="toggleLiability()" style="font-size:0.85rem;min-height:44px;padding:10px">View liability &amp; data policy</button><div id="liabilityText" style="display:none;margin-top:12px;font-size:0.82rem;color:var(--text-dim);padding:12px;background:var(--bg);border-radius:var(--radius-sm);border:1px solid var(--border)"></div></div><button class="btn btn-primary" id="btnGatesContinue" onclick="submitGates(this)" disabled style="margin-top:16px">Continue</button></div></div>
-  <div class="panel" id="p-waiting"><div class="card" style="text-align:center"><div class="big-number" id="waitingNumber"></div><div class="big-number-label">Your Number</div><div style="margin:16px 0"><span class="pulse"></span><span style="color:var(--text-dim);margin-left:8px">Waiting for approval...</span></div><div class="tip">A team leader or organizer will approve you shortly.</div></div></div>
+
+  <div class="panel" id="p-waiting">
+    <div class="card" style="text-align:center">
+      <div class="big-number" id="waitingNumber"></div>
+      <div class="big-number-label">Your Number</div>
+      <div style="margin:16px 0"><span class="pulse"></span><span style="color:var(--text-dim);margin-left:8px">Waiting for approval...</span></div>
+      <div class="tip">A team leader or organizer will approve you shortly.</div>
+    </div>
+    <div class="card" id="preflightCard">
+      <h2>GPS Pre-Flight Check</h2>
+      <p>Let's confirm your phone's GPS is working while you wait. This helps you decide how to track your walk.</p>
+      <div class="preflight-status" id="preflightStatus">Not started</div>
+      <button class="btn btn-primary" id="btnPreflight" onclick="startPreflight(this)">Start GPS Check</button>
+    </div>
+  </div>
+
   <div class="panel" id="p-approved"><div class="card"><h2>You're Approved!</h2><div id="approvedTeamInfo"></div><div id="approvedContacts"></div><p style="margin-top:12px"><span class="pulse"></span> Waiting for your team leader to start...</p></div></div>
   <div class="panel" id="p-transit"><div class="card"><h2>Heading to Zone</h2><p>Your team is on the way. Don't use the app while driving.</p><div id="transitContacts"></div></div><div id="scoutBtnWrap" style="display:none"><button class="btn btn-warn" onclick="doScoutRate()">Rate Litter Here</button></div></div>
-
   <div class="panel" id="p-scouting"><div class="card"><h2 style="text-align:center">Rate This Area</h2><p style="text-align:center">How bad is the litter here?</p><div class="nc-wrap" id="scoutWrap"></div><div class="nc-label" id="scoutLabel"></div><div class="nc-dots" id="scoutDots"></div><div class="nc-confirm" id="scoutConfirmArea"></div></div></div>
 
-  <div class="panel" id="p-at-zone"><div class="map-wrap" id="map-ready"></div><div class="card"><h2>Ready to Collect</h2><p>GPS will start tracking when you begin.</p><button class="btn btn-primary" id="btnStart" onclick="startCollection(this)">Start Collecting</button></div></div>
+  <div class="panel" id="p-at-zone">
+    <div class="map-wrap" id="map-ready"></div>
+    <div class="card">
+      <h2>Ready to Collect</h2>
+      <div id="trackingChoice"></div>
+    </div>
+  </div>
 
   <div class="panel" id="p-session-rating"><div class="card"><div style="text-align:center"><span class="rating-phase-label" id="ratingPhaseLabel">BEFORE</span></div><h2 id="ratingTitle" style="text-align:center">How bad does it look?</h2><p id="ratingSubtitle" style="text-align:center">Rate the litter before you start collecting this stretch</p><div class="nc-wrap" id="sessionWrap"></div><div class="nc-label" id="sessionLabel"></div><div class="nc-dots" id="sessionDots"></div><div class="nc-confirm" id="sessionConfirmArea"></div></div></div>
 
   <div class="panel" id="p-collecting"><div class="stat-row"><div class="stat-box"><div class="stat-val" id="collectTime">0:00</div><div class="stat-label">Time</div></div><div class="stat-box"><div class="stat-val" id="collectDist">0.0</div><div class="stat-label">miles</div></div><div class="stat-box"><div class="stat-val" id="collectLeg">1</div><div class="stat-label">Leg</div></div></div><div class="map-wrap" id="map-collect"></div><button class="btn btn-warn" onclick="togglePocket()">Pocket Mode</button><button class="btn btn-danger" id="btnEndLeg" onclick="endCurrentLeg(this)">End Leg</button></div>
 
+  <div class="panel" id="p-ext-collecting">
+    <div class="card">
+      <div class="ext-collecting-hero">
+        <div class="ech-icon">&#127939;</div>
+        <div class="ech-title">Tracking with External App</div>
+        <div class="ech-sub">Leg <span id="extLegNum">1</span> in progress. CMRA is not recording GPS — your external app is.</div>
+      </div>
+      <div class="tip warn-tip"><strong>Reminder:</strong> You'll need a screenshot of your external app when you end this leg.</div>
+      <button class="btn btn-danger" id="btnExtEndLeg" onclick="endExtLeg()">End Leg</button>
+    </div>
+  </div>
+
+  <div class="panel" id="p-ext-leg-entry">
+    <div class="card">
+      <h2>Enter Leg Details</h2>
+      <p>From your external tracking app screenshot:</p>
+      <label class="field-label" for="extDistance">Distance (miles)</label>
+      <input type="number" id="extDistance" placeholder="0.0" step="0.01" min="0">
+      <label class="field-label" for="extDuration">Duration (minutes)</label>
+      <input type="number" id="extDuration" placeholder="0" step="1" min="0">
+      <label class="field-label" for="extWeight">Weight for this leg (lbs)</label>
+      <input type="number" id="extWeight" placeholder="0.0" step="0.1" min="0">
+      <label class="field-label">Screenshot of tracking app <span style="color:var(--danger)">*required</span></label>
+      <label class="ss-picker" id="extScreenshotPicker">
+        <input type="file" accept="image/*" id="extScreenshotInput" onchange="handleScreenshotSelect(event)">
+        <div id="extScreenshotPreview">
+          <div class="ss-placeholder">Tap to choose screenshot from your photos</div>
+        </div>
+      </label>
+      <button class="btn btn-primary" id="btnSubmitExtLeg" onclick="submitExtLeg(this)" style="margin-top:16px" disabled>Save &amp; Start Next Leg</button>
+      <button class="btn btn-secondary" id="btnFinishExtSession" onclick="finishExtSession(this)" style="margin-top:10px" disabled>Finish Session</button>
+    </div>
+  </div>
+
   <div class="panel" id="p-leg-done"><div class="card"><h2>Leg Complete</h2><div class="stat-row" id="legStats"></div><div style="margin-bottom:12px"><label style="color:var(--text-dim);font-size:0.85rem;text-transform:uppercase;letter-spacing:0.5px">Weight for this leg (lbs)</label><input type="number" id="legWeight" placeholder="0.0" step="0.1" min="0" style="margin-top:6px"></div><button class="btn btn-primary" id="btnSaveLeg" onclick="submitLeg(this)">Save &amp; Start Next Leg</button></div><button class="btn btn-secondary" id="btnFinish" onclick="finishSessionPrompt(this)">Finish Session</button></div>
-
   <div class="panel" id="p-leg-results"><div class="results-card"><h2 style="text-align:center;margin-bottom:4px">Leg Results</h2><div class="results-vals" id="resultsValues"></div><div class="results-eq" id="resultsEq"></div><div class="results-text" id="resultsText"></div></div><button class="btn btn-primary" onclick="afterLegResults()">Continue</button></div>
-
   <div class="panel" id="p-session-notes"><div class="card"><h2>Notes (optional)</h2><textarea id="sessionNotes" placeholder="Anything to note about this area..."></textarea><button class="btn btn-primary" id="btnSubmitSession" onclick="doSubmitSession(this)" style="margin-top:12px">Submit Session</button></div></div>
-
   <div class="panel" id="p-done"><div class="card" style="text-align:center"><div style="font-size:2.5rem;margin-bottom:8px">&#127881;</div><h2>Session Complete!</h2><div class="stat-row" id="doneStats"></div><p>Great work!</p><button class="btn btn-primary" onclick="startAnother(this)">Start Another Session</button><button class="btn btn-tl" id="btnBackTL" style="display:none;margin-top:10px" onclick="showTLHome()">Back to Team Dashboard</button></div></div>
 
-  <div class="panel" id="p-tl-home"><div class="tip tl-tip" id="tlTutorial"><strong>Quick start:</strong> You're a Team Leader.<br>1. <strong>Approve Queue</strong> — tap to see waiting volunteers, approve them into your team<br>2. <strong>Team Left Garden</strong> — tap when your team leaves the meeting point<br>3. <strong>Team Arrived at Zone</strong> — tap when you reach the cleanup zone<br>4. <strong>Accountability</strong> — after collection, mark everyone as Back Safe, Left Early, or Unable to Reach<br><span onclick="this.parentElement.style.display='none'" style="display:inline-block;margin-top:8px;color:var(--tl);cursor:pointer;font-size:0.8rem;font-weight:600">Got it — hide this</span></div><div class="stat-row"><div class="stat-box"><div class="stat-val" id="tlStatTeam">-</div><div class="stat-label">My Team</div></div><div class="stat-box"><div class="stat-val" id="tlStatWait">-</div><div class="stat-label">Waiting</div></div><div class="stat-box"><div class="stat-val" id="tlStatAcct">-</div><div class="stat-label">Accounted</div></div></div><button class="btn btn-tl" onclick="showPanel('p-tl-queue');refreshTLQueue()">Approve Queue</button><button class="btn btn-tl" id="btnTLLeftGarden" onclick="doTeamLeftGarden(this)">Team Left Garden</button><button class="btn btn-tl" id="btnTLArrived" onclick="doTeamArrivedAtZone(this)">Team Arrived at Zone</button><button class="btn btn-tl" onclick="showPanel('p-tl-acct');refreshTLAcct()">Accountability</button><button class="btn btn-tl" onclick="showTLMap()">Team Map</button><button class="btn btn-primary" id="btnTLCollect" onclick="startCollection(this)" style="margin-top:8px">Start Collecting</button></div>
+  <div class="panel" id="p-tl-home"><div class="tip tl-tip" id="tlTutorial"><strong>Quick start:</strong> You're a Team Leader.<br>1. <strong>Approve Queue</strong> &mdash; tap to see waiting volunteers, approve them into your team<br>2. <strong>Team Left Garden</strong> &mdash; tap when your team leaves the meeting point<br>3. <strong>Team Arrived at Zone</strong> &mdash; tap when you reach the cleanup zone<br>4. <strong>Accountability</strong> &mdash; after collection, mark everyone as Back Safe, Left Early, or Unable to Reach<br><span onclick="this.parentElement.style.display='none'" style="display:inline-block;margin-top:8px;color:var(--tl);cursor:pointer;font-size:0.8rem;font-weight:600">Got it &mdash; hide this</span></div><div class="stat-row"><div class="stat-box"><div class="stat-val" id="tlStatTeam">-</div><div class="stat-label">My Team</div></div><div class="stat-box"><div class="stat-val" id="tlStatWait">-</div><div class="stat-label">Waiting</div></div><div class="stat-box"><div class="stat-val" id="tlStatAcct">-</div><div class="stat-label">Accounted</div></div></div><button class="btn btn-tl" onclick="showPanel('p-tl-queue');refreshTLQueue()">Approve Queue</button><button class="btn btn-tl" id="btnTLLeftGarden" onclick="doTeamLeftGarden(this)">Team Left Garden</button><button class="btn btn-tl" id="btnTLArrived" onclick="doTeamArrivedAtZone(this)">Team Arrived at Zone</button><button class="btn btn-tl" onclick="showPanel('p-tl-acct');refreshTLAcct()">Accountability</button><button class="btn btn-tl" onclick="showTLMap()">Team Map</button><button class="btn btn-primary" id="btnTLCollect" onclick="tlStartCollectionTap(this)" style="margin-top:8px">Start Collecting</button></div>
   <div class="panel" id="p-tl-queue"><div class="card"><h2>Approve Queue</h2><div id="tlQueue" style="color:var(--text-dim)">Loading...</div></div><button class="btn btn-secondary" onclick="showTLHome()">Back</button></div>
   <div class="panel" id="p-tl-map"><div class="card"><h2>Team Map</h2><div class="dot-legend"><span class="dot-mine">You</span><span class="dot-team">Team</span></div><div class="map-wrap" id="map-tl"></div></div><button class="btn btn-secondary" onclick="showTLHome()">Back</button></div>
   <div class="panel" id="p-tl-acct"><div class="card"><h2>Accountability</h2><p>Mark each team member. All must be resolved.</p><div id="acctList">Loading...</div></div><button class="btn btn-secondary" onclick="showTLHome()">Back</button></div>
@@ -281,8 +272,9 @@
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbx2YuN9ExnRwKVQ63yY5QEPVrsS7lAHQNzBjhO0SJv_6CZEfLufo6P0g7A8sg8_zhvXnQ/exec';
 var GPS_ACCURACY_THRESHOLD=20,POLL_INTERVAL=10000;
+var PREFLIGHT_REQUIRED_POINTS=3,PREFLIGHT_TIMEOUT_MS=30000;
 var RATING_LABELS=['No litter AT ALL observed','Almost none','Minimal','Light','Moderate-light','Moderate','Moderate-heavy','Heavy','Very heavy','Severe','Extremely dense'];
-var S={event:null,volunteerId:null,volunteerNumber:null,role:'volunteer',currentState:null,sessionId:null,legId:null,legNumber:1,gpsPoints:[],legWeights:[],watchId:null,timerStart:null,timerInterval:null,totalDistance:0,lastPos:null,maps:{},pathLine:null,tlMarkers:[],pollTimer:null,tlPollTimer:null,wakeLock:null,preRating:null,postRating:null,ratingPhase:'pre',lastLegSqrtCpue:null,_finishingSession:false,scoutRating:null,scoutPos:null,chatChannel:null,fabOpen:false,_gpsHealthTimer:null,_calibrationTexts:{}};
+var S={event:null,volunteerId:null,volunteerNumber:null,role:'volunteer',currentState:null,sessionId:null,legId:null,legNumber:1,gpsPoints:[],legWeights:[],watchId:null,timerStart:null,timerInterval:null,totalDistance:0,lastPos:null,maps:{},pathLine:null,tlMarkers:[],pollTimer:null,tlPollTimer:null,wakeLock:null,preRating:null,postRating:null,ratingPhase:'pre',lastLegSqrtCpue:null,_finishingSession:false,scoutRating:null,scoutPos:null,chatChannel:null,fabOpen:false,_gpsHealthTimer:null,_calibrationTexts:{},preflightPassed:null,externalTracking:false,extScreenshotBase64:null,extScreenshotMime:null};
 var _locks={};
 function withLock(k,btn,fn){if(_locks[k])return;_locks[k]=true;if(btn){btn.classList.add('loading');btn.disabled=true;}try{fn();}catch(e){unlock(k,btn);throw e;}}
 function unlock(k,btn){_locks[k]=false;if(btn){btn.classList.remove('loading');btn.disabled=false;}}
@@ -291,12 +283,15 @@ function fmtDate(d){if(!d)return'';var dt=new Date(d);if(isNaN(dt))return String
 function fmtMiles(m){return(m/1609.34).toFixed(1);}
 function fmtTime(s){var m=Math.floor(s/60),ss=s%60;return m+':'+(ss<10?'0':'')+ss;}
 function severityColor(val){if(val===null||val===undefined||val==='')return'rgba(128,128,128,0.3)';var v=Math.min(10,Math.max(0,parseFloat(val)));var stops=[{v:0,r:63,g:185,b:80},{v:2.5,r:134,g:190,b:54},{v:5,r:210,g:153,b:34},{v:7.5,r:219,g:110,b:52},{v:10,r:248,g:81,b:73}];var lo=stops[0],hi=stops[stops.length-1];for(var i=0;i<stops.length-1;i++){if(v>=stops[i].v&&v<=stops[i+1].v){lo=stops[i];hi=stops[i+1];break;}}var t=(hi.v===lo.v)?0:(v-lo.v)/(hi.v-lo.v);var r=Math.round(lo.r+(hi.r-lo.r)*t),g=Math.round(lo.g+(hi.g-lo.g)*t),b=Math.round(lo.b+(hi.b-lo.b)*t);return'rgba('+r+','+g+','+b+',0.85)';}
-function api(action,data){var body=Object.assign({action:action},data||{});if(S.event)body.eventId=S.event.eventId;if(S.volunteerNumber)body.volunteerNumber=S.volunteerNumber;return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;}).catch(function(err){if(err.message&&err.message!=='API error'&&_isWriteAction(action)){_queueOffline(body);throw new Error('Saved offline — will retry when connected');}throw err;});}
-var _WRITE_ACTIONS=['endLeg','finishSession','submitScoutRating','postChatMessage','postNote','startOrResumeSession','startNextLeg'];
+function api(action,data){var body=Object.assign({action:action},data||{});if(S.event)body.eventId=S.event.eventId;if(S.volunteerNumber)body.volunteerNumber=S.volunteerNumber;return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;}).catch(function(err){if(err.message&&err.message!=='API error'&&_isWriteAction(action)){_queueOffline(body);throw new Error('Saved offline \u2014 will retry when connected');}throw err;});}
+var _WRITE_ACTIONS=['endLeg','submitManualLeg','finishSession','submitScoutRating','postChatMessage','postNote','startOrResumeSession','startNextLeg'];
 function _isWriteAction(a){return _WRITE_ACTIONS.indexOf(a)>=0;}
 function _queueOffline(body){try{var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');q.push({body:body,timestamp:new Date().toISOString()});localStorage.setItem('cmra_offline_queue',JSON.stringify(q));_showOfflineBadge();}catch(e){}}
 function _retryOfflineQueue(){var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');if(q.length===0){_hideOfflineBadge();return;}var item=q.shift();localStorage.setItem('cmra_offline_queue',JSON.stringify(q));fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(item.body)}).then(function(r){return r.json()}).then(function(){if(q.length>0)setTimeout(_retryOfflineQueue,1000);else _hideOfflineBadge();}).catch(function(){q.unshift(item);localStorage.setItem('cmra_offline_queue',JSON.stringify(q));});}
-/* Banner Rotation */
+function _showOfflineBadge(){var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');bannerAdd('offline','Offline: '+q.length+' pending \u2014 tap to retry','var(--danger)');}
+function _hideOfflineBadge(){bannerRemove('offline');}
+window.addEventListener('online',function(){_retryOfflineQueue();});
+
 var _banners={},_bannerOrder=[],_bannerIdx=0,_bannerTimer=null,_bannerEl=null,_bannerTextEl=null,_bannerCloseEl=null;
 function bannerInit(){_bannerEl=document.createElement('div');_bannerEl.className='banner-slot';_bannerTextEl=document.createElement('span');_bannerTextEl.className='banner-text';_bannerCloseEl=document.createElement('span');_bannerCloseEl.className='banner-close';_bannerCloseEl.textContent='\u00d7';_bannerCloseEl.onclick=function(e){e.stopPropagation();_bannerDismissCurrent();};_bannerEl.appendChild(_bannerTextEl);_bannerEl.appendChild(_bannerCloseEl);var app=document.getElementById('app');document.body.insertBefore(_bannerEl,app);_bannerTimer=setInterval(_bannerTick,5000);}
 function bannerAdd(id,text,bgColor){var isNew=!_banners[id];_banners[id]={text:text,color:bgColor};if(isNew)_bannerOrder.push(id);if(id==='offline')_banners[id].onclick=function(){_retryOfflineQueue();};_bannerRender();}
@@ -304,15 +299,26 @@ function bannerRemove(id){if(!_banners[id])return;delete _banners[id];_bannerOrd
 function _bannerDismissCurrent(){if(_bannerOrder.length===0)return;bannerRemove(_bannerOrder[_bannerIdx]);}
 function _bannerTick(){if(_bannerOrder.length<=1)return;_bannerIdx=(_bannerIdx+1)%_bannerOrder.length;_bannerRender();}
 function _bannerRender(){if(!_bannerEl)return;if(_bannerOrder.length===0){_bannerEl.style.display='none';_bannerEl.onclick=null;return;}if(_bannerIdx>=_bannerOrder.length)_bannerIdx=0;var id=_bannerOrder[_bannerIdx],b=_banners[id];_bannerTextEl.textContent=b.text;_bannerEl.style.background=b.color;_bannerEl.style.display='block';_bannerEl.onclick=b.onclick||null;}
-function _showOfflineBadge(){var q=JSON.parse(localStorage.getItem('cmra_offline_queue')||'[]');bannerAdd('offline','Offline: '+q.length+' pending \u2014 tap to retry','var(--danger)');}
-function _hideOfflineBadge(){bannerRemove('offline');}
-window.addEventListener('online',function(){_retryOfflineQueue();});
+
 var _eventAliveTimer=null;
 function startEventAliveCheck(){if(_eventAliveTimer)clearInterval(_eventAliveTimer);_eventAliveTimer=setInterval(function(){api('getActiveEvent').then(function(ev){if(!ev){clearInterval(_eventAliveTimer);stopGPS();stopTimer();stopPolling();showPanel('p-no-event');document.getElementById('p-no-event').querySelector('.card').innerHTML='<h2>Event Ended</h2><p style="color:var(--text-dim)">Thanks for participating! The organizer has ended this event.</p>';}}).catch(function(){});},30000);}
 function showPanel(id){var panels=document.querySelectorAll('.panel');for(var i=0;i<panels.length;i++)panels[i].classList.remove('active');var el=document.getElementById(id);if(el)el.classList.add('active');}
 function updateHeader(){var b=document.getElementById('roleBadge');var html='';if(S.role==='team_leader')html='<span class="role-badge role-tl">Team Leader</span>';else if(S.volunteerNumber)html='<span class="role-badge role-vol">#'+S.volunteerNumber+'</span>';if(S.currentState)html+='<span class="state-pill">'+S.currentState.replace(/_/g,' ')+'</span>';b.innerHTML=html;}
 
-/* Number Carousel */
+function startPreflight(btn){
+  if(!navigator.geolocation){document.getElementById('preflightStatus').textContent='GPS not supported on this device.';document.getElementById('preflightStatus').className='preflight-status pf-failed';S.preflightPassed=false;savePreflight();return;}
+  btn.disabled=true;btn.textContent='Checking...';
+  var goodPoints=0;var statusEl=document.getElementById('preflightStatus');
+  statusEl.className='preflight-status';
+  statusEl.innerHTML='Collecting GPS fixes... <span class="pf-count">0</span> / '+PREFLIGHT_REQUIRED_POINTS;
+  var watchId=null,timeoutHandle=null,finished=false;
+  var done=function(passed,msg){if(finished)return;finished=true;if(watchId!==null)navigator.geolocation.clearWatch(watchId);if(timeoutHandle)clearTimeout(timeoutHandle);S.preflightPassed=passed;savePreflight();statusEl.className='preflight-status '+(passed?'pf-passed':'pf-failed');statusEl.textContent=msg;btn.disabled=false;btn.textContent=passed?'GPS check passed \u2713':'Try again';if(passed)btn.style.display='none';};
+  watchId=navigator.geolocation.watchPosition(function(pos){if(pos.coords.accuracy<=GPS_ACCURACY_THRESHOLD){goodPoints++;statusEl.innerHTML='Collecting GPS fixes... <span class="pf-count">'+goodPoints+'</span> / '+PREFLIGHT_REQUIRED_POINTS;if(goodPoints>=PREFLIGHT_REQUIRED_POINTS){done(true,'GPS is working. You can track your walk with CMRA.');}}},function(err){done(false,'GPS blocked or unavailable. You can still participate using an external tracking app.');},{enableHighAccuracy:true,maximumAge:0,timeout:10000});
+  timeoutHandle=setTimeout(function(){done(false,'GPS timed out. You can still participate using an external tracking app (Strava, AllTrails, etc).');},PREFLIGHT_TIMEOUT_MS);
+}
+function savePreflight(){try{localStorage.setItem('cmra_preflight',JSON.stringify({passed:S.preflightPassed,when:new Date().toISOString()}));}catch(e){}}
+function loadPreflight(){try{var p=JSON.parse(localStorage.getItem('cmra_preflight')||'null');if(p&&p.passed!==undefined)S.preflightPassed=p.passed;}catch(e){}}
+
 var _nc={};
 function ncBuild(id,wrapId,labelId,dotsId,confirmId,onConfirm){
   var wrap=document.getElementById(wrapId);if(!wrap)return;
@@ -328,77 +334,95 @@ function ncBuild(id,wrapId,labelId,dotsId,confirmId,onConfirm){
   var _ts=function(e){dragging=true;sx=e.touches[0].clientX;lastX=sx;lastTime=Date.now();velocity=0;var m=track.style.transform.match(/translateX\((.+?)px\)/);st=m?parseFloat(m[1]):0;track.style.transition='none';};
   var _tm=function(e){if(!dragging)return;var x=e.touches[0].clientX;var now=Date.now();var dt=now-lastTime;if(dt>0)velocity=(x-lastX)/dt;lastX=x;lastTime=now;track.style.transform='translateX('+(st+(x-sx))+'px)';};
   var _te=function(e){if(!dragging)return;dragging=false;track.style.transition='transform 0.25s ease';var c=_nc[id];var cw=56;var finalX=st+(e.changedTouches[0].clientX-sx);finalX+=velocity*120;var center=wrap.offsetWidth/2-cw/2;var nearest=Math.round(-(finalX-center)/cw);nearest=Math.max(0,Math.min(10,nearest));if(c.selected!==null&&nearest!==c.selected){c.selected=null;document.getElementById(c.confirmId).innerHTML='';}c.current=nearest;ncScrollTo(id,nearest);};
-  wrap.addEventListener('touchstart',_ts,{passive:true});
-  wrap.addEventListener('touchmove',_tm,{passive:true});
-  wrap.addEventListener('touchend',_te);
+  wrap.addEventListener('touchstart',_ts,{passive:true});wrap.addEventListener('touchmove',_tm,{passive:true});wrap.addEventListener('touchend',_te);
   _nc[id]={track:track,wrap:wrap,labelId:labelId,dotsId:dotsId,confirmId:confirmId,current:0,selected:null,onConfirm:onConfirm,_h:{ts:_ts,tm:_tm,te:_te}};
   ncScrollTo(id,0);
 }
-function ncScrollTo(id,idx){
-  var c=_nc[id];if(!c)return;c.current=idx;var cw=56;var offset=-idx*cw+(c.wrap.offsetWidth/2-cw/2);c.track.style.transform='translateX('+offset+'px)';
-  var items=c.track.querySelectorAll('.nc-item');for(var i=0;i<items.length;i++){items[i].classList.remove('centered');items[i].classList.toggle('selected',c.selected===i);}
-  items[idx].classList.add('centered');if(c.selected===idx)items[idx].classList.add('selected');
-  document.getElementById(c.labelId).textContent=RATING_LABELS[idx]||'';
-  var dots=document.getElementById(c.dotsId).querySelectorAll('.nc-dot');for(var d=0;d<dots.length;d++)dots[d].classList.toggle('active',d===idx);
-}
-function ncTap(id,val){
-  var c=_nc[id];if(!c)return;
-  ncScrollTo(id,val);
-  if(c.selected===val){c.onConfirm(val);c.selected=null;document.getElementById(c.confirmId).innerHTML='';return;}
-  c.selected=val;
-  var items=c.track.querySelectorAll('.nc-item');for(var i=0;i<items.length;i++)items[i].classList.toggle('selected',i===val);
-  document.getElementById(c.confirmId).innerHTML='<div class="nc-confirm-inner">tap again to confirm <span class="nc-x" onclick="event.stopPropagation();ncClear(\''+id+'\')">✕</span></div>';
-}
+function ncScrollTo(id,idx){var c=_nc[id];if(!c)return;c.current=idx;var cw=56;var offset=-idx*cw+(c.wrap.offsetWidth/2-cw/2);c.track.style.transform='translateX('+offset+'px)';var items=c.track.querySelectorAll('.nc-item');for(var i=0;i<items.length;i++){items[i].classList.remove('centered');items[i].classList.toggle('selected',c.selected===i);}items[idx].classList.add('centered');if(c.selected===idx)items[idx].classList.add('selected');document.getElementById(c.labelId).textContent=RATING_LABELS[idx]||'';var dots=document.getElementById(c.dotsId).querySelectorAll('.nc-dot');for(var d=0;d<dots.length;d++)dots[d].classList.toggle('active',d===idx);}
+function ncTap(id,val){var c=_nc[id];if(!c)return;ncScrollTo(id,val);if(c.selected===val){c.onConfirm(val);c.selected=null;document.getElementById(c.confirmId).innerHTML='';return;}c.selected=val;var items=c.track.querySelectorAll('.nc-item');for(var i=0;i<items.length;i++)items[i].classList.toggle('selected',i===val);document.getElementById(c.confirmId).innerHTML='<div class="nc-confirm-inner">tap again to confirm <span class="nc-x" onclick="event.stopPropagation();ncClear(\''+id+'\')">\u2715</span></div>';}
 function ncClear(id){var c=_nc[id];if(!c)return;c.selected=null;var items=c.track.querySelectorAll('.nc-item');for(var i=0;i<items.length;i++)items[i].classList.remove('selected');document.getElementById(c.confirmId).innerHTML='';}
 
-/* Session Rating */
-function showPreRating(){S.ratingPhase='pre';S.preRating=null;S.postRating=null;var l=document.getElementById('ratingPhaseLabel');if(l){l.textContent='BEFORE';l.className='rating-phase-label phase-before';}document.getElementById('ratingTitle').textContent='How bad does it look?';document.getElementById('ratingSubtitle').textContent='Rate the litter before you start collecting this stretch';ncBuild('session','sessionWrap','sessionLabel','sessionDots','sessionConfirmArea',function(val){S.preRating=val;launchCollecting();});showPanel('p-session-rating');}
+function showPreRating(){S.ratingPhase='pre';S.preRating=null;S.postRating=null;var l=document.getElementById('ratingPhaseLabel');if(l){l.textContent='BEFORE';l.className='rating-phase-label phase-before';}document.getElementById('ratingTitle').textContent='How bad does it look?';document.getElementById('ratingSubtitle').textContent='Rate the litter before you start collecting this stretch';ncBuild('session','sessionWrap','sessionLabel','sessionDots','sessionConfirmArea',function(val){S.preRating=val;launchAfterPreRating();});showPanel('p-session-rating');}
 function showPostRating(){S.ratingPhase='post';var l=document.getElementById('ratingPhaseLabel');if(l){l.textContent='AFTER';l.className='rating-phase-label phase-after';}document.getElementById('ratingTitle').textContent='Do you still feel the same?';document.getElementById('ratingSubtitle').textContent='Now that you\'ve collected, re-evaluate your initial impression';ncBuild('session','sessionWrap','sessionLabel','sessionDots','sessionConfirmArea',function(val){S.postRating=val;showLegResults();});showPanel('p-session-rating');}
+function launchAfterPreRating(){if(S.externalTracking)launchExtCollecting();else launchCollecting();}
 
-/* Leg Results */
-function showLegResults(){
-  var el=document.getElementById('resultsValues'),eq=document.getElementById('resultsEq'),txt=document.getElementById('resultsText');
-  var pre=S.preRating,post=S.postRating,sq=S.lastLegSqrtCpue;
-  el.innerHTML='<div class="results-item"><div class="results-v" style="color:'+severityColor(pre)+'">'+(pre!==null?pre:'—')+'</div><div class="results-l">Before</div></div><div class="results-item"><div class="results-v" style="color:'+severityColor(post)+'">'+(post!==null?post:'—')+'</div><div class="results-l">After</div></div>'+(sq!==null?'<div class="results-item"><div class="results-v" style="color:'+severityColor(sq)+'">'+sq.toFixed(1)+'</div><div class="results-l">√CPUE</div></div>':'');
-  if(sq!==null){var sq2=(sq*sq).toFixed(1);eq.innerHTML='<div class="eq-line"><span class="eq-var">√CPUE</span> = <span class="eq-val">'+sq.toFixed(1)+'</span></div><div class="eq-line" style="margin-top:6px"><span class="eq-val">'+sq.toFixed(1)+'</span>² = <span class="eq-result">'+sq2+' lbs/mi</span></div>';}else{eq.innerHTML='';}
-  var gap=pre!==null&&sq!==null?Math.abs(pre-sq):0;
-  var key=gap<=1.5?'calibration_close':'calibration_far';
-  if(S._calibrationTexts[key]){txt.textContent=S._calibrationTexts[key];}else{txt.textContent='';api('getContentBlock',{key:key}).then(function(c){if(c&&c.body){S._calibrationTexts[key]=c.body;txt.textContent=c.body;}}).catch(function(){});}
-  showPanel('p-leg-results');
-}
+function showLegResults(){var el=document.getElementById('resultsValues'),eq=document.getElementById('resultsEq'),txt=document.getElementById('resultsText');var pre=S.preRating,post=S.postRating,sq=S.lastLegSqrtCpue;el.innerHTML='<div class="results-item"><div class="results-v" style="color:'+severityColor(pre)+'">'+(pre!==null?pre:'\u2014')+'</div><div class="results-l">Before</div></div><div class="results-item"><div class="results-v" style="color:'+severityColor(post)+'">'+(post!==null?post:'\u2014')+'</div><div class="results-l">After</div></div>'+(sq!==null?'<div class="results-item"><div class="results-v" style="color:'+severityColor(sq)+'">'+sq.toFixed(1)+'</div><div class="results-l">\u221aCPUE</div></div>':'');if(sq!==null){var sq2=(sq*sq).toFixed(1);eq.innerHTML='<div class="eq-line"><span class="eq-var">\u221aCPUE</span> = <span class="eq-val">'+sq.toFixed(1)+'</span></div><div class="eq-line" style="margin-top:6px"><span class="eq-val">'+sq.toFixed(1)+'</span>\u00b2 = <span class="eq-result">'+sq2+' lbs/mi</span></div>';}else{eq.innerHTML='';}var gap=pre!==null&&sq!==null?Math.abs(pre-sq):0;var key=gap<=1.5?'calibration_close':'calibration_far';if(S._calibrationTexts[key]){txt.textContent=S._calibrationTexts[key];}else{txt.textContent='';api('getContentBlock',{key:key}).then(function(c){if(c&&c.body){S._calibrationTexts[key]=c.body;txt.textContent=c.body;}}).catch(function(){});}showPanel('p-leg-results');}
 function afterLegResults(){if(S._finishingSession){S._finishingSession=false;showPanel('p-session-notes');}else{showPreRating();}}
 
-/* Scout Rating */
 function doScoutRate(){closeFAB();S.scoutRating=null;S.scoutPos=S.lastPos||null;if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(p){S.scoutPos={lat:p.coords.latitude,lon:p.coords.longitude};},function(){},{enableHighAccuracy:true,timeout:5000});}ncBuild('scout','scoutWrap','scoutLabel','scoutDots','scoutConfirmArea',function(val){var pos=S.scoutPos||{lat:0,lon:0};withLock('scout',null,function(){api('submitScoutRating',{rating:val,lat:pos.lat,lon:pos.lon}).then(function(){unlock('scout',null);checkStatus();}).catch(function(e){unlock('scout',null);alert(e.message);});});});showPanel('p-scouting');}
 
-/* Boot */
-function boot(){
-  bannerInit();
-  bannerAdd('version','V2.0 LOADED','var(--danger)');
-  bannerAdd('safari','Safari may block GPS. For best results, use Chrome.','var(--amber)');
-  if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
-  var saved=localStorage.getItem('cmra_volunteer');if(saved){try{var p=JSON.parse(saved);S.volunteerNumber=p.volunteerNumber;S.volunteerId=p.volunteerId;}catch(e){localStorage.removeItem('cmra_volunteer');}}
-  api('getActiveEvent').then(function(ev){if(!ev){showPanel('p-no-event');return;}S.event=ev;document.getElementById('eventNameHeader').textContent=ev.name;api('getRatingLabels').then(function(labels){if(labels&&labels.length)RATING_LABELS=labels;}).catch(function(){});S.volunteerNumber?checkStatus():showJoin();startEventAliveCheck();}).catch(function(err){if(err.message&&err.message.indexOf('maintenance')>=0)showPanel('p-maintenance');else showPanel('p-no-event');});
-}
+function boot(){bannerInit();bannerAdd('version','V2.0 LOADED','var(--danger)');bannerAdd('safari','Safari may block GPS. For best results, use Chrome.','var(--amber)');if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';var saved=localStorage.getItem('cmra_volunteer');if(saved){try{var p=JSON.parse(saved);S.volunteerNumber=p.volunteerNumber;S.volunteerId=p.volunteerId;if(p.externalTracking)S.externalTracking=true;}catch(e){localStorage.removeItem('cmra_volunteer');}}loadPreflight();api('getActiveEvent').then(function(ev){if(!ev){showPanel('p-no-event');return;}S.event=ev;document.getElementById('eventNameHeader').textContent=ev.name;api('getRatingLabels').then(function(labels){if(labels&&labels.length)RATING_LABELS=labels;}).catch(function(){});S.volunteerNumber?checkStatus():showJoin();startEventAliveCheck();}).catch(function(err){if(err.message&&err.message.indexOf('maintenance')>=0)showPanel('p-maintenance');else showPanel('p-no-event');});}
 function showJoin(){document.getElementById('joinEventName').textContent=S.event.name;document.getElementById('joinEventDate').textContent=fmtDate(S.event.date);showPanel('p-join');}
 function doJoin(btn){withLock('join',btn,function(){api('joinEvent').then(function(d){unlock('join',btn);S.volunteerId=d.volunteerId;S.volunteerNumber=d.volunteerNumber;S.currentState=d.currentState||'joined';saveLocal();document.getElementById('myNumber').textContent='#'+d.volunteerNumber;updateHeader();showPanel('p-number');showFAB();}).catch(function(e){unlock('join',btn);alert('Error: '+e.message);});});}
 function showGates(){showPanel('p-gates');document.getElementById('gateNumber').checked=false;document.getElementById('gateDriving').checked=false;document.getElementById('gateData').checked=false;document.getElementById('btnGatesContinue').disabled=true;api('getContentBlock',{key:'data_privacy'}).then(function(c){if(c&&c.body)document.getElementById('gateDataDetail').textContent=c.body;}).catch(function(){});}
 function checkGates(){document.getElementById('btnGatesContinue').disabled=!(document.getElementById('gateNumber').checked&&document.getElementById('gateDriving').checked&&document.getElementById('gateData').checked);}
 function toggleLiability(){var el=document.getElementById('liabilityText');if(el.style.display==='none'){el.style.display='block';api('getContentBlock',{key:'liability'}).then(function(c){el.textContent=(c&&c.body)?c.body:'No liability text configured.';}).catch(function(){el.textContent='Unable to load.';});}else el.style.display='none';}
-function submitGates(btn){withLock('gates',btn,function(){api('updateGates',{gates:{numberConfirmed:true,drivingAck:true,dataTransparency:true}}).then(function(){unlock('gates',btn);document.getElementById('waitingNumber').textContent='#'+S.volunteerNumber;S.currentState='joined';updateHeader();showPanel('p-waiting');startPolling();}).catch(function(e){unlock('gates',btn);alert(e.message);});});}
+function submitGates(btn){withLock('gates',btn,function(){api('updateGates',{gates:{numberConfirmed:true,drivingAck:true,dataTransparency:true}}).then(function(){unlock('gates',btn);document.getElementById('waitingNumber').textContent='#'+S.volunteerNumber;S.currentState='joined';updateHeader();showPanel('p-waiting');renderPreflightState();startPolling();}).catch(function(e){unlock('gates',btn);alert(e.message);});});}
+function renderPreflightState(){var statusEl=document.getElementById('preflightStatus');var btn=document.getElementById('btnPreflight');if(!statusEl)return;if(S.preflightPassed===true){statusEl.className='preflight-status pf-passed';statusEl.textContent='GPS is working. You can track your walk with CMRA.';btn.style.display='none';}else if(S.preflightPassed===false){statusEl.className='preflight-status pf-failed';statusEl.textContent='GPS not available. You can track with an external app (Strava, AllTrails, etc).';btn.disabled=false;btn.textContent='Try again';btn.style.display='block';}else{statusEl.className='preflight-status';statusEl.textContent='Not started';btn.disabled=false;btn.textContent='Start GPS Check';btn.style.display='block';}}
 function checkStatus(){api('getVolunteerStatus').then(function(d){if(!d){showJoin();return;}S.volunteerId=d.volunteerId;S.role=d.role||'volunteer';S.currentState=d.currentState||'joined';updateHeader();showFAB();routeToState(d);}).catch(function(){showJoin();});}
-function routeToState(d){var st=d.currentState||d.status||'joined';S.currentState=st;updateHeader();updateFABItems();switch(st){case'joined':var gates=d.gates||{};if(gates.numberConfirmed&&gates.drivingAck&&gates.dataTransparency){document.getElementById('waitingNumber').textContent='#'+S.volunteerNumber;showPanel('p-waiting');startPolling();}else{showGates();}break;case'approved':if(S.role==='team_leader')showTLHome();else{showApproved(d);startPolling();}break;case'in_transit':showTransit(d);break;case'scouting':showTransit(d);break;case'at_zone':if(S.role==='team_leader')showTLHome();else showAtZone();break;case'collecting':case'between_legs':resumeCollecting();break;case'session_complete':showPanel('p-done');break;case'accounted_for':case'left_early':showPanel('p-done');break;default:showPanel('p-waiting');startPolling();}}
+function routeToState(d){var st=d.currentState||d.status||'joined';S.currentState=st;updateHeader();updateFABItems();switch(st){case'joined':var gates=d.gates||{};if(gates.numberConfirmed&&gates.drivingAck&&gates.dataTransparency){document.getElementById('waitingNumber').textContent='#'+S.volunteerNumber;showPanel('p-waiting');renderPreflightState();startPolling();}else{showGates();}break;case'approved':if(S.role==='team_leader')showTLHome();else{showApproved(d);startPolling();}break;case'in_transit':showTransit(d);break;case'scouting':showTransit(d);break;case'at_zone':if(S.role==='team_leader')showTLHome();else showAtZone();break;case'collecting':case'between_legs':resumeCollecting();break;case'session_complete':showPanel('p-done');break;case'accounted_for':case'left_early':showPanel('p-done');break;default:showPanel('p-waiting');renderPreflightState();startPolling();}}
 function startPolling(){stopPolling();S.pollTimer=setInterval(function(){api('getVolunteerStatus').then(function(d){if(!d)return;var prev=S.currentState;var prevRole=S.role;S.role=d.role||'volunteer';S.currentState=d.currentState||'joined';if(S.currentState!==prev||S.role!==prevRole){stopPolling();routeToState(d);}});},POLL_INTERVAL);}
 function stopPolling(){if(S.pollTimer){clearInterval(S.pollTimer);S.pollTimer=null;}}
 function showApproved(d){var html='<p>Assigned to team. Waiting for departure.</p>';if(d.tlName)html='<p>Team leader: <strong>'+esc(d.tlName)+'</strong></p>';document.getElementById('approvedTeamInfo').innerHTML=html;var c='';if(d.tlPhone)c+='<div class="contact-row">TL: <a href="tel:'+esc(d.tlPhone)+'">'+esc(d.tlPhone)+'</a></div>';if(d.orgPhone)c+='<div class="contact-row">Organizer: <a href="tel:'+esc(d.orgPhone)+'">'+esc(d.orgPhone)+'</a></div>';document.getElementById('approvedContacts').innerHTML=c;showPanel('p-approved');}
 function showTransit(d){var c='';if(d.tlPhone)c+='<div class="contact-row">TL: <a href="tel:'+esc(d.tlPhone)+'">'+esc(d.tlPhone)+'</a></div>';if(d.orgPhone)c+='<div class="contact-row">Organizer: <a href="tel:'+esc(d.orgPhone)+'">'+esc(d.orgPhone)+'</a></div>';document.getElementById('transitContacts').innerHTML=c;document.getElementById('scoutBtnWrap').style.display=S.event.scoutEnabled?'block':'none';showPanel('p-transit');}
-function showAtZone(){showPanel('p-at-zone');setTimeout(function(){initMap('map-ready');},100);}
+function showAtZone(){showPanel('p-at-zone');renderTrackingChoice();setTimeout(function(){initMap('map-ready');},100);}
+
+function renderTrackingChoice(){
+  var el=document.getElementById('trackingChoice');if(!el)return;
+  if(S.preflightPassed===false){
+    el.innerHTML='<div class="tip warn-tip"><strong>GPS not working.</strong> Use an external tracking app (Strava, AllTrails, Apple Fitness, etc), then enter the stats here after each leg.</div><button class="btn btn-primary" id="btnStartExt" onclick="startCollection(this,true)">Start Collecting (External Tracking)</button>';
+  }else if(S.preflightPassed===true){
+    el.innerHTML='<p>GPS will start tracking when you begin.</p><button class="btn btn-primary" id="btnStart" onclick="startCollection(this,false)">Start Collecting</button><button class="btn btn-secondary" id="btnStartExt" onclick="startCollection(this,true)" style="margin-top:10px">Use External Tracking Instead</button>';
+  }else{
+    el.innerHTML='<p>How do you want to track this walk?</p><button class="btn btn-primary" id="btnStart" onclick="startCollection(this,false)">Track with CMRA (GPS)</button><button class="btn btn-secondary" id="btnStartExt" onclick="startCollection(this,true)" style="margin-top:10px">Use External App</button>';
+  }
+}
+
 function initMap(id){if(S.maps[id]){S.maps[id].invalidateSize();return S.maps[id];}var el=document.getElementById(id);if(!el)return null;var m=L.map(el,{zoomControl:false,maxZoom:21}).setView([32.3668,-86.3000],14);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM',maxZoom:21,maxNativeZoom:19}).addTo(m);S.maps[id]=m;if(S.event)loadZones(m);return m;}
 function loadZones(map){api('getEventZones').then(function(zones){for(var i=0;i<zones.length;i++){var z=zones[i];if(z.polygon&&z.polygon.length>0){var ll=z.polygon.map(function(p){return Array.isArray(p)?[p[0],p[1]]:[p.lat,p.lng];});L.polygon(ll,{color:'#2c8a3d',fillColor:'#2c8a3d',fillOpacity:0.12,weight:2}).addTo(map).bindPopup(z.name);}}}).catch(function(){});}
-function startCollection(btn){withLock('start',btn,function(){if(navigator.geolocation){navigator.geolocation.getCurrentPosition(function(pos){if(S.event.zones&&S.event.zones.length>0){var inside=false;var pt={lat:pos.coords.latitude,lng:pos.coords.longitude};for(var z=0;z<S.event.zones.length;z++){var poly=S.event.zones[z];if(Array.isArray(poly)&&poly.length>0&&_pointInPoly(pt,poly)){inside=true;break;}}if(!inside){unlock('start',btn);alert('You appear to be outside the cleanup zone.');return;}}_doStartCollection(btn);},function(){_doStartCollection(btn);},{enableHighAccuracy:true,timeout:5000});}else{_doStartCollection(btn);}});}
+
+function startCollection(btn,externalTracking){
+  S.externalTracking=!!externalTracking;saveLocal();
+  withLock('start',btn,function(){
+    if(!externalTracking&&navigator.geolocation){
+      navigator.geolocation.getCurrentPosition(function(pos){
+        if(S.event.zones&&S.event.zones.length>0){
+          var inside=false;var pt={lat:pos.coords.latitude,lng:pos.coords.longitude};
+          for(var z=0;z<S.event.zones.length;z++){var poly=S.event.zones[z];if(Array.isArray(poly)&&poly.length>0&&_pointInPoly(pt,poly)){inside=true;break;}}
+          if(!inside){unlock('start',btn);alert('You appear to be outside the cleanup zone.');return;}
+        }
+        _doStartCollection(btn);
+      },function(){_doStartCollection(btn);},{enableHighAccuracy:true,timeout:5000});
+    }else{_doStartCollection(btn);}
+  });
+}
+function tlStartCollectionTap(btn){startCollection(btn,false);}
 function _pointInPoly(pt,polygon){var x=pt.lat,y=pt.lng,inside=false;for(var i=0,j=polygon.length-1;i<polygon.length;j=i++){var xi,yi,xj,yj;if(Array.isArray(polygon[i])){xi=polygon[i][0];yi=polygon[i][1];xj=polygon[j][0];yj=polygon[j][1];}else{xi=polygon[i].lat;yi=polygon[i].lng;xj=polygon[j].lat;yj=polygon[j].lng;}if((yi>y)!==(yj>y)&&x<(xj-xi)*(y-yi)/(yj-yi)+xi)inside=!inside;}return inside;}
-function _doStartCollection(btn){api('startOrResumeSession').then(function(d){unlock('start',btn);if(d.role)S.role=d.role;S.sessionId=d.sessionId;S.legId=d.activeLeg?d.activeLeg.legId:(d.legId||null);S.legNumber=d.activeLeg?d.activeLeg.legNumber:(d.legNumber||1);S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;S.legWeights=[];S.currentState='collecting';updateHeader();showPreRating();}).catch(function(e){unlock('start',btn);alert('Error: '+e.message);});}
-function resumeCollecting(){api('getActiveSession').then(function(d){if(!d){showAtZone();return;}S.sessionId=d.sessionId;S.legId=d.activeLeg?d.activeLeg.legId:null;S.legNumber=d.activeLeg?d.activeLeg.legNumber:1;S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;if(S.currentState==='between_legs')showPanel('p-leg-done');else launchCollecting();}).catch(function(){showAtZone();});}
+function _doStartCollection(btn){
+  api('startOrResumeSession',{externalTracking:S.externalTracking}).then(function(d){
+    unlock('start',btn);
+    if(d.role)S.role=d.role;
+    S.sessionId=d.sessionId;S.legId=d.activeLeg?d.activeLeg.legId:(d.legId||null);S.legNumber=d.activeLeg?d.activeLeg.legNumber:(d.legNumber||1);
+    if(typeof d.externalTracking==='boolean')S.externalTracking=d.externalTracking;
+    saveLocal();
+    S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;S.legWeights=[];
+    S.currentState='collecting';updateHeader();
+    showPreRating();
+  }).catch(function(e){unlock('start',btn);alert('Error: '+e.message);});
+}
+
+function resumeCollecting(){
+  api('getActiveSession').then(function(d){
+    if(!d){showAtZone();return;}
+    S.sessionId=d.sessionId;S.legId=d.activeLeg?d.activeLeg.legId:null;S.legNumber=d.activeLeg?d.activeLeg.legNumber:1;
+    if(typeof d.externalTracking==='boolean')S.externalTracking=d.externalTracking;
+    saveLocal();
+    S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;
+    if(S.externalTracking){if(S.currentState==='between_legs')showExtLegEntry();else launchExtCollecting();}
+    else{if(S.currentState==='between_legs')showPanel('p-leg-done');else launchCollecting();}
+  }).catch(function(){showAtZone();});
+}
+
 function launchCollecting(){document.getElementById('collectLeg').textContent=S.legNumber;document.getElementById('collectDist').textContent='0.0';document.getElementById('collectTime').textContent='0:00';showPanel('p-collecting');setTimeout(function(){initMap('map-collect');},100);startGPS();startTimer();S._gpsHealthTimer=setInterval(function(){var el=document.getElementById('gpsWarning');if(S.gpsPoints.length===0){if(!el){el=document.createElement('div');el.id='gpsWarning';el.style.cssText='background:var(--danger-dim);color:var(--danger);text-align:center;padding:10px 14px;font-size:0.85rem;border-radius:var(--radius-sm);border:1px solid #fecaca;margin-bottom:10px;';el.innerHTML='<strong>No GPS signal.</strong> Check: location enabled? Phone not locked? Try moving outdoors.';var panel=document.getElementById('p-collecting');if(panel)panel.insertBefore(el,panel.firstChild);}}else if(el){el.remove();}},5000);}
 function startGPS(){if(!navigator.geolocation)return;S.watchId=navigator.geolocation.watchPosition(onGPS,function(){},{enableHighAccuracy:true,maximumAge:5000,timeout:10000});}
 function stopGPS(){if(S.watchId!==null){navigator.geolocation.clearWatch(S.watchId);S.watchId=null;}}
@@ -414,20 +438,90 @@ document.addEventListener('visibilitychange',function(){if(document.visibilitySt
 function endCurrentLeg(btn){if(btn)btn.disabled=true;stopGPS();stopTimer();if(S._gpsHealthTimer){clearInterval(S._gpsHealthTimer);S._gpsHealthTimer=null;}var gw=document.getElementById('gpsWarning');if(gw)gw.remove();var elapsed=S.timerStart?Math.floor((Date.now()-S.timerStart)/1000):0;document.getElementById('legStats').innerHTML='<div class="stat-box"><div class="stat-val">'+fmtMiles(S.totalDistance)+'</div><div class="stat-label">miles</div></div><div class="stat-box"><div class="stat-val">'+fmtTime(elapsed)+'</div><div class="stat-label">time</div></div><div class="stat-box"><div class="stat-val">'+S.gpsPoints.length+'</div><div class="stat-label">GPS pts</div></div>';document.getElementById('legWeight').value='';S.currentState='between_legs';updateHeader();showPanel('p-leg-done');if(btn)btn.disabled=false;}
 function submitLeg(btn){var lw=parseFloat(document.getElementById('legWeight').value)||0;S.legWeights.push(lw);var cum=0;for(var i=0;i<S.legWeights.length;i++)cum+=S.legWeights[i];S._finishingSession=false;withLock('saveLeg',btn,function(){api('endLeg',{legId:S.legId,gpsPoints:S.gpsPoints,cumulativeWeight:cum,previousCumulative:cum-lw,newBag:false,endTime:new Date().toISOString()}).then(function(legResult){unlock('saveLeg',btn);S.lastLegSqrtCpue=legResult.sqrtCpue;return api('startNextLeg',{sessionId:S.sessionId});}).then(function(d){S.legId=d.legId;S.legNumber=d.legNumber;S.gpsPoints=[];S.totalDistance=0;S.lastPos=null;S.pathLine=null;showPostRating();}).catch(function(e){unlock('saveLeg',btn);alert('Error: '+e.message);});});}
 function finishSessionPrompt(btn){var lw=parseFloat(document.getElementById('legWeight').value)||0;S.legWeights.push(lw);var cum=0;for(var i=0;i<S.legWeights.length;i++)cum+=S.legWeights[i];S._finishingSession=true;withLock('finishLeg',btn,function(){api('endLeg',{legId:S.legId,gpsPoints:S.gpsPoints,cumulativeWeight:cum,previousCumulative:cum-lw,newBag:false,endTime:new Date().toISOString()}).then(function(legResult){unlock('finishLeg',btn);S.lastLegSqrtCpue=legResult.sqrtCpue;showPostRating();}).catch(function(e){unlock('finishLeg',btn);alert('Error: '+e.message);});});}
-function doSubmitSession(btn){withLock('submit',btn,function(){api('finishSession',{sessionId:S.sessionId,preRating:S.preRating,postRating:S.postRating,notes:document.getElementById('sessionNotes').value.trim()}).then(function(d){unlock('submit',btn);document.getElementById('doneStats').innerHTML='<div class="stat-box"><div class="stat-val">'+(d.totalWeight||0)+'</div><div class="stat-label">lbs</div></div><div class="stat-box"><div class="stat-val">'+fmtMiles(d.totalDistance||0)+'</div><div class="stat-label">miles</div></div><div class="stat-box"><div class="stat-val">'+(d.legCount||0)+'</div><div class="stat-label">legs</div></div>';if(d.sqrtCpue!==null)document.getElementById('doneStats').innerHTML+='<div class="stat-box"><div class="stat-val">'+d.sqrtCpue+'</div><div class="stat-label">√CPUE</div></div>';S.sessionId=null;S.legId=null;S.currentState='session_complete';updateHeader();document.getElementById('btnBackTL').style.display=S.role==='team_leader'?'block':'none';showPanel('p-done');}).catch(function(e){unlock('submit',btn);alert('Error: '+e.message);});});}
-function startAnother(btn){startCollection(btn);}
-function showTLHome(){stopTLPoll();showPanel('p-tl-home');document.getElementById('btnBackTL').style.display='block';document.getElementById('fabTLHome').style.display='block';refreshTLStats();refreshTLQueue();S.tlPollTimer=setInterval(function(){refreshTLStats();},15000);api('getEventVolunteers').then(function(vols){var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId;});var states=myTeam.map(function(v){return v.currentState;});var bl=document.getElementById('btnTLLeftGarden'),ba=document.getElementById('btnTLArrived');if(bl){var pt=states.every(function(s){return['in_transit','scouting','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pt&&states.length>0){bl.disabled=true;bl.textContent='Team Left Garden ✓';}}if(ba){var pz=states.every(function(s){return['at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pz&&states.length>0){ba.disabled=true;ba.textContent='Team Arrived at Zone ✓';}}});}
+
+function launchExtCollecting(){document.getElementById('extLegNum').textContent=S.legNumber;showPanel('p-ext-collecting');}
+function endExtLeg(){S.currentState='between_legs';updateHeader();showExtLegEntry();}
+function showExtLegEntry(){
+  S.extScreenshotBase64=null;S.extScreenshotMime=null;
+  document.getElementById('extDistance').value='';document.getElementById('extDuration').value='';document.getElementById('extWeight').value='';
+  document.getElementById('extScreenshotPreview').innerHTML='<div class="ss-placeholder">Tap to choose screenshot from your photos</div>';
+  document.getElementById('extScreenshotPicker').classList.remove('has-image');
+  updateExtSubmitButtons();
+  ['extDistance','extDuration','extWeight'].forEach(function(id){document.getElementById(id).oninput=updateExtSubmitButtons;});
+  showPanel('p-ext-leg-entry');
+}
+function updateExtSubmitButtons(){
+  var d=parseFloat(document.getElementById('extDistance').value)||0;
+  var t=parseFloat(document.getElementById('extDuration').value)||0;
+  var ok=d>0&&t>0&&!!S.extScreenshotBase64;
+  document.getElementById('btnSubmitExtLeg').disabled=!ok;
+  document.getElementById('btnFinishExtSession').disabled=!ok;
+}
+function handleScreenshotSelect(event){
+  var file=event.target.files&&event.target.files[0];if(!file)return;
+  var img=new Image();
+  img.onload=function(){
+    var maxDim=800;var w=img.width,h=img.height;
+    if(w>maxDim||h>maxDim){if(w>h){h=Math.round(h*(maxDim/w));w=maxDim;}else{w=Math.round(w*(maxDim/h));h=maxDim;}}
+    var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+    var ctx=canvas.getContext('2d');ctx.drawImage(img,0,0,w,h);
+    var dataUrl=canvas.toDataURL('image/jpeg',0.6);
+    var commaIdx=dataUrl.indexOf(',');
+    S.extScreenshotBase64=dataUrl.substring(commaIdx+1);
+    S.extScreenshotMime='image/jpeg';
+    document.getElementById('extScreenshotPreview').innerHTML='<img src="'+dataUrl+'" alt="screenshot"/>';
+    document.getElementById('extScreenshotPicker').classList.add('has-image');
+    updateExtSubmitButtons();
+  };
+  img.onerror=function(){alert('Could not load that image. Try another.');};
+  var reader=new FileReader();
+  reader.onload=function(e){img.src=e.target.result;};
+  reader.readAsDataURL(file);
+}
+function submitExtLeg(btn){_doSubmitExtLeg(btn,false);}
+function finishExtSession(btn){_doSubmitExtLeg(btn,true);}
+function _doSubmitExtLeg(btn,finishing){
+  var distance=parseFloat(document.getElementById('extDistance').value);
+  var duration=parseFloat(document.getElementById('extDuration').value);
+  var weight=parseFloat(document.getElementById('extWeight').value)||0;
+  if(!S.extScreenshotBase64){alert('Screenshot required');return;}
+  if(!distance||distance<=0){alert('Distance must be greater than 0');return;}
+  if(!duration||duration<=0){alert('Duration must be greater than 0');return;}
+  S._finishingSession=finishing;
+  withLock('extLeg',btn,function(){
+    api('submitManualLeg',{
+      legId:S.legId,distanceMiles:distance,durationMinutes:duration,weightLbs:weight,
+      screenshotBase64:S.extScreenshotBase64,screenshotMimeType:S.extScreenshotMime||'image/jpeg',
+      externalSource:'other',endTime:new Date().toISOString()
+    }).then(function(legResult){
+      unlock('extLeg',btn);
+      S.lastLegSqrtCpue=legResult.sqrtCpue;
+      if(finishing){showPostRating();}
+      else{
+        return api('startNextLeg',{sessionId:S.sessionId}).then(function(d){
+          S.legId=d.legId;S.legNumber=d.legNumber;
+          showPostRating();
+        });
+      }
+    }).catch(function(e){unlock('extLeg',btn);alert('Error: '+e.message);});
+  });
+}
+
+function doSubmitSession(btn){withLock('submit',btn,function(){api('finishSession',{sessionId:S.sessionId,preRating:S.preRating,postRating:S.postRating,notes:document.getElementById('sessionNotes').value.trim()}).then(function(d){unlock('submit',btn);document.getElementById('doneStats').innerHTML='<div class="stat-box"><div class="stat-val">'+(d.totalWeight||0)+'</div><div class="stat-label">lbs</div></div><div class="stat-box"><div class="stat-val">'+fmtMiles(d.totalDistance||0)+'</div><div class="stat-label">miles</div></div><div class="stat-box"><div class="stat-val">'+(d.legCount||0)+'</div><div class="stat-label">legs</div></div>';if(d.sqrtCpue!==null)document.getElementById('doneStats').innerHTML+='<div class="stat-box"><div class="stat-val">'+d.sqrtCpue+'</div><div class="stat-label">\u221aCPUE</div></div>';S.sessionId=null;S.legId=null;S.externalTracking=false;saveLocal();S.currentState='session_complete';updateHeader();document.getElementById('btnBackTL').style.display=S.role==='team_leader'?'block':'none';showPanel('p-done');}).catch(function(e){unlock('submit',btn);alert('Error: '+e.message);});});}
+function startAnother(btn){startCollection(btn,false);}
+
+function showTLHome(){stopTLPoll();showPanel('p-tl-home');document.getElementById('btnBackTL').style.display='block';document.getElementById('fabTLHome').style.display='block';refreshTLStats();refreshTLQueue();S.tlPollTimer=setInterval(function(){refreshTLStats();},15000);api('getEventVolunteers').then(function(vols){var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId;});var states=myTeam.map(function(v){return v.currentState;});var bl=document.getElementById('btnTLLeftGarden'),ba=document.getElementById('btnTLArrived');if(bl){var pt=states.every(function(s){return['in_transit','scouting','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pt&&states.length>0){bl.disabled=true;bl.textContent='Team Left Garden \u2713';}}if(ba){var pz=states.every(function(s){return['at_zone','collecting','between_legs','session_complete','accounted_for','left_early'].indexOf(s)>=0;});if(pz&&states.length>0){ba.disabled=true;ba.textContent='Team Arrived at Zone \u2713';}}});}
 function stopTLPoll(){if(S.tlPollTimer){clearInterval(S.tlPollTimer);S.tlPollTimer=null;}}
 function refreshTLStats(){api('getEventVolunteers').then(function(vols){var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId;});var waiting=vols.filter(function(v){return v.currentState==='joined';});var accounted=myTeam.filter(function(v){return v.accountedFor;});var el;el=document.getElementById('tlStatTeam');if(el)el.textContent=myTeam.length;el=document.getElementById('tlStatWait');if(el)el.textContent=waiting.length;el=document.getElementById('tlStatAcct');if(el)el.textContent=accounted.length+'/'+myTeam.length;});}
 function refreshTLQueue(){api('getWaitingQueue').then(function(vols){var el=document.getElementById('tlQueue');if(!el)return;if(vols.length===0){el.innerHTML='<span style="color:var(--text-dim)">No one waiting</span>';return;}el.innerHTML=vols.map(function(v){return'<div class="vol-row"><span class="vol-num">#'+v.volunteerNumber+'</span><span class="badge badge-waiting">waiting</span><div class="vol-actions"><button class="btn-sm" style="background:var(--tl);color:#fff" onclick="tlApprove(this,\''+v.volunteerId+'\')">Approve</button></div></div>';}).join('');});}
 function tlApprove(btn,volId){withLock('tla-'+volId,btn,function(){api('approveVolunteer',{volunteerId:volId}).then(function(){unlock('tla-'+volId,btn);refreshTLQueue();refreshTLStats();}).catch(function(e){unlock('tla-'+volId,btn);alert(e.message);});});}
-function doTeamLeftGarden(btn){withLock('tlg',btn,function(){api('teamLeftGarden').then(function(d){unlock('tlg',btn);refreshTLStats();btn.disabled=true;btn.textContent='Team Left Garden ✓';}).catch(function(e){unlock('tlg',btn);alert(e.message);});});}
-function doTeamArrivedAtZone(btn){withLock('tla',btn,function(){api('teamArrivedAtZone').then(function(d){unlock('tla',btn);refreshTLStats();btn.disabled=true;btn.textContent='Team Arrived at Zone ✓';}).catch(function(e){unlock('tla',btn);alert(e.message);});});}
+function doTeamLeftGarden(btn){withLock('tlg',btn,function(){api('teamLeftGarden').then(function(d){unlock('tlg',btn);refreshTLStats();btn.disabled=true;btn.textContent='Team Left Garden \u2713';}).catch(function(e){unlock('tlg',btn);alert(e.message);});});}
+function doTeamArrivedAtZone(btn){withLock('tla',btn,function(){api('teamArrivedAtZone').then(function(d){unlock('tla',btn);refreshTLStats();btn.disabled=true;btn.textContent='Team Arrived at Zone \u2713';}).catch(function(e){unlock('tla',btn);alert(e.message);});});}
 function showTLMap(){showPanel('p-tl-map');setTimeout(function(){initMap('map-tl');api('getLivePositions').then(function(positions){var map=S.maps['map-tl'];if(!map)return;for(var i=0;i<S.tlMarkers.length;i++)map.removeLayer(S.tlMarkers[i]);S.tlMarkers=[];for(var j=0;j<positions.length;j++){var p=positions[j],isMe=p.volunteerId===S.volunteerId;var color=isMe?'#2c8a3d':'#58a6ff';var m=L.circleMarker([p.lat,p.lon],{radius:isMe?10:7,fillColor:color,fillOpacity:0.9,color:'#fff',weight:2}).addTo(map);m.bindPopup('#'+p.volunteerNumber+(isMe?' (You)':''));S.tlMarkers.push(m);}if(S.tlMarkers.length>0)map.fitBounds(L.featureGroup(S.tlMarkers).getBounds().pad(0.3));});},100);}
 function refreshTLAcct(){api('getEventVolunteers').then(function(vols){var myTeam=vols.filter(function(v){return v.teamLeaderId===S.volunteerId&&v.currentState!=='joined';});var el=document.getElementById('acctList');if(!el)return;if(myTeam.length===0){el.innerHTML='<span style="color:var(--text-dim)">No team members</span>';return;}el.innerHTML=myTeam.map(function(v){if(v.accountedFor)return'<div class="vol-row"><span class="vol-num">#'+v.volunteerNumber+'</span><span class="badge badge-state">'+(v.accountedPreset||'accounted').replace(/_/g,' ')+'</span></div>';return'<div class="vol-row"><span class="vol-num">#'+v.volunteerNumber+'</span><span class="badge badge-state">'+v.currentState.replace(/_/g,' ')+'</span><div class="vol-actions"><button class="btn-sm" style="background:var(--accent);color:#fff" onclick="doAccount(this,\''+v.volunteerId+'\',\'back_safe\')">Back Safe</button><button class="btn-sm" style="background:var(--amber);color:#fff" onclick="doAccount(this,\''+v.volunteerId+'\',\'left_early\')">Left Early</button><button class="btn-sm" style="background:var(--danger);color:#fff" onclick="doAccount(this,\''+v.volunteerId+'\',\'unable_to_reach\')">Unable</button></div></div>';}).join('');});}
 function doAccount(btn,volId,preset){withLock('acct-'+volId,btn,function(){api('accountForVolunteer',{volunteerId:volId,preset:preset}).then(function(){unlock('acct-'+volId,btn);refreshTLAcct();refreshTLStats();}).catch(function(e){unlock('acct-'+volId,btn);alert(e.message);});});}
 function openChat(){closeFAB();S.chatChannel=S.role==='team_leader'?'tl_'+S.volunteerId:'team_'+S.volunteerId;if(S.role==='volunteer'){api('getVolunteerStatus').then(function(d){if(d&&d.teamLeaderId)S.chatChannel='team_'+d.teamLeaderId;loadChat();});}else loadChat();showPanel('p-chat');}
-function loadChat(){var el=document.getElementById('chatMessages');el.innerHTML='<div class="loading-text">Loading...</div>';api('getChatMessages',{channelId:S.chatChannel}).then(function(msgs){if(!msgs||msgs.length===0){el.innerHTML='<div style="color:var(--text-dim);text-align:center;padding:20px">No messages yet</div>';return;}el.innerHTML=msgs.map(function(m){return'<div class="chat-msg"><span class="cm-author">#'+m.authorNumber+(m.authorRole==='team_leader'?' (TL)':'')+'</span><span class="cm-time" style="float:right">'+new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</span><div class="cm-text">'+esc(m.text)+'</div>'+(m.pinLat?'<div style="font-size:0.7rem;color:var(--text-dim)">📍 '+m.pinLat.toFixed(4)+', '+m.pinLon.toFixed(4)+'</div>':'')+'</div>';}).join('');el.scrollTop=el.scrollHeight;}).catch(function(){el.innerHTML='<div style="color:var(--danger)">Failed to load</div>';});}
+function loadChat(){var el=document.getElementById('chatMessages');el.innerHTML='<div class="loading-text">Loading...</div>';api('getChatMessages',{channelId:S.chatChannel}).then(function(msgs){if(!msgs||msgs.length===0){el.innerHTML='<div style="color:var(--text-dim);text-align:center;padding:20px">No messages yet</div>';return;}el.innerHTML=msgs.map(function(m){return'<div class="chat-msg"><span class="cm-author">#'+m.authorNumber+(m.authorRole==='team_leader'?' (TL)':'')+'</span><span class="cm-time" style="float:right">'+new Date(m.timestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})+'</span><div class="cm-text">'+esc(m.text)+'</div>'+(m.pinLat?'<div style="font-size:0.7rem;color:var(--text-dim)">\ud83d\udccd '+m.pinLat.toFixed(4)+', '+m.pinLon.toFixed(4)+'</div>':'')+'</div>';}).join('');el.scrollTop=el.scrollHeight;}).catch(function(){el.innerHTML='<div style="color:var(--danger)">Failed to load</div>';});}
 function sendChat(){var input=document.getElementById('chatInput');var text=input.value.trim();if(!text)return;input.value='';api('postChatMessage',{channelId:S.chatChannel,text:text}).then(function(){loadChat();}).catch(function(e){alert(e.message);});}
 function goBackFromChat(){if(S.role==='team_leader')showTLHome();else checkStatus();}
 function openWiki(){closeFAB();var el=document.getElementById('wikiContent');el.innerHTML='<div class="loading-text">Loading...</div>';document.getElementById('wiki-overlay').classList.add('active');var keys=['liability','data_privacy','cpue_explanation','rating_guide','zone_info','safety'];var loaded=0,content=[];keys.forEach(function(k){api('getContentBlock',{key:k}).then(function(c){if(c&&c.body)content.push(c);if(++loaded>=keys.length)renderWiki(content);}).catch(function(){if(++loaded>=keys.length)renderWiki(content);});});}
@@ -437,7 +531,7 @@ function showFAB(){document.getElementById('fab').style.display='block';}
 function toggleFAB(){S.fabOpen=!S.fabOpen;document.getElementById('fab-menu').classList.toggle('open',S.fabOpen);}
 function closeFAB(){S.fabOpen=false;document.getElementById('fab-menu').classList.remove('open');}
 function updateFABItems(){var scout=document.getElementById('fabScout');var tlHome=document.getElementById('fabTLHome');scout.style.display=(S.event&&S.event.scoutEnabled&&(S.currentState==='in_transit'||S.currentState==='scouting'))?'flex':'none';tlHome.style.display=S.role==='team_leader'?'flex':'none';}
-function saveLocal(){localStorage.setItem('cmra_volunteer',JSON.stringify({volunteerId:S.volunteerId,volunteerNumber:S.volunteerNumber,eventId:S.event?S.event.eventId:null}));}
+function saveLocal(){localStorage.setItem('cmra_volunteer',JSON.stringify({volunteerId:S.volunteerId,volunteerNumber:S.volunteerNumber,eventId:S.event?S.event.eventId:null,externalTracking:S.externalTracking||false}));}
 boot();
 </script>
 </body>
