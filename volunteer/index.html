@@ -68,6 +68,9 @@
     
     /* Gate checkboxes */
     .gate-item{display:flex;align-items:flex-start;gap:12px;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);margin-bottom:10px;cursor:pointer;transition:border-color 0.15s,background 0.15s}
+    .name-modified-notice{background:#fef3c7;border:1px solid #d97706;color:#78350f;border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:14px;font-size:0.86rem;line-height:1.5}
+    .name-modified-notice strong{color:#78350f}
+    .name-modified-notice .dismiss-notice{margin-top:8px;background:#d97706;color:#fff;border:none;padding:6px 14px;border-radius:var(--radius-sm);font-size:0.8rem;font-weight:600;cursor:pointer;min-height:32px}
     .gate-item.checked{border-color:var(--accent);background:var(--accent-dim)}
     .gate-item .check{flex:0 0 auto;width:22px;height:22px;border:2px solid var(--border-hi);border-radius:6px;display:flex;align-items:center;justify-content:center;background:var(--surface);font-size:0.9rem;color:#fff}
     .gate-item.checked .check{background:var(--accent);border-color:var(--accent)}
@@ -652,10 +655,28 @@ function submitName(){
     renderGates();
     showScreen('screen-gates');
     $('btn-join').disabled=false;$('btn-join').textContent='Continue';
+    // Name-collision notice — server may have appended " B", " C", etc. if another volunteer has the same name
+    if(d.nameModified&&d.displayName&&d.displayName!==name){
+      showNameModifiedNotice(name,d.displayName);
+    }
   }).catch(function(err){
     $('btn-join').disabled=false;$('btn-join').textContent='Continue';
     showError(err.message);
   });
+}
+
+function showNameModifiedNotice(originalName,assignedName){
+  // Render an inline notice at the top of the gates screen
+  var existing=document.getElementById('name-modified-notice');
+  if(existing)existing.parentNode.removeChild(existing);
+  var notice=document.createElement('div');
+  notice.id='name-modified-notice';
+  notice.className='name-modified-notice';
+  notice.innerHTML='<strong>Heads up:</strong> Another volunteer is already using the name "'+esc(originalName)+'", '+
+    'so we assigned you "<strong>'+esc(assignedName)+'</strong>". This helps your TL tell you apart. '+
+    '<button type="button" class="dismiss-notice" onclick="this.parentNode.parentNode.removeChild(this.parentNode)">Got it</button>';
+  var target=document.getElementById('screen-gates');
+  if(target)target.insertBefore(notice,target.firstChild);
 }
 
 /* ═══ GATES ═══ */
