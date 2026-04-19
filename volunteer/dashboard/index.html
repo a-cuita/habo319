@@ -182,11 +182,26 @@
     .wiki-section p{color:var(--text-dim);font-size:0.88rem;line-height:1.5;margin:0}
 
     /* ═══ Map tab ═══ */
-    #tl-map-wrap{width:100%;height:calc(100vh - 260px);min-height:320px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:10px}
-    .map-legend{display:flex;gap:14px;font-size:0.75rem;color:var(--text-dim);margin-bottom:8px;justify-content:center}
+    #tl-map-wrap{width:100%;height:calc(100vh - 320px);min-height:300px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:10px}
+    .map-controls{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+    .lens-pills{display:flex;gap:4px;background:var(--surface-2);border-radius:var(--radius-sm);padding:3px;border:1px solid var(--border);flex:1;min-width:0}
+    .lens-pill{flex:1;background:transparent;border:none;padding:7px 10px;font-size:0.76rem;font-weight:600;color:var(--text-dim);border-radius:calc(var(--radius-sm) - 2px);cursor:pointer;white-space:nowrap}
+    .lens-pill.active{background:var(--accent);color:#fff}
+    .refresh-paths-btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;font-size:0.8rem;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;min-height:36px}
+    .refresh-paths-btn:disabled{background:var(--surface-2);color:var(--text-dim);cursor:not-allowed;border:1px solid var(--border-hi)}
+    .map-legend{display:flex;gap:14px;font-size:0.72rem;color:var(--text-dim);margin-bottom:8px;justify-content:center;flex-wrap:wrap}
     .map-legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
     .legend-me::before{background:var(--accent)}
     .legend-team::before{background:#58a6ff}
+    .legend-inflight::before{background:#000;border-radius:0;width:14px;height:3px;border-top:1px dashed #000}
+    .legend-ext::before{background:#8e8e93;opacity:0.6;border:1px dashed #8e8e93}
+    /* Pulsing endpoint for in-flight legs (applied to Leaflet divIcon) */
+    .inflight-pulse-pin{background:transparent;border:none}
+    .inflight-pulse-pin .pulse-dot{width:14px;height:14px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 rgba(37,99,235,0.7);animation:inflight-pulse 1.6s ease-out infinite}
+    @keyframes inflight-pulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,0.7)}70%{box-shadow:0 0 0 14px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
+    /* External tracker pin */
+    .ext-tracker-pin{background:transparent;border:none}
+    .ext-tracker-pin .ext-dot{width:14px;height:14px;border-radius:50%;background:#8e8e93;border:2px dashed #fff;opacity:0.75}
 
     /* Loading and states */
     .loading-text{color:var(--text-dim);font-size:0.88rem;text-align:center;padding:24px}
@@ -286,9 +301,21 @@
 
     <!-- Map tab -->
     <div class="tab-pane" id="tab-map">
+      <div class="map-controls">
+        <div class="lens-pills">
+          <button class="lens-pill active" data-lens="sqrt_cpue" onclick="setMapLens('sqrt_cpue')">√CPUE</button>
+          <button class="lens-pill" data-lens="post_rating" onclick="setMapLens('post_rating')">Rating</button>
+          <button class="lens-pill" data-lens="divergence" onclick="setMapLens('divergence')">Divergence</button>
+        </div>
+        <button class="refresh-paths-btn" id="refresh-paths-btn" onclick="refreshPaths()">
+          <span id="refresh-paths-label">Refresh Paths</span>
+        </button>
+      </div>
       <div class="map-legend">
         <span class="legend-me">You</span>
         <span class="legend-team">Team</span>
+        <span class="legend-inflight">In flight</span>
+        <span class="legend-ext">External</span>
       </div>
       <div id="tl-map-wrap"></div>
     </div>
@@ -887,8 +914,177 @@ function ensureMap(){
       }
     }
   }).catch(function(){});
-  setTimeout(function(){map.invalidateSize();loadMapPositions();},150);
+  setTimeout(function(){map.invalidateSize();loadMapPositions();loadCachedReport();},150);
 }
+/* Severity color for CPUE/rating/divergence — green→yellow→red gradient over 0..10.
+   Values above 10 cap visually at deep red. Divergence is signed (-10..+10); callers
+   map it to 0..10 via Math.abs before passing in, and frontend differentiates sign
+   via stroke style if needed. */
+function severityColor(v){
+  if(v===null||v===undefined||isNaN(v))return '#8e8e93';
+  var x=Math.max(0,Math.min(10,v));
+  // 0=green #2c8a3d, 5=yellow #eab308, 10=red #dc2626
+  var r,g,b;
+  if(x<=5){
+    var t=x/5;
+    r=Math.round(44 + t*(234-44));
+    g=Math.round(138 + t*(179-138));
+    b=Math.round(61 + t*(8-61));
+  }else{
+    var t2=(x-5)/5;
+    r=Math.round(234 + t2*(220-234));
+    g=Math.round(179 + t2*(38-179));
+    b=Math.round(8 + t2*(38-8));
+  }
+  return 'rgb('+r+','+g+','+b+')';
+}
+
+function setMapLens(lens){
+  S.mapColorLens=lens;
+  var btns=document.querySelectorAll('.lens-pill');
+  for(var i=0;i<btns.length;i++){
+    btns[i].classList.toggle('active',btns[i].getAttribute('data-lens')===lens);
+  }
+  // Re-render using existing blob if we have one
+  if(S.reportBlob)renderMapPaths();
+}
+
+function refreshPaths(){
+  var btn=document.getElementById('refresh-paths-btn');
+  var label=document.getElementById('refresh-paths-label');
+  if(btn)btn.disabled=true;
+  if(label)label.textContent='Generating…';
+  api('generateReport').then(function(res){
+    if(res&&res.debounced){
+      // Server says too soon — paint cached blob if we got one, start countdown
+      if(res.cachedBlob){S.reportBlob=res.cachedBlob;renderMapPaths();}
+      startRefreshCountdown(res.nextAvailableInSec||90);
+    }else{
+      S.reportBlob=res;
+      renderMapPaths();
+      startRefreshCountdown(90);
+    }
+  }).catch(function(err){
+    if(label)label.textContent='Refresh Paths';
+    if(btn)btn.disabled=false;
+    console.warn('generateReport failed:',err&&err.message);
+  });
+}
+
+function startRefreshCountdown(sec){
+  var btn=document.getElementById('refresh-paths-btn');
+  var label=document.getElementById('refresh-paths-label');
+  if(!btn||!label)return;
+  if(S._refreshCountdownTimer)clearInterval(S._refreshCountdownTimer);
+  var remaining=sec;
+  btn.disabled=true;
+  label.textContent='Wait '+remaining+'s';
+  S._refreshCountdownTimer=setInterval(function(){
+    remaining--;
+    if(remaining<=0){
+      clearInterval(S._refreshCountdownTimer);
+      S._refreshCountdownTimer=null;
+      btn.disabled=false;
+      label.textContent='Refresh Paths';
+    }else{
+      label.textContent='Wait '+remaining+'s';
+    }
+  },1000);
+}
+
+/* Paint the cached report blob as polylines + in-flight markers + external trackers.
+   Reads S.reportBlob and S.mapColorLens. Called on init, refresh, and lens switch. */
+function renderMapPaths(){
+  if(!S.leafletMap||!S.reportBlob)return;
+  // Clear old paths and in-flight markers
+  for(var i=0;i<S.mapPaths.length;i++)S.leafletMap.removeLayer(S.mapPaths[i]);
+  S.mapPaths=[];
+  
+  var blob=S.reportBlob;
+  var lens=S.mapColorLens;
+  var allBounds=[];
+  
+  // Volunteers with tracks (native) — excluding external trackers (they have no trackPoints)
+  var volunteers=blob.volunteers||[];
+  for(var v=0;v<volunteers.length;v++){
+    var vol=volunteers[v];
+    if(vol.trackingMode==='external')continue; // Handled separately below
+    var sessions=vol.sessions||[];
+    for(var s=0;s<sessions.length;s++){
+      var legs=sessions[s].legs||[];
+      for(var l=0;l<legs.length;l++){
+        var leg=legs[l];
+        var pts=leg.trackPoints||[];
+        if(pts.length<2)continue;
+        var latlngs=pts.map(function(p){return [p.lat,p.lon];});
+        var polyOpts;
+        if(leg.inProgress){
+          // Black dashed in-flight polyline
+          polyOpts={color:'#000',weight:3,opacity:0.85,dashArray:'6,4'};
+        }else{
+          // Colored by active lens
+          var lensVal;
+          if(lens==='sqrt_cpue')lensVal=leg.sqrtCpueRaw;
+          else if(lens==='post_rating')lensVal=leg.postRating;
+          else if(lens==='divergence')lensVal=Math.abs(leg.divergence||0);
+          polyOpts={color:severityColor(lensVal),weight:4,opacity:0.85};
+        }
+        var poly=L.polyline(latlngs,polyOpts).addTo(S.leafletMap);
+        var popup=esc(vol.displayName||'')+' — leg '+(leg.legNumber||'?');
+        if(leg.inProgress)popup+=' (in flight)';
+        else if(lens==='sqrt_cpue'&&leg.sqrtCpueRaw!=null)popup+=' · √CPUE '+leg.sqrtCpueRaw.toFixed(2);
+        else if(lens==='post_rating'&&leg.postRating!=null)popup+=' · rating '+leg.postRating;
+        else if(lens==='divergence'&&leg.divergence!=null)popup+=' · div '+(leg.divergence>0?'+':'')+leg.divergence.toFixed(1);
+        poly.bindPopup(popup);
+        S.mapPaths.push(poly);
+        for(var k=0;k<latlngs.length;k++)allBounds.push(latlngs[k]);
+        
+        // Pulsing endpoint for in-flight legs
+        if(leg.inProgress&&latlngs.length>0){
+          var last=latlngs[latlngs.length-1];
+          var pulseMarker=L.marker(last,{
+            icon:L.divIcon({className:'inflight-pulse-pin',html:'<div class="pulse-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]})
+          }).addTo(S.leafletMap);
+          pulseMarker.bindPopup(esc(vol.displayName||'')+' — still collecting');
+          S.mapPaths.push(pulseMarker);
+        }
+      }
+    }
+  }
+  
+  // External trackers — pin at snapTo (starting_location) with dashed halo
+  var ext=blob.externalTrackers||[];
+  for(var e=0;e<ext.length;e++){
+    var et=ext[e];
+    if(!et.snapTo||et.snapTo.lat==null)continue;
+    var extMarker=L.marker([et.snapTo.lat,et.snapTo.lon],{
+      icon:L.divIcon({className:'ext-tracker-pin',html:'<div class="ext-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]})
+    }).addTo(S.leafletMap);
+    var extLabel=esc(et.displayName||'')+' — tracking via '+esc(et.trackingApp||'external');
+    if(et.snapTo.source==='starting_location')extLabel+=' (location approximate)';
+    extMarker.bindPopup(extLabel);
+    S.mapPaths.push(extMarker);
+    allBounds.push([et.snapTo.lat,et.snapTo.lon]);
+  }
+  
+  // Fit bounds to include everything if we have any
+  if(allBounds.length>0){
+    try{S.leafletMap.fitBounds(L.latLngBounds(allBounds).pad(0.2));}catch(e){}
+  }
+}
+
+function loadCachedReport(){
+  // Called on map-tab open. Reads whatever's in cache without regenerating.
+  api('getLatestReport').then(function(res){
+    if(res&&res.blob){
+      S.reportBlob=res.blob;
+      renderMapPaths();
+      // If server says debounce is active, sync countdown on the button
+      if(res.nextAvailableInSec>0)startRefreshCountdown(res.nextAvailableInSec);
+    }
+  }).catch(function(){});
+}
+
 function loadMapPositions(){
   if(!S.leafletMap)return;
   api('getLivePositions').then(function(positions){
