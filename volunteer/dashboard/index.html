@@ -528,6 +528,7 @@ function refreshAll(){
     updateBadges();
     updateAmbientStatus();
     if(S.activeTab==='feed')loadFeed();
+    if(S.activeTab==='map'&&S.mapInitialized)loadMapPositions();
     if(document.getElementById('panel-team').classList.contains('active'))renderTeamPanel();
   }).catch(function(err){
     // Non-fatal — keep rendering what we have
