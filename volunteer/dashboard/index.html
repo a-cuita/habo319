@@ -890,7 +890,7 @@ function ensureMap(){
 }
 function loadMapPositions(){
   if(!S.leafletMap)return;
-  api('getLivePositions',null,{legacy:true}).then(function(positions){
+  api('getLivePositions').then(function(positions){
     for(var i=0;i<S.mapMarkers.length;i++)S.leafletMap.removeLayer(S.mapMarkers[i]);
     S.mapMarkers=[];
     for(var j=0;j<positions.length;j++){
