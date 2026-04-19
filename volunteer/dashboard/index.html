@@ -894,11 +894,34 @@ function loadMapPositions(){
   api('getLivePositions').then(function(positions){
     for(var i=0;i<S.mapMarkers.length;i++)S.leafletMap.removeLayer(S.mapMarkers[i]);
     S.mapMarkers=[];
+    var now=Date.now();
     for(var j=0;j<positions.length;j++){
       var p=positions[j],isMe=p.volunteerId===S.volunteerId;
-      var color=isMe?'#2c8a3d':'#58a6ff';
-      var m=L.circleMarker([p.lat,p.lon],{radius:isMe?10:7,fillColor:color,fillOpacity:0.9,color:'#fff',weight:2}).addTo(S.leafletMap);
-      m.bindPopup((p.displayName?esc(p.displayName):'(no name)')+(isMe?' (You)':''));
+      // Freshness: parse timestamp; compute age in seconds
+      var ageSec=null;
+      if(p.timestamp){
+        var ts=new Date(p.timestamp).getTime();
+        if(!isNaN(ts))ageSec=Math.round((now-ts)/1000);
+      }
+      // Color bands — green < 30s, amber 30-90s, gray > 90s (stale)
+      // Self-pin keeps accent green regardless
+      var fillColor,ringColor,fillOpacity=0.9,dashArray=null,ageLabel='';
+      if(isMe){
+        fillColor='#2c8a3d';ringColor='#fff';
+      }else if(ageSec===null){
+        fillColor='#8e8e93';ringColor='#fff';fillOpacity=0.4;ageLabel=' (no timestamp)';
+      }else if(ageSec<30){
+        fillColor='#2563eb';ringColor='#fff';
+      }else if(ageSec<90){
+        fillColor='#d97706';ringColor='#fff';fillOpacity=0.7;ageLabel=' ('+ageSec+'s ago)';
+      }else{
+        fillColor='#8e8e93';ringColor='#8e8e93';fillOpacity=0.35;dashArray='4,4';
+        ageLabel=ageSec<3600?' (STALE — '+Math.round(ageSec/60)+'m ago)':' (STALE — '+Math.round(ageSec/3600)+'h ago)';
+      }
+      var opts={radius:isMe?10:7,fillColor:fillColor,fillOpacity:fillOpacity,color:ringColor,weight:2};
+      if(dashArray)opts.dashArray=dashArray;
+      var m=L.circleMarker([p.lat,p.lon],opts).addTo(S.leafletMap);
+      m.bindPopup((p.displayName?esc(p.displayName):'(no name)')+(isMe?' (You)':'')+ageLabel);
       S.mapMarkers.push(m);
     }
     if(S.mapMarkers.length>0){
