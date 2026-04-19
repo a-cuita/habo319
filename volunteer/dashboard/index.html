@@ -24,15 +24,23 @@
     html,body{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;-webkit-text-size-adjust:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.5;letter-spacing:0.01em}
 
     /* ═══ Persistent layer scaffold ═══ */
-    /* Header + tabs are position:fixed at top. Action strip is position:fixed at bottom.
-       Body gets top/bottom padding equal to their heights so content doesn't hide behind them. */
-    body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;padding-top:104px;padding-bottom:128px}
+    /* Header (top) | Tabstrip + content (middle, scrollable) | Action strip (bottom) */
+    body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto}
 
-    /* Persistent header — fixed to top of viewport */
-    .tl-header{position:fixed;top:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:50;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px}
+    /* Persistent header */
+    .tl-header{flex:0 0 auto;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px}
     .tl-header .h-identity{display:flex;align-items:center;gap:8px}
     .tl-header .h-identity .role-badge{background:var(--tl);color:#fff;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:700;letter-spacing:0.3px}
     .tl-header .h-identity .vol-num{font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--text)}
+    .tl-header .h-identity .status-pills{display:flex;gap:4px;margin-left:6px;flex-wrap:nowrap}
+    .status-pill{display:inline-block;padding:2px 7px;border-radius:8px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;line-height:1.3;white-space:nowrap}
+    .status-pill.status-active{background:var(--accent-dim);color:var(--accent)}
+    .status-pill.status-ended{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border)}
+    .status-pill.data-hot{background:#fee2e2;color:#b91c1c}
+    .status-pill.data-warm{background:#fef3c7;color:#b45309}
+    .status-pill.data-stitching{background:var(--primary-dim);color:var(--primary-text)}
+    .status-pill.data-cool{background:#dbeafe;color:#1e40af}
+    .status-pill.data-cold{background:var(--surface-2);color:var(--text-dim)}
     .tl-header .h-freshness{text-align:center;font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);cursor:pointer;padding:4px 8px;border-radius:var(--radius-xs);transition:background 0.15s,color 0.15s}
     .tl-header .h-freshness:active{background:var(--surface-2)}
     .tl-header .h-freshness.stale{color:var(--amber)}
@@ -45,8 +53,8 @@
     .tl-header .h-ambient .ambient-bell .bell-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);display:none}
     .tl-header .h-ambient .ambient-bell.has-nudge .bell-dot{display:block}
 
-    /* Tab strip — fixed directly below header */
-    .tab-strip{position:fixed;top:56px;left:0;right:0;max-width:480px;margin:0 auto;z-index:49;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px}
+    /* Tab strip */
+    .tab-strip{flex:0 0 auto;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px}
     .tab-strip .tab{flex:1;text-align:center;padding:12px 8px;font-size:0.85rem;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s}
     .tab-strip .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
     .tab-strip .tab:active{background:var(--surface-2)}
@@ -59,8 +67,8 @@
     .tab-pane.active{display:block;animation:fadeIn 0.2s ease}
     @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
-    /* Action strip — fixed to bottom of viewport */
-    .action-strip{position:fixed;bottom:0;left:0;right:0;max-width:480px;margin:0 auto;z-index:50;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+    /* Action strip (bottom persistent) */
+    .action-strip{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
     .action-chips{display:flex;gap:8px}
     .action-chip{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;font-size:0.78rem;font-weight:600;color:var(--text);cursor:pointer;text-align:center;position:relative;transition:background 0.15s,border-color 0.15s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
     .action-chip:active{background:var(--surface-2)}
@@ -240,7 +248,8 @@
   <div class="tl-header">
     <div class="h-identity">
       <span class="role-badge">TL</span>
-      <span class="vol-num" id="h-vol-num">#—</span>
+      <span class="vol-num" id="h-vol-num">—</span>
+      <span class="status-pills" id="h-status-pills"></span>
     </div>
     <div class="h-freshness" id="h-freshness" onclick="manualRefresh()">
       <span class="fresh-dot"></span>
@@ -403,12 +412,23 @@ var API_URL='https://script.google.com/macros/s/AKfycbx2YuN9ExnRwKVQ63yY5QEPVrsS
 var POLL_INTERVAL=15000;
 var FRESH_STALE_SEC=30;
 var S={
-  event:null,volunteerId:null,volunteerNumber:null,role:null,currentState:null,
-  teamMembers:[],waitingQueue:[],scoutRatings:[],feedEvents:[],eventReport:null,
+  event:null,volunteerId:null,displayName:null,role:null,currentState:null,
+  // Event-level status (surfaced in ambient slot)
+  eventStatus:'active',   // 'active' | 'ended'
+  dataState:'hot',        // 'hot' | 'warm' | 'stitching' | 'cool' | 'cold'
+  lastReportStitchAt:null,
+  reportBlob:null,        // Last generated report blob (for map path rendering)
+  // Roster + queue (populated by getTLDashboard cache blob)
+  teamMembers:[],waitingQueue:[],teamLeaders:[],dashboardStats:null,
+  // Existing state
+  scoutRatings:[],feedEvents:[],eventReport:null,
   commitments:{leftGarden:false,arrived:false},
   lastRefreshTs:null,freshInterval:null,pollTimer:null,
   activePanel:null,activeTab:'feed',
   leafletMap:null,mapMarkers:[],mapInitialized:false,
+  mapPaths:[],             // Leaflet polylines from reportBlob
+  mapColorLens:'sqrt_cpue', // 'sqrt_cpue' | 'post_rating' | 'divergence'
+  mapTeamFilter:'all',     // 'all' | 'my_team'
   lastFeedSeen:null
 };
 
@@ -418,10 +438,16 @@ function fmtTime(d){if(!d)return'';var dt=new Date(d);if(isNaN(dt))return'';retu
 function fmtAgo(ts){if(!ts)return'';var secs=Math.floor((Date.now()-ts)/1000);if(secs<5)return'just now';if(secs<60)return secs+'s ago';var mins=Math.floor(secs/60);if(mins<60)return mins+'m ago';var hrs=Math.floor(mins/60);return hrs+'h ago';}
 function fmtMiles(m){return(m/1609.34).toFixed(1);}
 
-function api(action,data){
+/**
+ * v3 API wrapper. Every call adds version:'v3' and uses volunteerId (UUID, not number).
+ * Legacy handlers without v3 coverage can call api(action, data, {legacy:true}) to skip v3 flag.
+ */
+function api(action,data,opts){
+  opts = opts || {};
   var body=Object.assign({action:action},data||{});
-  if(S.event)body.eventId=S.event.eventId;
-  if(S.volunteerNumber)body.volunteerNumber=S.volunteerNumber;
+  if(!opts.legacy) body.version='v3';
+  if(S.event && !body.eventId) body.eventId=S.event.eventId;
+  if(S.volunteerId && !body.volunteerId) body.volunteerId=S.volunteerId;
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
@@ -432,20 +458,23 @@ function boot(){
   if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
   var saved=null;
   try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
-  if(!saved||!saved.volunteerNumber||!saved.volunteerId){
-    showAccessGate('You are not logged in as a volunteer. Open the volunteer app first, then come back.');
+  if(!saved||!saved.volunteerId){
+    showAccessGate('You are not logged in. Open the volunteer app first, join an event, then return to this dashboard.');
     return;
   }
-  S.volunteerNumber=saved.volunteerNumber;
   S.volunteerId=saved.volunteerId;
+  S.displayName=saved.displayName||null;
+  // getActiveEvent (v3) returns { eventId, name, status, gpsPingIntervalSec, scoutEnabled, maxVolunteers }
   api('getActiveEvent').then(function(ev){
     if(!ev){showAccessGate('There is no active event.');return;}
     S.event=ev;
+    S.eventStatus=ev.status||'active';
     return api('getVolunteerStatus');
   }).then(function(d){
-    if(!d){showAccessGate('Your volunteer record was not found.');return;}
+    if(!d){showAccessGate('Your volunteer record was not found for this event.');return;}
     S.role=d.role||'volunteer';
     S.currentState=d.currentState||'joined';
+    S.displayName=d.displayName||S.displayName;
     if(S.role!=='team_leader'){
       showAccessGate('You are not currently a Team Leader. If you were just promoted, reload this page.');
       return;
@@ -467,7 +496,10 @@ function showDashboard(){
   document.getElementById('loading-gate').style.display='none';
   document.getElementById('access-gate').style.display='none';
   document.getElementById('tl-dashboard').style.display='flex';
-  document.getElementById('h-vol-num').textContent='#'+S.volunteerNumber;
+  // Header identity now shows display name instead of volunteer number
+  document.getElementById('h-vol-num').textContent=S.displayName||'(no name)';
+  // Initialize ambient pills
+  updateAmbientStatus();
 }
 
 /* ═══ First load + polling ═══ */
@@ -479,17 +511,27 @@ function firstLoad(){
   S.freshInterval=setInterval(updateFreshness,1000);
 }
 function refreshAll(){
-  var calls=[
-    api('getEventVolunteers').then(function(v){S.teamMembers=v||[];}).catch(function(){}),
-    api('getWaitingQueue').then(function(q){S.waitingQueue=q||[];}).catch(function(){})
-  ];
-  Promise.all(calls).then(function(){
+  // Single v3 call returns roster + queue + stats + teamLeaders + recentLog
+  api('getTLDashboard',{includeLog:true}).then(function(blob){
+    if(!blob)return;
+    S.teamMembers=blob.roster||[];
+    S.waitingQueue=blob.approvalQueue||[];
+    S.teamLeaders=blob.teamLeaders||[];
+    S.dashboardStats=blob.stats||null;
+    S.feedEvents=blob.recentLog||[];
+    // Event status from blob (fresh on every poll)
+    if(blob.eventStatus)S.eventStatus=blob.eventStatus;
+    if(blob.dataState)S.dataState=blob.dataState;
     S.lastRefreshTs=Date.now();
     reconcileCommitments();
     updateFreshness();
     updateBadges();
+    updateAmbientStatus();
     if(S.activeTab==='feed')loadFeed();
     if(document.getElementById('panel-team').classList.contains('active'))renderTeamPanel();
+  }).catch(function(err){
+    // Non-fatal — keep rendering what we have
+    console.warn('refreshAll failed:',err.message);
   });
 }
 function manualRefresh(){refreshAll();loadFeed();}
@@ -540,7 +582,21 @@ function updateBadges(){
   }
 }
 
-/* ═══ Tab switching ═══ */
+/* ═══ Ambient status display ═══ */
+/* Renders two pills showing event status + data_state in the identity slot area.
+   Updates on every poll. */
+function updateAmbientStatus(){
+  var container=document.getElementById('h-status-pills');
+  if(!container)return;
+  var statusClass=S.eventStatus==='ended'?'ended':'active';
+  var dataClass='data-'+(S.dataState||'hot');
+  var dataLabel=(S.dataState||'hot').charAt(0).toUpperCase()+(S.dataState||'hot').slice(1);
+  container.innerHTML=
+    '<span class="status-pill status-'+statusClass+'" title="Event status">'+(S.eventStatus==='ended'?'Ended':'Active')+'</span>'+
+    '<span class="status-pill '+dataClass+'" title="Data state — hot=live / warm=report generated / cool=stitched">'+dataLabel+'</span>';
+}
+
+
 function switchTab(name){
   S.activeTab=name;
   var tabs=document.querySelectorAll('.tab-strip .tab');
@@ -615,8 +671,7 @@ function renderTeamPanel(){
     for(var i=0;i<waiting.length;i++){
       var v=waiting[i];
       html+='<div class="vol-row">'+
-        '<span class="vol-num">#'+v.volunteerNumber+'</span>'+
-        '<div class="vol-info"><span class="vol-name">'+(v.displayName?esc(v.displayName):'(no name)')+'</span><span class="vol-meta">'+(v.gates&&v.gates.numberConfirmed?'gates ok':'gates pending')+'</span></div>'+
+        '<div class="vol-info"><span class="vol-name">'+(v.displayName?esc(v.displayName):'(no name)')+'</span><span class="vol-meta">'+(v.gates&&v.gates.data_transparency?'gates ok':'gates pending')+'</span></div>'+
         '<div class="vol-actions"><button class="btn-sm btn-tl" onclick="doApprove(this,\''+v.volunteerId+'\')">Approve</button></div>'+
       '</div>';
     }
@@ -644,7 +699,6 @@ function renderTeamPanel(){
         actions='<span class="badge badge-state">'+m.currentState.replace(/_/g,' ')+'</span>';
       }
       html+='<div class="vol-row">'+
-        '<span class="vol-num">#'+m.volunteerNumber+'</span>'+
         '<div class="vol-info"><span class="vol-name">'+(m.displayName?esc(m.displayName):'(no name)')+'</span><span class="vol-meta">'+m.currentState.replace(/_/g,' ')+'</span></div>'+
         '<div class="vol-actions">'+actions+'</div>'+
       '</div>';
@@ -667,7 +721,7 @@ function dismissTip(e){
 }
 function doApprove(btn,volId){
   btn.disabled=true;btn.textContent='...';
-  api('approveVolunteer',{volunteerId:volId}).then(function(){
+  api('approveVolunteer',{targetVolunteerId:volId}).then(function(){
     refreshAll();
     setTimeout(renderTeamPanel,400);
   }).catch(function(e){
@@ -677,7 +731,7 @@ function doApprove(btn,volId){
 }
 function doAccount(btn,volId,preset){
   btn.disabled=true;
-  api('accountForVolunteer',{volunteerId:volId,preset:preset}).then(function(){
+  api('accountForVolunteer',{targetVolunteerId:volId,preset:preset}).then(function(){
     refreshAll();
     setTimeout(renderTeamPanel,400);
   }).catch(function(e){
@@ -690,9 +744,7 @@ function doAccount(btn,volId,preset){
 function loadStats(){
   var body=document.getElementById('panel-stats-body');
   body.innerHTML='<div class="loading-text"><span class="pulse"></span> Calculating...</div>';
-  api('getVolunteerState').then(function(){
-    return fetchEventReportForTL();
-  }).then(function(report){
+  fetchEventReportForTL().then(function(report){
     S.eventReport=report;
     renderStats(report);
   }).catch(function(e){
@@ -732,7 +784,6 @@ function renderStats(report){
     for(var i=0;i<report.members.length;i++){
       var m=report.members[i];
       html+='<div class="vol-row">'+
-        '<span class="vol-num">#'+m.volunteerNumber+'</span>'+
         '<div class="vol-info"><span class="vol-name">'+(m.displayName?esc(m.displayName):'(no name)')+'</span><span class="vol-meta">'+m.currentState.replace(/_/g,' ')+'</span></div>'+
         '<div class="vol-actions">'+(m.accountedFor?'<span class="badge badge-accounted">'+(m.accountedPreset||'ok').replace(/_/g,' ')+'</span>':'<span class="badge badge-state">'+m.currentState.replace(/_/g,' ')+'</span>')+'</div>'+
       '</div>';
@@ -788,7 +839,7 @@ function renderNudges(){
 function loadFeed(){
   var list=document.getElementById('feed-list');
   Promise.all([
-    api('getEventZones').then(function(z){return z;}).catch(function(){return[];}),
+    api('getEventZones',null,{legacy:true}).then(function(z){return z;}).catch(function(){return[];}),
     // Scout ratings: no direct volunteer-facing endpoint — skip for now unless backend exposes
     // Feed_Events: ditto — will need new getFeedForEvent route for 03b
   ]).then(function(){
@@ -805,10 +856,10 @@ function loadFeed(){
       html+='<div class="feed-card">'+
         '<div class="fc-head">'+
           '<span class="fc-type state">STATE</span>'+
-          '<span class="fc-who">#'+m.volunteerNumber+'</span>'+
+          '<span class="fc-who">'+(m.displayName?esc(m.displayName):'(no name)')+'</span>'+
           '<span class="fc-time">now</span>'+
         '</div>'+
-        '<div class="fc-body">'+(m.displayName?esc(m.displayName):'Volunteer')+' is <strong>'+m.currentState.replace(/_/g,' ')+'</strong></div>'+
+        '<div class="fc-body">is <strong>'+m.currentState.replace(/_/g,' ')+'</strong></div>'+
       '</div>';
     }
     html+='<div class="feed-empty" style="padding:20px 10px 0;font-size:0.78rem">Full activity feed (posts · comments · reactions · scout ratings · photo pins) lands in Card 03b.</div>';
@@ -826,7 +877,7 @@ function ensureMap(){
   S.leafletMap=map;
   S.mapInitialized=true;
   // Load zones
-  api('getEventZones').then(function(zones){
+  api('getEventZones',null,{legacy:true}).then(function(zones){
     for(var i=0;i<zones.length;i++){
       var z=zones[i];
       if(z.polygon&&z.polygon.length>0){
@@ -839,14 +890,14 @@ function ensureMap(){
 }
 function loadMapPositions(){
   if(!S.leafletMap)return;
-  api('getLivePositions').then(function(positions){
+  api('getLivePositions',null,{legacy:true}).then(function(positions){
     for(var i=0;i<S.mapMarkers.length;i++)S.leafletMap.removeLayer(S.mapMarkers[i]);
     S.mapMarkers=[];
     for(var j=0;j<positions.length;j++){
       var p=positions[j],isMe=p.volunteerId===S.volunteerId;
       var color=isMe?'#2c8a3d':'#58a6ff';
       var m=L.circleMarker([p.lat,p.lon],{radius:isMe?10:7,fillColor:color,fillOpacity:0.9,color:'#fff',weight:2}).addTo(S.leafletMap);
-      m.bindPopup('#'+p.volunteerNumber+(isMe?' (You)':''));
+      m.bindPopup((p.displayName?esc(p.displayName):'(no name)')+(isMe?' (You)':''));
       S.mapMarkers.push(m);
     }
     if(S.mapMarkers.length>0){
@@ -861,7 +912,7 @@ function loadWiki(){
   var keys=['liability','data_privacy','cpue_explanation','rating_guide','zone_info','safety'];
   var loaded=0,content=[];
   keys.forEach(function(k){
-    api('getContentBlock',{key:k}).then(function(c){
+    api('getContentBlock',{key:k},{legacy:true}).then(function(c){
       if(c&&c.body)content.push(c);
     }).catch(function(){}).then(function(){
       if(++loaded>=keys.length){
@@ -883,7 +934,7 @@ function openStartCollectingPanel(){
   var iframe=document.getElementById('collecting-iframe');
   if(iframe.src==='about:blank'||iframe.src===''){
     // Load the volunteer app in an iframe. It reads the same localStorage.
-    iframe.src='/habo319/volunteer/?mode=collect';
+    iframe.src='../';
   }
 }
 function closeCollectingPanel(){
