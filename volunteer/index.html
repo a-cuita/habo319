@@ -1122,10 +1122,17 @@ function resumeCollection(){
   api('getActiveSession').then(function(d){
     if(!d){showScreen('screen-at-zone');return;}
     S.sessionId=d.sessionId;
-    S.legId=d.legId;
-    S.legNumber=d.legNumber||1;
     S.trackingMode=d.trackingMode||S.trackingMode;
-    launchCollecting();
+    // handleV3_getActiveSession returns active leg nested under `activeLeg`, not flat
+    if(d.activeLeg){
+      S.legId=d.activeLeg.legId;
+      S.legNumber=d.activeLeg.legNumber||1;
+      launchCollecting();
+    }else{
+      // Session is active but no leg in progress — show leg-results or between-legs view
+      S.currentState='between_legs';
+      showScreen('screen-leg-results');
+    }
   }).catch(function(err){showScreen('screen-at-zone');});
 }
 
