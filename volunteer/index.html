@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>CMRA · Community Materials Recovery</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     :root{
       --bg:#f2f2f7;--surface:#ffffff;--surface-hi:#fafafa;--surface-2:#f0f0f5;
@@ -119,6 +120,9 @@
     .gps-indicator .dot.weak{background:var(--amber)}
     .gps-indicator .dot.bad{background:var(--danger)}
     .gps-indicator .points{font-family:var(--font-mono)}
+    .collect-map{height:220px;margin:10px 0;border-radius:var(--radius-sm);border:1px solid var(--border-hi);overflow:hidden;background:var(--surface-2);position:relative}
+    .collect-map .leaflet-container{height:100%;width:100%}
+    .collect-map-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--text-dim);font-size:0.85rem;pointer-events:none}
     
     /* App tips list */
     .app-list{margin-top:12px}
@@ -326,6 +330,7 @@
       <span id="gps-status">Acquiring GPS…</span>
       <span class="points" id="gps-points">0 pts</span>
     </div>
+    <div id="collect-map" class="collect-map"></div>
     <div class="collect-section">
       <h2>When you finish this walk</h2>
       <p class="lede" style="font-size:0.85rem;margin-top:6px">Tap End Leg to log your weight and rate this area.</p>
@@ -440,6 +445,7 @@
   </div>
 </div>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
 /* ═══════════════════════════════════════════════════════════════════════
    CMRA v3 Volunteer App
@@ -475,7 +481,13 @@ var S = {
   legTimerInterval: null,
   gpsFlushTimer: null,
   gpsWatchId: null,
-  distanceM: 0
+  distanceM: 0,
+  // Map state (volunteer collecting screen)
+  leafletMap: null,
+  legPath: null,          // L.polyline
+  legPathLatLngs: [],     // accumulated lat/lng for polyline
+  meMarker: null,         // L.circleMarker for "you are here"
+  mapFollowing: true
 };
 
 /* ═══ Utilities ═══ */
@@ -816,9 +828,52 @@ function launchCollecting(){
   $('collect-distance').textContent='0.00';
   $('collect-timer').textContent='0:00';
   showScreen('screen-collecting');
+  initCollectMap();
   startLegTimer(false);
   startGPSWatch();
   startGPSFlush();
+}
+
+function initCollectMap(){
+  // Reset previous map if any
+  if(S.leafletMap){
+    try{S.leafletMap.remove();}catch(e){}
+    S.leafletMap=null;S.legPath=null;S.legPathLatLngs=[];S.meMarker=null;
+  }
+  var el=$('collect-map');
+  if(!el||typeof L==='undefined')return;
+  // Empty-state overlay until first GPS fix
+  el.innerHTML='<div class="collect-map-empty" id="collect-map-empty">Waiting for first GPS fix…</div>';
+  var map=L.map(el,{zoomControl:true,attributionControl:false}).setView([32.3668,-86.3000],16);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:21,maxNativeZoom:19}).addTo(map);
+  S.leafletMap=map;
+  S.mapFollowing=true;
+  // Stop following when user pans/zooms manually
+  map.on('dragstart',function(){S.mapFollowing=false;});
+  setTimeout(function(){if(S.leafletMap)S.leafletMap.invalidateSize();},200);
+}
+
+function updateCollectMap(lat,lon){
+  if(!S.leafletMap||typeof L==='undefined')return;
+  var empty=$('collect-map-empty');
+  if(empty)empty.style.display='none';
+  // Polyline of leg path
+  S.legPathLatLngs.push([lat,lon]);
+  if(!S.legPath){
+    S.legPath=L.polyline(S.legPathLatLngs,{color:'#2c8a3d',weight:4,opacity:0.85}).addTo(S.leafletMap);
+  }else{
+    S.legPath.setLatLngs(S.legPathLatLngs);
+  }
+  // "You are here" marker
+  if(!S.meMarker){
+    S.meMarker=L.circleMarker([lat,lon],{radius:8,fillColor:'#2563eb',fillOpacity:0.95,color:'#fff',weight:3}).addTo(S.leafletMap);
+  }else{
+    S.meMarker.setLatLng([lat,lon]);
+  }
+  // Follow mode: recenter on each new point unless user panned away
+  if(S.mapFollowing){
+    S.leafletMap.setView([lat,lon],S.leafletMap.getZoom(),{animate:false});
+  }
 }
 
 function startLegTimer(external){
@@ -854,6 +909,7 @@ function startGPSWatch(){
     S.gpsPointsTotal++;
     $('collect-distance').textContent=(S.distanceM/1609.34).toFixed(2);
     $('gps-points').textContent=S.gpsPointsTotal+' pts';
+    updateCollectMap(p.lat,p.lon);
     if(p.accuracy<=20)updateGPSIndicator('good','GPS strong · ±'+Math.round(p.accuracy)+'m');
     else if(p.accuracy<=50)updateGPSIndicator('weak','GPS fair · ±'+Math.round(p.accuracy)+'m');
     else updateGPSIndicator('weak','GPS weak · ±'+Math.round(p.accuracy)+'m');
@@ -894,6 +950,11 @@ function stopCollectionTracking(){
   if(S.gpsFlushTimer){clearInterval(S.gpsFlushTimer);S.gpsFlushTimer=null;}
   if(S.gpsWatchId!==null&&navigator.geolocation){navigator.geolocation.clearWatch(S.gpsWatchId);S.gpsWatchId=null;}
   flushGPS(); // final flush
+  // Tear down map
+  if(S.leafletMap){
+    try{S.leafletMap.remove();}catch(e){}
+    S.leafletMap=null;S.legPath=null;S.legPathLatLngs=[];S.meMarker=null;
+  }
 }
 
 function endLeg(){
