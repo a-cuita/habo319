@@ -137,6 +137,8 @@
     .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
     .overlay.active{display:flex}
     .overlay .overlay-card{background:var(--surface);border-radius:var(--radius);padding:20px;max-width:400px;width:100%;text-align:center}
+    .busy-spinner{width:38px;height:38px;margin:0 auto;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:busy-spin 0.9s linear infinite}
+    @keyframes busy-spin{to{transform:rotate(360deg)}}
     
     /* Admin gear */
     .admin-gear{flex:0 0 auto;color:var(--text-dim);cursor:pointer;font-size:1.1rem;padding:6px;opacity:0.5}
@@ -506,6 +508,16 @@ function showScreen(id){
 function showOverlay(html){$('overlay-content').innerHTML=html;$('overlay').classList.add('active');}
 function hideOverlay(){$('overlay').classList.remove('active');}
 function showError(msg){showOverlay('<div style="color:var(--danger);font-weight:700;margin-bottom:12px">Error</div><div style="color:var(--text);font-size:0.9rem;margin-bottom:16px">'+esc(msg)+'</div><button class="btn btn-primary" onclick="hideOverlay()">OK</button>');}
+// Busy overlay — non-dismissable, used during API calls that take more than a moment.
+// Blocks all UI input via the overlay-bg. Caller MUST hideBusy() on both success and error.
+function showBusy(msg){
+  showOverlay('<div class="busy-spinner"></div><div style="color:var(--text);font-size:0.95rem;font-weight:600;margin-top:14px">'+esc(msg||'Please wait…')+'</div>');
+  $('overlay').classList.add('busy');
+}
+function hideBusy(){
+  $('overlay').classList.remove('busy');
+  hideOverlay();
+}
 
 /**
  * v3 API wrapper.
@@ -928,7 +940,7 @@ function startGPSWatch(){
     }
     S.gpsBuffer.push(p);
     S.gpsPointsTotal++;
-    $('collect-distance').textContent=(S.distanceM/1609.34).toFixed(2);
+    $('collect-distance').textContent=(S.distanceM/1609.34).toFixed(4);
     $('gps-points').textContent=S.gpsPointsTotal+' pts';
     updateCollectMap(p.lat,p.lon);
     if(p.accuracy<=20)updateGPSIndicator('good','GPS strong · ±'+Math.round(p.accuracy)+'m');
@@ -1000,14 +1012,21 @@ function submitWeight(){
   var w=parseFloat($('input-weight').value);
   $('weight-error').style.display='none';
   if(isNaN(w)||w<0){$('weight-error').textContent='Enter a valid weight (0 or more)';$('weight-error').style.display='block';return;}
+  var btn=document.querySelector('#screen-weight .btn-accent, #screen-weight .btn-primary');
+  if(btn)btn.disabled=true;
   S.currentLegWeight=w;
+  showBusy('Saving your leg…');
   api('endLeg',{sessionId:S.sessionId,legId:S.legId,weightLbs:w}).then(function(d){
     S.currentLegResult=d;
     buildRatingScale('post-rating-scale','post-rating-label');
     S.postRating=null;
     $('btn-post-rating').disabled=true;
     showScreen('screen-post-rating');
+    hideBusy();
+    if(btn)btn.disabled=false;
   }).catch(function(err){
+    hideBusy();
+    if(btn)btn.disabled=false;
     showError(err.message);
   });
 }
@@ -1045,19 +1064,23 @@ function submitExternalLeg(){
 
 function submitPostRating(){
   $('btn-post-rating').disabled=true;
-  // post-rating is attached to the leg that just ended
-  // The endLeg/submitManualLeg already stored the weight/distance. We send post-rating via a separate path.
-  // For MVP simplicity: store S.postRating and show results. Backend will receive via finishSession or a separate call.
-  api('endLeg',{sessionId:S.sessionId,legId:S.legId,weightLbs:S.currentLegWeight,postRating:S.postRating}).then(function(d){
-    S.currentLegResult=d;
+  showBusy('Saving your rating…');
+  // Leg was already ended by submitWeight (native) or submitExternalLeg (external).
+  // This call just persists the post-rating and recomputes divergence.
+  api('updateLegPostRating',{sessionId:S.sessionId,legId:S.legId,postRating:S.postRating}).then(function(d){
+    // Merge rating + divergence into the existing leg result so renderLegResults shows both.
+    if(S.currentLegResult){
+      S.currentLegResult.postRating=d.postRating;
+      S.currentLegResult.divergence=d.divergence;
+    }
     S.currentState='between_legs';
     renderLegResults();
     showScreen('screen-leg-results');
+    hideBusy();
   }).catch(function(err){
-    // endLeg was already called — this second call is to update post_rating.
-    // If backend rejects because leg already ended, fall through with what we have.
-    renderLegResults();
-    showScreen('screen-leg-results');
+    hideBusy();
+    $('btn-post-rating').disabled=false;
+    showError(err.message);
   });
 }
 
@@ -1065,36 +1088,55 @@ function renderLegResults(){
   var r=S.currentLegResult||{};
   var html='<div style="font-size:0.85rem;color:var(--text-dim);margin-bottom:12px">Leg '+(S.legNumber||1)+' stats</div>';
   if(r.weightLbs!==undefined)html+='<div><strong>Weight:</strong> '+Number(r.weightLbs).toFixed(2)+' lbs</div>';
-  if(r.distanceM!==undefined)html+='<div><strong>Distance:</strong> '+(r.distanceM/1609.34).toFixed(2)+' mi</div>';
+  if(r.distanceM!==undefined)html+='<div><strong>Distance:</strong> '+(r.distanceM/1609.34).toFixed(4)+' mi</div>';
   if(r.durationSec!==undefined){var m=Math.floor(r.durationSec/60),s=r.durationSec%60;html+='<div><strong>Duration:</strong> '+m+'m '+s+'s</div>';}
-  if(r.sqrtCpueRaw!==undefined)html+='<div style="margin-top:8px"><strong>√CPUE:</strong> '+Number(r.sqrtCpueRaw).toFixed(2)+'</div>';
+  if(r.sqrtCpueRaw!==undefined)html+='<div style="margin-top:8px"><strong>√CPUE:</strong> '+Number(r.sqrtCpueRaw).toFixed(4)+'</div>';
   if(S.preRating!==null)html+='<div style="margin-top:8px;color:var(--text-dim);font-size:0.85rem">You rated this area <strong>'+S.preRating+'/10</strong> before, <strong>'+S.postRating+'/10</strong> after.</div>';
   $('leg-results-body').innerHTML=html;
 }
 
 function startNextLeg(){
+  // Disable the button immediately; prevent double-tap and flash of old data.
+  var btn=document.querySelector('#screen-leg-results .btn-accent');
+  if(btn)btn.disabled=true;
+  // Clear previous leg's result so any accidental re-render of leg-results shows nothing stale.
+  S.currentLegResult=null;
+  showBusy('Starting next leg…');
   api('startNextLeg',{sessionId:S.sessionId}).then(function(d){
     S.legId=d.legId;
     S.legNumber=(d.legNumber||S.legNumber+1);
     S.currentState='collecting';
     launchCollecting();
-  }).catch(function(err){showError(err.message);});
+    hideBusy();
+  }).catch(function(err){
+    hideBusy();
+    if(btn)btn.disabled=false;
+    showError(err.message);
+  });
 }
 
 function finishSession(){
+  var btn=document.querySelector('#screen-leg-results .btn-secondary');
+  if(btn)btn.disabled=true;
+  showBusy('Finishing your session…');
   api('finishSession',{sessionId:S.sessionId,postRating:S.postRating}).then(function(d){
     S.sessionSummary=d;
     S.currentState='session_complete';
     renderSessionSummary();
     showScreen('screen-done');
-  }).catch(function(err){showError(err.message);});
+    hideBusy();
+  }).catch(function(err){
+    hideBusy();
+    if(btn)btn.disabled=false;
+    showError(err.message);
+  });
 }
 
 function renderSessionSummary(){
   var r=S.sessionSummary||{};
   var html='<div class="card-title">Session totals</div>';
   if(r.totalWeightLbs!==undefined)html+='<div><strong>Total weight:</strong> '+Number(r.totalWeightLbs).toFixed(2)+' lbs</div>';
-  if(r.totalDistanceM!==undefined)html+='<div><strong>Total distance:</strong> '+(r.totalDistanceM/1609.34).toFixed(2)+' mi</div>';
+  if(r.totalDistanceM!==undefined)html+='<div><strong>Total distance:</strong> '+(r.totalDistanceM/1609.34).toFixed(4)+' mi</div>';
   if(r.legCount!==undefined)html+='<div><strong>Legs:</strong> '+r.legCount+'</div>';
   $('session-summary').innerHTML=html;
 }
