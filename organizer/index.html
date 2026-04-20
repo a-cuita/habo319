@@ -269,7 +269,10 @@ function loadActiveEvent(){
     var ds='<span class="pill '+(ev.dataState||'hot')+'">'+esc(ev.dataState||'hot')+'</span>';
     var h='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.name)+status+ds+'</div><div class="sub">'+esc(ev.eventId)+'</div></div></div>';
     if(ev.status==='active'){
-      h+='<button class="btn danger" style="margin-top:10px" onclick="doEndEventOrganizer(\''+ev.eventId+'\')">End event</button>';
+      h+='<div class="ig" style="margin-top:10px"><label>Event-end message (volunteers see this when you end the event)</label><textarea id="end-msg" rows="3" placeholder="Thanks for showing up today. See you at the next one." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.95rem;resize:vertical"></textarea></div>';
+      h+='<button class="btn danger" style="margin-top:6px" onclick="doEndEventOrganizer(\''+ev.eventId+'\')">End event</button>';
+    }else if(ev.endMessage){
+      h+='<div class="muted" style="margin-top:10px;font-size:0.82rem">Last end-message: "'+esc(ev.endMessage)+'"</div>';
     }
     $('active-body').innerHTML=h;
   }).catch(function(e){$('active-body').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
@@ -379,18 +382,17 @@ function doCreateEvent(){
 
 /* ═══ End event ═══ */
 function doEndEventOrganizer(eventId){
+  var msgEl=$('end-msg');
+  var endMessage=msgEl?msgEl.value.trim():'';
   if(!confirm('End this event? Volunteer app will stop accepting new joins. Dashboard stays available for accountability.'))return;
-  // endEvent requires a TL session token — organizer doesn't have one at this level.
-  // Alternative: we need an adminKey-gated version. For now, route to admin-key shape.
-  // Send both just in case; backend will accept whatever matches.
   showBusy('Ending event…');
-  api('endEvent',{eventId:eventId,adminKey:S.adminKey}).then(function(r){
+  api('endEvent',{eventId:eventId,adminKey:S.adminKey,endMessage:endMessage}).then(function(r){
     hideBusy();
     alert('Event ended.');
-    loadActiveEvent();
+    loadActiveEvent();loadAllEvents();
   }).catch(function(e){
     hideBusy();
-    alert('Error: '+(e.message||'could not end event')+'\n\nEnding events requires a TL session right now. Sign in as a TL at /habo319/ and use the dashboard Event tab to end it.');
+    alert('Error: '+(e.message||'could not end event'));
   });
 }
 
