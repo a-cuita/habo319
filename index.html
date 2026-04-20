@@ -50,6 +50,12 @@
   .link-row a{color:var(--accent);text-decoration:none;font-size:0.85rem;display:inline-block;padding:8px 4px}
   .back-link{margin-top:18px;text-align:center}
   .back-link a{color:var(--text-dim);text-decoration:none;font-size:0.85rem}
+
+  /* Password field with show/hide toggle */
+  .pw-wrap{position:relative}
+  .pw-wrap input{padding-right:44px}
+  .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px 8px;color:var(--text-dim);font-size:0.85rem;font-weight:600;font-family:inherit;-webkit-tap-highlight-color:transparent}
+  .pw-toggle:active{color:var(--text)}
   .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
   .overlay.active{display:flex}
   .overlay-card{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:360px;width:100%;text-align:center}
@@ -86,7 +92,7 @@
     <div class="input-group"><label>Email</label>
       <input id="login-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email"></div>
     <div class="input-group"><label>Password</label>
-      <input id="login-password" type="password">
+      <div class="pw-wrap"><input id="login-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'login-password')">Show</button></div>
       <div class="input-error" id="login-error"></div></div>
     <button class="btn btn-primary" onclick="doLogin()" id="btn-login">Sign in</button>
     <div class="link-row"><a href="#" onclick="showScreen('screen-forgot');return false;">Forgot password?</a></div>
@@ -102,7 +108,7 @@
     <div class="input-group"><label>Confirmation number (6 digits)</label>
       <input id="claim-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*"></div>
     <div class="input-group"><label>Set a password (8+ characters)</label>
-      <input id="claim-password" type="password">
+      <div class="pw-wrap"><input id="claim-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'claim-password')">Show</button></div>
       <div class="input-error" id="claim-error"></div></div>
     <button class="btn btn-primary" onclick="doClaim()" id="btn-claim">Activate my account</button>
     <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
@@ -125,7 +131,7 @@
     <div class="input-group"><label>Reset code</label>
       <input id="reset-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*"></div>
     <div class="input-group"><label>New password</label>
-      <input id="reset-password" type="password">
+      <div class="pw-wrap"><input id="reset-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'reset-password')">Show</button></div>
       <div class="input-error" id="reset-error"></div></div>
     <button class="btn btn-primary" onclick="doCompleteReset()" id="btn-reset">Set new password</button>
     <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
@@ -162,6 +168,12 @@ function api(action,data){
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
+}
+
+function togglePw(btn,inputId){
+  var input=$(inputId);if(!input)return;
+  if(input.type==='password'){input.type='text';btn.textContent='Hide';}
+  else{input.type='password';btn.textContent='Show';}
 }
 
 function goVolunteer(){window.location.href=VOLUNTEER_PATH;}
