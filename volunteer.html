@@ -110,6 +110,13 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
 .cancel-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:50;font-family:inherit}
 
+.ep-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s}
+.ep-card:active{border-color:var(--primary)}
+.ep-card .ep-name{font-weight:800;font-size:1rem;margin-bottom:2px}
+.ep-card .ep-code{font-family:var(--mono);font-size:0.82rem;color:var(--primary);font-weight:700;letter-spacing:1px}
+.ep-card .ep-meta{font-size:0.78rem;color:var(--text-dim);margin-top:4px}
+.ep-card .ep-dist{font-size:0.82rem;color:var(--accent);font-weight:600;margin-top:2px}
+
 .chat-btn{position:relative}
 .chat-badge{position:absolute;top:2px;right:0;min-width:16px;height:16px;line-height:16px;padding:0 4px;background:var(--danger);color:#fff;border-radius:8px;font-size:0.6rem;font-weight:700;font-family:var(--font);display:none}
 .chat-badge.show{display:block}
@@ -165,6 +172,16 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
   <div class="screen" id="screen-no-event">
     <h1>No active event</h1>
     <p class="lede">There's no cleanup happening right now. Check back when the organizer starts one.</p>
+  </div>
+
+  <div class="screen" id="screen-event-picker">
+    <h1>Join a cleanup</h1>
+    <p class="lede">Multiple events are active. Pick one to join.</p>
+    <div class="ig" style="margin-bottom:12px">
+      <input id="ep-search" type="text" placeholder="Search by event code…" oninput="filterEvents()" autocapitalize="characters" autocorrect="off" style="text-transform:uppercase">
+    </div>
+    <div id="ep-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:10px"></div>
+    <div id="ep-list"></div>
   </div>
 
   <div class="screen" id="screen-welcome">
@@ -465,36 +482,100 @@ function persist(){
 }
 
 /* ═══ Boot ═══ */
+var allActiveEvents=[];
+var volunteerGPS=null;
+
 function boot(){
-  api('getActiveEvent').then(function(ev){
-    if(!ev){showScreen('screen-no-event');return;}
-    S.event=ev;
-    $('event-name').textContent=ev.name||'';
-    S.eventEndMessage=ev.endMessage||null;
+  api('listActiveEvents').then(function(events){
+    allActiveEvents=events||[];
+    if(allActiveEvents.length===0){showScreen('screen-no-event');return;}
     
-    // If the event is ended, pivot every volunteer to the event-ended screen
-    if(ev.status==='ended'){
-      showEventEnded();
-      return;
+    // Check localStorage for existing session
+    var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
+    if(saved&&saved.volunteerId&&saved.eventId){
+      // Find matching event
+      var match=null;
+      for(var i=0;i<allActiveEvents.length;i++){if(allActiveEvents[i].eventId===saved.eventId){match=allActiveEvents[i];break;}}
+      if(match){
+        S.event=match;S.volunteerId=saved.volunteerId;S.displayName=saved.displayName;
+        S.trackingMode=saved.trackingMode;S.trackingApp=saved.trackingApp;
+        $('event-name').textContent=match.name||'';S.eventEndMessage=match.endMessage||null;
+        if(match.status==='ended'){showEventEnded();return;}
+        api('getVolunteerStatus').then(function(d){
+          if(!d){localStorage.removeItem('cmra_volunteer');bootPickEvent();return;}
+          S.role=d.role;S.currentState=d.currentState;S.displayName=d.displayName||S.displayName;
+          S.gates=d.gates||{};S.trackingMode=d.trackingMode||S.trackingMode;
+          showChatButton();showPinButton();startVolChatPoll();routeByState();
+        }).catch(function(){localStorage.removeItem('cmra_volunteer');bootPickEvent();});
+        return;
+      }
     }
     
-    var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
-    if(saved&&saved.volunteerId&&saved.eventId===ev.eventId){
-      S.volunteerId=saved.volunteerId;
-      S.displayName=saved.displayName;
-      S.trackingMode=saved.trackingMode;
-      S.trackingApp=saved.trackingApp;
-      api('getVolunteerStatus').then(function(d){
-        if(!d){localStorage.removeItem('cmra_volunteer');startFresh();return;}
-        S.role=d.role; S.currentState=d.currentState;
-        S.displayName=d.displayName||S.displayName;
-        S.gates=d.gates||{};
-        S.trackingMode=d.trackingMode||S.trackingMode;
-        showChatButton();showPinButton();startVolChatPoll();
-        routeByState();
-      }).catch(function(){localStorage.removeItem('cmra_volunteer');startFresh();});
-    }else{startFresh();}
+    bootPickEvent();
   }).catch(function(){showScreen('screen-no-event');});
+}
+
+function bootPickEvent(){
+  if(allActiveEvents.length===1){
+    selectEvent(allActiveEvents[0]);
+    return;
+  }
+  // Multiple events — show picker, try GPS for sorting
+  showScreen('screen-event-picker');
+  $('ep-gps-status').textContent='Getting your location for sorting…';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    volunteerGPS={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('ep-gps-status').textContent='✓ Events sorted by distance';
+    renderEventList();
+  },function(){
+    $('ep-gps-status').textContent='Location unavailable — showing all events';
+    renderEventList();
+  },{enableHighAccuracy:true,timeout:8000});
+  renderEventList();
+}
+
+function haversineKm(lat1,lon1,lat2,lon2){
+  var R=6371;var dLat=(lat2-lat1)*Math.PI/180;var dLon=(lon2-lon1)*Math.PI/180;
+  var a=Math.sin(dLat/2)*Math.sin(dLat/2)+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)*Math.sin(dLon/2);
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+
+function renderEventList(){
+  var events=allActiveEvents.slice();
+  var search=($('ep-search').value||'').trim().toUpperCase();
+  if(search)events=events.filter(function(e){return(e.eventCode||'').indexOf(search)>=0||e.name.toUpperCase().indexOf(search)>=0;});
+  
+  // Sort by distance if GPS available
+  if(volunteerGPS){
+    events.forEach(function(e){
+      if(e.startingLocation)e._dist=haversineKm(volunteerGPS.lat,volunteerGPS.lon,e.startingLocation.lat,e.startingLocation.lon);
+      else e._dist=99999;
+    });
+    events.sort(function(a,b){return(a._dist||99999)-(b._dist||99999);});
+  }
+  
+  var h='';
+  if(events.length===0)h='<div style="text-align:center;padding:20px;color:var(--text-dim)">No matching events</div>';
+  for(var i=0;i<events.length;i++){
+    var e=events[i];
+    h+='<div class="ep-card" onclick="selectEvent(allActiveEvents.filter(function(x){return x.eventId===\''+esc(e.eventId)+'\';})[0])">';
+    h+='<div class="ep-name">'+esc(e.name)+'</div>';
+    if(e.eventCode)h+='<div class="ep-code">'+esc(e.eventCode)+'</div>';
+    h+='<div class="ep-meta">'+esc(e.date||'')+' · '+esc(e.status)+'</div>';
+    if(e._dist!=null&&e._dist<99999)h+='<div class="ep-dist">📍 '+e._dist.toFixed(1)+' km away</div>';
+    h+='</div>';
+  }
+  $('ep-list').innerHTML=h;
+}
+
+function filterEvents(){renderEventList();}
+
+function selectEvent(ev){
+  if(!ev)return;
+  S.event=ev;$('event-name').textContent=ev.name||'';
+  S.eventEndMessage=ev.endMessage||null;
+  if(ev.status==='ended'){showEventEnded();return;}
+  startFresh();
 }
 
 function showEventEnded(){
