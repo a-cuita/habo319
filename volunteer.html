@@ -179,15 +179,8 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
   <div class="screen" id="screen-gates">
     <h1>Before you start</h1>
-    <p class="lede">Read and acknowledge these. Both are required.</p>
-    <div class="gate-toggle" id="gt-driving_ack" onclick="toggleGate('driving_ack')">
-      <div class="chk">✓</div>
-      <div class="gt-text"><strong>I acknowledge driving and walking risks.</strong> Getting to and from the cleanup zone, and walking in it, involves roads, cars, uneven ground, and weather. I'm responsible for my own safety.</div>
-    </div>
-    <div class="gate-toggle" id="gt-data_transparency" onclick="toggleGate('data_transparency')">
-      <div class="chk">✓</div>
-      <div class="gt-text"><strong>I understand what's tracked.</strong> This app records my location during active collection, weight of what I find, and timing. My name may be visible to my team leader and in public reports. No data is sold.</div>
-    </div>
+    <p class="lede">Read and acknowledge these. All are required.</p>
+    <div id="gates-container"></div>
     <button class="btn btn-primary" onclick="submitGates()" id="g-btn" disabled>Continue</button>
   </div>
 
@@ -499,7 +492,13 @@ function showEventEnded(){
 function startFresh(){showScreen('screen-welcome');}
 
 function routeByState(){
-  if(!S.gates.driving_ack||!S.gates.data_transparency){renderGates();showScreen('screen-gates');return;}
+  if(!S.gates.driving_ack||!S.gates.data_transparency){
+    // Check all gates dynamically
+    var allGood=true;
+    if(gateConfig.length>0){for(var g=0;g<gateConfig.length;g++){if(gateConfig[g].required!==false&&!S.gates[gateConfig[g].key]){allGood=false;break;}}}
+    else allGood=false;
+    if(!allGood){loadGateConfig(function(){renderGates();showScreen('screen-gates');});return;}
+  }
   if(!S.trackingMode){updateTrackingSelectUI();showScreen('screen-tracking');return;}
   switch(S.currentState){
     case 'joined': case 'waiting': showScreen('screen-waiting');startPollingForApproval();break;
@@ -529,7 +528,7 @@ function submitName(){
     S.volunteerId=d.volunteerId;S.displayName=d.displayName;S.currentState='joined';
     persist();showChatButton();startVolChatPoll();
     if(d.nameModified){alert('Another volunteer has that name. We saved you as "'+d.displayName+'".');}
-    S.gates={};renderGates();showScreen('screen-gates');
+    S.gates={};loadGateConfig(function(){renderGates();showScreen('screen-gates');});
   }).catch(function(e){
     hideBusy();$('w-btn').disabled=false;
     $('w-err').textContent=e.message||'Could not join';$('w-err').classList.add('show');
@@ -537,18 +536,56 @@ function submitName(){
 }
 
 /* ═══ Gates ═══ */
-function renderGates(){
-  $('gt-driving_ack').classList.toggle('checked',!!S.gates.driving_ack);
-  $('gt-data_transparency').classList.toggle('checked',!!S.gates.data_transparency);
-  $('g-btn').disabled=!(S.gates.driving_ack&&S.gates.data_transparency);
+var gateConfig=[];
+
+function loadGateConfig(callback){
+  api('getGateConfig').then(function(d){
+    gateConfig=d.gates||[];
+    // Initialize gate state for any new keys
+    for(var i=0;i<gateConfig.length;i++){
+      if(S.gates[gateConfig[i].key]===undefined)S.gates[gateConfig[i].key]=false;
+    }
+    if(callback)callback();
+  }).catch(function(){
+    // Fallback defaults
+    gateConfig=[
+      {key:'driving_ack',title:'I acknowledge driving and walking risks.',description:'Getting to and from the cleanup zone, and walking in it, involves roads, cars, uneven ground, and weather. I am responsible for my own safety.',required:true},
+      {key:'data_transparency',title:'I understand what\'s tracked.',description:'This app records my location during active collection, weight of what I find, and timing. My name may be visible to my team leader and in public reports. No data is sold.',required:true}
+    ];
+    if(callback)callback();
+  });
 }
+
+function renderGates(){
+  var container=$('gates-container');
+  var h='';
+  for(var i=0;i<gateConfig.length;i++){
+    var g=gateConfig[i];
+    var checked=!!S.gates[g.key];
+    h+='<div class="gate-toggle'+(checked?' checked':'')+'" id="gt-'+esc(g.key)+'" onclick="toggleGate(\''+esc(g.key)+'\')">';
+    h+='<div class="chk">✓</div>';
+    h+='<div class="gt-text"><strong>'+esc(g.title)+'</strong>'+(g.description?' '+esc(g.description):'')+'</div>';
+    h+='</div>';
+  }
+  container.innerHTML=h;
+  $('g-btn').disabled=!allGatesChecked();
+}
+
+function allGatesChecked(){
+  for(var i=0;i<gateConfig.length;i++){
+    if(gateConfig[i].required!==false&&!S.gates[gateConfig[i].key])return false;
+  }
+  return true;
+}
+
 function toggleGate(key){S.gates[key]=!S.gates[key];renderGates();}
+
 function submitGates(){
   $('g-btn').disabled=true;showBusy('Saving…');
   api('updateGates',{gates:S.gates}).then(function(){
     hideBusy();updateTrackingSelectUI();showScreen('screen-tracking');
   }).catch(function(e){
-    hideBusy();$('g-btn').disabled=!(S.gates.driving_ack&&S.gates.data_transparency);
+    hideBusy();$('g-btn').disabled=!allGatesChecked();
     showError(e.message);
   });
 }
@@ -703,20 +740,20 @@ function togglePause(){
   var btnIds=['pause-btn','pause-btn-ext'];
   for(var i=0;i<btnIds.length;i++){
     var b=$(btnIds[i]);if(!b)continue;
-    if(S.paused){b.textContent='▶ Resume collecting';b.className='btn btn-primary';b.style.marginBottom='10px';}
-    else{b.textContent='⏸ Pause (set phone down)';b.className='btn btn-secondary';b.style.marginBottom='10px';}
+    if(S.paused){b.textContent='▶ Resume';b.className='btn btn-primary';b.style.marginBottom='10px';}
+    else{b.textContent='⏸ Pause';b.className='btn btn-secondary';b.style.marginBottom='10px';}
   }
   if(S.paused){
-    // Freeze timer, stop GPS watches + flushes
     if(S.collectTickTimer){clearInterval(S.collectTickTimer);S.collectTickTimer=null;}
     S.pauseStartMs=Date.now();
     if(S.trackingMode==='native'){stopNativeGPS();}
     else{stopExternalWatch();}
+    api('reportActivity',{activity:'paused'}).catch(function(){});
   }else{
-    // Resume: adjust collectStartMs forward by pause duration so elapsed stays continuous
     if(S.pauseStartMs){S.collectStartMs+=(Date.now()-S.pauseStartMs);S.pauseStartMs=null;}
     if(S.trackingMode==='native'){startNativeGPS();startCollectTicker(false);}
     else{startExternalWatch();startCollectTicker(true);}
+    api('reportActivity',{activity:'resumed'}).catch(function(){});
   }
 }
 
@@ -964,18 +1001,18 @@ var POCKET_HOLD_MS=1500;
 function enterPocketMode(){
   showScreen('screen-pocket');
   $('cancel-fab').style.display='none';
-  // Keep GPS and collect ticker running — just switch the display
   startPocketUpdater();
   setTimeout(initPocketMap,100);
   updatePocketView();
+  api('reportActivity',{activity:'pocket_enter'}).catch(function(){});
 }
 
 function exitPocketMode(){
   if(pocketTimer){clearInterval(pocketTimer);pocketTimer=null;}
-  // Return to collecting screen
   if(S.trackingMode==='native')showScreen('screen-collecting');
   else showScreen('screen-collecting-external');
   $('cancel-fab').style.display='flex';
+  api('reportActivity',{activity:'pocket_exit'}).catch(function(){});
 }
 
 function startPocketUpdater(){
