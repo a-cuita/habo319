@@ -115,8 +115,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 /* Password show/hide */
 .pw-wrap{position:relative}
 .pw-wrap input{padding-right:44px}
-.pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px 8px;color:var(--text-dim);font-size:0.85rem;font-weight:600;font-family:inherit;-webkit-tap-highlight-color:transparent}
+.pw-toggle{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:4px;color:var(--text-dim);font-family:inherit;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
 .pw-toggle:active{color:var(--text)}
+.pw-toggle svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
 /* Input group for modal forms */
 .ig{margin-bottom:12px}
@@ -320,10 +321,10 @@ function openProfile(){
       '<div class="profile-section">'+
         '<h3>Change password</h3>'+
         '<div class="ig"><label>Current password</label>'+
-          '<div class="pw-wrap"><input id="prof-cur-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-cur-pw\')">Show</button></div>'+
+          '<div class="pw-wrap"><input id="prof-cur-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-cur-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>'+
         '</div>'+
         '<div class="ig"><label>New password (8+ chars)</label>'+
-          '<div class="pw-wrap"><input id="prof-new-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-new-pw\')">Show</button></div>'+
+          '<div class="pw-wrap"><input id="prof-new-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-new-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>'+
         '</div>'+
         '<button class="big-btn" onclick="changePassword()" id="btn-change-pw">Change password</button>'+
         '<div class="profile-msg" id="pw-msg"></div>'+
@@ -337,9 +338,9 @@ function openProfile(){
 }
 function closeProfile(){hideBusy();}
 function togglePw(btn,inputId){
-  var input=$(inputId);if(!input)return;
-  if(input.type==='password'){input.type='text';btn.textContent='Hide';}
-  else{input.type='password';btn.textContent='Show';}
+  var input=document.getElementById(inputId);if(!input)return;
+  if(input.type==='password'){input.type='text';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';btn.setAttribute('aria-label','Hide password');}
+  else{input.type='password';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';btn.setAttribute('aria-label','Show password');}
 }
 function saveProfile(){
   var msg=$('prof-msg');msg.className='profile-msg';msg.textContent='';
