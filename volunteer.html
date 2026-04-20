@@ -402,6 +402,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <option value="meetup">Meetup point</option>
     </select>
   </div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="vol-pin-photo" type="file" accept="image/*" capture="environment" style="font-size:0.85rem;font-family:inherit"></div>
   <div class="err" id="vol-pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closeVolPinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -1034,7 +1035,7 @@ function showPinButton(){
 
 function showVolPinModal(){
   volPinGPS=null;
-  $('vol-pin-note').value='';$('vol-pin-category').value='general';
+  $('vol-pin-note').value='';$('vol-pin-category').value='general';$('vol-pin-photo').value='';
   $('vol-pin-gps-status').textContent='—';
   $('vol-pin-err').textContent='';$('vol-pin-err').style.display='none';
   $('vol-pin-submit').disabled=true;
@@ -1056,20 +1057,42 @@ function volPinCaptureGPS(){
   },{enableHighAccuracy:true,timeout:10000});
 }
 
+function resizePhoto(file,maxPx,quality,cb){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      var dataUrl=c.toDataURL('image/jpeg',quality||0.7);
+      cb(dataUrl.split(',')[1],'image/jpeg');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function submitVolPin(){
   if(!volPinGPS){$('vol-pin-err').textContent='Capture your location first';$('vol-pin-err').style.display='block';return;}
+  var photoFile=$('vol-pin-photo').files[0];
   $('vol-pin-submit').disabled=true;$('vol-pin-submit').textContent='Saving…';
-  api('createEventPin',{
-    lat:volPinGPS.lat,lon:volPinGPS.lon,
-    note:$('vol-pin-note').value.trim(),
-    category:$('vol-pin-category').value
-  }).then(function(){
-    $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
-    closeVolPinModal();
-  }).catch(function(e){
-    $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
-    $('vol-pin-err').textContent=e.message;$('vol-pin-err').style.display='block';
-  });
+  
+  var send=function(b64,mime){
+    var body={lat:volPinGPS.lat,lon:volPinGPS.lon,note:$('vol-pin-note').value.trim(),category:$('vol-pin-category').value};
+    if(b64){body.photoBase64=b64;body.photoMimeType=mime;}
+    api('createEventPin',body).then(function(){
+      $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
+      closeVolPinModal();
+    }).catch(function(e){
+      $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
+      $('vol-pin-err').textContent=e.message;$('vol-pin-err').style.display='block';
+    });
+  };
+  
+  if(photoFile){resizePhoto(photoFile,800,0.7,send);}
+  else{send(null,null);}
 }
 
 /* ═══ Pocket Mode ═══ */
@@ -1231,6 +1254,26 @@ function volSendChat(){
   var input=$('vol-chat-input');
   var text=(input.value||'').trim();
   if(!text||!S.volunteerId)return;
+  
+  // /pin command: drop a pin at current location
+  if(text.toLowerCase().indexOf('/pin')===0||text==='📍'){
+    var pinNote=text.replace(/^\/pin\s*/i,'').replace(/^📍\s*/,'').trim()||'Pinned from chat';
+    input.value='';
+    input.disabled=true;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      api('createEventPin',{lat:pos.coords.latitude,lon:pos.coords.longitude,note:pinNote,category:'general'}).then(function(){
+        // Send a chat message about the pin
+        return api('sendChatMessage',{text:'📍 Pinned: '+pinNote+' ('+pos.coords.latitude.toFixed(5)+', '+pos.coords.longitude.toFixed(5)+')'});
+      }).then(function(d){
+        input.disabled=false;input.focus();
+        if(d.message)volChatMessages.push(d.message);
+        volChatLastSeen=volChatMessages.length;updateChatBadge();volRenderChat();
+      }).catch(function(e){input.disabled=false;alert('Pin failed: '+e.message);});
+    },function(err){input.disabled=false;alert('GPS error: '+err.message);},
+    {enableHighAccuracy:true,timeout:10000});
+    return;
+  }
+  
   var sendBtn=input.nextElementSibling;
   input.value='';input.disabled=true;
   if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
