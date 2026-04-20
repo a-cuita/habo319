@@ -1,810 +1,393 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HABO Litter Cleanup</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CMRA — Community Materials Recovery</title>
+<style>
+  :root {
+    --bg: #0c1913;
+    --surface: #152a21;
+    --surface-2: #1b3527;
+    --border: #2a4a38;
+    --border-hi: #3d6650;
+    --text: #e8f0ea;
+    --text-dim: #9db5a4;
+    --primary: #4ade80;
+    --primary-dim: #16331f;
+    --primary-text: #a7ebc0;
+    --accent: #22d3ee;
+    --accent-dim: #0e3540;
+    --danger: #f87171;
+    --amber: #fbbf24;
+    --radius: 14px;
+    --radius-sm: 10px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
+  body{display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px}
+  .wrap{width:100%;max-width:440px}
+  h1{font-size:1.5rem;margin:8px 0 4px;font-weight:800}
+  .tagline{color:var(--text-dim);font-size:0.95rem;margin-bottom:28px;line-height:1.45}
+  h2{font-size:1.1rem;margin:0 0 10px;font-weight:700}
+  p.lede{color:var(--text-dim);font-size:0.9rem;line-height:1.5;margin:0 0 16px}
+  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
+  .brand-mark{font-size:1.4rem}
+  .event-pill{display:inline-block;background:var(--primary-dim);border:1px solid var(--primary);color:var(--primary-text);border-radius:999px;padding:4px 12px;font-size:0.78rem;margin-bottom:18px}
+  .event-pill.none{background:var(--surface-2);border-color:var(--border);color:var(--text-dim)}
 
-  <style>
-    /* ── VARIABLES ─────────────────────────── */
-    :root {
-      --bg:        #0f1210;
-      --surface:   #1a1f1c;
-      --border:    #2e3530;
-      --accent:    #b5f033;
-      --accent-dk: #8abe1a;
-      --text:      #f0f4f1;
-      --text-muted:#8a9e8f;
-      --error:     #ff5c5c;
-      --radius:    12px;
-      --font-head: 'Barlow Condensed', sans-serif;
-      --font-body: 'DM Sans', sans-serif;
-    }
+  /* three-path cards */
+  .path-card{display:block;width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;text-align:left;color:var(--text);text-decoration:none;cursor:pointer;margin-bottom:14px;transition:border-color 0.12s,background 0.12s}
+  .path-card:active{background:var(--surface-2)}
+  .path-card.primary{border-color:var(--primary);background:linear-gradient(180deg,var(--primary-dim),var(--surface))}
+  .path-card .pc-title{font-weight:800;font-size:1.05rem;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+  .path-card .pc-icon{font-size:1.3rem}
+  .path-card .pc-sub{color:var(--text-dim);font-size:0.84rem;line-height:1.5}
+  .path-card.primary .pc-sub{color:#c7e8d3}
+  button, .btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:var(--radius-sm);font-weight:700;font-size:0.95rem;cursor:pointer;width:100%;text-align:center}
+  .btn-primary{background:var(--primary);color:#0a1f12}
+  .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+  .btn-secondary{background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
+  .btn-ghost{background:transparent;color:var(--text-dim);font-weight:600}
+  .btn-accent{background:var(--accent);color:#042b33}
 
-    /* ── RESET ─────────────────────────────── */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  /* screens */
+  .screen{display:none}
+  .screen.active{display:block}
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: var(--font-body);
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 0 0 60px;
-    }
+  /* forms */
+  .input-group{margin-bottom:14px}
+  .input-group label{display:block;font-size:0.82rem;color:var(--text-dim);margin-bottom:6px;font-weight:600}
+  .input-group input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-size:1rem;box-sizing:border-box;font-family:inherit}
+  .input-group input:focus{outline:none;border-color:var(--primary)}
+  .input-error{color:var(--danger);font-size:0.82rem;margin-top:4px;display:none}
+  .input-error.show{display:block}
 
-    /* ── HEADER ────────────────────────────── */
-    header {
-      width: 100%;
-      background: var(--surface);
-      border-bottom: 2px solid var(--accent);
-      padding: 20px 24px 16px;
-      text-align: center;
-    }
+  /* link-row */
+  .link-row{text-align:center;margin-top:12px}
+  .link-row a{color:var(--accent);text-decoration:none;font-size:0.85rem;display:inline-block;padding:8px 4px}
+  .back-link{margin-top:18px;text-align:center}
+  .back-link a{color:var(--text-dim);text-decoration:none;font-size:0.85rem}
 
-    .app-title {
-      font-family: var(--font-head);
-      font-size: 2.4rem;
-      font-weight: 900;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      color: var(--accent);
-      line-height: 1;
-    }
-
-    .app-subtitle {
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      margin-top: 4px;
-    }
-
-    /* ── MAIN CONTAINER ────────────────────── */
-    main {
-      width: 100%;
-      max-width: 480px;
-      padding: 32px 20px 0;
-    }
-
-    /* ── PANELS ────────────────────────────── */
-    .panel {
-      display: none;
-      flex-direction: column;
-      gap: 20px;
-      animation: fadeIn 0.25s ease;
-    }
-    .panel.active { display: flex; }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-
-    /* ── SECTION HEADING ───────────────────── */
-    .section-label {
-      font-family: var(--font-head);
-      font-size: 1.9rem;
-      font-weight: 700;
-      letter-spacing: 0.03em;
-      text-transform: uppercase;
-      color: var(--text);
-      line-height: 1.1;
-    }
-
-    .section-label span {
-      color: var(--accent);
-    }
-
-    /* ── CARD ──────────────────────────────── */
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 24px 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    /* ── FORM ELEMENTS ─────────────────────── */
-    label {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      font-size: 0.78rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-
-    input[type="text"],
-    input[type="password"],
-    input[type="number"] {
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      font-family: var(--font-body);
-      font-size: 1rem;
-      padding: 14px 16px;
-      width: 100%;
-      transition: border-color 0.15s;
-      -webkit-appearance: none;
-    }
-
-    input[type="text"]:focus,
-    input[type="password"]:focus,
-    input[type="number"]:focus {
-      outline: none;
-      border-color: var(--accent);
-    }
-
-    input[type="text"]::placeholder,
-    input[type="password"]::placeholder,
-    input[type="number"]::placeholder {
-      color: var(--text-muted);
-      opacity: 0.5;
-    }
-
-    /* ── CHECKBOX ACK ──────────────────────── */
-    .ack-wrap {
-      display: flex;
-      gap: 12px;
-      align-items: flex-start;
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      padding: 14px;
-      cursor: pointer;
-    }
-
-    .ack-wrap input[type="checkbox"] {
-      width: 20px;
-      height: 20px;
-      flex-shrink: 0;
-      accent-color: var(--accent);
-      margin-top: 2px;
-      cursor: pointer;
-    }
-
-    .ack-text {
-      font-size: 0.85rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    .ack-text strong {
-      color: var(--text);
-    }
-
-    /* ── BUTTONS ───────────────────────────── */
-    .btn {
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
-      font-family: var(--font-head);
-      font-size: 1.25rem;
-      font-weight: 700;
-      letter-spacing: 0.06em;
-      padding: 16px;
-      text-transform: uppercase;
-      transition: background 0.15s, transform 0.1s;
-      width: 100%;
-    }
-
-    .btn:active { transform: scale(0.98); }
-
-    .btn-primary {
-      background: var(--accent);
-      color: var(--bg);
-    }
-    .btn-primary:hover { background: var(--accent-dk); }
-
-    .btn-secondary {
-      background: var(--surface);
-      border: 1.5px solid var(--accent);
-      color: var(--accent);
-    }
-    .btn-secondary:hover { background: rgba(181, 240, 51, 0.08); }
-
-    .btn-ghost {
-      background: transparent;
-      border: 1.5px solid var(--border);
-      color: var(--text-muted);
-      font-size: 0.9rem;
-      padding: 13px;
-    }
-    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
-
-    /* ── LANDING SPLIT ─────────────────────── */
-    .landing-split {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .landing-divider {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--text-muted);
-      font-size: 0.78rem;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-    }
-
-    .landing-divider::before,
-    .landing-divider::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* ── TOGGLE LINK ───────────────────────── */
-    .toggle-link {
-      text-align: center;
-      font-size: 0.85rem;
-      color: var(--text-muted);
-    }
-
-    .toggle-link button {
-      background: none;
-      border: none;
-      color: var(--accent);
-      cursor: pointer;
-      font-family: var(--font-body);
-      font-size: 0.85rem;
-      font-weight: 600;
-      padding: 0;
-      text-decoration: underline;
-    }
-
-    /* ── ERROR MESSAGE ─────────────────────── */
-    .error-msg {
-      background: rgba(255, 92, 92, 0.1);
-      border: 1px solid var(--error);
-      border-radius: 8px;
-      color: var(--error);
-      display: none;
-      font-size: 0.85rem;
-      padding: 12px 14px;
-    }
-    .error-msg.visible { display: block; }
-
-    /* ── CREDENTIALS REVEAL ────────────────── */
-    .warning-badge {
-      background: rgba(255, 92, 92, 0.12);
-      border: 1px solid var(--error);
-      border-radius: 8px;
-      color: var(--error);
-      font-size: 0.82rem;
-      font-weight: 600;
-      padding: 10px 14px;
-      text-align: center;
-    }
-
-    /* ── USERNAME OPTIONS ──────────────────── */
-    .username-options {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-    .username-option {
-      background: var(--bg);
-      border: 1.5px solid var(--border);
-      border-radius: 8px;
-      color: var(--text);
-      cursor: pointer;
-      font-family: monospace;
-      font-size: 1rem;
-      padding: 12px 16px;
-      text-align: left;
-      transition: border-color 0.15s, background 0.15s;
-      width: 100%;
-    }
-    .username-option:hover { border-color: var(--accent); }
-    .username-option.selected {
-      border-color: var(--accent);
-      background: rgba(181, 240, 51, 0.08);
-      color: var(--accent);
-    }
-    .username-meta {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-    }
-    .username-section-label {
-      font-size: 0.75rem;
-      font-weight: 600;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      color: var(--text-muted);
-    }
-    .btn-refresh {
-      background: none;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.78rem;
-      padding: 4px 10px;
-      transition: border-color 0.15s, color 0.15s;
-    }
-    .btn-refresh:hover { border-color: var(--accent); color: var(--accent); }
-    .tip-wrap {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-    .tip-icon {
-      background: none;
-      border: 1px solid var(--text-muted);
-      border-radius: 50%;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 0.7rem;
-      height: 18px;
-      line-height: 18px;
-      padding: 0;
-      text-align: center;
-      width: 18px;
-      flex-shrink: 0;
-    }
-    .tip-box {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      color: var(--text-muted);
-      display: none;
-      font-size: 0.8rem;
-      line-height: 1.5;
-      padding: 12px 14px;
-    }
-    .tip-box.visible { display: block; }
-    
-    /* ── LOADING STATE ─────────────────────── */
-    .btn.loading {
-      opacity: 0.6;
-      pointer-events: none;
-    }
-
-    .btn.loading::after {
-      content: ' ...';
-    }
-  </style>
+  /* busy overlay */
+  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
+  .overlay.active{display:flex}
+  .overlay-card{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:360px;width:100%;text-align:center}
+  .spinner{width:38px;height:38px;margin:0 auto;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .notice{background:var(--primary-dim);border:1px solid var(--primary);border-radius:var(--radius-sm);padding:12px 14px;color:var(--primary-text);font-size:0.88rem;margin-bottom:14px;line-height:1.5}
+  .notice.amber{background:#3d2e10;border-color:var(--amber);color:#fcd34d}
+  .notice.danger{background:#3a1414;border-color:var(--danger);color:#fca5a5}
+</style>
 </head>
-
 <body>
+<div class="wrap">
+  <div class="brand"><span class="brand-mark">🌱</span><strong>CMRA</strong></div>
 
-  <header>
-    <div class="app-title">HABO Cleanup</div>
-    <div class="app-subtitle">Help A Brother Out Foundation</div>
-  </header>
+  <!-- ═══ LANDING (three-path) ═══ -->
+  <div class="screen active" id="screen-landing">
+    <h1>Community cleanup, tracked.</h1>
+    <div class="tagline">Pick how you're joining.</div>
+    <div id="event-status-line"></div>
 
-  <main>
+    <a class="path-card primary" href="#" onclick="goVolunteer();return false;">
+      <div class="pc-title"><span class="pc-icon">✋</span>I'm volunteering</div>
+      <div class="pc-sub">Walk, pick up litter, log your bags. The main path for cleanup day.</div>
+    </a>
 
-    <!-- ── LANDING PANEL ───────────────── -->
-    <div class="panel active" id="panel-landing">
-      <div class="section-label">Ready to<br /><span>Clean Up?</span></div>
+    <a class="path-card" href="#" onclick="showScreen('screen-tl-login');return false;">
+      <div class="pc-title"><span class="pc-icon">🎯</span>I'm a Team Leader</div>
+      <div class="pc-sub">Sign in to manage your team and track the cleanup on the dashboard.</div>
+    </a>
 
-      <div class="landing-split">
-        <button class="btn btn-primary" onclick="showPanel('register')">
-          I'm New — Sign Me Up
-        </button>
+    <a class="path-card" href="#" onclick="goCommunity();return false;">
+      <div class="pc-title"><span class="pc-icon">🗺️</span>I'm just looking</div>
+      <div class="pc-sub">See the community map, where people have cleaned, event stats. No sign-in.</div>
+    </a>
+  </div>
 
-        <div class="landing-divider">or</div>
-
-        <button class="btn btn-secondary" onclick="showPanel('login')">
-          I Have Credentials
-        </button>
-      </div>
+  <!-- ═══ TL LOGIN ═══ -->
+  <div class="screen" id="screen-tl-login">
+    <h2>Team Leader sign in</h2>
+    <p class="lede">Use the email your organizer registered.</p>
+    <div class="input-group">
+      <label>Email</label>
+      <input id="login-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email">
     </div>
-
-    <!-- ── REGISTER PANEL ───────────────── -->
-    <div class="panel" id="panel-register">
-      <div class="section-label">Join the<br /><span>Cleanup Crew</span></div>
-
-      <div class="card">
-        <label>
-          Your First Name
-          <input type="text" id="reg-name" placeholder="e.g. Marcus" autocomplete="off" />
-        </label>
-
-        <label>
-          Birth Month
-          <select id="reg-month" autocomplete="off">
-            <option value="">— Select month —</option>
-            <option value="01">January</option>
-            <option value="02">February</option>
-            <option value="03">March</option>
-            <option value="04">April</option>
-            <option value="05">May</option>
-            <option value="06">June</option>
-            <option value="07">July</option>
-            <option value="08">August</option>
-            <option value="09">September</option>
-            <option value="10">October</option>
-            <option value="11">November</option>
-            <option value="12">December</option>
-          </select>
-        </label>
-        <label>
-          Birth Day
-          <select id="reg-day" autocomplete="off">
-            <option value="">— Select day —</option>
-          </select>
-        </label>
-        <label>
-          Your Age
-          <input type="number" id="reg-age" placeholder="e.g. 28" min="5" max="120" autocomplete="off" />
-        </label>
-
-        <div class="error-msg" id="reg-error"></div>
-
-        <button class="btn btn-primary" id="btn-register" onclick="handleRegister()">
-          Get My Credentials
-        </button>
-      </div>
-
-      <div class="toggle-link">
-        Already have credentials? <button onclick="showPanel('login')">Log in here</button>
-      </div>
-
-      <div class="toggle-link">
-        <button onclick="showPanel('landing')">← Back</button>
-      </div>
+    <div class="input-group">
+      <label>Password</label>
+      <input id="login-password" type="password">
+      <div class="input-error" id="login-error"></div>
     </div>
+    <button class="btn btn-primary" onclick="doLogin()" id="btn-login">Sign in</button>
+    <div class="link-row"><a href="#" onclick="showScreen('screen-forgot');return false;">Forgot password?</a></div>
+    <div class="link-row"><a href="#" onclick="showScreen('screen-claim');return false;">I have an invite confirmation number</a></div>
+    <div class="back-link"><a href="#" onclick="showScreen('screen-landing');return false;">← Back</a></div>
+  </div>
 
-    <!-- ── LOGIN PANEL ──────────────────── -->
-    <div class="panel" id="panel-login">
-      <div class="section-label">Welcome<br /><span>Back</span></div>
-
-      <div class="card">
-        <label>
-          Username
-          <input type="text" id="login-username" placeholder="e.g. BlueHeron42" autocomplete="off" />
-        </label>
-
-        <label>
-          Password
-          <input type="password" id="login-password" placeholder="Your password" />
-        </label>
-
-        <div class="error-msg" id="login-error"></div>
-
-        <button class="btn btn-primary" id="btn-login" onclick="handleLogin()">
-          Log In
-        </button>
-      </div>
-
-      <div class="toggle-link">
-        New volunteer? <button onclick="showPanel('register')">Register here</button>
-      </div>
-
-      <div class="toggle-link">
-        <button onclick="showPanel('landing')">← Back</button>
-      </div>
+  <!-- ═══ CLAIM INVITE ═══ -->
+  <div class="screen" id="screen-claim">
+    <h2>Claim your invite</h2>
+    <p class="lede">Your organizer sent you an email with a confirmation number. Use it here to set up your password.</p>
+    <div class="input-group">
+      <label>Email</label>
+      <input id="claim-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email">
     </div>
-
-    <!-- ── CREDENTIALS PANEL ────────────── -->
-    <div class="panel" id="panel-credentials">
-      <div class="section-label">Choose Your<br /><span>Identity</span></div>
-      <div class="card">
-        <div class="username-meta">
-          <span class="username-section-label">Pick a Username</span>
-          <button class="btn-refresh" onclick="handleRefreshUsernames()">↻ Refresh</button>
-        </div>
-        <div class="tip-wrap">
-          <button class="tip-icon" onclick="document.getElementById('username-tip').classList.toggle('visible')">ⓘ</button>
-          <span>Why not use my real name?</span>
-        </div>
-        <div class="tip-box" id="username-tip">
-          Your username is intentionally decoupled from your personal identity. This protects your privacy — your cleanup contributions are tracked without linking to your name or personal accounts.
-        </div>
-        <div class="username-options" id="username-options">
-          <div style="color:var(--text-muted);font-size:0.85rem;">Loading options...</div>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="field-label">Create a Password</label>
-          <input type="password" id="cred-password" placeholder="Choose a password" autocomplete="new-password" />
-        </div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
-          <label class="field-label">Confirm Password</label>
-          <input type="password" id="cred-password-confirm" placeholder="Repeat your password" autocomplete="new-password" />
-        </div>
-        <div class="error-msg" id="cred-error"></div>
-        <button class="btn btn-primary" onclick="handleFinalRegister()">
-          Create My Account
-        </button>
-      </div>
+    <div class="input-group">
+      <label>Confirmation number (6 digits)</label>
+      <input id="claim-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*">
     </div>
+    <div class="input-group">
+      <label>Set a password (8+ characters)</label>
+      <input id="claim-password" type="password">
+      <div class="input-error" id="claim-error"></div>
+    </div>
+    <button class="btn btn-primary" onclick="doClaim()" id="btn-claim">Activate my account</button>
+    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
+  </div>
 
-  </main>
+  <!-- ═══ FORGOT PASSWORD (request) ═══ -->
+  <div class="screen" id="screen-forgot">
+    <h2>Reset password</h2>
+    <p class="lede">Enter your email. We'll send a 6-digit reset code.</p>
+    <div class="input-group">
+      <label>Email</label>
+      <input id="forgot-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email">
+    </div>
+    <button class="btn btn-primary" onclick="doRequestReset()" id="btn-forgot">Send reset code</button>
+    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
+  </div>
 
-  <script>
-    // ── CONFIG ──────────────────────────────
-    const API_URL = 'https://script.google.com/macros/s/AKfycbzpJeXDn2kHQEFkwkMNe7qVjkBsrnY47Pkw5gd0os9vtNC_b4eoNR2K3V2DSlc1J6Zb/exec';
+  <!-- ═══ RESET PASSWORD (complete) ═══ -->
+  <div class="screen" id="screen-reset">
+    <h2>Enter reset code</h2>
+    <p class="lede">Check your email for a 6-digit code. It's valid for 24 hours.</p>
+    <div class="input-group">
+      <label>Email</label>
+      <input id="reset-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email">
+    </div>
+    <div class="input-group">
+      <label>Reset code</label>
+      <input id="reset-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+    </div>
+    <div class="input-group">
+      <label>New password</label>
+      <input id="reset-password" type="password">
+      <div class="input-error" id="reset-error"></div>
+    </div>
+    <button class="btn btn-primary" onclick="doCompleteReset()" id="btn-reset">Set new password</button>
+    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
+  </div>
 
-    // ── SESSION ─────────────────────────────
-    function saveVolunteerSession(token, volunteerId, preferredName, username) {
-      sessionStorage.setItem('habo_token', token);
-      sessionStorage.setItem('habo_volunteer_id', volunteerId);
-      sessionStorage.setItem('habo_name', preferredName);
-      if (username) sessionStorage.setItem('habo_username', username);
+  <!-- ═══ ALREADY LOGGED IN ═══ -->
+  <div class="screen" id="screen-signed-in">
+    <div class="notice">Signed in as <strong id="signed-in-name">—</strong> (<span id="signed-in-email">—</span>)</div>
+    <button class="btn btn-primary" onclick="goDashboard()">Open Team Leader Dashboard</button>
+    <button class="btn btn-secondary" style="margin-top:10px" onclick="doLogout()">Sign out</button>
+    <div class="back-link"><a href="#" onclick="showScreen('screen-landing');return false;">← Back to landing</a></div>
+  </div>
+</div>
+
+<!-- Busy overlay -->
+<div class="overlay" id="overlay">
+  <div class="overlay-card" id="overlay-content"></div>
+</div>
+
+<script>
+var API_URL='https://script.google.com/macros/s/AKfycbx2YuN9ExnRwKVQ63yY5QEPVrsS7lAHQNzBjhO0SJv_6CZEfLufo6P0g7A8sg8_zhvXnQ/exec';
+var VOLUNTEER_PATH='/habo319/volunteer/';
+var DASHBOARD_PATH='/habo319/volunteer/dashboard/';
+var COMMUNITY_PATH='/habo319/community/'; // placeholder — lands on coming-soon until built
+
+var SS = {
+  sessionToken: null,
+  tlId: null,
+  displayName: null,
+  email: null
+};
+
+function $(id){return document.getElementById(id);}
+
+function showScreen(id){
+  var all=document.querySelectorAll('.screen');
+  for(var i=0;i<all.length;i++)all[i].classList.remove('active');
+  $(id).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+function showBusy(msg){
+  $('overlay-content').innerHTML='<div class="spinner"></div><div style="margin-top:14px;font-weight:600">'+esc(msg||'Please wait…')+'</div>';
+  $('overlay').classList.add('active');
+}
+function hideBusy(){$('overlay').classList.remove('active');}
+function showError(fieldId,msg){
+  var el=$(fieldId);if(!el)return;
+  el.textContent=msg;el.classList.add('show');
+}
+function clearError(fieldId){
+  var el=$(fieldId);if(!el)return;
+  el.textContent='';el.classList.remove('show');
+}
+function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+
+function api(action,data){
+  var body=Object.assign({action:action,version:'v3'},data||{});
+  return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
+    .then(function(r){return r.json();})
+    .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
+}
+
+/* ═══ Path-card actions ═══ */
+function goVolunteer(){window.location.href=VOLUNTEER_PATH;}
+function goDashboard(){window.location.href=DASHBOARD_PATH;}
+function goCommunity(){window.location.href=COMMUNITY_PATH;}
+
+/* ═══ Active event pill ═══ */
+function loadActiveEvent(){
+  api('getActiveEvent').then(function(ev){
+    if(!ev){
+      $('event-status-line').innerHTML='<span class="event-pill none">No active event right now</span>';
+      return;
     }
+    $('event-status-line').innerHTML='<span class="event-pill">'+esc(ev.name||'Active event')+' · '+esc(ev.status||'active')+'</span>';
+  }).catch(function(){
+    $('event-status-line').innerHTML='';
+  });
+}
 
-    function saveAdminSession(adminToken, adminId, adminName, adminRole, volunteerToken, volunteerId) {
-      sessionStorage.setItem('habo_admin_token', adminToken);
-      sessionStorage.setItem('habo_admin_id', adminId);
-      sessionStorage.setItem('habo_admin_name', adminName);
-      sessionStorage.setItem('habo_admin_role', adminRole);
-      if (volunteerToken) {
-        sessionStorage.setItem('habo_token', volunteerToken);
-        sessionStorage.setItem('habo_volunteer_id', volunteerId);
-        sessionStorage.setItem('habo_name', adminName);
-      }
+/* ═══ Session rehydration ═══ */
+function loadSavedSession(){
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
+  if(!saved||!saved.sessionToken)return;
+  api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(d){
+    if(!d){
+      localStorage.removeItem('cmra_tl_session');
+      return;
     }
+    SS.sessionToken=saved.sessionToken;
+    SS.tlId=d.tlId;
+    SS.displayName=d.displayName;
+    SS.email=d.email;
+    $('signed-in-name').textContent=d.displayName||'—';
+    $('signed-in-email').textContent=d.email||'';
+  }).catch(function(){});
+}
 
-    function getToken() {
-      return sessionStorage.getItem('habo_token');
-    }
+/* ═══ Login ═══ */
+function doLogin(){
+  clearError('login-error');
+  var email=$('login-email').value.trim().toLowerCase();
+  var pw=$('login-password').value;
+  if(!email){showError('login-error','Enter your email');return;}
+  if(!pw){showError('login-error','Enter your password');return;}
+  $('btn-login').disabled=true;
+  showBusy('Signing you in…');
+  api('auth_login',{email:email,password:pw}).then(function(d){
+    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
+    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=d.email;
+    $('signed-in-name').textContent=d.displayName||'—';
+    $('signed-in-email').textContent=d.email||'';
+    hideBusy();
+    $('btn-login').disabled=false;
+    showScreen('screen-signed-in');
+  }).catch(function(err){
+    hideBusy();
+    $('btn-login').disabled=false;
+    showError('login-error',err.message||'Sign in failed');
+  });
+}
 
-    function getAdminToken() {
-      return sessionStorage.getItem('habo_admin_token');
-    }
+/* ═══ Claim invite ═══ */
+function doClaim(){
+  clearError('claim-error');
+  var email=$('claim-email').value.trim().toLowerCase();
+  var pin=$('claim-pin').value.trim();
+  var pw=$('claim-password').value;
+  if(!email){showError('claim-error','Enter your email');return;}
+  if(!pin||pin.length!==6){showError('claim-error','Enter the 6-digit code from your email');return;}
+  if(!pw||pw.length<8){showError('claim-error','Password must be at least 8 characters');return;}
+  $('btn-claim').disabled=true;
+  showBusy('Activating your account…');
+  api('auth_claimInvite',{email:email,invitePIN:pin,newPassword:pw}).then(function(d){
+    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
+    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=d.email;
+    $('signed-in-name').textContent=d.displayName||'—';
+    $('signed-in-email').textContent=d.email||email;
+    hideBusy();
+    $('btn-claim').disabled=false;
+    showScreen('screen-signed-in');
+  }).catch(function(err){
+    hideBusy();
+    $('btn-claim').disabled=false;
+    showError('claim-error',err.message||'Could not activate');
+  });
+}
 
-    // ── API HELPER ───────────────────────────
-    async function apiCall(action, payload, token) {
-      const body = { action, payload: payload || {} };
-      if (token) body.token = token;
+/* ═══ Forgot password flow ═══ */
+function doRequestReset(){
+  var email=$('forgot-email').value.trim().toLowerCase();
+  if(!email){alert('Enter your email');return;}
+  $('btn-forgot').disabled=true;
+  showBusy('Sending reset code…');
+  api('auth_requestReset',{email:email}).then(function(){
+    hideBusy();
+    $('btn-forgot').disabled=false;
+    $('reset-email').value=email;
+    showScreen('screen-reset');
+  }).catch(function(err){
+    hideBusy();
+    $('btn-forgot').disabled=false;
+    alert(err.message||'Could not send reset code');
+  });
+}
 
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(body)
-      });
+function doCompleteReset(){
+  clearError('reset-error');
+  var email=$('reset-email').value.trim().toLowerCase();
+  var pin=$('reset-pin').value.trim();
+  var pw=$('reset-password').value;
+  if(!email||!pin||pin.length!==6||!pw||pw.length<8){
+    showError('reset-error','Check email, 6-digit code, and password (8+ chars)');
+    return;
+  }
+  $('btn-reset').disabled=true;
+  showBusy('Setting your new password…');
+  api('auth_completeReset',{email:email,resetPIN:pin,newPassword:pw}).then(function(d){
+    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
+    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;
+    SS.email=email;
+    $('signed-in-name').textContent=d.displayName||'—';
+    $('signed-in-email').textContent=email;
+    hideBusy();
+    $('btn-reset').disabled=false;
+    showScreen('screen-signed-in');
+  }).catch(function(err){
+    hideBusy();
+    $('btn-reset').disabled=false;
+    showError('reset-error',err.message||'Reset failed');
+  });
+}
 
-      return res.json();
-    }
+/* ═══ Logout ═══ */
+function doLogout(){
+  var token=SS.sessionToken;
+  localStorage.removeItem('cmra_tl_session');
+  SS.sessionToken=null;SS.tlId=null;SS.displayName=null;SS.email=null;
+  if(token){api('auth_logout',{sessionToken:token}).catch(function(){});}
+  showScreen('screen-landing');
+}
 
-    // ── PANEL NAVIGATION ─────────────────────
-    function showPanel(name) {
-      document.querySelectorAll('.panel').forEach(function(p) {
-        p.classList.remove('active');
-      });
-      document.getElementById('panel-' + name).classList.add('active');
-      clearErrors();
-    }
-
-    function clearErrors() {
-      document.querySelectorAll('.error-msg').forEach(function(el) {
-        el.classList.remove('visible');
-        el.textContent = '';
-      });
-    }
-
-    function showError(id, msg) {
-      const el = document.getElementById(id);
-      el.textContent = msg;
-      el.classList.add('visible');
-    }
-
-    function setLoading(btnId, loading) {
-      const btn = document.getElementById(btnId);
-      if (loading) {
-        btn.classList.add('loading');
-      } else {
-        btn.classList.remove('loading');
-      }
-    }
-
-    // ── BIRTHDAY DROPDOWNS ───────────────────
-    const DAYS_IN_MONTH = [0,31,29,31,30,31,30,31,31,30,31,30,31];
-    document.getElementById('reg-month').addEventListener('change', function() {
-      const month = parseInt(this.value, 10);
-      const daySelect = document.getElementById('reg-day');
-      const current = daySelect.value;
-      daySelect.innerHTML = '<option value="">— Select day —</option>';
-      if (!month) return;
-      const days = DAYS_IN_MONTH[month];
-      for (var i = 1; i <= days; i++) {
-        const val = ('0' + i).slice(-2);
-        const opt = document.createElement('option');
-        opt.value = val;
-        opt.textContent = i;
-        if (val === current) opt.selected = true;
-        daySelect.appendChild(opt);
-      }
-    });
-
-    // ── REGISTER ─────────────────────────────
-    // Stored registration data — held until final submit
-    var pendingRegistration = null;
-    var selectedUsername = null;
-
-    async function handleRegister() {
-      clearErrors();
-      const name  = document.getElementById('reg-name').value.trim();
-      const month = document.getElementById('reg-month').value;
-      const day   = document.getElementById('reg-day').value;
-      const age   = document.getElementById('reg-age').value.trim();
-      const birthday = month && day ? month + '-' + day : '';
-      if (!name)    return showError('reg-error', 'Please enter your name.');
-      if (!month)   return showError('reg-error', 'Please select your birth month.');
-      if (!day)     return showError('reg-error', 'Please select your birth day.');
-      if (!age || isNaN(age)) return showError('reg-error', 'Please enter your age.');
-
-      setLoading('btn-register', true);
-      try {
-        const result = await apiCall('generateUsernameOptions', {});
-        if (!result.success) {
-          showError('reg-error', result.error || 'Could not load username options. Please try again.');
-          return;
-        }
-        pendingRegistration = {
-          preferred_name:    name,
-          birth_month_day:   birthday,
-          self_reported_age: parseInt(age, 10)
-        };
-        selectedUsername = null;
-        renderUsernameOptions(result.data.options);
-        showPanel('credentials');
-      } catch (err) {
-        showError('reg-error', 'Connection error. Please try again.');
-      } finally {
-        setLoading('btn-register', false);
-      }
-    }
-
-    function renderUsernameOptions(options) {
-      const container = document.getElementById('username-options');
-      selectedUsername = null;
-      container.innerHTML = options.map(function(u) {
-        return '<button class="username-option" onclick="selectUsername(this, \'' + u + '\')">' + u + '</button>';
-      }).join('');
-    }
-
-    function selectUsername(el, username) {
-      document.querySelectorAll('.username-option').forEach(function(btn) {
-        btn.classList.remove('selected');
-      });
-      el.classList.add('selected');
-      selectedUsername = username;
-    }
-
-    async function handleRefreshUsernames() {
-      const container = document.getElementById('username-options');
-      container.innerHTML = '<div style="color:var(--text-muted);font-size:0.85rem;">Loading...</div>';
-      selectedUsername = null;
-      try {
-        const result = await apiCall('generateUsernameOptions', {});
-        if (!result.success) { container.innerHTML = '<div style="color:var(--error);font-size:0.85rem;">Could not refresh. Try again.</div>'; return; }
-        renderUsernameOptions(result.data.options);
-      } catch (err) {
-        container.innerHTML = '<div style="color:var(--error);font-size:0.85rem;">Connection error.</div>';
-      }
-    }
-
-    async function handleFinalRegister() {
-      const errorEl = document.getElementById('cred-error');
-      errorEl.classList.remove('visible');
-
-      if (!selectedUsername) {
-        errorEl.textContent = 'Please choose a username.';
-        errorEl.classList.add('visible');
-        return;
-      }
-      const password = document.getElementById('cred-password').value;
-      const confirm  = document.getElementById('cred-password-confirm').value;
-      if (!password) {
-        errorEl.textContent = 'Please create a password.';
-        errorEl.classList.add('visible');
-        return;
-      }
-      if (password !== confirm) {
-        errorEl.textContent = 'Passwords do not match.';
-        errorEl.classList.add('visible');
-        return;
-      }
-      if (password.length < 6) {
-        errorEl.textContent = 'Password must be at least 6 characters.';
-        errorEl.classList.add('visible');
-        return;
-      }
-
-      const btn = document.getElementById('btn-register');
-      btn.classList.add('loading');
-      try {
-        const result = await apiCall('register', {
-          preferred_name:    pendingRegistration.preferred_name,
-          birth_month_day:   pendingRegistration.birth_month_day,
-          self_reported_age: pendingRegistration.self_reported_age,
-          username:          selectedUsername,
-          password:          password
-        });
-        if (!result.success) {
-          errorEl.textContent = result.error || 'Registration failed. Please try again.';
-          errorEl.classList.add('visible');
-          return;
-        }
-        saveVolunteerSession(result.data.session_token, result.data.volunteer_id, pendingRegistration.preferred_name, selectedUsername);
-        window.location.href = 'app.html';
-      } catch (err) {
-        errorEl.textContent = 'Connection error. Please try again.';
-        errorEl.classList.add('visible');
-      } finally {
-        btn.classList.remove('loading');
-      }
-    }
-
-    // ── LOGIN ─────────────────────────────────
-    async function handleLogin() {
-      clearErrors();
-
-      const username = document.getElementById('login-username').value.trim();
-      const password = document.getElementById('login-password').value;
-
-      if (!username) return showError('login-error', 'Please enter your username.');
-      if (!password) return showError('login-error', 'Please enter your password.');
-
-      setLoading('btn-login', true);
-
-      try {
-        // Try admin login first
-        const adminResult = await apiCall('adminLogin', { username, password });
-        if (adminResult.success) {
-          saveAdminSession(
-            adminResult.data.session_token,
-            adminResult.data.admin_id,
-            adminResult.data.preferred_name,
-            adminResult.data.role,
-            adminResult.data.volunteer_token,
-            adminResult.data.volunteer_id
-          );
-          window.location.href = 'admin.html';
-          return;
-        }
-
-        // Try volunteer login
-        const volResult = await apiCall('login', { username, password });
-        if (volResult.success) {
-          saveVolunteerSession(volResult.data.session_token, volResult.data.volunteer_id, volResult.data.preferred_name, volResult.data.username);
-          window.location.href = 'app.html';
-          return;
-        }
-
-        // Both failed
-        showError('login-error', 'Invalid username or password.');
-
-      } catch (err) {
-        showError('login-error', 'Connection error. Please try again.');
-      } finally {
-        setLoading('btn-login', false);
-      }
-    }
-
-    // ── ON LOAD — redirect if already logged in ──
-    window.addEventListener('load', function() {
-      if (getAdminToken()) {
-        window.location.href = 'admin.html';
-        return;
-      }
-      if (getToken()) {
-        window.location.href = 'app.html';
-      }
-    });
-  </script>
-
+/* ═══ Init ═══ */
+(function init(){
+  // Hash routing: #tl-login, #claim, #reset
+  var hash=window.location.hash.replace('#','');
+  loadActiveEvent();
+  loadSavedSession();
+  if(hash==='tl-login')showScreen('screen-tl-login');
+  else if(hash==='claim')showScreen('screen-claim');
+  else if(hash==='reset')showScreen('screen-forgot');
+})();
+</script>
 </body>
 </html>
