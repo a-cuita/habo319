@@ -435,11 +435,13 @@
    Redirects to volunteer app if not a TL.
    ═══════════════════════════════════════════════ */
 
-var API_URL='https://script.google.com/macros/s/AKfycbx2YuN9ExnRwKVQ63yY5QEPVrsS7lAHQNzBjhO0SJv_6CZEfLufo6P0g7A8sg8_zhvXnQ/exec';
+var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
 var POLL_INTERVAL=15000;
 var FRESH_STALE_SEC=30;
 var S={
   event:null,volunteerId:null,displayName:null,role:null,currentState:null,
+  // Persistent TL identity (populated from /habo319/ session flow)
+  sessionToken:null,tlId:null,tlEmail:null,
   // Event-level status (surfaced in ambient slot)
   eventStatus:'active',   // 'active' | 'ended'
   dataState:'hot',        // 'hot' | 'warm' | 'stitching' | 'cool' | 'cold'
@@ -475,6 +477,7 @@ function api(action,data,opts){
   if(!opts.legacy) body.version='v3';
   if(S.event && !body.eventId) body.eventId=S.event.eventId;
   if(S.volunteerId && !body.volunteerId) body.volunteerId=S.volunteerId;
+  if(S.sessionToken && !body.sessionToken) body.sessionToken=S.sessionToken;
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
@@ -527,9 +530,11 @@ function boot(){
  * Validates session token, hydrates event, auto-joins this event as TL if needed.
  */
 function bootWithTLSession(tlSession){
+  S.sessionToken=tlSession.sessionToken;
   api('auth_whoAmI',{sessionToken:tlSession.sessionToken}).then(function(who){
     if(!who){
       localStorage.removeItem('cmra_tl_session');
+      S.sessionToken=null;
       showAccessGate('Your session expired. <a href="/habo319/" style="color:var(--accent)">Sign in again</a>.');
       return;
     }
@@ -541,6 +546,7 @@ function bootWithTLSession(tlSession){
       if(!ev){showAccessGate('There is no active event right now. Check back when the event is live.');return Promise.reject('no-event');}
       S.event=ev;
       S.eventStatus=ev.status||'active';
+      S.dataState=ev.dataState||'hot';
       // Ensure a volunteer record exists in this event for the TL — auto-join + promote.
       return api('auth_ensureTLInEvent',{
         sessionToken:tlSession.sessionToken,
@@ -813,7 +819,9 @@ function doApprove(btn,volId){
 }
 function doAccount(btn,volId,preset){
   btn.disabled=true;
-  api('accountForVolunteer',{targetVolunteerId:volId,preset:preset}).then(function(){
+  // Map preset ('accounted_for' or 'left_early') to the backend's 'decision' key
+  var decision = (preset === 'left_early') ? 'left_early' : 'accounted_for';
+  api('accountForVolunteer',{targetVolunteerId:volId,decision:decision}).then(function(){
     refreshAll();
     setTimeout(renderTeamPanel,400);
   }).catch(function(e){
