@@ -1,168 +1,214 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
-<title>CMRA — Community Materials Recovery</title>
+<title>CMRA</title>
 <style>
-  :root {
-    --bg: #0c1913; --surface: #152a21; --surface-2: #1b3527;
-    --border: #2a4a38; --border-hi: #3d6650;
-    --text: #e8f0ea; --text-dim: #9db5a4;
-    --primary: #4ade80; --primary-dim: #16331f; --primary-text: #a7ebc0;
-    --accent: #22d3ee; --accent-dim: #0e3540;
-    --danger: #f87171; --amber: #fbbf24;
-    --radius: 14px; --radius-sm: 10px;
-  }
-  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;min-height:100vh}
-  body{display:flex;flex-direction:column;align-items:center;padding:24px 16px 40px}
-  .wrap{width:100%;max-width:440px}
-  h1{font-size:1.5rem;margin:8px 0 4px;font-weight:800}
-  h2{font-size:1.1rem;margin:0 0 10px;font-weight:700}
-  .tagline{color:var(--text-dim);font-size:0.95rem;margin-bottom:28px;line-height:1.45}
-  p.lede{color:var(--text-dim);font-size:0.9rem;line-height:1.5;margin:0 0 16px}
-  .brand{display:flex;align-items:center;gap:10px;margin-bottom:18px}
-  .brand-mark{font-size:1.4rem}
-  .event-pill{display:inline-block;background:var(--primary-dim);border:1px solid var(--primary);color:var(--primary-text);border-radius:999px;padding:4px 12px;font-size:0.78rem;margin-bottom:18px}
-  .event-pill.none{background:var(--surface-2);border-color:var(--border);color:var(--text-dim)}
-  .path-card{display:block;width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;text-align:left;color:var(--text);text-decoration:none;cursor:pointer;margin-bottom:14px;transition:border-color 0.12s,background 0.12s}
-  .path-card:active{background:var(--surface-2)}
-  .path-card.primary{border-color:var(--primary);background:linear-gradient(180deg,var(--primary-dim),var(--surface))}
-  .path-card .pc-title{font-weight:800;font-size:1.05rem;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-  .path-card .pc-icon{font-size:1.3rem}
-  .path-card .pc-sub{color:var(--text-dim);font-size:0.84rem;line-height:1.5}
-  .path-card.primary .pc-sub{color:#c7e8d3}
-  button,.btn{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:10px 16px;border-radius:var(--radius-sm);font-weight:700;font-size:0.95rem;cursor:pointer;width:100%;text-align:center}
-  .btn-primary{background:var(--primary);color:#0a1f12}
-  .btn-primary:disabled{opacity:0.5;cursor:not-allowed}
-  .btn-secondary{background:var(--surface-2);border:1px solid var(--border);color:var(--text)}
-  .btn-ghost{background:transparent;color:var(--text-dim);font-weight:600}
-  .screen{display:none}
-  .screen.active{display:block}
-  .input-group{margin-bottom:14px}
-  .input-group label{display:block;font-size:0.82rem;color:var(--text-dim);margin-bottom:6px;font-weight:600}
-  .input-group input{width:100%;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;color:var(--text);font-size:1rem;box-sizing:border-box;font-family:inherit}
-  .input-group input:focus{outline:none;border-color:var(--primary)}
-  .input-error{color:var(--danger);font-size:0.82rem;margin-top:4px;display:none}
-  .input-error.show{display:block}
-  .link-row{text-align:center;margin-top:12px}
-  .link-row a{color:var(--accent);text-decoration:none;font-size:0.85rem;display:inline-block;padding:8px 4px}
-  .back-link{margin-top:18px;text-align:center}
-  .back-link a{color:var(--text-dim);text-decoration:none;font-size:0.85rem}
+:root{
+  --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
+  --border:#d1d1d6;--border-hi:#c7c7cc;
+  --primary:#2563eb;--primary-dim:#dbeafe;
+  --accent:#2c8a3d;--accent-dim:#d4f1dc;
+  --amber:#d97706;--amber-dim:#fef3c7;
+  --danger:#dc2626;--danger-dim:#fee2e2;
+  --text:#1c1c1e;--text-hi:#000;--text-dim:#8e8e93;--text-label:#aeaeb2;
+  --radius:14px;--radius-sm:10px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;min-height:100vh;font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5}
+body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto;padding:24px 18px 40px}
 
-  /* Password field with show/hide toggle */
-  .pw-wrap{position:relative;display:block;width:100%}
-  .pw-wrap input{width:100%;padding-right:44px;box-sizing:border-box}
-  .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;color:var(--text-dim);line-height:0;font-family:inherit;-webkit-tap-highlight-color:transparent;z-index:2}
-  .pw-toggle:active{color:var(--text)}
-  .pw-toggle svg{width:20px;height:20px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-  .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
-  .overlay.active{display:flex}
-  .overlay-card{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:360px;width:100%;text-align:center}
-  .spinner{width:38px;height:38px;margin:0 auto;border:4px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.9s linear infinite}
-  @keyframes spin{to{transform:rotate(360deg)}}
-  .notice{background:var(--primary-dim);border:1px solid var(--primary);border-radius:var(--radius-sm);padding:12px 14px;color:var(--primary-text);font-size:0.88rem;margin-bottom:14px;line-height:1.5}
+.brand{text-align:center;margin-bottom:28px}
+.brand h1{font-size:1.5rem;font-weight:800;display:flex;align-items:center;justify-content:center;gap:8px}
+.brand .sub{color:var(--text-dim);font-size:0.88rem;margin-top:4px}
+
+.screen{display:none;animation:fi 0.15s}
+.screen.active{display:block}
+@keyframes fi{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+.path-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:12px;cursor:pointer;transition:border-color 0.15s,background 0.15s,transform 0.1s;text-decoration:none;color:inherit;display:block}
+.path-card:active{transform:scale(0.98)}
+.path-card h2{font-size:1.05rem;font-weight:800;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.path-card h2 .icon{font-size:1.3rem}
+.path-card p{font-size:0.86rem;color:var(--text-dim);line-height:1.45}
+.path-card.vol{border-color:var(--accent)}
+.path-card.vol:hover,.path-card.vol:active{background:var(--accent-dim)}
+.path-card.tl{border-color:var(--primary)}
+.path-card.tl:hover,.path-card.tl:active{background:var(--primary-dim)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+h2{font-size:1.15rem;font-weight:800;margin-bottom:8px}
+.lede{color:var(--text-dim);font-size:0.9rem;margin-bottom:16px;line-height:1.5}
+.muted{color:var(--text-dim);font-size:0.85rem}
+
+.ig{margin-bottom:14px}
+.ig label{display:block;font-size:0.76rem;color:var(--text-label);text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:6px}
+.ig input{width:100%;padding:13px 15px;border:1px solid var(--border-hi);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit;background:var(--surface);color:var(--text);min-height:50px}
+.ig input:focus{outline:none;border-color:var(--primary);box-shadow:0 0 0 3px rgba(37,99,235,0.1)}
+.ig .hint{font-size:0.76rem;color:var(--text-dim);margin-top:5px}
+
+.pw-wrap{position:relative;display:block;width:100%}
+.pw-wrap input{width:100%;padding-right:44px}
+.pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;color:var(--text-dim);line-height:0;font-family:inherit;z-index:2}
+.pw-toggle svg{width:20px;height:20px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+
+.btn{display:block;width:100%;padding:13px 18px;border:none;border-radius:var(--radius-sm);font-size:1rem;font-weight:700;cursor:pointer;font-family:inherit;min-height:50px;text-align:center;transition:transform 0.1s,background 0.15s}
+.btn:disabled{opacity:0.55;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:active:not(:disabled){transform:scale(0.98);background:#1e40af}
+.btn-ghost{background:transparent;color:var(--text-dim);font-weight:600;min-height:auto;padding:10px}
+.btn+.btn{margin-top:10px}
+
+.err{font-size:0.82rem;color:var(--danger);margin-top:6px;display:none}
+.err.show{display:block}
+
+.link-row{text-align:center;margin-top:12px}
+.link-row a{color:var(--primary);text-decoration:none;font-size:0.88rem;font-weight:600}
+.link-row.dim a{color:var(--text-dim);font-weight:400}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
+.overlay.active{display:flex}
+.overlay-card{background:var(--surface);border-radius:var(--radius);padding:22px;max-width:360px;width:100%;text-align:center}
+.sp{width:30px;height:30px;margin:0 auto 12px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.signed-in-card{background:var(--primary-dim);border:1.5px solid var(--primary);border-radius:var(--radius);padding:18px;margin-bottom:14px}
+.signed-in-card h2{color:var(--primary);font-size:1rem}
+.signed-in-card .name{font-size:1.1rem;font-weight:800;margin:4px 0 10px}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="brand"><span class="brand-mark">🌱</span><strong>CMRA</strong></div>
 
-  <div class="screen active" id="screen-landing">
-    <h1>Community cleanup, tracked.</h1>
-    <div class="tagline">Pick how you're joining.</div>
-    <div id="event-status-line"></div>
-    <a class="path-card primary" href="#" onclick="goVolunteer();return false;">
-      <div class="pc-title"><span class="pc-icon">✋</span>I'm volunteering</div>
-      <div class="pc-sub">Walk, pick up litter, log your bags. The main path for cleanup day.</div>
-    </a>
-    <a class="path-card" href="#" onclick="showScreen('screen-tl-login');return false;">
-      <div class="pc-title"><span class="pc-icon">🎯</span>I'm a Team Leader</div>
-      <div class="pc-sub">Sign in to manage your team and track the cleanup on the dashboard.</div>
-    </a>
-    <a class="path-card" href="#" onclick="goCommunity();return false;">
-      <div class="pc-title"><span class="pc-icon">🗺️</span>I'm just looking</div>
-      <div class="pc-sub">See the community map, where people have cleaned, event stats. No sign-in.</div>
-    </a>
+<div class="brand">
+  <h1><span>🌱</span><span>CMRA</span></h1>
+  <div class="sub">Community litter cleanup coordination</div>
+</div>
+
+<!-- ═══ Home: three-path selector ═══ -->
+<div class="screen active" id="screen-home">
+  <div id="signed-in-area"></div>
+
+  <a class="path-card vol" href="volunteer.html">
+    <h2><span class="icon">🧤</span>I'm a Volunteer</h2>
+    <p>Join today's cleanup. Track your collection, rate the litter, earn stats.</p>
+  </a>
+
+  <div class="path-card tl" onclick="showTLLogin()" id="tl-card">
+    <h2><span class="icon">📋</span>Team Leader</h2>
+    <p>Manage your team, approve volunteers, track live positions.</p>
   </div>
 
-  <div class="screen" id="screen-tl-login">
-    <h2>Team Leader sign in</h2>
-    <p class="lede">Use the email your organizer registered.</p>
-    <div class="input-group"><label>Email</label>
-      <input id="login-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email"></div>
-    <div class="input-group"><label>Password</label>
-      <div class="pw-wrap"><input id="login-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'login-password')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <div class="input-error" id="login-error"></div></div>
+  <a class="path-card" href="organizer.html">
+    <h2><span class="icon">⚙️</span>Organizer</h2>
+    <p>Create events, invite TLs, run reports, manage data.</p>
+  </a>
+
+  <a class="path-card" href="community.html" style="border-color:transparent;background:var(--surface-2)">
+    <h2><span class="icon">🌍</span>Community</h2>
+    <p>See event stats. No account needed.</p>
+  </a>
+</div>
+
+<!-- ═══ TL Login ═══ -->
+<div class="screen" id="screen-tl-login">
+  <h2>Team Leader sign-in</h2>
+  <p class="lede">Use the email and password from your invite.</p>
+  <div class="card">
+    <div class="ig">
+      <label>Email</label>
+      <input id="tl-email" type="email" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="ig">
+      <label>Password</label>
+      <div class="pw-wrap">
+        <input id="tl-password" type="password">
+        <button type="button" class="pw-toggle" onclick="togglePw(this,'tl-password')" aria-label="Show password">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="err" id="login-err"></div>
     <button class="btn btn-primary" onclick="doLogin()" id="btn-login">Sign in</button>
-    <div class="link-row"><a href="#" onclick="showScreen('screen-forgot');return false;">Forgot password?</a></div>
-    <div class="link-row"><a href="#" onclick="showScreen('screen-claim');return false;">I have an invite confirmation number</a></div>
-    <div class="back-link"><a href="#" onclick="showScreen('screen-landing');return false;">← Back</a></div>
   </div>
+  <div class="link-row"><a href="#" onclick="showClaim();return false;">I have an invite code</a></div>
+  <div class="link-row dim"><a href="#" onclick="showForgot();return false;">Forgot password?</a></div>
+  <div class="link-row dim"><a href="#" onclick="showHome();return false;">← Back</a></div>
+</div>
 
-  <div class="screen" id="screen-claim">
-    <h2>Claim your invite</h2>
-    <p class="lede">Your organizer sent you an email with a confirmation number. Use it here to set up your password.</p>
-    <div class="input-group"><label>Email</label>
-      <input id="claim-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email"></div>
-    <div class="input-group"><label>Confirmation number (6 digits)</label>
-      <input id="claim-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*"></div>
-    <div class="input-group"><label>Set a password (8+ characters)</label>
-      <div class="pw-wrap"><input id="claim-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'claim-password')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <div class="input-error" id="claim-error"></div></div>
-    <button class="btn btn-primary" onclick="doClaim()" id="btn-claim">Activate my account</button>
-    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
+<!-- ═══ TL Claim Invite ═══ -->
+<div class="screen" id="screen-tl-claim">
+  <h2>Claim your invite</h2>
+  <p class="lede">Enter the 6-digit code from your invite email, plus a new password.</p>
+  <div class="card">
+    <div class="ig">
+      <label>Email</label>
+      <input id="claim-email" type="email" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="ig">
+      <label>Invite code</label>
+      <input id="claim-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+    </div>
+    <div class="ig">
+      <label>Choose a password (8+ characters)</label>
+      <div class="pw-wrap">
+        <input id="claim-pw" type="password">
+        <button type="button" class="pw-toggle" onclick="togglePw(this,'claim-pw')" aria-label="Show password">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="err" id="claim-err"></div>
+    <button class="btn btn-primary" onclick="doClaim()" id="btn-claim">Activate account</button>
   </div>
+  <div class="link-row dim"><a href="#" onclick="showTLLogin();return false;">← Back to sign-in</a></div>
+</div>
 
-  <div class="screen" id="screen-forgot">
-    <h2>Reset password</h2>
-    <p class="lede">Enter your email. We'll send a 6-digit reset code.</p>
-    <div class="input-group"><label>Email</label>
-      <input id="forgot-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email"></div>
+<!-- ═══ TL Forgot Password ═══ -->
+<div class="screen" id="screen-tl-forgot">
+  <h2>Reset password</h2>
+  <p class="lede">Enter your email. We'll send a reset code.</p>
+  <div class="card" id="forgot-step1">
+    <div class="ig">
+      <label>Email</label>
+      <input id="forgot-email" type="email" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="err" id="forgot-err"></div>
     <button class="btn btn-primary" onclick="doRequestReset()" id="btn-forgot">Send reset code</button>
-    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
   </div>
-
-  <div class="screen" id="screen-reset">
-    <h2>Enter reset code</h2>
-    <p class="lede">Check your email. Valid for 24 hours.</p>
-    <div class="input-group"><label>Email</label>
-      <input id="reset-email" type="email" autocapitalize="off" autocorrect="off" inputmode="email"></div>
-    <div class="input-group"><label>Reset code</label>
-      <input id="reset-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*"></div>
-    <div class="input-group"><label>New password</label>
-      <div class="pw-wrap"><input id="reset-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'reset-password')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <div class="input-error" id="reset-error"></div></div>
+  <div class="card" id="forgot-step2" style="display:none">
+    <div class="ig">
+      <label>Reset code</label>
+      <input id="reset-pin" type="text" inputmode="numeric" maxlength="6" pattern="[0-9]*">
+    </div>
+    <div class="ig">
+      <label>New password (8+ characters)</label>
+      <div class="pw-wrap">
+        <input id="reset-pw" type="password">
+        <button type="button" class="pw-toggle" onclick="togglePw(this,'reset-pw')" aria-label="Show password">
+          <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
+    </div>
+    <div class="err" id="reset-err"></div>
     <button class="btn btn-primary" onclick="doCompleteReset()" id="btn-reset">Set new password</button>
-    <div class="back-link"><a href="#" onclick="showScreen('screen-tl-login');return false;">← Back to sign in</a></div>
   </div>
-
-  <div class="screen" id="screen-signed-in">
-    <div class="notice">Signed in as <strong id="signed-in-name">—</strong> (<span id="signed-in-email">—</span>)</div>
-    <button class="btn btn-primary" onclick="goDashboard()">Open Team Leader Dashboard</button>
-    <button class="btn btn-secondary" style="margin-top:10px" onclick="doLogout()">Sign out</button>
-    <div class="back-link"><a href="#" onclick="showScreen('screen-landing');return false;">← Back to landing</a></div>
-  </div>
+  <div class="link-row dim"><a href="#" onclick="showTLLogin();return false;">← Back to sign-in</a></div>
 </div>
 
 <div class="overlay" id="overlay"><div class="overlay-card" id="overlay-content"></div></div>
 
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
-var VOLUNTEER_PATH='/habo319/volunteer/';
-var DASHBOARD_PATH='/habo319/volunteer/dashboard/';
-var COMMUNITY_PATH='/habo319/community/';
-
-var SS={sessionToken:null,tlId:null,displayName:null,email:null};
 
 function $(id){return document.getElementById(id);}
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
 function showScreen(id){var all=document.querySelectorAll('.screen');for(var i=0;i<all.length;i++)all[i].classList.remove('active');$(id).classList.add('active');window.scrollTo(0,0);}
-function showBusy(msg){$('overlay-content').innerHTML='<div class="spinner"></div><div style="margin-top:14px;font-weight:600">'+esc(msg||'Please wait…')+'</div>';$('overlay').classList.add('active');}
+function showBusy(msg){$('overlay-content').innerHTML='<div class="sp"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div>';$('overlay').classList.add('active');}
 function hideBusy(){$('overlay').classList.remove('active');}
-function showError(id,msg){var el=$(id);if(!el)return;el.textContent=msg;el.classList.add('show');}
-function clearError(id){var el=$(id);if(!el)return;el.textContent='';el.classList.remove('show');}
-function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
+function showErr(id,msg){var el=$(id);el.textContent=msg;el.classList.add('show');}
+function clearErr(id){var el=$(id);el.textContent='';el.classList.remove('show');}
 
 function api(action,data){
   var body=Object.assign({action:action,version:'v3'},data||{});
@@ -173,110 +219,127 @@ function api(action,data){
 
 function togglePw(btn,inputId){
   var input=document.getElementById(inputId);if(!input)return;
-  if(input.type==='password'){input.type='text';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';btn.setAttribute('aria-label','Hide password');}
-  else{input.type='password';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';btn.setAttribute('aria-label','Show password');}
+  if(input.type==='password'){input.type='text';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';}
+  else{input.type='password';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';}
 }
 
-function goVolunteer(){window.location.href=VOLUNTEER_PATH;}
-function goDashboard(){window.location.href=DASHBOARD_PATH;}
-function goCommunity(){window.location.href=COMMUNITY_PATH;}
+/* ═══ Navigation ═══ */
+function showHome(){showScreen('screen-home');}
+function showTLLogin(){showScreen('screen-tl-login');}
+function showClaim(){showScreen('screen-tl-claim');}
+function showForgot(){$('forgot-step1').style.display='block';$('forgot-step2').style.display='none';showScreen('screen-tl-forgot');}
 
-function loadActiveEvent(){
-  api('getActiveEvent').then(function(ev){
-    if(!ev){$('event-status-line').innerHTML='<span class="event-pill none">No active event right now</span>';return;}
-    $('event-status-line').innerHTML='<span class="event-pill">'+esc(ev.name||'Active event')+' · '+esc(ev.status||'active')+'</span>';
-  }).catch(function(){$('event-status-line').innerHTML='';});
-}
-
-function loadSavedSession(){
-  var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
-  if(!saved||!saved.sessionToken)return;
-  api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(d){
-    if(!d){localStorage.removeItem('cmra_tl_session');return;}
-    SS.sessionToken=saved.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=d.email;
-    $('signed-in-name').textContent=d.displayName||'—';
-    $('signed-in-email').textContent=d.email||'';
-  }).catch(function(){});
-}
-
+/* ═══ TL Login ═══ */
 function doLogin(){
-  clearError('login-error');
-  var email=$('login-email').value.trim().toLowerCase();
-  var pw=$('login-password').value;
-  if(!email){showError('login-error','Enter your email');return;}
-  if(!pw){showError('login-error','Enter your password');return;}
-  $('btn-login').disabled=true;showBusy('Signing you in…');
+  clearErr('login-err');
+  var email=$('tl-email').value.trim().toLowerCase();
+  var pw=$('tl-password').value;
+  if(!email){showErr('login-err','Enter your email');return;}
+  if(!pw){showErr('login-err','Enter your password');return;}
+  $('btn-login').disabled=true;showBusy('Signing in…');
   api('auth_login',{email:email,password:pw}).then(function(d){
-    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
-    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=d.email;
-    $('signed-in-name').textContent=d.displayName||'—';
-    $('signed-in-email').textContent=d.email||'';
     hideBusy();$('btn-login').disabled=false;
-    showScreen('screen-signed-in');
-  }).catch(function(err){hideBusy();$('btn-login').disabled=false;showError('login-error',err.message||'Sign in failed');});
+    localStorage.setItem('cmra_tl_session',JSON.stringify({
+      sessionToken:d.sessionToken,tlId:d.tlId,displayName:d.displayName,email:d.email
+    }));
+    window.location.href='dashboard.html';
+  }).catch(function(e){
+    hideBusy();$('btn-login').disabled=false;
+    showErr('login-err',e.message||'Sign-in failed');
+  });
 }
 
+/* ═══ TL Claim Invite ═══ */
 function doClaim(){
-  clearError('claim-error');
+  clearErr('claim-err');
   var email=$('claim-email').value.trim().toLowerCase();
   var pin=$('claim-pin').value.trim();
-  var pw=$('claim-password').value;
-  if(!email){showError('claim-error','Enter your email');return;}
-  if(!pin||pin.length!==6){showError('claim-error','Enter the 6-digit code from your email');return;}
-  if(!pw||pw.length<8){showError('claim-error','Password must be at least 8 characters');return;}
-  $('btn-claim').disabled=true;showBusy('Activating your account…');
+  var pw=$('claim-pw').value;
+  if(!email){showErr('claim-err','Enter your email');return;}
+  if(!pin){showErr('claim-err','Enter your invite code');return;}
+  if(!pw||pw.length<8){showErr('claim-err','Password must be at least 8 characters');return;}
+  $('btn-claim').disabled=true;showBusy('Activating…');
   api('auth_claimInvite',{email:email,invitePIN:pin,newPassword:pw}).then(function(d){
-    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
-    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=d.email;
-    $('signed-in-name').textContent=d.displayName||'—';
-    $('signed-in-email').textContent=d.email||email;
     hideBusy();$('btn-claim').disabled=false;
-    showScreen('screen-signed-in');
-  }).catch(function(err){hideBusy();$('btn-claim').disabled=false;showError('claim-error',err.message||'Could not activate');});
+    localStorage.setItem('cmra_tl_session',JSON.stringify({
+      sessionToken:d.sessionToken,tlId:d.tlId,displayName:d.displayName,email:d.email
+    }));
+    window.location.href='dashboard.html';
+  }).catch(function(e){
+    hideBusy();$('btn-claim').disabled=false;
+    showErr('claim-err',e.message||'Claim failed');
+  });
 }
 
+/* ═══ TL Forgot Password ═══ */
+var resetEmail='';
 function doRequestReset(){
+  clearErr('forgot-err');
   var email=$('forgot-email').value.trim().toLowerCase();
-  if(!email){alert('Enter your email');return;}
+  if(!email){showErr('forgot-err','Enter your email');return;}
   $('btn-forgot').disabled=true;showBusy('Sending reset code…');
   api('auth_requestReset',{email:email}).then(function(){
     hideBusy();$('btn-forgot').disabled=false;
-    $('reset-email').value=email;showScreen('screen-reset');
-  }).catch(function(err){hideBusy();$('btn-forgot').disabled=false;alert(err.message||'Could not send');});
+    resetEmail=email;
+    $('forgot-step1').style.display='none';
+    $('forgot-step2').style.display='block';
+  }).catch(function(e){
+    hideBusy();$('btn-forgot').disabled=false;
+    showErr('forgot-err',e.message||'Reset request failed');
+  });
 }
-
 function doCompleteReset(){
-  clearError('reset-error');
-  var email=$('reset-email').value.trim().toLowerCase();
+  clearErr('reset-err');
   var pin=$('reset-pin').value.trim();
-  var pw=$('reset-password').value;
-  if(!email||!pin||pin.length!==6||!pw||pw.length<8){showError('reset-error','Check email, 6-digit code, password (8+ chars)');return;}
-  $('btn-reset').disabled=true;showBusy('Setting your new password…');
-  api('auth_completeReset',{email:email,resetPIN:pin,newPassword:pw}).then(function(d){
-    localStorage.setItem('cmra_tl_session',JSON.stringify({sessionToken:d.sessionToken,tlId:d.tlId}));
-    SS.sessionToken=d.sessionToken;SS.tlId=d.tlId;SS.displayName=d.displayName;SS.email=email;
-    $('signed-in-name').textContent=d.displayName||'—';
-    $('signed-in-email').textContent=email;
-    hideBusy();$('btn-reset').disabled=false;showScreen('screen-signed-in');
-  }).catch(function(err){hideBusy();$('btn-reset').disabled=false;showError('reset-error',err.message||'Reset failed');});
+  var pw=$('reset-pw').value;
+  if(!pin){showErr('reset-err','Enter the reset code');return;}
+  if(!pw||pw.length<8){showErr('reset-err','Password must be at least 8 characters');return;}
+  $('btn-reset').disabled=true;showBusy('Resetting…');
+  api('auth_completeReset',{email:resetEmail,resetPIN:pin,newPassword:pw}).then(function(d){
+    hideBusy();$('btn-reset').disabled=false;
+    localStorage.setItem('cmra_tl_session',JSON.stringify({
+      sessionToken:d.sessionToken,tlId:d.tlId,displayName:d.displayName
+    }));
+    window.location.href='dashboard.html';
+  }).catch(function(e){
+    hideBusy();$('btn-reset').disabled=false;
+    showErr('reset-err',e.message||'Reset failed');
+  });
 }
 
-function doLogout(){
-  var token=SS.sessionToken;
-  localStorage.removeItem('cmra_tl_session');
-  SS.sessionToken=null;SS.tlId=null;SS.displayName=null;SS.email=null;
-  if(token){api('auth_logout',{sessionToken:token}).catch(function(){});}
-  showScreen('screen-landing');
-}
+/* ═══ Check existing session on load ═══ */
+(function boot(){
+  // Handle hash-based routing
+  var hash=window.location.hash;
+  if(hash==='#claim'){showClaim();return;}
+  if(hash==='#login'){showTLLogin();return;}
+  if(hash==='#forgot'){showForgot();return;}
 
-(function init(){
-  var hash=window.location.hash.replace('#','');
-  loadActiveEvent();
-  loadSavedSession();
-  if(hash==='tl-login')showScreen('screen-tl-login');
-  else if(hash==='claim')showScreen('screen-claim');
-  else if(hash==='reset')showScreen('screen-forgot');
+  // Check for existing TL session
+  var saved=null;
+  try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
+  if(saved&&saved.sessionToken){
+    api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(who){
+      if(!who){localStorage.removeItem('cmra_tl_session');return;}
+      $('signed-in-area').innerHTML=
+        '<div class="signed-in-card">'+
+          '<h2>Signed in as Team Leader</h2>'+
+          '<div class="name">'+esc(who.displayName)+'</div>'+
+          '<a href="dashboard.html" class="btn btn-primary" style="margin-bottom:8px">Open Dashboard</a>'+
+          '<button class="btn btn-ghost" onclick="doSignOut()" style="font-size:0.85rem">Sign out</button>'+
+        '</div>';
+      $('tl-card').style.display='none';
+    }).catch(function(){});
+  }
 })();
+
+function doSignOut(){
+  var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
+  if(saved&&saved.sessionToken){api('auth_logout',{sessionToken:saved.sessionToken}).catch(function(){});}
+  localStorage.removeItem('cmra_tl_session');
+  $('signed-in-area').innerHTML='';
+  $('tl-card').style.display='';
+}
 </script>
 </body>
 </html>
