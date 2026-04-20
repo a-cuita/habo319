@@ -583,7 +583,7 @@ function renderGateList(){
     h+='<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem">'+esc(g.title)+'</div>';
     h+='<div style="font-size:0.78rem;color:var(--text-dim)">'+esc(g.description||'')+'</div>';
     h+='<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--mono)">key: '+esc(g.key)+'</div></div>';
-    h+='<button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;min-height:auto" onclick="doRemoveGate('+i+')">Remove</button>';
+    h+='<button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;min-height:auto;width:auto;flex-shrink:0" onclick="doRemoveGate('+i+')">Remove</button>';
     h+='</div>';
   }
   $('gate-list').innerHTML=h;
