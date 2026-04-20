@@ -202,6 +202,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   </div>
 
   <div class="content">
+    <div id="content-loading" style="text-align:center;padding:40px 0"><div class="sp"></div><div class="muted">Loading dashboard…</div></div>
     <div class="pane active" id="pane-team">
       <div class="card" id="approval-card" style="display:none">
         <h3>Waiting for approval <span class="muted" id="queue-count"></span></h3>
@@ -229,10 +230,10 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <span class="map-pill" data-lens="divergence" onclick="setLens('divergence')">Divergence</span>
         <button class="map-pill" id="btn-refresh-paths" onclick="doRefreshPaths()" style="margin-left:auto">Refresh paths</button>
       </div>
-      <div class="map-legend">
-        <span class="legend-label">Low</span>
-        <div class="legend-bar"></div>
-        <span class="legend-label">High</span>
+      <div class="map-legend" id="map-legend">
+        <span class="legend-label" id="legend-low">Low</span>
+        <div class="legend-bar" id="legend-bar"></div>
+        <span class="legend-label" id="legend-high">High</span>
       </div>
       <div id="map"></div>
     </div>
@@ -462,6 +463,7 @@ function refreshAll(){
     S.eventStatus=blob.eventStatus||S.eventStatus;S.dataState=blob.dataState||S.dataState;
     S.lastRefresh=Date.now();
     renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
+    var cl=$('content-loading');if(cl)cl.style.display='none';
     if(S.activeTab==='map'&&!S.mapInitialized)initMap();
     if(S.activeTab==='map'&&S.reportBlob)renderMapPaths();
   }).catch(function(err){console.error('refreshAll',err);});
@@ -619,7 +621,10 @@ function renderFeed(){
     h+='<div class="feed-row"><div class="when">'+fmtTime(e.ts)+'</div><div><span class="who">'+esc(who)+'</span> '+esc(msg)+'</div></div>';
   }$('feed-list').innerHTML=h;
 }
-function lookupName(vid){for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===vid)return S.roster[i].displayName;}return null;}
+function lookupName(vid){
+  for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===vid)return S.roster[i].displayName;}
+  return vid?'(removed)':null;
+}
 function describe(e){switch(e.mutation_type){
   case'volunteer_joined':return'joined';case'state_transition':return (e.from_state||'?')+' → '+(e.to_state||'?');
   case'session_start':return'started session';case'leg_start':return'started leg';case'leg_end':return'completed leg';
@@ -640,6 +645,15 @@ function initMap(){
 function setLens(lens){S.mapLens=lens;
   var pills=document.querySelectorAll('.map-pill[data-lens]');
   for(var i=0;i<pills.length;i++)pills[i].classList.toggle('active',pills[i].dataset.lens===lens);
+  // Update legend
+  var bar=$('legend-bar'),lo=$('legend-low'),hi=$('legend-high');
+  if(lens==='divergence'){
+    bar.style.background='linear-gradient(to right,rgb(50,100,220),rgb(220,220,230),rgb(220,50,50))';
+    lo.textContent='Over-rated';hi.textContent='Under-rated';
+  }else{
+    bar.style.background='linear-gradient(to right,rgb(0,200,80),rgb(128,200,0),rgb(200,180,0),rgb(255,100,0),rgb(255,0,0))';
+    lo.textContent='Low';hi.textContent='High';
+  }
   if(S.reportBlob)renderMapPaths();
 }
 function doRefreshPaths(){var btn=$('btn-refresh-paths');btn.disabled=true;btn.textContent='Loading…';
@@ -670,6 +684,13 @@ function lensColor(leg){var v=null;
   else if(S.mapLens==='post_rating')v=leg.postRating;
   else if(S.mapLens==='divergence')v=leg.divergence;
   if(v==null)return'#8e8e93';
+  if(S.mapLens==='divergence'){
+    // Bidirectional: -5 (blue) → 0 (white) → +5 (red)
+    var clamped=Math.max(-5,Math.min(5,v));
+    var norm=(clamped+5)/10; // 0=blue, 0.5=white, 1=red
+    if(norm<0.5){var t=norm*2;return'rgb('+Math.floor(50+170*t)+','+Math.floor(100+120*t)+','+Math.floor(220-190*t)+')';}
+    else{var t=(norm-0.5)*2;return'rgb('+Math.floor(220)+','+Math.floor(220-170*t)+','+Math.floor(230-180*t)+')';}
+  }
   var norm=Math.max(0,Math.min(10,Math.abs(v)))/10;
   var r=Math.floor(norm*255);var g=Math.floor((1-Math.abs(norm-0.5)*2)*200);var b=Math.floor((1-norm)*80);
   return'rgb('+r+','+g+','+b+')';
@@ -741,6 +762,15 @@ function renderEvent(){
   h+='<div class="stat-row"><span class="k">Status</span><span class="v">'+esc(S.eventStatus)+'</span></div>';
   h+='<div class="stat-row"><span class="k">Data state</span><span class="v">'+esc(S.dataState)+'</span></div>';
   h+='<div class="stat-row"><span class="k">Event ID</span><span class="v" style="font-size:0.7rem">'+esc(e.eventId)+'</span></div>';
+  if(S.stats&&S.eventStatus==='ended'){
+    h+='<div style="border-top:1px solid var(--surface-2);margin-top:8px;padding-top:8px">';
+    h+='<div class="stat-row"><span class="k">Total volunteers</span><span class="v">'+S.stats.totalVolunteers+'</span></div>';
+    h+='<div class="stat-row"><span class="k">Total weight</span><span class="v">'+fmtLbs(S.stats.totalWeightLbs)+' lbs</span></div>';
+    h+='<div class="stat-row"><span class="k">Total distance</span><span class="v">'+fmtMiles(S.stats.totalDistanceM)+' mi</span></div>';
+    h+='<div class="stat-row"><span class="k">Total duration</span><span class="v">'+fmtHrs(S.stats.totalDurationSec)+'</span></div>';
+    h+='<div class="stat-row"><span class="k">Accounted for</span><span class="v">'+S.stats.accountedCount+'</span></div>';
+    h+='</div>';
+  }
   $('event-details').innerHTML=h;
 }
 
