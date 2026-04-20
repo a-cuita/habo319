@@ -150,6 +150,19 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <p><a href="/habo319/">← Back to landing</a></p>
 </div>
 
+<div class="gate" id="create-gate" style="display:none">
+  <h2 style="margin-bottom:12px">Start a cleanup</h2>
+  <p id="create-gate-name" style="font-weight:700;margin-bottom:16px"></p>
+  <div style="text-align:left;width:100%;max-width:340px;margin:0 auto">
+    <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
+    <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
+    <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:14px">—</div>
+    <div class="err" id="cg-err" style="margin-bottom:10px"></div>
+    <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
+  </div>
+  <p style="margin-top:16px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
+</div>
+
 <div id="main" style="display:none;flex-direction:column;flex:1;min-height:0">
 
   <div class="hdr">
@@ -273,7 +286,7 @@ function boot(){
     S.tlId=who.tlId;S.displayName=who.displayName;S.tlEmail=who.email;
     return api('getActiveEvent');
   }).then(function(ev){
-    if(!ev){gate('There is no active event right now. When the organizer starts one, reload this page.');return Promise.reject('no-event');}
+    if(!ev){showCreateGate();return Promise.reject('no-event');}
     S.event=ev;S.eventStatus=ev.status||'active';S.dataState=ev.dataState||'hot';
     return api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:ev.eventId});
   }).then(function(ensured){
@@ -286,7 +299,42 @@ function boot(){
   });
 }
 
-function gate(msg){$('loading-gate').style.display='none';$('main').style.display='none';$('access-gate').style.display='flex';$('access-gate-msg').innerHTML=msg;}
+function gate(msg){$('loading-gate').style.display='none';$('main').style.display='none';$('create-gate').style.display='none';$('access-gate').style.display='flex';$('access-gate-msg').innerHTML=msg;}
+
+function showCreateGate(){
+  $('loading-gate').style.display='none';$('main').style.display='none';$('access-gate').style.display='none';
+  $('create-gate').style.display='flex';
+  $('create-gate-name').textContent='Welcome, '+(S.displayName||'Team Leader')+'.';
+}
+
+var cgLocationBuffer=null;
+function cgCaptureLocation(){
+  $('cg-loc-status').textContent='Getting location…';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    cgLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('cg-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+  },function(err){
+    $('cg-loc-status').textContent='⚠ '+err.message+' — you can skip this';
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+function cgCreateEvent(){
+  var name=$('cg-name').value.trim();
+  var err=$('cg-err');err.style.display='none';
+  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
+  $('cg-btn').disabled=true;
+  api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:cgLocationBuffer}).then(function(d){
+    $('cg-btn').disabled=false;
+    S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
+    S.eventStatus=d.status;S.dataState=d.dataState;
+    S.volunteerId=d.volunteerId;S.role='team_leader';S.currentState='approved';
+    $('create-gate').style.display='none';
+    showMain();firstLoad();
+  }).catch(function(e){
+    $('cg-btn').disabled=false;
+    err.textContent=e.message||'Could not create event';err.style.display='block';
+  });
+}
 
 function showMain(){
   $('loading-gate').style.display='none';$('access-gate').style.display='none';
