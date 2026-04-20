@@ -1,1232 +1,499 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-  <title>CMRA · Dashboard</title>
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <style>
-    :root{
-      --bg:#f2f2f7;--surface:#ffffff;--surface-hi:#fafafa;--surface-2:#f0f0f5;
-      --border:#d1d1d6;--border-hi:#c7c7cc;
-      --primary:#2563eb;--primary-dim:#dbeafe;--primary-text:#1d4ed8;
-      --accent-ai:#7c3aed;--accent-ai-dim:#f5f3ff;
-      --accent:#2c8a3d;--accent-dim:#d4f1dc;--accent-glow:rgba(44,138,61,0.15);
-      --amber:#d97706;--amber-dim:#fef3c7;--warn:#d97706;
-      --danger:#dc2626;--danger-dim:#fee2e2;--error:#dc2626;
-      --text:#1c1c1e;--text-hi:#000000;--text-dim:#8e8e93;--text-label:#aeaeb2;--text-inv:#ffffff;
-      --tl:#2563eb;
-      --radius:14px;--radius-sm:10px;--radius-xs:8px;
-      --font-body:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,sans-serif;
-      --font-mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,"Roboto Mono",monospace;
-    }
-    *{box-sizing:border-box;margin:0;padding:0}
-    html,body{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;-webkit-text-size-adjust:100%;font-family:var(--font-body);background:var(--bg);color:var(--text);line-height:1.5;letter-spacing:0.01em}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CMRA · Team Leader Dashboard</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+:root{
+  --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
+  --border:#d1d1d6;--border-hi:#c7c7cc;
+  --primary:#2563eb;--primary-dim:#dbeafe;--primary-text:#1d4ed8;
+  --accent:#2c8a3d;--accent-dim:#d4f1dc;
+  --amber:#d97706;--amber-dim:#fef3c7;
+  --danger:#dc2626;--danger-dim:#fee2e2;
+  --text:#1c1c1e;--text-dim:#8e8e93;
+  --tl:#2563eb;
+  --radius:14px;--radius-sm:10px;--radius-xs:8px;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,"SF Mono",Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{width:100%;max-width:100vw;min-height:100vh;overflow-x:hidden;font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5}
+body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto}
 
-    /* ═══ Persistent layer scaffold ═══ */
-    /* Header (top) | Tabstrip + content (middle, scrollable) | Action strip (bottom) */
-    body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:0 auto}
+.hdr{flex:0 0 auto;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;min-height:56px}
+.hdr .ident{display:flex;align-items:center;gap:8px;min-width:0}
+.hdr .role{background:var(--tl);color:#fff;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:700;letter-spacing:0.3px}
+.hdr .name{font-weight:700;font-size:0.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hdr .fresh{text-align:center;font-family:var(--mono);font-size:0.72rem;color:var(--text-dim);cursor:pointer;padding:4px 6px;border-radius:var(--radius-xs)}
+.hdr .fresh.stale{color:var(--amber)}
+.hdr .fresh .dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:4px;vertical-align:middle}
+.hdr .fresh.stale .dot{background:var(--amber)}
+.hdr .signout{font-size:0.72rem;color:var(--text-dim);cursor:pointer;padding:6px 8px;background:none;border:none;font-family:inherit}
 
-    /* Persistent header */
-    .tl-header{flex:0 0 auto;background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;min-height:56px}
-    .tl-header .h-identity{display:flex;align-items:center;gap:8px}
-    .tl-header .h-identity .role-badge{background:var(--tl);color:#fff;padding:3px 10px;border-radius:10px;font-size:0.7rem;font-weight:700;letter-spacing:0.3px}
-    .tl-header .h-identity .vol-num{font-family:var(--font-mono);font-size:0.9rem;font-weight:700;color:var(--text)}
-    .tl-header .h-identity .status-pills{display:flex;gap:4px;margin-left:6px;flex-wrap:nowrap}
-    .status-pill{display:inline-block;padding:2px 7px;border-radius:8px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;line-height:1.3;white-space:nowrap}
-    .status-pill.status-active{background:var(--accent-dim);color:var(--accent)}
-    .status-pill.status-ended{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border)}
-    .status-pill.data-hot{background:#fee2e2;color:#b91c1c}
-    .status-pill.data-warm{background:#fef3c7;color:#b45309}
-    .status-pill.data-stitching{background:var(--primary-dim);color:var(--primary-text)}
-    .status-pill.data-cool{background:#dbeafe;color:#1e40af}
-    .status-pill.data-cold{background:var(--surface-2);color:var(--text-dim)}
-    .tl-header .h-freshness{text-align:center;font-family:var(--font-mono);font-size:0.72rem;color:var(--text-dim);cursor:pointer;padding:4px 8px;border-radius:var(--radius-xs);transition:background 0.15s,color 0.15s}
-    .tl-header .h-freshness:active{background:var(--surface-2)}
-    .tl-header .h-freshness.stale{color:var(--amber)}
-    .tl-header .h-freshness .fresh-dot{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--accent);margin-right:4px;vertical-align:middle}
-    .tl-header .h-freshness.stale .fresh-dot{background:var(--amber)}
-    .tl-header .h-ambient{display:flex;align-items:center;justify-content:flex-end;min-width:24px}
-    .tl-header .h-ambient .ambient-bell{width:24px;height:24px;display:flex;align-items:center;justify-content:center;position:relative;cursor:pointer}
-    .tl-header .h-ambient .ambient-bell svg{width:18px;height:18px;stroke:var(--text-dim);fill:none;stroke-width:2}
-    .tl-header .h-ambient .ambient-bell.has-nudge svg{stroke:var(--primary)}
-    .tl-header .h-ambient .ambient-bell .bell-dot{position:absolute;top:-2px;right:-2px;width:10px;height:10px;border-radius:50%;background:var(--danger);border:2px solid var(--surface);display:none}
-    .tl-header .h-ambient .ambient-bell.has-nudge .bell-dot{display:block}
+.status-bar{background:var(--surface);padding:4px 16px 8px;display:flex;gap:4px;align-items:center;border-bottom:1px solid var(--border)}
+.pill{padding:2px 7px;border-radius:8px;font-size:0.62rem;font-weight:700;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap}
+.pill.active{background:var(--accent-dim);color:var(--accent)}
+.pill.ended{background:var(--surface-2);color:var(--text-dim);border:1px solid var(--border)}
+.pill.hot{background:var(--danger-dim);color:#b91c1c}
+.pill.warm{background:#fef3c7;color:#b45309}
+.pill.stitching{background:var(--primary-dim);color:var(--primary-text)}
+.pill.cool{background:#dbeafe;color:#1e40af}
+.pill.cold{background:var(--surface-2);color:var(--text-dim)}
+.event-name{font-size:0.78rem;color:var(--text-dim);margin-left:auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:50%}
 
-    /* Tab strip */
-    .tab-strip{flex:0 0 auto;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 8px}
-    .tab-strip .tab{flex:1;text-align:center;padding:12px 8px;font-size:0.85rem;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;transition:color 0.15s,border-color 0.15s}
-    .tab-strip .tab.active{color:var(--primary);border-bottom-color:var(--primary)}
-    .tab-strip .tab:active{background:var(--surface-2)}
-    .tab-strip .tab .tab-badge{display:inline-block;min-width:16px;height:16px;line-height:16px;padding:0 5px;background:var(--danger);color:#fff;border-radius:8px;font-size:0.65rem;font-weight:700;margin-left:5px;font-family:var(--font-mono)}
-    .tab-strip .tab .tab-badge.hidden{display:none}
+.tabs{flex:0 0 auto;display:flex;background:var(--surface);border-bottom:1px solid var(--border);padding:0 4px;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:1;min-width:64px;text-align:center;padding:12px 6px;font-size:0.8rem;font-weight:600;color:var(--text-dim);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+.tab .badge{display:inline-block;min-width:16px;height:16px;line-height:16px;padding:0 5px;background:var(--danger);color:#fff;border-radius:8px;font-size:0.65rem;font-weight:700;margin-left:4px;font-family:var(--mono)}
+.tab .badge.hidden{display:none}
 
-    /* Main content area */
-    .tab-content{flex:1 1 auto;overflow-y:auto;padding:14px 16px;background:var(--bg)}
-    .tab-pane{display:none}
-    .tab-pane.active{display:block;animation:fadeIn 0.2s ease}
-    @keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.content{flex:1 1 auto;overflow-y:auto;padding:14px 16px;background:var(--bg)}
+.pane{display:none}
+.pane.active{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:12px}
+.card h3{font-size:0.95rem;font-weight:700;margin-bottom:8px}
+.muted{color:var(--text-dim);font-size:0.85rem}
+.stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--surface-2);font-size:0.88rem}
+.stat-row:last-child{border-bottom:none}
+.stat-row .k{color:var(--text-dim)}
+.stat-row .v{font-family:var(--mono);font-weight:700}
 
-    /* Action strip (bottom persistent) */
-    .action-strip{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-    .action-chips{display:flex;gap:8px}
-    .action-chip{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;font-size:0.78rem;font-weight:600;color:var(--text);cursor:pointer;text-align:center;position:relative;transition:background 0.15s,border-color 0.15s;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
-    .action-chip:active{background:var(--surface-2)}
-    .action-chip .chip-icon{font-size:1.1rem;line-height:1}
-    .action-chip .chip-label{font-size:0.72rem;letter-spacing:0.2px}
-    .action-chip .chip-badge{position:absolute;top:4px;right:4px;min-width:16px;height:16px;line-height:16px;padding:0 4px;background:var(--danger);color:#fff;border-radius:8px;font-size:0.62rem;font-weight:700;font-family:var(--font-mono)}
-    .action-chip .chip-badge.hidden{display:none}
-    .start-collecting-btn{background:var(--accent);color:#fff;border:none;border-radius:var(--radius-sm);padding:14px;font-size:0.95rem;font-weight:700;cursor:pointer;min-height:52px;font-family:var(--font-body);letter-spacing:0.3px;transition:opacity 0.15s,transform 0.1s;position:relative}
-    .start-collecting-btn:active{opacity:0.85;transform:scale(0.985)}
+.vol-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--surface-2)}
+.vol-row:last-child{border-bottom:none}
+.vol-row .avatar{width:32px;height:32px;border-radius:50%;background:var(--surface-2);display:flex;align-items:center;justify-content:center;font-weight:700;color:var(--text-dim);font-size:0.8rem;flex-shrink:0}
+.vol-row.state-collecting .avatar{background:var(--accent-dim);color:var(--accent)}
+.vol-row.state-at_zone .avatar{background:var(--primary-dim);color:var(--primary-text)}
+.vol-row.state-between_legs .avatar{background:var(--amber-dim);color:var(--amber)}
+.vol-row.state-accounted_for .avatar,.vol-row.state-left_early .avatar{background:var(--surface-2);color:var(--text-dim)}
+.vol-row .meta{flex:1;min-width:0}
+.vol-row .name{font-weight:700;font-size:0.9rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.vol-row .state{font-size:0.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px}
+.vol-row .actions{display:flex;gap:4px;flex-shrink:0}
+.btn-sm{padding:6px 10px;font-size:0.74rem;font-weight:600;border-radius:var(--radius-xs);border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-family:inherit}
+.btn-sm:disabled{opacity:0.5;cursor:not-allowed}
+.btn-sm.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
 
-    /* ═══ Pedal component ═══ */
-    /* A pedal is a semantically-elevated button representing a commitment or state toggle.
-       Shadow is intentional (second exception after FAB). */
-    .pedal{position:relative;background:var(--surface);border:1px solid var(--border-hi);border-radius:var(--radius-sm);padding:16px 14px;cursor:pointer;box-shadow:0 2px 0 var(--border-hi), 0 3px 4px rgba(0,0,0,0.08);transition:box-shadow 0.12s,transform 0.12s;min-height:72px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;user-select:none}
-    .pedal:active{box-shadow:0 1px 0 var(--border-hi), 0 1px 2px rgba(0,0,0,0.06);transform:translateY(1px)}
-    .pedal .pedal-led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;background:#cfcfd4;box-shadow:inset 0 1px 1px rgba(0,0,0,0.15)}
-    .pedal .pedal-label{font-size:0.82rem;font-weight:700;color:var(--text);text-align:center;line-height:1.2;letter-spacing:0.2px}
-    .pedal .pedal-sublabel{font-size:0.68rem;color:var(--text-dim);text-align:center;text-transform:uppercase;letter-spacing:0.5px;margin-top:2px}
-    /* Committed state — LED lit, pedal subdued */
-    .pedal.committed{background:var(--surface);border-color:var(--accent)}
-    .pedal.committed .pedal-led{background:var(--accent);box-shadow:0 0 6px var(--accent), inset 0 1px 1px rgba(255,255,255,0.3)}
-    .pedal.committed .pedal-label{color:var(--accent)}
-    .pedal.committed:active{transform:none;box-shadow:0 2px 0 var(--border-hi), 0 3px 4px rgba(0,0,0,0.08)}
-    /* Gated (disabled) state */
-    .pedal.gated{opacity:0.45;cursor:not-allowed;background:var(--surface-2)}
-    .pedal.gated:active{transform:none;box-shadow:0 2px 0 var(--border-hi), 0 3px 4px rgba(0,0,0,0.08)}
-    /* Pedal variant: commitment LED color */
-    .pedal.commit-success .pedal-led.lit,.pedal.committed .pedal-led{background:var(--accent);box-shadow:0 0 6px var(--accent)}
+.actions{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;gap:8px}
+.chip{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;font-size:0.74rem;font-weight:600;color:var(--text);cursor:pointer;text-align:center;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit}
+.chip:disabled{opacity:0.5;cursor:not-allowed}
+.chip.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.chip .icon{font-size:1.1rem}
 
-    /* ═══ Bottom-up panel ═══ */
-    .panel-backdrop{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:1000;opacity:0;pointer-events:none;transition:opacity 0.22s ease}
-    .panel-backdrop.active{opacity:1;pointer-events:auto}
-    .bu-panel{position:fixed;left:0;right:0;bottom:0;max-width:480px;margin:0 auto;background:var(--surface);border-top-left-radius:18px;border-top-right-radius:18px;box-shadow:0 -2px 24px rgba(0,0,0,0.12);z-index:1001;max-height:85vh;display:flex;flex-direction:column;transform:translateY(100%);transition:transform 0.28s cubic-bezier(0.2,0.85,0.35,1)}
-    .bu-panel.active{transform:translateY(0)}
-    .bu-panel .bu-handle{width:40px;height:4px;border-radius:2px;background:var(--border-hi);margin:10px auto 6px}
-    .bu-panel .bu-header{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 12px;border-bottom:1px solid var(--border)}
-    .bu-panel .bu-header h2{font-size:1rem;font-weight:700;color:var(--text)}
-    .bu-panel .bu-close{background:transparent;border:none;color:var(--text-dim);font-size:1.4rem;cursor:pointer;padding:4px 8px;line-height:1}
-    .bu-panel .bu-body{flex:1 1 auto;overflow-y:auto;padding:16px 20px 24px}
+#map{height:calc(100vh - 260px);min-height:320px;border-radius:var(--radius);border:1px solid var(--border)}
+.map-controls{margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.map-pill{padding:5px 10px;font-size:0.75rem;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;cursor:pointer;font-family:inherit}
+.map-pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
 
-    /* ═══ Cards (inside panels and content) ═══ */
-    .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
-    .card h3{font-size:0.9rem;font-weight:700;color:var(--text);margin:0 0 8px;letter-spacing:0.1px}
-    .card p{font-size:0.88rem;color:var(--text-dim);line-height:1.5;margin:0}
-    .card-section-title{font-size:0.7rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px}
-    .card-divider{height:1px;background:var(--border);margin:14px 0}
+.gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 24px;text-align:center}
+.gate h2{font-size:1.1rem;font-weight:800;margin-bottom:10px}
+.gate p{font-size:0.88rem;color:var(--text-dim);line-height:1.5;margin-bottom:16px}
+.gate a{color:var(--primary);text-decoration:none;font-weight:600}
+.sp{width:32px;height:32px;margin:12px auto 20px;border:3px solid var(--border);border-top-color:var(--primary);border-radius:50%;animation:sp 0.8s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:9999;padding:24px}
+.overlay.active{display:flex}
+.overlay-card{background:var(--surface);border-radius:var(--radius);padding:24px;max-width:360px;width:100%;text-align:center}
 
-    /* Glance row (inside Team Management panel header) */
-    .glance-row{display:flex;gap:8px;margin-bottom:14px}
-    .glance-box{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 8px;text-align:center}
-    .glance-val{font-family:var(--font-mono);font-size:1.15rem;font-weight:700;color:var(--text-hi);line-height:1.1}
-    .glance-label{font-size:0.62rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:3px}
+.big-btn{width:100%;padding:12px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.9rem;cursor:pointer;font-family:inherit;margin-top:10px}
+.big-btn:disabled{opacity:0.5;cursor:not-allowed;background:var(--text-dim)}
+.big-btn.danger{background:var(--danger)}
+.big-btn.amber{background:var(--amber)}
 
-    /* Stat row (inside Stats panel) */
-    .stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
-    .stat-card{background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px}
-    .stat-card .sc-val{font-family:var(--font-mono);font-size:1.4rem;font-weight:700;color:var(--text-hi);line-height:1.1}
-    .stat-card .sc-label{font-size:0.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-top:4px}
-    .stat-card.highlight{background:var(--accent-dim);border-color:#86efac}
-    .stat-card.highlight .sc-val{color:var(--accent)}
+.feed-row{padding:10px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem}
+.feed-row:last-child{border-bottom:none}
+.feed-row .when{color:var(--text-dim);font-size:0.74rem;font-family:var(--mono);margin-bottom:2px}
+.feed-row .who{font-weight:700}
+.empty{text-align:center;padding:24px;color:var(--text-dim);font-size:0.88rem}
 
-    /* Volunteer/approval rows */
-    .vol-row{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:0.5px solid var(--border);flex-wrap:wrap;gap:8px}
-    .vol-row:last-child{border-bottom:none}
-    .vol-num{font-family:var(--font-mono);font-size:1.1rem;font-weight:700;color:var(--accent);min-width:40px}
-    .vol-info{flex:1 1 auto;display:flex;flex-direction:column;gap:3px}
-    .vol-name{font-size:0.9rem;font-weight:600;color:var(--text)}
-    .vol-meta{font-size:0.72rem;color:var(--text-dim)}
-    .vol-actions{display:flex;gap:6px;flex-wrap:wrap}
-    .badge{display:inline-block;padding:3px 8px;border-radius:10px;font-size:0.68rem;font-weight:600;letter-spacing:0.2px}
-    .badge-waiting{background:var(--amber-dim);color:var(--amber)}
-    .badge-state{background:var(--surface-2);color:var(--text-dim)}
-    .badge-accounted{background:var(--accent-dim);color:var(--accent)}
-
-    /* Section labels inside panels */
-    .section-label{font-size:0.68rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.8px;margin:16px 0 8px;display:flex;align-items:center;gap:8px}
-    .section-label .section-count{font-family:var(--font-mono);background:var(--surface-2);color:var(--text);padding:2px 7px;border-radius:8px;font-size:0.7rem;font-weight:700}
-
-    /* Buttons (inside panels) */
-    .btn{display:block;width:100%;padding:12px 20px;border:none;border-radius:var(--radius-sm);font-size:0.92rem;font-weight:600;cursor:pointer;min-height:48px;font-family:var(--font-body);transition:opacity 0.15s,transform 0.1s;position:relative}
-    .btn:active{opacity:0.85;transform:scale(0.985)}
-    .btn-primary{background:var(--accent);color:#fff}
-    .btn-secondary{background:var(--bg);color:var(--text-dim);border:1px solid var(--border)}
-    .btn-danger{background:var(--danger-dim);color:var(--danger);border:1px solid #fecaca}
-    .btn-tl{background:var(--tl);color:#fff}
-    .btn+.btn{margin-top:8px}
-    .btn:disabled{opacity:0.4;pointer-events:none}
-    .btn.loading{color:transparent}
-    .btn.loading::after{content:'';position:absolute;top:50%;left:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border:3px solid rgba(255,255,255,0.3);border-top-color:#fff;border-radius:50%;animation:spin 0.6s linear infinite}
-    .btn-secondary.loading::after{border:3px solid rgba(0,0,0,0.15);border-top-color:var(--text-dim)}
-    .btn-sm{padding:8px 14px;font-size:0.82rem;min-height:40px;border-radius:8px;border:none;font-weight:600;cursor:pointer;position:relative;display:inline-block;width:auto}
-    .btn-sm:disabled{opacity:0.4;pointer-events:none}
-    @keyframes spin{to{transform:rotate(360deg)}}
-
-    /* ═══ Feed tab cards ═══ */
-    .feed-empty{text-align:center;color:var(--text-dim);font-size:0.88rem;padding:40px 20px}
-    .feed-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px}
-    .feed-card .fc-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
-    .feed-card .fc-type{font-size:0.65rem;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;padding:2px 8px;border-radius:8px}
-    .feed-card .fc-type.state{background:var(--primary-dim);color:var(--primary-text)}
-    .feed-card .fc-type.scout{background:var(--amber-dim);color:var(--amber)}
-    .feed-card .fc-type.system{background:var(--surface-2);color:var(--text-dim)}
-    .feed-card .fc-who{font-family:var(--font-mono);font-size:0.85rem;font-weight:700;color:var(--text)}
-    .feed-card .fc-time{margin-left:auto;font-family:var(--font-mono);font-size:0.7rem;color:var(--text-dim)}
-    .feed-card .fc-body{font-size:0.9rem;color:var(--text);line-height:1.4}
-    .feed-card .fc-detail{margin-top:6px;font-size:0.78rem;color:var(--text-dim);font-family:var(--font-mono)}
-
-    /* ═══ Wiki tab ═══ */
-    .wiki-section{margin-bottom:18px}
-    .wiki-section h3{color:var(--text-hi);font-size:0.95rem;margin:0 0 6px;font-weight:700}
-    .wiki-section p{color:var(--text-dim);font-size:0.88rem;line-height:1.5;margin:0}
-
-    /* ═══ Map tab ═══ */
-    #tl-map-wrap{width:100%;height:calc(100vh - 320px);min-height:300px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border);margin-bottom:10px}
-    .map-controls{display:flex;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
-    .lens-pills{display:flex;gap:4px;background:var(--surface-2);border-radius:var(--radius-sm);padding:3px;border:1px solid var(--border);flex:1;min-width:0}
-    .lens-pill{flex:1;background:transparent;border:none;padding:7px 10px;font-size:0.76rem;font-weight:600;color:var(--text-dim);border-radius:calc(var(--radius-sm) - 2px);cursor:pointer;white-space:nowrap}
-    .lens-pill.active{background:var(--accent);color:#fff}
-    .refresh-paths-btn{background:var(--accent);color:#fff;border:none;padding:8px 14px;font-size:0.8rem;font-weight:600;border-radius:var(--radius-sm);cursor:pointer;white-space:nowrap;min-height:36px}
-    .refresh-paths-btn:disabled{background:var(--surface-2);color:var(--text-dim);cursor:not-allowed;border:1px solid var(--border-hi)}
-    .map-legend{display:flex;gap:14px;font-size:0.72rem;color:var(--text-dim);margin-bottom:8px;justify-content:center;flex-wrap:wrap}
-    .map-legend span::before{content:'';display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:middle}
-    .legend-me::before{background:var(--accent)}
-    .legend-team::before{background:#58a6ff}
-    .legend-inflight::before{background:#000;border-radius:0;width:14px;height:3px;border-top:1px dashed #000}
-    .legend-ext::before{background:#8e8e93;opacity:0.6;border:1px dashed #8e8e93}
-    /* Pulsing endpoint for in-flight legs (applied to Leaflet divIcon) */
-    .inflight-pulse-pin{background:transparent;border:none}
-    .inflight-pulse-pin .pulse-dot{width:14px;height:14px;border-radius:50%;background:#2563eb;border:2px solid #fff;box-shadow:0 0 0 rgba(37,99,235,0.7);animation:inflight-pulse 1.6s ease-out infinite}
-    @keyframes inflight-pulse{0%{box-shadow:0 0 0 0 rgba(37,99,235,0.7)}70%{box-shadow:0 0 0 14px rgba(37,99,235,0)}100%{box-shadow:0 0 0 0 rgba(37,99,235,0)}}
-    /* External tracker pin */
-    .ext-tracker-pin{background:transparent;border:none}
-    .ext-tracker-pin .ext-dot{width:14px;height:14px;border-radius:50%;background:#8e8e93;border:2px dashed #fff;opacity:0.75}
-
-    /* Loading and states */
-    .loading-text{color:var(--text-dim);font-size:0.88rem;text-align:center;padding:24px}
-    .pulse{display:inline-block;width:10px;height:10px;border-radius:50%;background:var(--accent);animation:pulse-anim 1.5s ease-in-out infinite;vertical-align:middle;margin-right:6px}
-    @keyframes pulse-anim{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.8)}}
-
-    /* Desktop fallback */
-    #desktop-block{display:none;position:fixed;inset:0;background:var(--bg);z-index:99999;justify-content:center;align-items:center;flex-direction:column;text-align:center;padding:40px}
-    #desktop-block h2{color:var(--text-hi);margin-bottom:12px;font-weight:800}
-    #desktop-block p{color:var(--text-dim);max-width:400px;font-size:0.9rem}
-    #desktop-block button{margin-top:20px;padding:12px 24px;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-sm);cursor:pointer;font-family:var(--font-body)}
-
-    /* Access-gate screen (for non-TLs who land here) */
-    .access-gate{flex:1;display:flex;flex-direction:column;justify-content:center;padding:40px 24px;text-align:center}
-    .access-gate h2{font-size:1.1rem;font-weight:800;color:var(--text);margin-bottom:10px}
-    .access-gate p{font-size:0.88rem;color:var(--text-dim);line-height:1.5;margin-bottom:20px}
-    .access-gate .gate-actions{display:flex;flex-direction:column;gap:8px}
-
-    /* Tip card — collapsible */
-    .tip-card{background:var(--primary-dim);border:1px solid #bfdbfe;border-radius:var(--radius);padding:14px;margin-bottom:14px}
-    .tip-card .tip-head{display:flex;align-items:center;justify-content:space-between;cursor:pointer}
-    .tip-card .tip-head strong{color:var(--primary-text);font-size:0.88rem}
-    .tip-card .tip-toggle{color:var(--primary);font-size:0.8rem;font-weight:600}
-    .tip-card .tip-body{margin-top:10px;font-size:0.85rem;color:var(--text);line-height:1.55;display:none}
-    .tip-card.open .tip-body{display:block}
-
-    /* Compose/post stub (for Feed) */
-    .compose-stub{background:var(--surface);border:1px dashed var(--border-hi);border-radius:var(--radius);padding:14px;margin-bottom:14px;text-align:center;color:var(--text-dim);font-size:0.85rem;cursor:not-allowed}
-    .compose-stub strong{color:var(--text)}
-  </style>
+.desktop-block{display:none;position:fixed;inset:0;background:var(--surface);align-items:center;justify-content:center;padding:40px;text-align:center;z-index:999999}
+@media (min-width:600px){.desktop-block{display:flex}}
+</style>
 </head>
 <body>
-<div id="desktop-block">
-  <h2>Open on your phone</h2>
-  <p>The Team Leader dashboard is designed for mobile.</p>
-  <button onclick="this.parentElement.style.display='none'">Continue Anyway</button>
+
+<div class="desktop-block" id="desktop-block">
+  <div><h2 style="margin-bottom:8px">Use a phone</h2><p class="muted">The Team Leader dashboard is designed for mobile.</p></div>
 </div>
 
-<!-- Access gate: shown if user is not a TL -->
-<div class="access-gate" id="access-gate" style="display:none">
+<div class="gate" id="loading-gate">
+  <div class="sp"></div>
+  <h2>Verifying access</h2>
+</div>
+
+<div class="gate" id="access-gate" style="display:none">
   <h2>Team Leader Access Only</h2>
-  <p id="access-gate-msg">This dashboard is for Team Leaders. If you were promoted to Team Leader, reload this page. Otherwise, return to the volunteer app.</p>
-  <div class="gate-actions">
-    <button class="btn btn-primary" onclick="location.reload()">Reload</button>
-    <button class="btn btn-secondary" onclick="location.href='../'">Back to Volunteer App</button>
-  </div>
+  <p id="access-gate-msg">This dashboard is for Team Leaders.</p>
+  <p><a href="/habo319/">← Back to landing</a></p>
 </div>
 
-<!-- Loading state -->
-<div class="access-gate" id="loading-gate">
-  <h2><span class="pulse"></span> Loading Dashboard...</h2>
-  <p>Verifying Team Leader access.</p>
-</div>
+<div id="main" style="display:none;flex-direction:column;flex:1;min-height:0">
 
-<!-- MAIN DASHBOARD (hidden until access verified) -->
-<div id="tl-dashboard" style="display:none;flex-direction:column;flex:1;min-height:100vh">
-
-  <!-- ═══ Persistent top: Header (three slots) ═══ -->
-  <div class="tl-header">
-    <div class="h-identity">
-      <span class="role-badge">TL</span>
-      <span class="vol-num" id="h-vol-num">—</span>
-      <span class="status-pills" id="h-status-pills"></span>
-    </div>
-    <div class="h-freshness" id="h-freshness" onclick="manualRefresh()">
-      <span class="fresh-dot"></span>
-      <span id="h-fresh-text">just now</span>
-    </div>
-    <div class="h-ambient">
-      <div class="ambient-bell" id="h-ambient-bell" onclick="openNudgesPanel()" title="Notifications">
-        <svg viewBox="0 0 24 24"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 2v1h16v-1l-2-2zm-8 5a2 2 0 0 0 4 0" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <span class="bell-dot"></span>
-      </div>
-    </div>
+  <div class="hdr">
+    <div class="ident"><span class="role">TL</span><span class="name" id="hdr-name">—</span></div>
+    <div class="fresh" id="hdr-fresh" onclick="refreshAll()"><span class="dot"></span><span id="hdr-fresh-text">—</span></div>
+    <button class="signout" onclick="doSignOut()">Sign out</button>
+  </div>
+  <div class="status-bar">
+    <span class="pill active" id="pill-event-status">active</span>
+    <span class="pill hot" id="pill-data-state">hot</span>
+    <span class="event-name" id="event-name-line">—</span>
   </div>
 
-  <!-- ═══ Persistent: Tab strip ═══ -->
-  <div class="tab-strip" id="tab-strip">
-    <div class="tab active" data-tab="feed" onclick="switchTab('feed')">Feed<span class="tab-badge hidden" id="feed-badge">0</span></div>
+  <div class="tabs">
+    <div class="tab active" data-tab="team" onclick="switchTab('team')">Team <span class="badge hidden" id="badge-team"></span></div>
+    <div class="tab" data-tab="stats" onclick="switchTab('stats')">Stats</div>
+    <div class="tab" data-tab="feed" onclick="switchTab('feed')">Feed</div>
     <div class="tab" data-tab="map" onclick="switchTab('map')">Map</div>
-    <div class="tab" data-tab="wiki" onclick="switchTab('wiki')">Wiki</div>
+    <div class="tab" data-tab="commitments" onclick="switchTab('commitments')">Go</div>
+    <div class="tab" data-tab="event" onclick="switchTab('event')">Event</div>
   </div>
 
-  <!-- ═══ Tab content (scrollable middle) ═══ -->
-  <div class="tab-content" id="tab-content">
-
-    <!-- Feed tab -->
-    <div class="tab-pane active" id="tab-feed">
-      <div class="compose-stub">
-        <strong>Social feed coming soon.</strong><br>
-        Threaded comments, reactions, and posts will land in Card 03b.
+  <div class="content">
+    <div class="pane active" id="pane-team">
+      <div class="card" id="approval-card" style="display:none">
+        <h3>Waiting for approval <span class="muted" id="queue-count"></span></h3>
+        <div id="queue-list"></div>
+        <button class="big-btn" onclick="doBulkApprove()">Approve all</button>
       </div>
-      <div id="feed-list">
-        <div class="loading-text"><span class="pulse"></span> Loading activity...</div>
+      <div class="card">
+        <h3>My team</h3>
+        <div id="roster-list"></div>
       </div>
     </div>
 
-    <!-- Map tab -->
-    <div class="tab-pane" id="tab-map">
+    <div class="pane" id="pane-stats">
+      <div class="card"><h3>Event totals</h3><div id="stats-body"><div class="muted">Loading…</div></div></div>
+    </div>
+
+    <div class="pane" id="pane-feed">
+      <div class="card"><h3>Activity feed</h3><div id="feed-list"><div class="muted">Loading…</div></div></div>
+    </div>
+
+    <div class="pane" id="pane-map">
       <div class="map-controls">
-        <div class="lens-pills">
-          <button class="lens-pill active" data-lens="sqrt_cpue" onclick="setMapLens('sqrt_cpue')">√CPUE</button>
-          <button class="lens-pill" data-lens="post_rating" onclick="setMapLens('post_rating')">Rating</button>
-          <button class="lens-pill" data-lens="divergence" onclick="setMapLens('divergence')">Divergence</button>
-        </div>
-        <button class="refresh-paths-btn" id="refresh-paths-btn" onclick="refreshPaths()">
-          <span id="refresh-paths-label">Refresh Paths</span>
-        </button>
+        <span class="map-pill active" data-lens="sqrt_cpue" onclick="setLens('sqrt_cpue')">√CPUE</span>
+        <span class="map-pill" data-lens="post_rating" onclick="setLens('post_rating')">Rating</span>
+        <span class="map-pill" data-lens="divergence" onclick="setLens('divergence')">Divergence</span>
+        <button class="map-pill" id="btn-refresh-paths" onclick="doRefreshPaths()" style="margin-left:auto">Refresh paths</button>
       </div>
-      <div class="map-legend">
-        <span class="legend-me">You</span>
-        <span class="legend-team">Team</span>
-        <span class="legend-inflight">In flight</span>
-        <span class="legend-ext">External</span>
-      </div>
-      <div id="tl-map-wrap"></div>
+      <div id="map"></div>
     </div>
 
-    <!-- Wiki tab -->
-    <div class="tab-pane" id="tab-wiki">
-      <div id="wiki-list">
-        <div class="loading-text"><span class="pulse"></span> Loading wiki...</div>
+    <div class="pane" id="pane-commitments">
+      <div class="card">
+        <h3>Team status</h3>
+        <button class="chip" id="chip-left-garden" onclick="doLeftGarden()" style="width:100%;margin-bottom:8px"><span class="icon">🚶</span><span>Team left garden</span></button>
+        <button class="chip" id="chip-arrived" onclick="doArrivedAtZone()" style="width:100%"><span class="icon">📍</span><span>Arrived at zone</span></button>
       </div>
     </div>
 
-  </div>
-
-  <!-- ═══ Persistent bottom: Action strip ═══ -->
-  <div class="action-strip">
-    <div class="action-chips">
-      <div class="action-chip" onclick="openTeamPanel()">
-        <span class="chip-icon">👥</span>
-        <span class="chip-label">Team</span>
-        <span class="chip-badge hidden" id="team-chip-badge">0</span>
+    <div class="pane" id="pane-event">
+      <div class="card"><h3>Event</h3><div id="event-details"></div></div>
+      <div class="card" id="end-event-card">
+        <h3>End event</h3>
+        <p class="muted">Marks the event as ended. Accountability window remains open for follow-up.</p>
+        <button class="big-btn danger" id="btn-end-event" onclick="doEndEvent()">End event</button>
       </div>
-      <div class="action-chip" onclick="openStatsPanel()">
-        <span class="chip-icon">📊</span>
-        <span class="chip-label">Stats</span>
-      </div>
-      <div class="action-chip" onclick="openCommitmentsPanel()">
-        <span class="chip-icon">🎛️</span>
-        <span class="chip-label">Commits</span>
-        <span class="chip-badge hidden" id="commits-chip-badge">!</span>
-      </div>
-    </div>
-    <button class="start-collecting-btn" id="btn-start-collecting" onclick="openStartCollectingPanel()">Start Collecting</button>
-  </div>
-
-</div>
-
-<!-- ═══ Bottom-up Panels (shared infrastructure) ═══ -->
-<div class="panel-backdrop" id="panel-backdrop" onclick="closeActivePanel()"></div>
-
-<!-- Team Management panel -->
-<div class="bu-panel" id="panel-team">
-  <div class="bu-handle"></div>
-  <div class="bu-header">
-    <h2>Team Management</h2>
-    <button class="bu-close" onclick="closeActivePanel()" aria-label="Close">×</button>
-  </div>
-  <div class="bu-body" id="panel-team-body">
-    <div class="loading-text"><span class="pulse"></span> Loading team...</div>
-  </div>
-</div>
-
-<!-- Stats panel -->
-<div class="bu-panel" id="panel-stats">
-  <div class="bu-handle"></div>
-  <div class="bu-header">
-    <h2>Team Stats</h2>
-    <button class="bu-close" onclick="closeActivePanel()" aria-label="Close">×</button>
-  </div>
-  <div class="bu-body" id="panel-stats-body">
-    <div class="loading-text"><span class="pulse"></span> Calculating...</div>
-  </div>
-</div>
-
-<!-- Commitments panel -->
-<div class="bu-panel" id="panel-commitments">
-  <div class="bu-handle"></div>
-  <div class="bu-header">
-    <h2>Commitments</h2>
-    <button class="bu-close" onclick="closeActivePanel()" aria-label="Close">×</button>
-  </div>
-  <div class="bu-body" id="panel-commitments-body">
-    <p style="color:var(--text-dim);font-size:0.82rem;margin-bottom:16px">Tap a pedal to record that it happened. Once lit, it stays lit.</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-      <div class="pedal commit-success" id="pedal-left-garden" onclick="pedalPress('leftGarden',this)">
-        <div class="pedal-led"></div>
-        <div class="pedal-label">Team Left Garden</div>
-        <div class="pedal-sublabel">departure</div>
-      </div>
-      <div class="pedal commit-success" id="pedal-arrived" onclick="pedalPress('arrived',this)">
-        <div class="pedal-led"></div>
-        <div class="pedal-label">Team Arrived</div>
-        <div class="pedal-sublabel">at zone</div>
+      <div class="card" id="stitch-card" style="display:none">
+        <h3>Finalize data</h3>
+        <p class="muted">Generate a report to snapshot, then stitch data to close out the event permanently.</p>
+        <button class="big-btn" id="btn-generate-report" onclick="doGenerateReport()">Generate report</button>
+        <button class="big-btn amber" id="btn-stitch-data" onclick="doStitchData()">Stitch data (finalize)</button>
       </div>
     </div>
   </div>
-</div>
 
-<!-- Start Collecting panel — volunteer flow via iframe -->
-<div class="bu-panel" id="panel-collecting">
-  <div class="bu-handle"></div>
-  <div class="bu-header">
-    <h2>Your Collection</h2>
-    <button class="bu-close" onclick="closeCollectingPanel()" aria-label="Close">×</button>
-  </div>
-  <div class="bu-body" id="panel-collecting-body" style="padding:0;display:flex;flex-direction:column">
-    <iframe id="collecting-iframe" src="about:blank" style="width:100%;flex:1;min-height:60vh;border:0;background:var(--bg)"></iframe>
+  <div class="actions">
+    <button class="chip" onclick="switchTab('team')"><span class="icon">👥</span><span>Team</span></button>
+    <button class="chip" onclick="switchTab('map')"><span class="icon">🗺️</span><span>Map</span></button>
+    <button class="chip" onclick="switchTab('event')"><span class="icon">⚙️</span><span>Event</span></button>
   </div>
 </div>
 
-<!-- Nudges / ambient panel -->
-<div class="bu-panel" id="panel-nudges">
-  <div class="bu-handle"></div>
-  <div class="bu-header">
-    <h2>Notifications</h2>
-    <button class="bu-close" onclick="closeActivePanel()" aria-label="Close">×</button>
-  </div>
-  <div class="bu-body" id="panel-nudges-body">
-    <div class="loading-text" id="nudges-empty">No notifications right now.</div>
-  </div>
-</div>
+<div class="overlay" id="overlay"><div class="overlay-card" id="overlay-content"></div></div>
 
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-/* ═══════════════════════════════════════════════
-   CMRA TL Dashboard — standalone page
-   Reads shared localStorage with volunteer app.
-   Redirects to volunteer app if not a TL.
-   ═══════════════════════════════════════════════ */
-
 var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
-var POLL_INTERVAL=15000;
-var FRESH_STALE_SEC=30;
+var LANDING='/habo319/';
+
 var S={
-  event:null,volunteerId:null,displayName:null,role:null,currentState:null,
-  // Persistent TL identity (populated from /habo319/ session flow)
-  sessionToken:null,tlId:null,tlEmail:null,
-  // Event-level status (surfaced in ambient slot)
-  eventStatus:'active',   // 'active' | 'ended'
-  dataState:'hot',        // 'hot' | 'warm' | 'stitching' | 'cool' | 'cold'
-  lastReportStitchAt:null,
-  reportBlob:null,        // Last generated report blob (for map path rendering)
-  // Roster + queue (populated by getTLDashboard cache blob)
-  teamMembers:[],waitingQueue:[],teamLeaders:[],dashboardStats:null,
-  // Existing state
-  scoutRatings:[],feedEvents:[],eventReport:null,
-  commitments:{leftGarden:false,arrived:false},
-  lastRefreshTs:null,freshInterval:null,pollTimer:null,
-  activePanel:null,activeTab:'feed',
-  leafletMap:null,mapMarkers:[],mapInitialized:false,
-  mapPaths:[],             // Leaflet polylines from reportBlob
-  mapColorLens:'sqrt_cpue', // 'sqrt_cpue' | 'post_rating' | 'divergence'
-  mapTeamFilter:'all',     // 'all' | 'my_team'
-  lastFeedSeen:null
+  sessionToken:null,tlId:null,displayName:null,tlEmail:null,
+  event:null,volunteerId:null,role:null,currentState:null,
+  eventStatus:'active',dataState:'hot',
+  roster:[],queue:[],teamLeaders:[],stats:null,recentLog:[],
+  reportBlob:null,
+  activeTab:'team',
+  leafletMap:null,mapPaths:[],mapInitialized:false,mapLens:'sqrt_cpue',
+  lastRefresh:null,pollTimer:null,freshTimer:null
 };
 
-/* ═══ Utilities ═══ */
-function esc(s){var d=document.createElement('div');d.textContent=s||'';return d.innerHTML;}
-function fmtTime(d){if(!d)return'';var dt=new Date(d);if(isNaN(dt))return'';return dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
-function fmtAgo(ts){if(!ts)return'';var secs=Math.floor((Date.now()-ts)/1000);if(secs<5)return'just now';if(secs<60)return secs+'s ago';var mins=Math.floor(secs/60);if(mins<60)return mins+'m ago';var hrs=Math.floor(mins/60);return hrs+'h ago';}
-function fmtMiles(m){return(m/1609.34).toFixed(4);}
+function $(id){return document.getElementById(id);}
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+function fmtTime(d){if(!d)return'—';var dt=new Date(d);if(isNaN(dt))return'—';return dt.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});}
+function fmtLbs(n){return(Math.round((n||0)*100)/100).toFixed(2);}
+function fmtMiles(m){return((m||0)/1609.34).toFixed(4);}
+function fmtHrs(sec){var h=Math.floor((sec||0)/3600);var m=Math.floor(((sec||0)%3600)/60);return h+'h '+m+'m';}
+function showBusy(msg){$('overlay-content').innerHTML='<div class="sp" style="margin:0 auto 12px"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div>';$('overlay').classList.add('active');}
+function hideBusy(){$('overlay').classList.remove('active');}
+function initials(name){if(!name)return'?';var p=name.split(' ');return p.length>1?(p[0][0]+p[1][0]).toUpperCase():name.substring(0,2).toUpperCase();}
 
-/**
- * v3 API wrapper. Every call adds version:'v3' and uses volunteerId (UUID, not number).
- * Legacy handlers without v3 coverage can call api(action, data, {legacy:true}) to skip v3 flag.
- */
-function api(action,data,opts){
-  opts = opts || {};
-  var body=Object.assign({action:action},data||{});
-  if(!opts.legacy) body.version='v3';
-  if(S.event && !body.eventId) body.eventId=S.event.eventId;
-  if(S.volunteerId && !body.volunteerId) body.volunteerId=S.volunteerId;
-  if(S.sessionToken && !body.sessionToken) body.sessionToken=S.sessionToken;
+function api(action,data){
+  var body=Object.assign({action:action,version:'v3'},data||{});
+  if(S.event&&!body.eventId)body.eventId=S.event.eventId;
+  if(S.sessionToken&&!body.sessionToken)body.sessionToken=S.sessionToken;
+  if(S.volunteerId&&!body.volunteerId)body.volunteerId=S.volunteerId;
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
 }
 
-/* ═══ Boot & access gate ═══ */
 function boot(){
-  if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
-  
-  // Path 1: persistent TL session from /habo319/ sign-in
-  var tlSession=null;
-  try{tlSession=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
-  if(tlSession&&tlSession.sessionToken){
-    bootWithTLSession(tlSession);
-    return;
-  }
-  
-  // Path 2: legacy improv TL flow — joined as volunteer, got promoted
-  var saved=null;
-  try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
-  if(!saved||!saved.volunteerId){
-    showAccessGate('You are not signed in. Go to <a href="/habo319/" style="color:var(--accent)">the landing page</a> to sign in, or open the volunteer app to join as a volunteer first.');
-    return;
-  }
-  S.volunteerId=saved.volunteerId;
-  S.displayName=saved.displayName||null;
-  api('getActiveEvent').then(function(ev){
-    if(!ev){showAccessGate('There is no active event.');return;}
-    S.event=ev;
-    S.eventStatus=ev.status||'active';
-    return api('getVolunteerStatus');
-  }).then(function(d){
-    if(!d){showAccessGate('Your volunteer record was not found for this event.');return;}
-    S.role=d.role||'volunteer';
-    S.currentState=d.currentState||'joined';
-    S.displayName=d.displayName||S.displayName;
-    if(S.role!=='team_leader'){
-      showAccessGate('You are not currently a Team Leader. If you were just promoted, reload this page.');
-      return;
-    }
-    showDashboard();
-    firstLoad();
+  var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
+  if(!saved||!saved.sessionToken){gate('You are not signed in. <a href="'+LANDING+'">Go to the landing page</a> to sign in as a Team Leader.');return;}
+  S.sessionToken=saved.sessionToken;
+  api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(who){
+    if(!who){localStorage.removeItem('cmra_tl_session');gate('Your session expired. <a href="'+LANDING+'">Sign in again</a>.');return Promise.reject('expired');}
+    S.tlId=who.tlId;S.displayName=who.displayName;S.tlEmail=who.email;
+    return api('getActiveEvent');
+  }).then(function(ev){
+    if(!ev){gate('There is no active event right now. When the organizer starts one, reload this page.');return Promise.reject('no-event');}
+    S.event=ev;S.eventStatus=ev.status||'active';S.dataState=ev.dataState||'hot';
+    return api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:ev.eventId});
+  }).then(function(ensured){
+    if(!ensured)return;
+    S.volunteerId=ensured.volunteerId;S.role='team_leader';S.currentState=ensured.currentState||'approved';
+    showMain();firstLoad();
   }).catch(function(err){
-    showAccessGate('Could not verify access: '+(err.message||'unknown error'));
+    if(err==='expired'||err==='no-event')return;
+    gate('Could not load dashboard: '+(err.message||err));
   });
 }
 
-/**
- * Boot path for persistent TLs who signed in via /habo319/.
- * Validates session token, hydrates event, auto-joins this event as TL if needed.
- */
-function bootWithTLSession(tlSession){
-  S.sessionToken=tlSession.sessionToken;
-  api('auth_whoAmI',{sessionToken:tlSession.sessionToken}).then(function(who){
-    if(!who){
-      localStorage.removeItem('cmra_tl_session');
-      S.sessionToken=null;
-      showAccessGate('Your session expired. <a href="/habo319/" style="color:var(--accent)">Sign in again</a>.');
-      return;
-    }
-    S.tlId=who.tlId;
-    S.displayName=who.displayName;
-    S.tlEmail=who.email;
-    // Get the active event
-    return api('getActiveEvent').then(function(ev){
-      if(!ev){showAccessGate('There is no active event right now. Check back when the event is live.');return Promise.reject('no-event');}
-      S.event=ev;
-      S.eventStatus=ev.status||'active';
-      S.dataState=ev.dataState||'hot';
-      // Ensure a volunteer record exists in this event for the TL — auto-join + promote.
-      return api('auth_ensureTLInEvent',{
-        sessionToken:tlSession.sessionToken,
-        eventId:ev.eventId
-      });
-    }).then(function(ensured){
-      if(!ensured)return;
-      S.volunteerId=ensured.volunteerId;
-      S.role='team_leader';
-      S.currentState=ensured.currentState||'approved';
-      // Persist as a cmra_volunteer record too so the rest of the dashboard (which expects this) works
-      localStorage.setItem('cmra_volunteer',JSON.stringify({
-        eventId:S.event.eventId,
-        volunteerId:S.volunteerId,
-        displayName:S.displayName,
-        trackingMode:'external'
-      }));
-      showDashboard();
-      firstLoad();
-    });
-  }).catch(function(err){
-    if(err==='no-event')return;
-    showAccessGate('Could not verify TL session: '+(err.message||err));
-  });
-}
-function showAccessGate(msg){
-  document.getElementById('loading-gate').style.display='none';
-  document.getElementById('tl-dashboard').style.display='none';
-  var g=document.getElementById('access-gate');
-  g.style.display='flex';
-  document.getElementById('access-gate-msg').textContent=msg;
-}
-function showDashboard(){
-  document.getElementById('loading-gate').style.display='none';
-  document.getElementById('access-gate').style.display='none';
-  document.getElementById('tl-dashboard').style.display='flex';
-  // Header identity now shows display name instead of volunteer number
-  document.getElementById('h-vol-num').textContent=S.displayName||'(no name)';
-  // Initialize ambient pills
-  updateAmbientStatus();
+function gate(msg){$('loading-gate').style.display='none';$('main').style.display='none';$('access-gate').style.display='flex';$('access-gate-msg').innerHTML=msg;}
+
+function showMain(){
+  $('loading-gate').style.display='none';$('access-gate').style.display='none';
+  $('main').style.display='flex';
+  $('hdr-name').textContent=S.displayName||'Team Leader';
+  $('event-name-line').textContent=S.event.name||'';
+  renderPills();
 }
 
-/* ═══ First load + polling ═══ */
+function renderPills(){
+  var es=$('pill-event-status');es.className='pill '+(S.eventStatus==='ended'?'ended':'active');es.textContent=S.eventStatus;
+  var ds=$('pill-data-state');ds.className='pill '+(S.dataState||'hot');ds.textContent=S.dataState||'hot';
+  $('stitch-card').style.display=(S.eventStatus==='ended')?'block':'none';
+  $('end-event-card').style.display=(S.eventStatus==='ended')?'none':'block';
+}
+
+function doSignOut(){
+  var token=S.sessionToken;
+  localStorage.removeItem('cmra_tl_session');localStorage.removeItem('cmra_volunteer');
+  if(token){api('auth_logout',{sessionToken:token}).catch(function(){});}
+  window.location.href=LANDING;
+}
+
 function firstLoad(){
   refreshAll();
   if(S.pollTimer)clearInterval(S.pollTimer);
-  S.pollTimer=setInterval(refreshAll,POLL_INTERVAL);
-  if(S.freshInterval)clearInterval(S.freshInterval);
-  S.freshInterval=setInterval(updateFreshness,1000);
+  S.pollTimer=setInterval(function(){if(document.visibilityState==='visible')refreshAll();},30000);
+  if(S.freshTimer)clearInterval(S.freshTimer);
+  S.freshTimer=setInterval(updateFreshness,1000);
 }
+
 function refreshAll(){
-  // Single v3 call returns roster + queue + stats + teamLeaders + recentLog
-  api('getTLDashboard',{includeLog:true}).then(function(blob){
+  return api('getTLDashboard',{includeLog:true,forceRefresh:true}).then(function(blob){
     if(!blob)return;
-    S.teamMembers=blob.roster||[];
-    S.waitingQueue=blob.approvalQueue||[];
-    S.teamLeaders=blob.teamLeaders||[];
-    S.dashboardStats=blob.stats||null;
-    S.feedEvents=blob.recentLog||[];
-    // Event status from blob (fresh on every poll)
-    if(blob.eventStatus)S.eventStatus=blob.eventStatus;
-    if(blob.dataState)S.dataState=blob.dataState;
-    S.lastRefreshTs=Date.now();
-    reconcileCommitments();
-    updateFreshness();
-    updateBadges();
-    updateAmbientStatus();
-    if(S.activeTab==='feed')loadFeed();
-    if(S.activeTab==='map'&&S.mapInitialized)loadMapPositions();
-    if(document.getElementById('panel-team').classList.contains('active'))renderTeamPanel();
-  }).catch(function(err){
-    // Non-fatal — keep rendering what we have
-    console.warn('refreshAll failed:',err.message);
-  });
+    S.roster=blob.roster||[];S.queue=blob.approvalQueue||[];
+    S.teamLeaders=blob.teamLeaders||[];S.stats=blob.stats||null;
+    S.recentLog=blob.recentLog||[];
+    S.eventStatus=blob.eventStatus||S.eventStatus;S.dataState=blob.dataState||S.dataState;
+    S.lastRefresh=Date.now();
+    renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
+    if(S.activeTab==='map'&&!S.mapInitialized)initMap();
+    if(S.activeTab==='map'&&S.reportBlob)renderMapPaths();
+  }).catch(function(err){console.error('refreshAll',err);});
 }
-function manualRefresh(){refreshAll();loadFeed();}
+
 function updateFreshness(){
-  var el=document.getElementById('h-freshness');
-  var txt=document.getElementById('h-fresh-text');
-  if(!S.lastRefreshTs){txt.textContent='—';return;}
-  var secs=Math.floor((Date.now()-S.lastRefreshTs)/1000);
-  el.classList.toggle('stale',secs>=FRESH_STALE_SEC);
-  txt.textContent=fmtAgo(S.lastRefreshTs);
+  if(!S.lastRefresh)return;
+  var age=Math.floor((Date.now()-S.lastRefresh)/1000);
+  var el=$('hdr-fresh');var t=$('hdr-fresh-text');
+  if(age<60){t.textContent=age+'s';el.classList.remove('stale');}
+  else{t.textContent=Math.floor(age/60)+'m';el.classList.toggle('stale',age>180);}
 }
 
-/* ═══ Commitment reconciliation ═══ */
-/* Derived from team state: if any team member is in_transit or later, garden left.
-   If any team member is at_zone or later, arrived. Read from real data to survive refresh. */
-function reconcileCommitments(){
-  var myTeam=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId;});
-  var pastGarden=['in_transit','scouting','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'];
-  var atOrPast=['at_zone','collecting','between_legs','session_complete','accounted_for','left_early'];
-  S.commitments.leftGarden=myTeam.some(function(v){return pastGarden.indexOf(v.currentState)>=0;});
-  S.commitments.arrived=myTeam.some(function(v){return atOrPast.indexOf(v.currentState)>=0;});
-  var plg=document.getElementById('pedal-left-garden');
-  var pa=document.getElementById('pedal-arrived');
-  if(plg){plg.classList.toggle('committed',S.commitments.leftGarden);}
-  if(pa){pa.classList.toggle('committed',S.commitments.arrived);}
-}
-
-/* ═══ Badges & ambient nudges ═══ */
 function updateBadges(){
-  var queueCount=S.waitingQueue.length;
-  var feedBadge=document.getElementById('feed-badge');
-  var teamBadge=document.getElementById('team-chip-badge');
-  var commitsBadge=document.getElementById('commits-chip-badge');
-  var bell=document.getElementById('h-ambient-bell');
-  if(teamBadge){
-    if(queueCount>0){teamBadge.textContent=queueCount;teamBadge.classList.remove('hidden');}
-    else teamBadge.classList.add('hidden');
-  }
-  var hasNudge=queueCount>0;
-  if(bell)bell.classList.toggle('has-nudge',hasNudge);
-  if(feedBadge){
-    feedBadge.classList.add('hidden');
-  }
-  if(commitsBadge){
-    var myTeamReady=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId&&v.currentState==='approved';}).length>0;
-    if(!S.commitments.leftGarden&&myTeamReady){commitsBadge.classList.remove('hidden');}
-    else commitsBadge.classList.add('hidden');
-  }
+  var qb=$('badge-team');
+  if(S.queue.length>0){qb.textContent=S.queue.length;qb.classList.remove('hidden');}
+  else qb.classList.add('hidden');
 }
-
-/* ═══ Ambient status display ═══ */
-/* Renders two pills showing event status + data_state in the identity slot area.
-   Updates on every poll. */
-function updateAmbientStatus(){
-  var container=document.getElementById('h-status-pills');
-  if(!container)return;
-  var statusClass=S.eventStatus==='ended'?'ended':'active';
-  var dataClass='data-'+(S.dataState||'hot');
-  var dataLabel=(S.dataState||'hot').charAt(0).toUpperCase()+(S.dataState||'hot').slice(1);
-  container.innerHTML=
-    '<span class="status-pill status-'+statusClass+'" title="Event status">'+(S.eventStatus==='ended'?'Ended':'Active')+'</span>'+
-    '<span class="status-pill '+dataClass+'" title="Data state — hot=live / warm=report generated / cool=stitched">'+dataLabel+'</span>';
-}
-
 
 function switchTab(name){
   S.activeTab=name;
-  var tabs=document.querySelectorAll('.tab-strip .tab');
-  for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',tabs[i].getAttribute('data-tab')===name);
-  var panes=document.querySelectorAll('.tab-pane');
-  for(var j=0;j<panes.length;j++)panes[j].classList.toggle('active',panes[j].id==='tab-'+name);
-  if(name==='feed')loadFeed();
-  if(name==='map')ensureMap();
-  if(name==='wiki')loadWiki();
-}
-
-/* ═══ Panel system ═══ */
-function openPanel(id){
-  if(S.activePanel&&S.activePanel!==id){document.getElementById(S.activePanel).classList.remove('active');}
-  S.activePanel=id;
-  document.getElementById('panel-backdrop').classList.add('active');
-  document.getElementById(id).classList.add('active');
-}
-function closeActivePanel(){
-  if(!S.activePanel)return;
-  document.getElementById(S.activePanel).classList.remove('active');
-  document.getElementById('panel-backdrop').classList.remove('active');
-  S.activePanel=null;
-}
-function openTeamPanel(){openPanel('panel-team');renderTeamPanel();}
-function openStatsPanel(){openPanel('panel-stats');loadStats();}
-function openCommitmentsPanel(){openPanel('panel-commitments');}
-function openNudgesPanel(){openPanel('panel-nudges');renderNudges();}
-
-</script>
-<script>
-/* ═══════════════════════════════════════════════
-   Panel content renderers + Feed + Map + Wiki
-   ═══════════════════════════════════════════════ */
-
-/* ═══ Team Management panel ═══ */
-function renderTeamPanel(){
-  var body=document.getElementById('panel-team-body');
-  var myTeam=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId;});
-  var waiting=S.waitingQueue||[];
-  var accountedCount=myTeam.filter(function(v){return v.accountedFor;}).length;
-
-  // Quick-glance row
-  var totalWeight=0;
-  if(S.eventReport&&S.eventReport.eventTotals){
-    totalWeight=S.eventReport.eventTotals.totalWeight||0;
+  var tabs=document.querySelectorAll('.tab');
+  for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',tabs[i].dataset.tab===name);
+  var panes=document.querySelectorAll('.pane');
+  for(var i=0;i<panes.length;i++)panes[i].classList.remove('active');
+  $('pane-'+name).classList.add('active');
+  if(name==='map'){
+    if(!S.mapInitialized)initMap();
+    else setTimeout(function(){if(S.leafletMap)S.leafletMap.invalidateSize();},80);
   }
-  var html='<div class="glance-row">'+
-    '<div class="glance-box"><div class="glance-val">'+myTeam.length+'</div><div class="glance-label">Team</div></div>'+
-    '<div class="glance-box"><div class="glance-val">'+waiting.length+'</div><div class="glance-label">Waiting</div></div>'+
-    '<div class="glance-box"><div class="glance-val">'+accountedCount+'/'+myTeam.length+'</div><div class="glance-label">Accounted</div></div>'+
-  '</div>';
+}
 
-  // Tip card (collapsible)
-  if(!localStorage.getItem('cmra_tl_tip_dismissed')){
-    html+='<div class="tip-card" id="tl-tip" onclick="toggleTip(event)">'+
-      '<div class="tip-head"><strong>Team Leader quick-start</strong><span class="tip-toggle">Tap to expand</span></div>'+
-      '<div class="tip-body">'+
-        '1. <strong>Approvals</strong> — new joiners show in the queue below. Tap <em>Approve</em> to add them to your team.<br>'+
-        '2. <strong>Commitments</strong> — use the Commits chip to mark <em>Team Left Garden</em> and <em>Team Arrived</em>. These light up permanently once pressed.<br>'+
-        '3. <strong>Accountability</strong> — after collection, each member needs a status (Back Safe / Left Early / Unable). Actions are inline below.<br>'+
-        '4. <strong>Start Collecting</strong> — the green button at the bottom opens your own volunteer flow. You stay a TL while you collect.<br>'+
-        '<span class="tip-toggle" onclick="dismissTip(event)" style="display:inline-block;margin-top:10px">Got it, hide this →</span>'+
-      '</div>'+
-    '</div>';
-  }
-
-  // Pending approvals section
-  if(waiting.length>0){
-    html+='<div class="section-label">Pending Approvals <span class="section-count">'+waiting.length+'</span></div>';
-    html+='<div class="card">';
-    for(var i=0;i<waiting.length;i++){
-      var v=waiting[i];
-      html+='<div class="vol-row">'+
-        '<div class="vol-info"><span class="vol-name">'+(v.displayName?esc(v.displayName):'(no name)')+'</span><span class="vol-meta">'+(v.gates&&v.gates.data_transparency?'gates ok':'gates pending')+'</span></div>'+
-        '<div class="vol-actions"><button class="btn-sm btn-tl" onclick="doApprove(this,\''+v.volunteerId+'\')">Approve</button></div>'+
-      '</div>';
+/* Team */
+function renderTeam(){
+  if(S.queue.length>0){
+    $('approval-card').style.display='block';$('queue-count').textContent='('+S.queue.length+')';
+    var q='';for(var i=0;i<S.queue.length;i++){var v=S.queue[i];
+      q+='<div class="vol-row state-joined"><div class="avatar">'+esc(initials(v.displayName))+'</div><div class="meta"><div class="name">'+esc(v.displayName)+'</div><div class="state">Joined</div></div><div class="actions"><button class="btn-sm primary" onclick="doApprove(this,\''+v.volunteerId+'\')">Approve</button></div></div>';
+    }$('queue-list').innerHTML=q;
+  }else{$('approval-card').style.display='none';}
+  var myTeam=S.roster.filter(function(v){return v.teamLeaderId===S.volunteerId||v.volunteerId===S.volunteerId;});
+  if(myTeam.length===0){$('roster-list').innerHTML='<div class="empty">No one on your team yet.</div>';return;}
+  var h='';for(var i=0;i<myTeam.length;i++){var v=myTeam[i];var actions='';
+    if(v.volunteerId!==S.volunteerId&&v.currentState!=='accounted_for'&&v.currentState!=='left_early'){
+      actions='<button class="btn-sm" onclick="doAccount(this,\''+v.volunteerId+'\')">Accounted</button>';
     }
-    html+='</div>';
-  }
-
-  // Active team section
-  html+='<div class="section-label">Team Members <span class="section-count">'+myTeam.length+'</span></div>';
-  html+='<div class="card">';
-  if(myTeam.length===0){
-    html+='<p style="color:var(--text-dim);font-size:0.85rem">No team members yet. Approvals from the queue will land here.</p>';
-  }else{
-    for(var j=0;j<myTeam.length;j++){
-      var m=myTeam[j];
-      var needsAccountability=['session_complete','between_legs','collecting'].indexOf(m.currentState)>=0&&!m.accountedFor;
-      var isAccounted=m.accountedFor;
-      var actions='';
-      if(isAccounted){
-        actions='<span class="badge badge-accounted">'+(m.accountedPreset||'accounted').replace(/_/g,' ')+'</span>';
-      }else if(needsAccountability||m.currentState==='session_complete'){
-        actions='<button class="btn-sm" style="background:var(--accent);color:#fff" onclick="doAccount(this,\''+m.volunteerId+'\',\'back_safe\')">Back Safe</button>'+
-                '<button class="btn-sm" style="background:var(--amber);color:#fff" onclick="doAccount(this,\''+m.volunteerId+'\',\'left_early\')">Left Early</button>'+
-                '<button class="btn-sm" style="background:var(--danger);color:#fff" onclick="doAccount(this,\''+m.volunteerId+'\',\'unable_to_reach\')">Unable</button>';
-      }else{
-        actions='<span class="badge badge-state">'+m.currentState.replace(/_/g,' ')+'</span>';
-      }
-      html+='<div class="vol-row">'+
-        '<div class="vol-info"><span class="vol-name">'+(m.displayName?esc(m.displayName):'(no name)')+'</span><span class="vol-meta">'+m.currentState.replace(/_/g,' ')+'</span></div>'+
-        '<div class="vol-actions">'+actions+'</div>'+
-      '</div>';
-    }
-  }
-  html+='</div>';
-
-  body.innerHTML=html;
-}
-function toggleTip(e){
-  if(e&&e.target&&e.target.classList.contains('tip-toggle')&&e.target.onclick)return;
-  var t=document.getElementById('tl-tip');
-  if(t)t.classList.toggle('open');
-}
-function dismissTip(e){
-  if(e){e.stopPropagation();}
-  localStorage.setItem('cmra_tl_tip_dismissed','1');
-  var t=document.getElementById('tl-tip');
-  if(t)t.style.display='none';
-}
-function doApprove(btn,volId){
-  btn.disabled=true;btn.textContent='...';
-  api('approveVolunteer',{targetVolunteerId:volId}).then(function(){
-    refreshAll();
-    setTimeout(renderTeamPanel,400);
-  }).catch(function(e){
-    btn.disabled=false;btn.textContent='Approve';
-    alert('Error: '+e.message);
-  });
-}
-function doAccount(btn,volId,preset){
-  btn.disabled=true;
-  // Map preset ('accounted_for' or 'left_early') to the backend's 'decision' key
-  var decision = (preset === 'left_early') ? 'left_early' : 'accounted_for';
-  api('accountForVolunteer',{targetVolunteerId:volId,decision:decision}).then(function(){
-    refreshAll();
-    setTimeout(renderTeamPanel,400);
-  }).catch(function(e){
-    btn.disabled=false;
-    alert('Error: '+e.message);
-  });
+    h+='<div class="vol-row state-'+esc(v.currentState)+'"><div class="avatar">'+esc(initials(v.displayName))+'</div><div class="meta"><div class="name">'+esc(v.displayName)+(v.volunteerId===S.volunteerId?' <span class="muted">(you)</span>':'')+'</div><div class="state">'+esc(v.currentState)+'</div></div><div class="actions">'+actions+'</div></div>';
+  }$('roster-list').innerHTML=h;
 }
 
-/* ═══ Stats panel ═══ */
-function loadStats(){
-  var body=document.getElementById('panel-stats-body');
-  body.innerHTML='<div class="loading-text"><span class="pulse"></span> Calculating...</div>';
-  fetchEventReportForTL().then(function(report){
-    S.eventReport=report;
-    renderStats(report);
-  }).catch(function(e){
-    body.innerHTML='<p style="color:var(--danger);font-size:0.88rem">Could not load stats: '+esc(e.message)+'</p>';
-  });
+function doApprove(btn,volId){btn.disabled=true;btn.textContent='…';
+  api('approveVolunteer',{targetVolunteerId:volId}).then(refreshAll).catch(function(e){btn.disabled=false;btn.textContent='Approve';alert('Error: '+e.message);});
 }
-/* Script B does not expose org_getEventReport to volunteers, so we compute team stats from local data. */
-function fetchEventReportForTL(){
-  return new Promise(function(resolve){
-    var myTeam=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId;});
-    var teamVolIds=myTeam.map(function(v){return v.volunteerId;});
-    // Use local team data to compute summary. Future enhancement: dedicated getTeamReport endpoint.
-    var report={
-      teamCount:myTeam.length,
-      approvedCount:myTeam.filter(function(v){return v.currentState!=='joined';}).length,
-      accountedCount:myTeam.filter(function(v){return v.accountedFor;}).length,
-      collectingCount:myTeam.filter(function(v){return['collecting','between_legs','session_complete'].indexOf(v.currentState)>=0;}).length,
-      members:myTeam
-    };
-    resolve(report);
-  });
+function doBulkApprove(){if(!confirm('Approve all '+S.queue.length+' waiting volunteers?'))return;
+  showBusy('Approving…');api('bulkApprove').then(function(){hideBusy();refreshAll();}).catch(function(e){hideBusy();alert('Error: '+e.message);});
 }
-function renderStats(report){
-  var body=document.getElementById('panel-stats-body');
-  var html='<div class="stat-grid">'+
-    '<div class="stat-card"><div class="sc-val">'+(report.teamCount||0)+'</div><div class="sc-label">Team Size</div></div>'+
-    '<div class="stat-card"><div class="sc-val">'+(report.approvedCount||0)+'</div><div class="sc-label">Active</div></div>'+
-    '<div class="stat-card"><div class="sc-val">'+(report.collectingCount||0)+'</div><div class="sc-label">Collecting</div></div>'+
-    '<div class="stat-card highlight"><div class="sc-val">'+(report.accountedCount||0)+'/'+(report.teamCount||0)+'</div><div class="sc-label">Accounted</div></div>'+
-  '</div>';
-
-  html+='<div class="card-section-title">Team Members</div>';
-  html+='<div class="card">';
-  if(!report.members||report.members.length===0){
-    html+='<p style="color:var(--text-dim);font-size:0.85rem">No team yet.</p>';
-  }else{
-    for(var i=0;i<report.members.length;i++){
-      var m=report.members[i];
-      html+='<div class="vol-row">'+
-        '<div class="vol-info"><span class="vol-name">'+(m.displayName?esc(m.displayName):'(no name)')+'</span><span class="vol-meta">'+m.currentState.replace(/_/g,' ')+'</span></div>'+
-        '<div class="vol-actions">'+(m.accountedFor?'<span class="badge badge-accounted">'+(m.accountedPreset||'ok').replace(/_/g,' ')+'</span>':'<span class="badge badge-state">'+m.currentState.replace(/_/g,' ')+'</span>')+'</div>'+
-      '</div>';
-    }
-  }
-  html+='</div>';
-
-  html+='<p style="color:var(--text-dim);font-size:0.78rem;margin-top:14px;line-height:1.5">Note: team-level totals (weight, distance, √CPUE) require a dedicated endpoint and will land in a later card. This panel currently shows team roster and status.</p>';
-
-  body.innerHTML=html;
+function doAccount(btn,volId){btn.disabled=true;
+  api('accountForVolunteer',{targetVolunteerId:volId,decision:'accounted_for'}).then(refreshAll).catch(function(e){btn.disabled=false;alert('Error: '+e.message);});
 }
 
-/* ═══ Commitments panel — pedal press ═══ */
-function pedalPress(which,el){
-  if(el.classList.contains('committed'))return; // already committed, no-op
-  if(el.classList.contains('gated'))return;
-  el.classList.add('committed');
-  var action=which==='leftGarden'?'teamLeftGarden':'teamArrivedAtZone';
-  api(action).then(function(){
-    refreshAll();
-  }).catch(function(e){
-    el.classList.remove('committed');
-    alert('Error: '+e.message);
-  });
+/* Stats */
+function renderStats(){
+  if(!S.stats){$('stats-body').innerHTML='<div class="muted">No data yet.</div>';return;}
+  var s=S.stats;var h='';
+  h+='<div class="stat-row"><span class="k">Volunteers</span><span class="v">'+s.totalVolunteers+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Collecting now</span><span class="v">'+s.collectingNow+'</span></div>';
+  h+='<div class="stat-row"><span class="k">At zone</span><span class="v">'+s.atZoneNow+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Total sessions</span><span class="v">'+s.totalSessions+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Total weight</span><span class="v">'+fmtLbs(s.totalWeightLbs)+' lbs</span></div>';
+  h+='<div class="stat-row"><span class="k">Total distance</span><span class="v">'+fmtMiles(s.totalDistanceM)+' mi</span></div>';
+  h+='<div class="stat-row"><span class="k">Total duration</span><span class="v">'+fmtHrs(s.totalDurationSec)+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Accounted for</span><span class="v">'+s.accountedCount+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Left early</span><span class="v">'+s.leftEarlyCount+'</span></div>';
+  $('stats-body').innerHTML=h;
 }
 
-/* ═══ Nudges panel ═══ */
-function renderNudges(){
-  var body=document.getElementById('panel-nudges-body');
-  var items=[];
-  if(S.waitingQueue.length>0){
-    items.push({type:'approval',text:S.waitingQueue.length+' volunteer'+(S.waitingQueue.length>1?'s':'')+' waiting for approval',action:'openTeamPanel'});
-  }
-  if(!S.commitments.leftGarden){
-    var ready=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId&&v.currentState==='approved';}).length;
-    if(ready>0){items.push({type:'commitment',text:'Your team is ready to depart. Tap <em>Team Left Garden</em> when you leave.',action:'openCommitmentsPanel'});}
-  }
-  if(S.commitments.leftGarden&&!S.commitments.arrived){
-    items.push({type:'commitment',text:'Team en route. Tap <em>Team Arrived</em> when you reach the zone.',action:'openCommitmentsPanel'});
-  }
-  if(items.length===0){
-    body.innerHTML='<div class="loading-text">No notifications right now.</div>';
-    return;
-  }
-  var html='';
-  for(var i=0;i<items.length;i++){
-    html+='<div class="card" style="cursor:pointer" onclick="closeActivePanel();'+items[i].action+'()"><p style="color:var(--text);font-size:0.9rem;margin:0">'+items[i].text+'</p></div>';
-  }
-  body.innerHTML=html;
+/* Feed */
+function renderFeed(){
+  if(!S.recentLog||S.recentLog.length===0){$('feed-list').innerHTML='<div class="empty">No activity yet.</div>';return;}
+  var recent=S.recentLog.slice().reverse().slice(0,50);
+  var h='';for(var i=0;i<recent.length;i++){var e=recent[i];
+    var who=lookupName(e.volunteer_id)||(e.volunteer_id?e.volunteer_id.substring(0,6):'—');
+    var msg=describe(e);
+    h+='<div class="feed-row"><div class="when">'+fmtTime(e.ts)+'</div><div><span class="who">'+esc(who)+'</span> '+esc(msg)+'</div></div>';
+  }$('feed-list').innerHTML=h;
 }
+function lookupName(vid){for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===vid)return S.roster[i].displayName;}return null;}
+function describe(e){switch(e.mutation_type){
+  case'volunteer_joined':return'joined';case'state_transition':return (e.from_state||'?')+' → '+(e.to_state||'?');
+  case'session_start':return'started session';case'leg_start':return'started leg';case'leg_end':return'completed leg';
+  case'session_finish':return'finished session';case'leg_cancelled':return'cancelled leg';case'leg_deleted':return'leg deleted';
+  case'accountability':return e.to_state||'accounted';case'team_arrived_at_zone':return'team arrived at zone';
+  case'team_left_garden':return'team left garden';case'promoted_to_tl':return'promoted to Team Leader';
+  case'event_created':return'event created';case'event_ended':return'event ended';default:return e.mutation_type;
+}}
 
-/* ═══ Feed tab ═══ */
-function loadFeed(){
-  var list=document.getElementById('feed-list');
-  Promise.all([
-    api('getEventZones',null,{legacy:true}).then(function(z){return z;}).catch(function(){return[];}),
-    // Scout ratings: no direct volunteer-facing endpoint — skip for now unless backend exposes
-    // Feed_Events: ditto — will need new getFeedForEvent route for 03b
-  ]).then(function(){
-    // Stub: show state transitions derived from current team member states
-    // This is placeholder until getFeedEvents endpoint ships in 03b
-    var myTeam=S.teamMembers.filter(function(v){return v.teamLeaderId===S.volunteerId;});
-    if(myTeam.length===0){
-      list.innerHTML='<div class="feed-empty">No team activity yet. Your feed will show team updates as they happen.</div>';
-      return;
-    }
-    var html='';
-    for(var i=0;i<myTeam.length;i++){
-      var m=myTeam[i];
-      html+='<div class="feed-card">'+
-        '<div class="fc-head">'+
-          '<span class="fc-type state">STATE</span>'+
-          '<span class="fc-who">'+(m.displayName?esc(m.displayName):'(no name)')+'</span>'+
-          '<span class="fc-time">now</span>'+
-        '</div>'+
-        '<div class="fc-body">is <strong>'+m.currentState.replace(/_/g,' ')+'</strong></div>'+
-      '</div>';
-    }
-    html+='<div class="feed-empty" style="padding:20px 10px 0;font-size:0.78rem">Full activity feed (posts · comments · reactions · scout ratings · photo pins) lands in Card 03b.</div>';
-    list.innerHTML=html;
-  });
-}
-
-/* ═══ Map tab ═══ */
-function ensureMap(){
-  if(S.mapInitialized){loadMapPositions();return;}
-  var el=document.getElementById('tl-map-wrap');
-  if(!el)return;
-  var map=L.map(el,{zoomControl:false,maxZoom:21}).setView([32.3668,-86.3000],14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'OSM',maxZoom:21,maxNativeZoom:19}).addTo(map);
-  S.leafletMap=map;
+/* Map */
+function initMap(){
+  if(S.mapInitialized)return;if(typeof L==='undefined')return;
+  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  S.leafletMap=L.map('map').setView([start.lat,start.lon],14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(S.leafletMap);
   S.mapInitialized=true;
-  // Load zones
-  api('getEventZones',null,{legacy:true}).then(function(zones){
-    for(var i=0;i<zones.length;i++){
-      var z=zones[i];
-      if(z.polygon&&z.polygon.length>0){
-        var ll=z.polygon.map(function(p){return Array.isArray(p)?[p[0],p[1]]:[p.lat,p.lng];});
-        L.polygon(ll,{color:'#2c8a3d',fillColor:'#2c8a3d',fillOpacity:0.12,weight:2}).addTo(map).bindPopup(z.name);
-      }
-    }
-  }).catch(function(){});
-  setTimeout(function(){map.invalidateSize();loadMapPositions();loadCachedReport();},150);
 }
-/* Severity color for CPUE/rating/divergence — green→yellow→red gradient over 0..10.
-   Values above 10 cap visually at deep red. Divergence is signed (-10..+10); callers
-   map it to 0..10 via Math.abs before passing in, and frontend differentiates sign
-   via stroke style if needed. */
-function severityColor(v){
-  if(v===null||v===undefined||isNaN(v))return '#8e8e93';
-  var x=Math.max(0,Math.min(10,v));
-  // 0=green #2c8a3d, 5=yellow #eab308, 10=red #dc2626
-  var r,g,b;
-  if(x<=5){
-    var t=x/5;
-    r=Math.round(44 + t*(234-44));
-    g=Math.round(138 + t*(179-138));
-    b=Math.round(61 + t*(8-61));
-  }else{
-    var t2=(x-5)/5;
-    r=Math.round(234 + t2*(220-234));
-    g=Math.round(179 + t2*(38-179));
-    b=Math.round(8 + t2*(38-8));
-  }
-  return 'rgb('+r+','+g+','+b+')';
-}
-
-function setMapLens(lens){
-  S.mapColorLens=lens;
-  var btns=document.querySelectorAll('.lens-pill');
-  for(var i=0;i<btns.length;i++){
-    btns[i].classList.toggle('active',btns[i].getAttribute('data-lens')===lens);
-  }
-  // Re-render using existing blob if we have one
+function setLens(lens){S.mapLens=lens;
+  var pills=document.querySelectorAll('.map-pill[data-lens]');
+  for(var i=0;i<pills.length;i++)pills[i].classList.toggle('active',pills[i].dataset.lens===lens);
   if(S.reportBlob)renderMapPaths();
 }
-
-function refreshPaths(){
-  var btn=document.getElementById('refresh-paths-btn');
-  var label=document.getElementById('refresh-paths-label');
-  if(btn)btn.disabled=true;
-  if(label)label.textContent='Generating…';
-  api('generateReport').then(function(res){
-    if(res&&res.debounced){
-      // Server says too soon — paint cached blob if we got one, start countdown
-      if(res.cachedBlob){S.reportBlob=res.cachedBlob;renderMapPaths();}
-      startRefreshCountdown(res.nextAvailableInSec||90);
-    }else{
-      S.reportBlob=res;
-      renderMapPaths();
-      startRefreshCountdown(90);
-    }
-  }).catch(function(err){
-    if(label)label.textContent='Refresh Paths';
-    if(btn)btn.disabled=false;
-    console.warn('generateReport failed:',err&&err.message);
-  });
+function doRefreshPaths(){var btn=$('btn-refresh-paths');btn.disabled=true;btn.textContent='Loading…';
+  api('generateReport').then(function(res){btn.disabled=false;btn.textContent='Refresh paths';
+    if(res&&res.blob){S.reportBlob=res.blob;renderMapPaths();}refreshAll();
+  }).catch(function(e){btn.disabled=false;btn.textContent='Refresh paths';alert('Error: '+e.message);});
 }
-
-function startRefreshCountdown(sec){
-  var btn=document.getElementById('refresh-paths-btn');
-  var label=document.getElementById('refresh-paths-label');
-  if(!btn||!label)return;
-  if(S._refreshCountdownTimer)clearInterval(S._refreshCountdownTimer);
-  var remaining=sec;
-  btn.disabled=true;
-  label.textContent='Wait '+remaining+'s';
-  S._refreshCountdownTimer=setInterval(function(){
-    remaining--;
-    if(remaining<=0){
-      clearInterval(S._refreshCountdownTimer);
-      S._refreshCountdownTimer=null;
-      btn.disabled=false;
-      label.textContent='Refresh Paths';
-    }else{
-      label.textContent='Wait '+remaining+'s';
-    }
-  },1000);
-}
-
-/* Paint the cached report blob as polylines + in-flight markers + external trackers.
-   Reads S.reportBlob and S.mapColorLens. Called on init, refresh, and lens switch. */
 function renderMapPaths(){
   if(!S.leafletMap||!S.reportBlob)return;
-  // Clear old paths and in-flight markers
-  for(var i=0;i<S.mapPaths.length;i++)S.leafletMap.removeLayer(S.mapPaths[i]);
-  S.mapPaths=[];
-  
-  var blob=S.reportBlob;
-  var lens=S.mapColorLens;
-  var allBounds=[];
-  
-  // Volunteers with tracks (native) — excluding external trackers (they have no trackPoints)
-  var volunteers=blob.volunteers||[];
-  for(var v=0;v<volunteers.length;v++){
-    var vol=volunteers[v];
-    if(vol.trackingMode==='external')continue; // Handled separately below
-    var sessions=vol.sessions||[];
-    for(var s=0;s<sessions.length;s++){
-      var legs=sessions[s].legs||[];
-      for(var l=0;l<legs.length;l++){
-        var leg=legs[l];
-        var pts=leg.trackPoints||[];
-        if(pts.length<2)continue;
-        var latlngs=pts.map(function(p){return [p.lat,p.lon];});
-        var polyOpts;
-        if(leg.inProgress){
-          // Black dashed in-flight polyline
-          polyOpts={color:'#000',weight:3,opacity:0.85,dashArray:'6,4'};
-        }else{
-          // Colored by active lens
-          var lensVal;
-          if(lens==='sqrt_cpue')lensVal=leg.sqrtCpueRaw;
-          else if(lens==='post_rating')lensVal=leg.postRating;
-          else if(lens==='divergence')lensVal=Math.abs(leg.divergence||0);
-          polyOpts={color:severityColor(lensVal),weight:4,opacity:0.85};
-        }
-        var poly=L.polyline(latlngs,polyOpts).addTo(S.leafletMap);
-        var popup=esc(vol.displayName||'')+' — leg '+(leg.legNumber||'?');
-        if(leg.inProgress)popup+=' (in flight)';
-        else if(lens==='sqrt_cpue'&&leg.sqrtCpueRaw!=null)popup+=' · √CPUE '+leg.sqrtCpueRaw.toFixed(4);
-        else if(lens==='post_rating'&&leg.postRating!=null)popup+=' · rating '+leg.postRating;
-        else if(lens==='divergence'&&leg.divergence!=null)popup+=' · div '+(leg.divergence>0?'+':'')+leg.divergence.toFixed(1);
-        poly.bindPopup(popup);
+  for(var i=0;i<S.mapPaths.length;i++)S.leafletMap.removeLayer(S.mapPaths[i]);S.mapPaths=[];
+  var vols=(S.reportBlob.volunteers||[]).concat(S.reportBlob.externalTrackers||[]);
+  var bounds=[];
+  for(var v=0;v<vols.length;v++){var sessions=vols[v].sessions||[];
+    for(var s=0;s<sessions.length;s++){var legs=sessions[s].legs||[];
+      for(var l=0;l<legs.length;l++){var leg=legs[l];
+        if(!leg.trackPoints||leg.trackPoints.length<2)continue;
+        var color=lensColor(leg);
+        var latlngs=leg.trackPoints.map(function(p){return[p.lat,p.lon];});
+        for(var p=0;p<latlngs.length;p++)bounds.push(latlngs[p]);
+        var poly=L.polyline(latlngs,{color:color,weight:leg.inFlight?5:3,opacity:leg.inFlight?0.95:0.8}).addTo(S.leafletMap);
+        poly.bindPopup('<strong>'+esc(vols[v].displayName)+'</strong><br>Leg '+leg.legNumber+'<br>Weight: '+fmtLbs(leg.weightLbs)+' lbs<br>Distance: '+fmtMiles(leg.distanceM)+' mi<br>√CPUE: '+(leg.sqrtCpueRaw!=null?leg.sqrtCpueRaw.toFixed(4):'—'));
         S.mapPaths.push(poly);
-        for(var k=0;k<latlngs.length;k++)allBounds.push(latlngs[k]);
-        
-        // Pulsing endpoint for in-flight legs
-        if(leg.inProgress&&latlngs.length>0){
-          var last=latlngs[latlngs.length-1];
-          var pulseMarker=L.marker(last,{
-            icon:L.divIcon({className:'inflight-pulse-pin',html:'<div class="pulse-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]})
-          }).addTo(S.leafletMap);
-          pulseMarker.bindPopup(esc(vol.displayName||'')+' — still collecting');
-          S.mapPaths.push(pulseMarker);
-        }
-      }
-    }
-  }
-  
-  // External trackers — pin at snapTo (starting_location) with dashed halo
-  var ext=blob.externalTrackers||[];
-  for(var e=0;e<ext.length;e++){
-    var et=ext[e];
-    if(!et.snapTo||et.snapTo.lat==null)continue;
-    var extMarker=L.marker([et.snapTo.lat,et.snapTo.lon],{
-      icon:L.divIcon({className:'ext-tracker-pin',html:'<div class="ext-dot"></div>',iconSize:[14,14],iconAnchor:[7,7]})
-    }).addTo(S.leafletMap);
-    var extLabel=esc(et.displayName||'')+' — tracking via '+esc(et.trackingApp||'external');
-    if(et.snapTo.source==='starting_location')extLabel+=' (location approximate)';
-    extMarker.bindPopup(extLabel);
-    S.mapPaths.push(extMarker);
-    allBounds.push([et.snapTo.lat,et.snapTo.lon]);
-  }
-  
-  // Fit bounds to include everything if we have any
-  if(allBounds.length>0){
-    try{S.leafletMap.fitBounds(L.latLngBounds(allBounds).pad(0.2));}catch(e){}
-  }
+      }}}
+  if(bounds.length>0)S.leafletMap.fitBounds(bounds,{padding:[20,20]});
+}
+function lensColor(leg){var v=null;
+  if(S.mapLens==='sqrt_cpue')v=leg.sqrtCpueRaw;
+  else if(S.mapLens==='post_rating')v=leg.postRating;
+  else if(S.mapLens==='divergence')v=leg.divergence;
+  if(v==null)return'#8e8e93';
+  var norm=Math.max(0,Math.min(10,Math.abs(v)))/10;
+  var r=Math.floor(norm*255);var g=Math.floor((1-Math.abs(norm-0.5)*2)*200);var b=Math.floor((1-norm)*80);
+  return'rgb('+r+','+g+','+b+')';
 }
 
-function loadCachedReport(){
-  // Called on map-tab open. Reads whatever's in cache without regenerating.
-  api('getLatestReport').then(function(res){
-    if(res&&res.blob){
-      S.reportBlob=res.blob;
-      renderMapPaths();
-      // If server says debounce is active, sync countdown on the button
-      if(res.nextAvailableInSec>0)startRefreshCountdown(res.nextAvailableInSec);
-    }
-  }).catch(function(){});
+/* Commitments */
+function doLeftGarden(){showBusy('Marking…');
+  api('teamLeftGarden').then(function(r){hideBusy();$('chip-left-garden').classList.add('active');refreshAll();})
+    .catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+function doArrivedAtZone(){showBusy('Marking…');
+  api('teamArrivedAtZone').then(function(r){hideBusy();$('chip-arrived').classList.add('active');refreshAll();})
+    .catch(function(e){hideBusy();alert('Error: '+e.message);});
 }
 
-function loadMapPositions(){
-  if(!S.leafletMap)return;
-  api('getLivePositions').then(function(positions){
-    for(var i=0;i<S.mapMarkers.length;i++)S.leafletMap.removeLayer(S.mapMarkers[i]);
-    S.mapMarkers=[];
-    var now=Date.now();
-    for(var j=0;j<positions.length;j++){
-      var p=positions[j],isMe=p.volunteerId===S.volunteerId;
-      // Freshness: parse timestamp; compute age in seconds
-      var ageSec=null;
-      if(p.timestamp){
-        var ts=new Date(p.timestamp).getTime();
-        if(!isNaN(ts))ageSec=Math.round((now-ts)/1000);
-      }
-      // Color bands — green < 30s, amber 30-90s, gray > 90s (stale)
-      // Self-pin keeps accent green regardless
-      var fillColor,ringColor,fillOpacity=0.9,dashArray=null,ageLabel='';
-      if(isMe){
-        fillColor='#2c8a3d';ringColor='#fff';
-      }else if(ageSec===null){
-        fillColor='#8e8e93';ringColor='#fff';fillOpacity=0.4;ageLabel=' (no timestamp)';
-      }else if(ageSec<30){
-        fillColor='#2563eb';ringColor='#fff';
-      }else if(ageSec<90){
-        fillColor='#d97706';ringColor='#fff';fillOpacity=0.7;ageLabel=' ('+ageSec+'s ago)';
-      }else{
-        fillColor='#8e8e93';ringColor='#8e8e93';fillOpacity=0.35;dashArray='4,4';
-        ageLabel=ageSec<3600?' (STALE — '+Math.round(ageSec/60)+'m ago)':' (STALE — '+Math.round(ageSec/3600)+'h ago)';
-      }
-      var opts={radius:isMe?10:7,fillColor:fillColor,fillOpacity:fillOpacity,color:ringColor,weight:2};
-      if(dashArray)opts.dashArray=dashArray;
-      var m=L.circleMarker([p.lat,p.lon],opts).addTo(S.leafletMap);
-      m.bindPopup((p.displayName?esc(p.displayName):'(no name)')+(isMe?' (You)':'')+ageLabel);
-      S.mapMarkers.push(m);
-    }
-    if(S.mapMarkers.length>0){
-      S.leafletMap.fitBounds(L.featureGroup(S.mapMarkers).getBounds().pad(0.3));
-    }
-  }).catch(function(){});
+/* Event tab */
+function renderEvent(){
+  var e=S.event;if(!e)return;var h='';
+  h+='<div class="stat-row"><span class="k">Name</span><span class="v">'+esc(e.name)+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Status</span><span class="v">'+esc(S.eventStatus)+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Data state</span><span class="v">'+esc(S.dataState)+'</span></div>';
+  h+='<div class="stat-row"><span class="k">Event ID</span><span class="v" style="font-size:0.7rem">'+esc(e.eventId)+'</span></div>';
+  $('event-details').innerHTML=h;
+}
+function doEndEvent(){if(!confirm('End this event? Writes stay open for accountability, but the event will be marked ended.'))return;
+  showBusy('Ending event…');api('endEvent').then(function(){hideBusy();S.eventStatus='ended';renderPills();refreshAll();})
+    .catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+function doGenerateReport(){var btn=$('btn-generate-report');btn.disabled=true;btn.textContent='Generating…';
+  api('generateReport').then(function(r){btn.disabled=false;btn.textContent='Generate report';
+    if(r&&r.blob)S.reportBlob=r.blob;refreshAll();alert('Report generated. Data state: '+S.dataState);
+  }).catch(function(e){btn.disabled=false;btn.textContent='Generate report';alert('Error: '+e.message);});
+}
+function doStitchData(){if(!confirm('Stitch data and finalize the event? After this, no more writes allowed.'))return;
+  var btn=$('btn-stitch-data');btn.disabled=true;btn.textContent='Stitching…';
+  api('stitchData').then(function(r){btn.disabled=false;btn.textContent='Stitch data (finalize)';refreshAll();
+    if(r.stitchPartial)alert('Partial stitch — run again to continue. '+r.volunteersStitched+' done so far.');
+    else if(r.ok)alert('Stitch complete. Data frozen.');
+    else alert('Stitch finished with issues: '+(r.stitchError||JSON.stringify(r.stitchErrors)));
+  }).catch(function(e){btn.disabled=false;btn.textContent='Stitch data (finalize)';alert('Error: '+e.message);});
 }
 
-/* ═══ Wiki tab ═══ */
-function loadWiki(){
-  var list=document.getElementById('wiki-list');
-  var keys=['liability','data_privacy','cpue_explanation','rating_guide','zone_info','safety'];
-  var loaded=0,content=[];
-  keys.forEach(function(k){
-    api('getContentBlock',{key:k},{legacy:true}).then(function(c){
-      if(c&&c.body)content.push(c);
-    }).catch(function(){}).then(function(){
-      if(++loaded>=keys.length){
-        if(content.length===0){
-          list.innerHTML='<p style="color:var(--text-dim);font-size:0.88rem;text-align:center;padding:20px">No wiki content configured.</p>';
-          return;
-        }
-        list.innerHTML=content.map(function(c){
-          return'<div class="wiki-section"><h3>'+esc(c.title)+'</h3><p>'+esc(c.body)+'</p></div>';
-        }).join('');
-      }
-    });
-  });
-}
-
-/* ═══ Start Collecting panel (iframe to volunteer app) ═══ */
-function openStartCollectingPanel(){
-  openPanel('panel-collecting');
-  var iframe=document.getElementById('collecting-iframe');
-  if(iframe.src==='about:blank'||iframe.src===''){
-    // Load the volunteer app in an iframe. It reads the same localStorage.
-    iframe.src='../';
-  }
-}
-function closeCollectingPanel(){
-  closeActivePanel();
-  // Don't reset iframe src — keep their state if they re-open
-  // Trigger refresh of team data in case they did anything
-  setTimeout(refreshAll,500);
-}
-
-/* ═══ Boot ═══ */
 boot();
 </script>
 </body>
