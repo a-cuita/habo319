@@ -115,17 +115,15 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 .chat-badge.show{display:block}
 
 .vol-chat-msg{margin-bottom:10px;max-width:85%}
-.vol-chat-msg.mine{margin-left:auto}
+.vol-chat-msg.mine{margin-left:auto;text-align:right}
 .vol-chat-msg.theirs{margin-right:auto}
 .vol-chat-msg .vc-author{font-size:0.7rem;font-weight:700;color:var(--text-dim);margin-bottom:2px}
-.vol-chat-msg.mine .vc-author{text-align:right}
-.vol-chat-msg .vc-bubble{padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word}
+.vol-chat-msg .vc-bubble{display:inline-block;padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word;text-align:left}
 .vol-chat-msg.mine .vc-bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px}
 .vol-chat-msg.theirs .vc-bubble{background:var(--surface-2);color:var(--text);border-bottom-left-radius:4px}
 .vol-chat-msg.ai .vc-bubble{background:var(--accent-dim);color:var(--text);border:1px solid var(--accent);border-bottom-left-radius:4px}
 .vol-chat-msg.ai .vc-author{color:var(--accent)}
 .vol-chat-msg .vc-time{font-size:0.65rem;color:var(--text-dim);margin-top:2px}
-.vol-chat-msg.mine .vc-time{text-align:right}
 
 .vol-map{height:260px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
 .vol-map.external{height:200px}
@@ -1090,9 +1088,12 @@ function volSendChat(){
   var input=$('vol-chat-input');
   var text=(input.value||'').trim();
   if(!text||!S.volunteerId)return;
+  var sendBtn=input.nextElementSibling;
   input.value='';input.disabled=true;
+  if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
   api('sendChatMessage',{text:text}).then(function(d){
-    input.disabled=false;input.focus();
+    input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}
+    input.focus();
     if(d.message)volChatMessages.push(d.message);
     if(d.aiResponse){
       volChatMessages.push({
@@ -1104,7 +1105,7 @@ function volSendChat(){
     volChatLastSeen=volChatMessages.length;
     updateChatBadge();
     volRenderChat();
-  }).catch(function(e){input.disabled=false;alert('Send failed: '+e.message);});
+  }).catch(function(e){input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}alert('Send failed: '+e.message);});
 }
 
 function startVolChatPoll(){
