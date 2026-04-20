@@ -228,6 +228,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <div class="coll-metric"><div class="val" id="coll-dist">0.0000</div><div class="lbl">miles</div></div>
       <div class="coll-metric"><div class="val" id="coll-time">0:00</div><div class="lbl">min:sec</div></div>
     </div>
+    <button class="btn btn-secondary" onclick="togglePause()" id="pause-btn" style="margin-bottom:10px">⏸ Pause (set phone down)</button>
     <button class="btn btn-accent" onclick="gotoWeight()">Bag full — weigh it</button>
   </div>
 
@@ -239,6 +240,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <div class="coll-metric"><div class="val" id="coll-ext-time">0:00</div><div class="lbl">session time</div></div>
       <div class="coll-metric"><div class="val">—</div><div class="lbl">distance (in your app)</div></div>
     </div>
+    <button class="btn btn-secondary" onclick="togglePause()" id="pause-btn-ext" style="margin-bottom:10px">⏸ Pause (set phone down)</button>
     <button class="btn btn-accent" onclick="gotoWeightExternal()">Bag full — enter data</button>
   </div>
 
@@ -308,6 +310,15 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <p class="muted">Thank you for today. 🌱</p>
   </div>
 
+  <div class="screen" id="screen-event-ended">
+    <h1>Event ended</h1>
+    <div class="card" id="end-msg-card" style="display:none">
+      <div class="body" id="end-msg-body"></div>
+    </div>
+    <p class="lede">Thanks for volunteering today. Your session data was saved.</p>
+    <div class="lr-list" id="ended-session-list" style="display:none"></div>
+  </div>
+
 </div>
 
 <button class="cancel-fab" id="cancel-fab" onclick="cancelActiveLeg()" style="display:none">✕</button>
@@ -327,10 +338,12 @@ var S={
   gpsWatchId:null, gpsBuffer:[], gpsBufferTimer:null,
   extWatchId:null, extLastPos:null,
   collectStartMs:null, collectTickTimer:null,
+  paused:false, pauseStartMs:null,
   pollTimer:null,
   currentLegResult:null, sessionSummary:null,
   mapNative:null, mapNativeMarker:null, mapNativeTrack:null,
-  mapExternal:null, mapExternalMarker:null, mapExternalTrack:null
+  mapExternal:null, mapExternalMarker:null, mapExternalTrack:null,
+  eventEndMessage:null
 };
 
 function $(id){return document.getElementById(id);}
@@ -369,6 +382,14 @@ function boot(){
     if(!ev){showScreen('screen-no-event');return;}
     S.event=ev;
     $('event-name').textContent=ev.name||'';
+    S.eventEndMessage=ev.endMessage||null;
+    
+    // If the event is ended, pivot every volunteer to the event-ended screen
+    if(ev.status==='ended'){
+      showEventEnded();
+      return;
+    }
+    
     var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
     if(saved&&saved.volunteerId&&saved.eventId===ev.eventId){
       S.volunteerId=saved.volunteerId;
@@ -385,6 +406,23 @@ function boot(){
       }).catch(function(){localStorage.removeItem('cmra_volunteer');startFresh();});
     }else{startFresh();}
   }).catch(function(){showScreen('screen-no-event');});
+}
+
+function showEventEnded(){
+  if(S.eventEndMessage){
+    $('end-msg-card').style.display='block';
+    $('end-msg-body').textContent=S.eventEndMessage;
+  }
+  // If we have a session summary in state, show it
+  if(S.sessionSummary){
+    var s=S.sessionSummary;var h='';
+    h+='<div class="lr-row"><span class="k">Legs completed</span><span class="v">'+(s.legCount||0)+'</span></div>';
+    h+='<div class="lr-row"><span class="k">Total weight</span><span class="v">'+(s.totalWeightLbs!=null?s.totalWeightLbs.toFixed(2):'—')+' lbs</span></div>';
+    h+='<div class="lr-row"><span class="k">Total distance</span><span class="v">'+(s.totalDistanceM!=null?(s.totalDistanceM/1609.34).toFixed(4):'—')+' mi</span></div>';
+    $('ended-session-list').innerHTML=h;
+    $('ended-session-list').style.display='block';
+  }
+  showScreen('screen-event-ended');
 }
 
 function startFresh(){showScreen('screen-welcome');}
@@ -583,6 +621,29 @@ function startCollectTicker(external){
   },1000);
 }
 function stopCollectTicker(){if(S.collectTickTimer){clearInterval(S.collectTickTimer);S.collectTickTimer=null;}}
+
+/* ═══ Pause/Resume ═══ */
+function togglePause(){
+  S.paused=!S.paused;
+  var btnIds=['pause-btn','pause-btn-ext'];
+  for(var i=0;i<btnIds.length;i++){
+    var b=$(btnIds[i]);if(!b)continue;
+    if(S.paused){b.textContent='▶ Resume collecting';b.className='btn btn-primary';b.style.marginBottom='10px';}
+    else{b.textContent='⏸ Pause (set phone down)';b.className='btn btn-secondary';b.style.marginBottom='10px';}
+  }
+  if(S.paused){
+    // Freeze timer, stop GPS watches + flushes
+    if(S.collectTickTimer){clearInterval(S.collectTickTimer);S.collectTickTimer=null;}
+    S.pauseStartMs=Date.now();
+    if(S.trackingMode==='native'){stopNativeGPS();}
+    else{stopExternalWatch();}
+  }else{
+    // Resume: adjust collectStartMs forward by pause duration so elapsed stays continuous
+    if(S.pauseStartMs){S.collectStartMs+=(Date.now()-S.pauseStartMs);S.pauseStartMs=null;}
+    if(S.trackingMode==='native'){startNativeGPS();startCollectTicker(false);}
+    else{startExternalWatch();startCollectTicker(true);}
+  }
+}
 
 /* ═══ Native GPS ═══ */
 function startNativeGPS(){
