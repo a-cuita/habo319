@@ -469,6 +469,21 @@ function editVolunteer(volId){
   var stateSel='',trackSel='';
   for(var i=0;i<stateOptions.length;i++)stateSel+='<option value="'+stateOptions[i]+'"'+(v.currentState===stateOptions[i]?' selected':'')+'>'+stateOptions[i]+'</option>';
   for(var i=0;i<trackingOptions.length;i++)trackSel+='<option value="'+trackingOptions[i]+'"'+((v.trackingMode||'')===trackingOptions[i]?' selected':'')+'>'+(trackingOptions[i]||'—')+'</option>';
+  
+  // Legs list with delete action
+  var legsHtml='';
+  if(v.legs&&v.legs.length>0){
+    legsHtml+='<div class="profile-section"><h3>Completed legs ('+v.legs.length+')</h3>';
+    for(var i=0;i<v.legs.length;i++){var leg=v.legs[i];
+      var miles=leg.distanceM?(leg.distanceM/1609.34).toFixed(2):'—';
+      legsHtml+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem">'+
+        '<div style="flex:1"><strong>Leg '+leg.legNumber+'</strong> · '+leg.weightLbs.toFixed(2)+' lbs · '+miles+' mi</div>'+
+        '<button class="btn-sm" style="color:var(--danger)" onclick="deleteLeg(\''+volId+'\',\''+leg.legId+'\')">Delete</button>'+
+      '</div>';
+    }
+    legsHtml+='</div>';
+  }
+  
   $('overlay-content').innerHTML=
     '<div style="font-weight:800;font-size:1.1rem;margin-bottom:12px;text-align:left">Edit volunteer</div>'+
     '<div style="text-align:left">'+
@@ -477,9 +492,17 @@ function editVolunteer(volId){
       '<div class="ig"><label>Tracking mode</label><select id="ev-tracking" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:0.95rem;font-family:inherit">'+trackSel+'</select></div>'+
       '<div class="err" id="ev-err"></div>'+
       '<button class="big-btn" id="btn-save-vol" onclick="saveEditVolunteer(\''+volId+'\')">Save</button>'+
-      '<button class="big-btn" onclick="hideBusy()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Cancel</button>'+
+      legsHtml+
+      '<button class="big-btn" onclick="hideBusy()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Close</button>'+
     '</div>';
   $('overlay').classList.add('active');
+}
+
+function deleteLeg(volId,legId){
+  if(!confirm('Delete this leg? It will be marked deleted and excluded from all reports. This is a soft-delete.'))return;
+  api('deleteLeg',{targetVolunteerId:volId,legId:legId,reason:'tl_remove'}).then(function(){
+    hideBusy();refreshAll();
+  }).catch(function(e){alert('Error: '+e.message);});
 }
 function saveEditVolunteer(volId){
   var msg=$('ev-err');msg.classList.remove('show');
