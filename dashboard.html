@@ -221,6 +221,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
       <option value="meetup">Meetup point</option>
     </select>
   </div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*" capture="environment" style="font-size:0.85rem;font-family:inherit"></div>
   <div class="err" id="pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closePinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -428,7 +429,8 @@ function renderHomePins(pins){
     var catIcons={general:'📍',dumping:'🗑️',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋'};
     var icon=catIcons[p.category]||'📍';
     h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2);display:flex;align-items:flex-start;gap:8px">';
-    h+='<span style="font-size:1.1rem">'+icon+'</span>';
+    if(p.photoUrl){h+='<img src="'+esc(p.photoUrl)+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">';}
+    else{h+='<span style="font-size:1.1rem;flex-shrink:0">'+icon+'</span>';}
     h+='<div style="flex:1;min-width:0">';
     h+='<div style="font-weight:600;font-size:0.88rem">'+esc(p.note||p.category)+'</div>';
     h+='<div style="font-size:0.72rem;color:var(--text-dim)">'+p.lat.toFixed(5)+', '+p.lon.toFixed(5);
@@ -458,7 +460,7 @@ var pinGPS=null;
 
 function showPinModal(){
   pinGPS=null;
-  $('pin-note').value='';$('pin-category').value='general';
+  $('pin-note').value='';$('pin-category').value='general';$('pin-photo').value='';
   $('pin-gps-status').textContent='—';
   $('pin-err').textContent='';$('pin-err').style.display='none';
   $('pin-submit-btn').disabled=true;
@@ -480,22 +482,42 @@ function pinCaptureGPS(){
   },{enableHighAccuracy:true,timeout:10000});
 }
 
+function resizePhoto(file,maxPx,quality,cb){
+  var reader=new FileReader();
+  reader.onload=function(e){
+    var img=new Image();
+    img.onload=function(){
+      var w=img.width,h=img.height;
+      if(w>maxPx||h>maxPx){if(w>h){h=Math.round(h*maxPx/w);w=maxPx;}else{w=Math.round(w*maxPx/h);h=maxPx;}}
+      var c=document.createElement('canvas');c.width=w;c.height=h;
+      c.getContext('2d').drawImage(img,0,0,w,h);
+      var dataUrl=c.toDataURL('image/jpeg',quality||0.7);
+      cb(dataUrl.split(',')[1],'image/jpeg');
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
 function submitPin(){
   if(!pinGPS){$('pin-err').textContent='Capture your location first';$('pin-err').style.display='block';return;}
+  var photoFile=$('pin-photo').files[0];
   $('pin-submit-btn').disabled=true;$('pin-submit-btn').textContent='Saving…';
-  api('tl_createPin',{
-    sessionToken:S.sessionToken,
-    lat:pinGPS.lat,lon:pinGPS.lon,
-    note:$('pin-note').value.trim(),
-    category:$('pin-category').value
-  }).then(function(){
-    $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
-    closePinModal();
-    loadTLHome();
-  }).catch(function(e){
-    $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
-    $('pin-err').textContent=e.message;$('pin-err').style.display='block';
-  });
+  
+  var send=function(b64,mime){
+    var body={sessionToken:S.sessionToken,lat:pinGPS.lat,lon:pinGPS.lon,note:$('pin-note').value.trim(),category:$('pin-category').value};
+    if(b64){body.photoBase64=b64;body.photoMimeType=mime;}
+    api('tl_createPin',body).then(function(){
+      $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
+      closePinModal();loadTLHome();
+    }).catch(function(e){
+      $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
+      $('pin-err').textContent=e.message;$('pin-err').style.display='block';
+    });
+  };
+  
+  if(photoFile){resizePhoto(photoFile,800,0.7,send);}
+  else{send(null,null);}
 }
 
 function deletePin(pinId){
@@ -852,6 +874,7 @@ function initMap(){
   S.leafletMap=L.map('map').setView([start.lat,start.lon],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(S.leafletMap);
   S.mapInitialized=true;
+  loadMapPins();
 }
 function setLens(lens){S.mapLens=lens;
   var pills=document.querySelectorAll('.map-pill[data-lens]');
@@ -889,6 +912,30 @@ function renderMapPaths(){
         S.mapPaths.push(poly);
       }}}
   if(bounds.length>0)S.leafletMap.fitBounds(bounds,{padding:[20,20]});
+  loadMapPins();
+}
+
+/* Map pins */
+var mapPinMarkers=[];
+function loadMapPins(){
+  if(!S.leafletMap||!S.event)return;
+  api('getEventPins').then(function(d){
+    // Clear old pin markers
+    for(var i=0;i<mapPinMarkers.length;i++)S.leafletMap.removeLayer(mapPinMarkers[i]);
+    mapPinMarkers=[];
+    var pins=d.pins||[];
+    for(var i=0;i<pins.length;i++){
+      var p=pins[i];
+      var catColors={general:'#3b82f6',dumping:'#ef4444',hazard:'#f59e0b',access:'#10b981',parking:'#6366f1',meetup:'#ec4899'};
+      var color=catColors[p.category]||'#3b82f6';
+      var marker=L.circleMarker([p.lat,p.lon],{radius:8,color:'#fff',weight:2,fillColor:color,fillOpacity:0.9}).addTo(S.leafletMap);
+      var popup='<strong>'+esc(p.author_name||'Pin')+'</strong><br>'+esc(p.note||p.category);
+      if(p.photoUrl)popup+='<br><img src="'+esc(p.photoUrl)+'" style="max-width:150px;max-height:100px;margin-top:4px;border-radius:4px" onerror="this.style.display=\'none\'">';
+      popup+='<br><span style="font-size:0.7rem;color:#888">'+fmtTime(p.created_at)+'</span>';
+      marker.bindPopup(popup);
+      mapPinMarkers.push(marker);
+    }
+  }).catch(function(){});
 }
 function lensColor(leg){var v=null;
   if(S.mapLens==='sqrt_cpue')v=leg.sqrtCpueRaw;
@@ -940,6 +987,24 @@ function sendChat(){
   var input=$('chat-input');
   var text=(input.value||'').trim();
   if(!text)return;
+  
+  // /pin command: drop a pin at current location
+  if(text.toLowerCase().indexOf('/pin')===0||text==='📍'){
+    var pinNote=text.replace(/^\/pin\s*/i,'').replace(/^📍\s*/,'').trim()||'Pinned from chat';
+    input.value='';input.disabled=true;
+    navigator.geolocation.getCurrentPosition(function(pos){
+      api('tl_createPin',{sessionToken:S.sessionToken,lat:pos.coords.latitude,lon:pos.coords.longitude,note:pinNote,category:'general'}).then(function(){
+        return api('sendChatMessage',{text:'📍 Pinned: '+pinNote+' ('+pos.coords.latitude.toFixed(5)+', '+pos.coords.longitude.toFixed(5)+')'});
+      }).then(function(d){
+        input.disabled=false;input.focus();
+        if(d.message)chatMessages.push(d.message);
+        renderChat();loadMapPins();
+      }).catch(function(e){input.disabled=false;alert('Pin failed: '+e.message);});
+    },function(err){input.disabled=false;alert('GPS error: '+err.message);},
+    {enableHighAccuracy:true,timeout:10000});
+    return;
+  }
+  
   var sendBtn=input.parentElement.querySelector('button');
   input.value='';input.disabled=true;
   if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
