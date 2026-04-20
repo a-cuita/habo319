@@ -114,17 +114,15 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 .empty{text-align:center;padding:24px;color:var(--text-dim);font-size:0.88rem}
 
 .chat-msg{margin-bottom:10px;max-width:85%}
-.chat-msg.mine{margin-left:auto}
+.chat-msg.mine{margin-left:auto;text-align:right}
 .chat-msg.theirs{margin-right:auto}
 .chat-msg .chat-author{font-size:0.7rem;font-weight:700;color:var(--text-dim);margin-bottom:2px}
-.chat-msg.mine .chat-author{text-align:right}
-.chat-msg .chat-bubble{padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word}
+.chat-msg .chat-bubble{display:inline-block;padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word;text-align:left}
 .chat-msg.mine .chat-bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px}
 .chat-msg.theirs .chat-bubble{background:var(--surface-2);color:var(--text);border-bottom-left-radius:4px}
 .chat-msg.ai .chat-bubble{background:var(--accent-dim);color:var(--text);border:1px solid var(--accent);border-bottom-left-radius:4px}
 .chat-msg.ai .chat-author{color:var(--accent)}
 .chat-msg .chat-time{font-size:0.65rem;color:var(--text-dim);margin-top:2px}
-.chat-msg.mine .chat-time{text-align:right}
 
 .desktop-block{display:none}
 
@@ -737,9 +735,12 @@ function sendChat(){
   var input=$('chat-input');
   var text=(input.value||'').trim();
   if(!text)return;
+  var sendBtn=input.parentElement.querySelector('button');
   input.value='';input.disabled=true;
+  if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
   api('sendChatMessage',{text:text}).then(function(d){
-    input.disabled=false;input.focus();
+    input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}
+    input.focus();
     if(d.message)chatMessages.push(d.message);
     if(d.aiResponse){
       chatMessages.push({
@@ -749,7 +750,7 @@ function sendChat(){
       });
     }
     renderChat();
-  }).catch(function(e){input.disabled=false;alert('Send failed: '+e.message);});
+  }).catch(function(e){input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}alert('Send failed: '+e.message);});
 }
 
 function startChatPoll(){
