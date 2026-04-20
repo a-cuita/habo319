@@ -73,18 +73,50 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 <body>
 <div class="brand"><span class="brand-mark">🌱</span><strong>CMRA Organizer</strong></div>
 
-<!-- ADMIN KEY GATE -->
-<div class="screen active" id="screen-gate">
+<!-- LOADING -->
+<div class="screen active" id="screen-loading">
+  <div style="text-align:center;padding:40px 0"><div class="sp"></div><div class="muted">Verifying access…</div></div>
+</div>
+
+<!-- LOGIN GATE -->
+<div class="screen" id="screen-gate">
   <h1>Organizer sign-in</h1>
-  <div class="tagline">Enter the admin key to manage events.</div>
+  <div class="tagline">Sign in with your organizer account.</div>
+  <div class="card">
+    <div class="ig">
+      <label>Email</label>
+      <input id="org-email" type="email" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="ig">
+      <label>Password</label>
+      <div class="pw-wrap"><input id="org-password" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,'org-password')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
+    </div>
+    <div class="err" id="gate-err"></div>
+    <button class="btn" onclick="doLogin()" id="btn-login">Sign in</button>
+  </div>
+  <div class="link-row" style="margin-top:12px"><a href="#" onclick="showAdminKeyFallback();return false;" style="color:var(--text-dim);font-size:0.82rem;text-decoration:none">Use admin key instead</a></div>
+  <div class="back-link"><a href="/habo319/">← Back to landing</a></div>
+</div>
+
+<!-- ADMIN KEY FALLBACK -->
+<div class="screen" id="screen-admin-key">
+  <h1>Admin key</h1>
+  <div class="tagline">Use the admin key for bootstrap or emergency access.</div>
   <div class="card">
     <div class="ig">
       <label>Admin key</label>
       <div class="pw-wrap"><input id="admin-key" type="password" autocapitalize="off" autocorrect="off"><button type="button" class="pw-toggle" onclick="togglePw(this,'admin-key')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>
-      <div class="err" id="gate-err"></div>
+      <div class="err" id="admin-key-err"></div>
     </div>
-    <button class="btn" onclick="doUnlock()" id="btn-unlock">Unlock</button>
+    <button class="btn" onclick="doAdminKeyUnlock()" id="btn-admin-unlock">Unlock</button>
   </div>
+  <div class="link-row" style="margin-top:12px"><a href="#" onclick="showScreen('screen-gate');return false;" style="color:var(--text-dim);font-size:0.82rem;text-decoration:none">← Back to login</a></div>
+</div>
+
+<!-- NOT AUTHORIZED -->
+<div class="screen" id="screen-denied">
+  <h1>Not authorized</h1>
+  <div class="tagline" id="denied-msg">Your account does not have organizer access. Ask an existing organizer to promote you.</div>
   <div class="back-link"><a href="/habo319/">← Back to landing</a></div>
 </div>
 
@@ -200,7 +232,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
   </div>
 
   <div class="back-link">
-    <button class="btn secondary" onclick="doLock()">Lock organizer</button>
+    <button class="btn secondary" onclick="doSignOut()">Sign out</button>
     <div style="margin-top:10px"><a href="/habo319/">← Back to landing</a></div>
   </div>
 </div>
@@ -210,7 +242,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
 
-var S={adminKey:null,activeEventId:null};
+var S={sessionToken:null,adminKey:null,activeEventId:null,authMethod:null,displayName:null};
 
 function $(id){return document.getElementById(id);}
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
@@ -222,6 +254,9 @@ function showScreen(id){var all=document.querySelectorAll('.screen');for(var i=0
 
 function api(action,data){
   var body=Object.assign({action:action,version:'v3'},data||{});
+  // Auto-include auth credentials
+  if(S.sessionToken&&!body.sessionToken)body.sessionToken=S.sessionToken;
+  if(S.adminKey&&!body.adminKey)body.adminKey=S.adminKey;
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
@@ -233,27 +268,93 @@ function togglePw(btn,inputId){
   else{input.type='password';btn.innerHTML='<svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';btn.setAttribute('aria-label','Show password');}
 }
 
-/* ═══ Unlock ═══ */
-function doUnlock(){
+/* ═══ Boot ═══ */
+(function boot(){
+  // Check for existing organizer session
+  var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_organizer_session')||'null');}catch(e){}
+  if(saved&&saved.sessionToken){
+    S.sessionToken=saved.sessionToken;S.authMethod='session';
+    api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(who){
+      if(!who){localStorage.removeItem('cmra_organizer_session');showScreen('screen-gate');return;}
+      if(!who.isOrganizer){showScreen('screen-denied');return;}
+      S.displayName=who.displayName;
+      enterMain();
+    }).catch(function(){localStorage.removeItem('cmra_organizer_session');showScreen('screen-gate');});
+    return;
+  }
+  // Check for admin key in sessionStorage (fallback)
+  var savedKey=sessionStorage.getItem('cmra_organizer_key');
+  if(savedKey){
+    S.adminKey=savedKey;S.authMethod='adminKey';
+    enterMain();
+    return;
+  }
+  showScreen('screen-gate');
+  var today=new Date().toISOString().split('T')[0];
+  $('new-date').value=today;
+})();
+
+function enterMain(){
+  showScreen('screen-main');
+  var today=new Date().toISOString().split('T')[0];
+  $('new-date').value=today;
+  loadMain();
+}
+
+/* ═══ Login ═══ */
+function doLogin(){
   clearErr('gate-err');
-  var key=$('admin-key').value.trim();
-  if(!key){showErr('gate-err','Enter the admin key');return;}
-  $('btn-unlock').disabled=true;showBusy('Verifying…');
-  // Test the key by listing TLs — that endpoint's public so we'll use event creation as the test via a no-op validation
-  // Simpler test: just try getActiveEvent (public), then save key and verify later on first privileged action
-  api('getActiveEvent').then(function(ev){
-    hideBusy();$('btn-unlock').disabled=false;
-    S.adminKey=key;
-    sessionStorage.setItem('cmra_organizer_key',key);
-    showScreen('screen-main');
-    loadMain();
+  var email=$('org-email').value.trim().toLowerCase();
+  var pw=$('org-password').value;
+  if(!email){showErr('gate-err','Enter your email');return;}
+  if(!pw){showErr('gate-err','Enter your password');return;}
+  $('btn-login').disabled=true;showBusy('Signing in…');
+  api('auth_login',{email:email,password:pw}).then(function(d){
+    hideBusy();$('btn-login').disabled=false;
+    // Check if organizer
+    return api('auth_whoAmI',{sessionToken:d.sessionToken}).then(function(who){
+      if(!who||!who.isOrganizer){
+        // Sign out — not an organizer
+        api('auth_logout',{sessionToken:d.sessionToken}).catch(function(){});
+        showScreen('screen-denied');
+        return;
+      }
+      S.sessionToken=d.sessionToken;S.authMethod='session';S.displayName=who.displayName;
+      localStorage.setItem('cmra_organizer_session',JSON.stringify({sessionToken:d.sessionToken}));
+      enterMain();
+    });
   }).catch(function(e){
-    hideBusy();$('btn-unlock').disabled=false;
-    showErr('gate-err','Backend unreachable: '+e.message);
+    hideBusy();$('btn-login').disabled=false;
+    showErr('gate-err',e.message||'Sign-in failed');
   });
 }
 
-function doLock(){S.adminKey=null;sessionStorage.removeItem('cmra_organizer_key');$('admin-key').value='';showScreen('screen-gate');}
+function showAdminKeyFallback(){showScreen('screen-admin-key');}
+
+function doAdminKeyUnlock(){
+  clearErr('admin-key-err');
+  var key=$('admin-key').value.trim();
+  if(!key){showErr('admin-key-err','Enter the admin key');return;}
+  $('btn-admin-unlock').disabled=true;showBusy('Verifying…');
+  // Test key by calling a gated endpoint
+  api('debug_cacheStatus',{adminKey:key}).then(function(){
+    hideBusy();$('btn-admin-unlock').disabled=false;
+    S.adminKey=key;S.authMethod='adminKey';
+    sessionStorage.setItem('cmra_organizer_key',key);
+    enterMain();
+  }).catch(function(e){
+    hideBusy();$('btn-admin-unlock').disabled=false;
+    showErr('admin-key-err',e.message||'Invalid key');
+  });
+}
+
+function doSignOut(){
+  if(S.sessionToken){api('auth_logout',{sessionToken:S.sessionToken}).catch(function(){});}
+  S.sessionToken=null;S.adminKey=null;S.authMethod=null;
+  localStorage.removeItem('cmra_organizer_session');
+  sessionStorage.removeItem('cmra_organizer_key');
+  showScreen('screen-gate');
+}
 
 /* ═══ Load main screen ═══ */
 function loadMain(){
@@ -482,20 +583,6 @@ function doReStitch(){
     loadAllEvents();
   }).catch(function(e){out.textContent='Re-stitch failed: '+e.message;});
 }
-
-/* ═══ Init ═══ */
-(function init(){
-  var savedKey=sessionStorage.getItem('cmra_organizer_key');
-  if(savedKey){
-    S.adminKey=savedKey;
-    showScreen('screen-main');
-    loadMain();
-    return;
-  }
-  // Prefill date field to today
-  var today=new Date().toISOString().split('T')[0];
-  $('new-date').value=today;
-})();
 </script>
 </body>
 </html>
