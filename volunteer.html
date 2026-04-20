@@ -151,6 +151,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 <div class="topbar">
   <div class="brand"><span>🌱</span><span>CMRA</span></div>
   <div class="event-name" id="event-name">—</div>
+  <button class="gear" id="pin-toggle" onclick="showVolPinModal()" aria-label="Drop pin" style="display:none">📍</button>
   <button class="gear chat-btn" id="chat-toggle" onclick="toggleChat()" aria-label="Chat" style="display:none">💬<span class="chat-badge" id="chat-badge"></span></button>
   <button class="gear" onclick="openAdmin()" aria-label="Admin">⚙️</button>
 </div>
@@ -296,7 +297,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <h1>Weigh your bag</h1>
     <p class="lede">Use a luggage scale or similar. In pounds.</p>
     <div class="ig">
-      <label>Weight (lbs)</label>
+      <label id="w-weight-label">Weight (lbs)</label>
       <input id="w-weight" type="number" step="0.01" min="0" inputmode="decimal">
       <div class="err" id="w-weight-err"></div>
     </div>
@@ -386,6 +387,28 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
 <button class="cancel-fab" id="cancel-fab" onclick="cancelActiveLeg()" style="display:none">✕</button>
 
+<div class="overlay" id="vol-pin-overlay" onclick="if(event.target===this)closeVolPinModal()"><div class="overlay-card" style="text-align:left;max-width:380px">
+  <h3 style="margin:0 0 12px;font-weight:800">📍 Drop a pin</h3>
+  <button onclick="volPinCaptureGPS()" id="vol-pin-gps-btn" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture my location</button>
+  <div id="vol-pin-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:10px">—</div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Note</label><input id="vol-pin-note" type="text" placeholder="e.g. Dumping spot near creek" style="width:100%;padding:10px 12px;border:1px solid var(--border-hi);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit;background:var(--surface);color:var(--text)"></div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Category</label>
+    <select id="vol-pin-category" style="width:100%;padding:10px 12px;border:1px solid var(--border-hi);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit;background:var(--surface);color:var(--text)">
+      <option value="general">General</option>
+      <option value="dumping">Dumping spot</option>
+      <option value="hazard">Hazard</option>
+      <option value="access">Access point</option>
+      <option value="parking">Parking</option>
+      <option value="meetup">Meetup point</option>
+    </select>
+  </div>
+  <div class="err" id="vol-pin-err" style="margin-bottom:8px"></div>
+  <div style="display:flex;gap:8px">
+    <button onclick="closeVolPinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
+    <button onclick="submitVolPin()" id="vol-pin-submit" style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit" disabled>Save pin</button>
+  </div>
+</div></div>
+
 <div class="overlay" id="overlay"><div class="overlay-card" id="overlay-content"></div></div>
 
 <script>
@@ -394,7 +417,7 @@ var RATING_LABELS=['No litter','Almost none','Minimal','Light','Moderate-light',
 
 var S={
   event:null, volunteerId:null, displayName:null, role:null, currentState:null,
-  gates:{driving_ack:false,data_transparency:false},
+  gates:{},
   trackingMode:null, trackingApp:null,
   sessionId:null, legId:null, legNumber:0,
   preRating:5, postRating:5,
@@ -404,6 +427,7 @@ var S={
   paused:false, pauseStartMs:null,
   pollTimer:null,
   currentLegResult:null, sessionSummary:null,
+  sameBagMode:false, sameBagPriorWeight:0,
   mapNative:null, mapNativeMarker:null, mapNativeTrack:null,
   mapExternal:null, mapExternalMarker:null, mapExternalTrack:null,
   eventEndMessage:null
@@ -465,7 +489,7 @@ function boot(){
         S.displayName=d.displayName||S.displayName;
         S.gates=d.gates||{};
         S.trackingMode=d.trackingMode||S.trackingMode;
-        showChatButton();startVolChatPoll();
+        showChatButton();showPinButton();startVolChatPoll();
         routeByState();
       }).catch(function(){localStorage.removeItem('cmra_volunteer');startFresh();});
     }else{startFresh();}
@@ -526,7 +550,7 @@ function submitName(){
   api('joinEvent',{displayName:name}).then(function(d){
     hideBusy();$('w-btn').disabled=false;
     S.volunteerId=d.volunteerId;S.displayName=d.displayName;S.currentState='joined';
-    persist();showChatButton();startVolChatPoll();
+    persist();showChatButton();showPinButton();startVolChatPoll();
     if(d.nameModified){alert('Another volunteer has that name. We saved you as "'+d.displayName+'".');}
     S.gates={};loadGateConfig(function(){renderGates();showScreen('screen-gates');});
   }).catch(function(e){
@@ -643,7 +667,7 @@ function updatePre(v){S.preRating=parseInt(v,10);$('pre-val').textContent=S.preR
 /* ═══ Start session ═══ */
 function startSession(){
   $('pre-btn').disabled=true;showBusy('Starting session…');
-  S.collectStartMs=0;
+  S.collectStartMs=0;S.sameBagPriorWeight=0;S.sameBagMode=false;
   api('startOrResumeSession',{preRating:S.preRating,trackingMode:S.trackingMode,trackingApp:S.trackingApp}).then(function(d){
     hideBusy();$('pre-btn').disabled=false;
     S.sessionId=d.sessionId;S.legId=d.legId;S.legNumber=d.legNumber||1;
@@ -802,46 +826,55 @@ function hav(lat1,lon1,lat2,lon2){
 /* ═══ Weight entry ═══ */
 function showBagChoice(mode){
   stopNativeGPS();stopExternalWatch();stopCollectTicker();
+  S._bagMode=mode;
   $('overlay-content').innerHTML=
     '<div style="font-weight:800;font-size:1.1rem;margin-bottom:14px">End this leg</div>'+
-    '<button class="btn btn-accent" onclick="hideBusy();gotoBagWeigh(\''+mode+'\')" style="margin-bottom:8px">Weigh bag (new bag)</button>'+
-    '<button class="btn btn-secondary" onclick="hideBusy();sameBagNextLeg()" style="margin-bottom:8px">Same bag — keep collecting</button>'+
-    '<button class="btn btn-ghost" onclick="cancelBagChoice(\''+mode+'\')" style="font-size:0.85rem">Cancel — keep going</button>';
+    '<button class="btn btn-accent" onclick="hideBusy();chooseBag(false)" style="margin-bottom:8px">New bag — weigh it</button>'+
+    '<button class="btn btn-secondary" onclick="hideBusy();chooseBag(true)" style="margin-bottom:8px">Same bag — weigh it</button>'+
+    '<button class="btn btn-ghost" onclick="cancelBagChoice()" style="font-size:0.85rem">Cancel — keep going</button>';
   $('overlay').classList.add('active');
 }
-function cancelBagChoice(mode){
+function cancelBagChoice(){
   hideBusy();
-  if(mode==='native'){startNativeGPS();startCollectTicker(false);}
+  if(S._bagMode==='native'){startNativeGPS();startCollectTicker(false);}
   else{startExternalWatch();startCollectTicker(true);}
 }
-function gotoBagWeigh(mode){
-  if(mode==='native')gotoWeight();
+function chooseBag(sameBag){
+  S.sameBagMode=sameBag;
+  if(!sameBag)S.sameBagPriorWeight=0; // new bag resets cumulative
+  if(S._bagMode==='native')gotoWeight();
   else gotoWeightExternal();
 }
-function sameBagNextLeg(){
-  // End current leg with weight=0, skip weight screen + post-rating, start next leg
-  showBusy('Ending leg…');
-  var endAction=(S.trackingMode==='native')?'endLeg':'submitManualLeg';
-  var body={sessionId:S.sessionId,legId:S.legId,weightLbs:0};
-  if(S.trackingMode!=='native'){body.distanceMiles=0.01;body.durationMinutes=0.1;body.externalSource=S.trackingApp||'other';}
-  api(endAction,body).then(function(d){
-    // Skip post-rating, immediately start next leg
-    S.currentLegResult=d;S.currentState='between_legs';S.collectStartMs=0;
-    return api('startNextLeg',{sessionId:S.sessionId});
-  }).then(function(d){
-    hideBusy();S.legId=d.legId;S.legNumber=d.legNumber;S.currentState='collecting';
-    launchCollecting();
-  }).catch(function(e){hideBusy();showError(e.message);});
+function gotoWeight(){
+  $('w-weight').value='';$('w-weight-err').classList.remove('show');
+  // Update label based on same-bag mode
+  var lbl=$('w-weight-label');
+  if(lbl){
+    if(S.sameBagMode&&S.sameBagPriorWeight>0)lbl.textContent='Current bag weight (lbs) — was '+(S.sameBagPriorWeight).toFixed(2)+' lbs last leg';
+    else lbl.textContent='Weight (lbs)';
+  }
+  showScreen('screen-weight');
 }
-function gotoWeight(){$('w-weight').value='';$('w-weight-err').classList.remove('show');showScreen('screen-weight');}
 function gotoWeightExternal(){$('we-weight').value='';$('we-dist').value='';$('we-dur').value='';$('we-shot').value='';$('we-err').classList.remove('show');showScreen('screen-weight-external');}
+
+function computeLegWeight(enteredWeight){
+  if(S.sameBagMode&&S.sameBagPriorWeight>0){
+    var delta=Math.max(0,enteredWeight-S.sameBagPriorWeight);
+    S.sameBagPriorWeight=enteredWeight;
+    return delta;
+  }
+  // New bag or first leg
+  S.sameBagPriorWeight=enteredWeight;
+  return enteredWeight;
+}
 
 function submitWeightNative(){
   $('w-weight-err').classList.remove('show');
   var w=parseFloat($('w-weight').value);
   if(isNaN(w)||w<0){$('w-weight-err').textContent='Enter a valid weight';$('w-weight-err').classList.add('show');return;}
+  var legWeight=computeLegWeight(w);
   $('w-weight-btn').disabled=true;showBusy('Submitting leg…');
-  api('endLeg',{sessionId:S.sessionId,legId:S.legId,weightLbs:w}).then(function(d){
+  api('endLeg',{sessionId:S.sessionId,legId:S.legId,weightLbs:legWeight}).then(function(d){
     hideBusy();$('w-weight-btn').disabled=false;
     S.currentLegResult=d;S.currentState='between_legs';
     gotoPostRating();
@@ -854,10 +887,11 @@ function submitWeightExternal(){
   if(isNaN(w)||w<0){$('we-err').textContent='Enter weight';$('we-err').classList.add('show');return;}
   if(isNaN(d)||d<=0){$('we-err').textContent='Enter distance';$('we-err').classList.add('show');return;}
   if(isNaN(m)||m<=0){$('we-err').textContent='Enter duration';$('we-err').classList.add('show');return;}
+  var legWeight=computeLegWeight(w);
   var file=$('we-shot').files[0];
   var send=function(b64,mime){
     $('we-btn').disabled=true;showBusy('Submitting leg…');
-    var body={sessionId:S.sessionId,legId:S.legId,weightLbs:w,distanceMiles:d,durationMinutes:m,externalSource:S.trackingApp||'other'};
+    var body={sessionId:S.sessionId,legId:S.legId,weightLbs:legWeight,distanceMiles:d,durationMinutes:m,externalSource:S.trackingApp||'other'};
     if(b64){body.screenshotBase64=b64;body.screenshotMimeType=mime||'image/jpeg';}
     api('submitManualLeg',body).then(function(res){
       hideBusy();$('we-btn').disabled=false;
@@ -989,6 +1023,53 @@ function openAdmin(){
 function doSignOut(){
   if(!confirm('Clear your volunteer session from this browser?'))return;
   localStorage.removeItem('cmra_volunteer');hideBusy();location.reload();
+}
+
+/* ═══ Volunteer Pins ═══ */
+var volPinGPS=null;
+
+function showPinButton(){
+  if(S.volunteerId)$('pin-toggle').style.display='';
+}
+
+function showVolPinModal(){
+  volPinGPS=null;
+  $('vol-pin-note').value='';$('vol-pin-category').value='general';
+  $('vol-pin-gps-status').textContent='—';
+  $('vol-pin-err').textContent='';$('vol-pin-err').style.display='none';
+  $('vol-pin-submit').disabled=true;
+  $('vol-pin-overlay').classList.add('active');
+}
+function closeVolPinModal(){$('vol-pin-overlay').classList.remove('active');}
+
+function volPinCaptureGPS(){
+  $('vol-pin-gps-status').textContent='Getting location…';
+  $('vol-pin-gps-btn').disabled=true;
+  navigator.geolocation.getCurrentPosition(function(pos){
+    volPinGPS={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('vol-pin-gps-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    $('vol-pin-gps-btn').disabled=false;
+    $('vol-pin-submit').disabled=false;
+  },function(err){
+    $('vol-pin-gps-status').textContent='⚠ '+err.message;
+    $('vol-pin-gps-btn').disabled=false;
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+function submitVolPin(){
+  if(!volPinGPS){$('vol-pin-err').textContent='Capture your location first';$('vol-pin-err').style.display='block';return;}
+  $('vol-pin-submit').disabled=true;$('vol-pin-submit').textContent='Saving…';
+  api('createEventPin',{
+    lat:volPinGPS.lat,lon:volPinGPS.lon,
+    note:$('vol-pin-note').value.trim(),
+    category:$('vol-pin-category').value
+  }).then(function(){
+    $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
+    closeVolPinModal();
+  }).catch(function(e){
+    $('vol-pin-submit').disabled=false;$('vol-pin-submit').textContent='Save pin';
+    $('vol-pin-err').textContent=e.message;$('vol-pin-err').style.display='block';
+  });
 }
 
 /* ═══ Pocket Mode ═══ */
