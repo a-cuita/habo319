@@ -368,8 +368,6 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <div id="vol-chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
       <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
         <input id="vol-chat-input" type="text" placeholder="Message your team…" maxlength="1000" style="flex:1;padding:10px 12px;border:1px solid var(--border-hi);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')volSendChat()">
-        <button onclick="openVolunteerPinModal()" style="padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;cursor:pointer" title="Pin a location">📍</button>
-        <button onclick="volSendChat()" style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">Send</button>
         <button onclick="volSendChat()" style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">Send</button>
       </div>
     </div>
@@ -1170,87 +1168,6 @@ function volSendChat(){
     updateChatBadge();
     volRenderChat();
   }).catch(function(e){input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}alert('Send failed: '+e.message);});
-}
-  var volPinLocationBuffer=null;
-var volPinPhotoBase64=null;
-var volPinPhotoMimeType=null;
-
-function openVolunteerPinModal(){
-  volPinLocationBuffer=null;
-  volPinPhotoBase64=null;
-  volPinPhotoMimeType=null;
-  var h='<div style="text-align:left">';
-  h+='<div style="font-weight:800;font-size:1.1rem;margin-bottom:14px">📍 Pin a location</div>';
-  h+='<div class="ig"><label>Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="vpin-photo" onchange="volPinPhotoSelected(this)" style="font-size:0.85rem"><div id="vpin-preview" style="margin-top:6px"></div></div>';
-  h+='<div class="ig"><label>Note</label><input id="vpin-note" type="text" placeholder="What do you see here?" maxlength="500"></div>';
-  h+='<div class="ig"><label>Address (optional)</label><input id="vpin-address" type="text" placeholder="e.g. 123 Main St"></div>';
-  h+='<button onclick="volPinCaptureGPS()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:4px">📍 Capture GPS</button>';
-  h+='<div id="vpin-gps" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:12px">—</div>';
-  h+='<div class="err" id="vpin-err" style="margin-bottom:8px"></div>';
-  h+='<button class="btn btn-primary" onclick="volSubmitPin()" id="btn-vpin" style="width:100%;margin-bottom:8px">Save pin</button>';
-  h+='<button class="btn btn-secondary" onclick="hideBusy()" style="width:100%">Cancel</button>';
-  h+='</div>';
-  $('overlay-content').innerHTML=h;
-  $('overlay').classList.add('active');
-  volPinCaptureGPS();
-}
-
-function volPinPhotoSelected(input){
-  if(!input.files||!input.files[0])return;
-  var file=input.files[0];
-  volPinPhotoMimeType=file.type||'image/jpeg';
-  var reader=new FileReader();
-  reader.onload=function(e){
-    var img=new Image();
-    img.onload=function(){
-      var maxDim=800,w=img.width,h=img.height;
-      if(w>maxDim||h>maxDim){if(w>h){h=Math.round(h*(maxDim/w));w=maxDim;}else{w=Math.round(w*(maxDim/h));h=maxDim;}}
-      var canvas=document.createElement('canvas');
-      canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
-      var dataUrl=canvas.toDataURL('image/jpeg',0.6);
-      volPinPhotoBase64=dataUrl.split(',')[1];
-      volPinPhotoMimeType='image/jpeg';
-      $('vpin-preview').innerHTML='<img src="'+dataUrl+'" style="max-width:100%;max-height:120px;border-radius:var(--radius-sm);border:1px solid var(--border)">';
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function volPinCaptureGPS(){
-  $('vpin-gps').textContent='Getting location…';
-  navigator.geolocation.getCurrentPosition(function(pos){
-    volPinLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
-    $('vpin-gps').textContent='✓ '+pos.coords.latitude.toFixed(5)+', '+pos.coords.longitude.toFixed(5);
-  },function(err){
-    $('vpin-gps').textContent='⚠ '+err.message;
-  },{enableHighAccuracy:true,timeout:10000});
-}
-
-function volSubmitPin(){
-  var note=($('vpin-note').value||'').trim();
-  var address=($('vpin-address').value||'').trim();
-  var errEl=$('vpin-err');
-  errEl.style.display='none';
-  if(!note&&!volPinPhotoBase64&&!volPinLocationBuffer){
-    errEl.textContent='Add a note, photo, or GPS location';errEl.style.display='block';return;
-  }
-  $('btn-vpin').disabled=true;
-  api('volunteerPin',{
-    lat:volPinLocationBuffer?volPinLocationBuffer.lat:null,
-    lon:volPinLocationBuffer?volPinLocationBuffer.lon:null,
-    address:address||null,
-    note:note||null,
-    photoBase64:volPinPhotoBase64||null,
-    photoMimeType:volPinPhotoMimeType||null
-  }).then(function(pin){
-    $('btn-vpin').disabled=false;
-    hideBusy();
-  }).catch(function(e){
-    $('btn-vpin').disabled=false;
-    errEl.textContent=e.message||'Pin failed';errEl.style.display='block';
-  });
 }
 
 function startVolChatPoll(){
