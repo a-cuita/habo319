@@ -85,6 +85,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 .chip .icon{font-size:1.1rem}
 
 #map{height:calc(100vh - 260px);min-height:320px;border-radius:var(--radius);border:1px solid var(--border)}
+.map-legend{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:0 2px}
+.map-legend .legend-label{font-size:0.7rem;color:var(--text-dim);font-weight:600}
+.map-legend .legend-bar{flex:1;height:8px;border-radius:4px;background:linear-gradient(to right,rgb(0,200,80),rgb(128,200,0),rgb(200,180,0),rgb(255,100,0),rgb(255,0,0))}
 .map-controls{margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .map-pill{padding:5px 10px;font-size:0.75rem;font-weight:600;border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:999px;cursor:pointer;font-family:inherit}
 .map-pill.active{background:var(--primary);color:#fff;border-color:var(--primary)}
@@ -109,6 +112,19 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 .feed-row .when{color:var(--text-dim);font-size:0.74rem;font-family:var(--mono);margin-bottom:2px}
 .feed-row .who{font-weight:700}
 .empty{text-align:center;padding:24px;color:var(--text-dim);font-size:0.88rem}
+
+.chat-msg{margin-bottom:10px;max-width:85%}
+.chat-msg.mine{margin-left:auto}
+.chat-msg.theirs{margin-right:auto}
+.chat-msg .chat-author{font-size:0.7rem;font-weight:700;color:var(--text-dim);margin-bottom:2px}
+.chat-msg.mine .chat-author{text-align:right}
+.chat-msg .chat-bubble{padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word}
+.chat-msg.mine .chat-bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+.chat-msg.theirs .chat-bubble{background:var(--surface-2);color:var(--text);border-bottom-left-radius:4px}
+.chat-msg.ai .chat-bubble{background:var(--accent-dim);color:var(--text);border:1px solid var(--accent);border-bottom-left-radius:4px}
+.chat-msg.ai .chat-author{color:var(--accent)}
+.chat-msg .chat-time{font-size:0.65rem;color:var(--text-dim);margin-top:2px}
+.chat-msg.mine .chat-time{text-align:right}
 
 .desktop-block{display:none}
 
@@ -179,9 +195,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <div class="tabs">
     <div class="tab active" data-tab="team" onclick="switchTab('team')">Team <span class="badge hidden" id="badge-team"></span></div>
     <div class="tab" data-tab="stats" onclick="switchTab('stats')">Stats</div>
+    <div class="tab" data-tab="chat" onclick="switchTab('chat')">Chat <span class="badge hidden" id="badge-chat"></span></div>
     <div class="tab" data-tab="feed" onclick="switchTab('feed')">Feed</div>
     <div class="tab" data-tab="map" onclick="switchTab('map')">Map</div>
-    <div class="tab" data-tab="commitments" onclick="switchTab('commitments')">Go</div>
     <div class="tab" data-tab="event" onclick="switchTab('event')">Event</div>
   </div>
 
@@ -213,14 +229,22 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <span class="map-pill" data-lens="divergence" onclick="setLens('divergence')">Divergence</span>
         <button class="map-pill" id="btn-refresh-paths" onclick="doRefreshPaths()" style="margin-left:auto">Refresh paths</button>
       </div>
+      <div class="map-legend">
+        <span class="legend-label">Low</span>
+        <div class="legend-bar"></div>
+        <span class="legend-label">High</span>
+      </div>
       <div id="map"></div>
     </div>
 
-    <div class="pane" id="pane-commitments">
-      <div class="card">
-        <h3>Team status</h3>
-        <button class="chip" id="chip-left-garden" onclick="doLeftGarden()" style="width:100%;margin-bottom:8px"><span class="icon">🚶</span><span>Team left garden</span></button>
-        <button class="chip" id="chip-arrived" onclick="doArrivedAtZone()" style="width:100%"><span class="icon">📍</span><span>Arrived at zone</span></button>
+    <div class="pane" id="pane-chat">
+      <div class="card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:360px">
+        <div style="padding:12px 14px 8px;border-bottom:1px solid var(--surface-2)"><h3 style="margin:0;font-size:0.9rem">Team Chat</h3><div class="muted" style="font-size:0.74rem">Type <strong>@cmra</strong> to ask the AI assistant</div></div>
+        <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
+        <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
+          <input id="chat-input" type="text" placeholder="Message your team…" maxlength="1000" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')sendChat()">
+          <button onclick="sendChat()" style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit;white-space:nowrap">Send</button>
+        </div>
       </div>
     </div>
 
@@ -231,12 +255,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <p class="muted">Ending the event, generating reports, and finalizing data are organizer actions. Ask your organizer.</p>
       </div>
     </div>
-  </div>
-
-  <div class="actions">
-    <button class="chip" onclick="switchTab('team')"><span class="icon">👥</span><span>Team</span></button>
-    <button class="chip" onclick="switchTab('map')"><span class="icon">🗺️</span><span>Map</span></button>
-    <button class="chip" onclick="switchTab('event')"><span class="icon">⚙️</span><span>Event</span></button>
   </div>
 </div>
 
@@ -427,6 +445,8 @@ function changePassword(){
 
 function firstLoad(){
   refreshAll();
+  loadChat();
+  startChatPoll();
   if(S.pollTimer)clearInterval(S.pollTimer);
   S.pollTimer=setInterval(function(){if(document.visibilityState==='visible')refreshAll();},30000);
   if(S.freshTimer)clearInterval(S.freshTimer);
@@ -472,6 +492,7 @@ function switchTab(name){
     if(!S.mapInitialized)initMap();
     else setTimeout(function(){if(S.leafletMap)S.leafletMap.invalidateSize();},80);
   }
+  if(name==='chat'){loadChat();}
 }
 
 /* Team */
@@ -654,14 +675,63 @@ function lensColor(leg){var v=null;
   return'rgb('+r+','+g+','+b+')';
 }
 
-/* Commitments */
-function doLeftGarden(){showBusy('Marking…');
-  api('teamLeftGarden').then(function(r){hideBusy();$('chip-left-garden').classList.add('active');refreshAll();})
-    .catch(function(e){hideBusy();alert('Error: '+e.message);});
+/* Chat */
+var chatMessages=[];
+var chatPollTimer=null;
+
+function loadChat(){
+  api('getChatMessages',{limit:100}).then(function(d){
+    chatMessages=d.messages||[];renderChat();
+  }).catch(function(){});
 }
-function doArrivedAtZone(){showBusy('Marking…');
-  api('teamArrivedAtZone').then(function(r){hideBusy();$('chip-arrived').classList.add('active');refreshAll();})
-    .catch(function(e){hideBusy();alert('Error: '+e.message);});
+
+function renderChat(){
+  var el=$('chat-messages');if(!el)return;
+  if(chatMessages.length===0){el.innerHTML='<div class="empty">No messages yet. Say hello!</div>';return;}
+  var h='';
+  for(var i=0;i<chatMessages.length;i++){
+    var m=chatMessages[i];
+    var isMine=m.author_id===S.volunteerId;
+    var isAI=!!m.is_ai;
+    var cls='chat-msg'+(isMine?' mine':' theirs')+(isAI?' ai':'');
+    h+='<div class="'+cls+'">';
+    h+='<div class="chat-author">'+(isAI?'🌱 CMRA':esc(m.author_name||'?'))+'</div>';
+    h+='<div class="chat-bubble">'+esc(m.text)+'</div>';
+    h+='<div class="chat-time">'+fmtTime(m.timestamp)+'</div>';
+    h+='</div>';
+  }
+  el.innerHTML=h;
+  el.scrollTop=el.scrollHeight;
+}
+
+function sendChat(){
+  var input=$('chat-input');
+  var text=(input.value||'').trim();
+  if(!text)return;
+  input.value='';input.disabled=true;
+  api('sendChatMessage',{text:text}).then(function(d){
+    input.disabled=false;input.focus();
+    if(d.message)chatMessages.push(d.message);
+    if(d.aiResponse){
+      chatMessages.push({
+        id:'ai_'+Date.now(),author_id:'cmra_ai',author_name:'CMRA',
+        author_role:'assistant',text:d.aiResponse,
+        timestamp:new Date().toISOString(),is_ai:true
+      });
+    }
+    renderChat();
+  }).catch(function(e){input.disabled=false;alert('Send failed: '+e.message);});
+}
+
+function startChatPoll(){
+  if(chatPollTimer)clearInterval(chatPollTimer);
+  chatPollTimer=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
+    if(S.activeTab!=='chat')return;
+    api('getChatMessages',{limit:100}).then(function(d){
+      chatMessages=d.messages||[];renderChat();
+    }).catch(function(){});
+  },10000);
 }
 
 /* Event tab */
