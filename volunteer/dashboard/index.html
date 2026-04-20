@@ -483,15 +483,24 @@ function api(action,data,opts){
 /* ═══ Boot & access gate ═══ */
 function boot(){
   if(window.innerWidth>600)document.getElementById('desktop-block').style.display='flex';
+  
+  // Path 1: persistent TL session from /habo319/ sign-in
+  var tlSession=null;
+  try{tlSession=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
+  if(tlSession&&tlSession.sessionToken){
+    bootWithTLSession(tlSession);
+    return;
+  }
+  
+  // Path 2: legacy improv TL flow — joined as volunteer, got promoted
   var saved=null;
   try{saved=JSON.parse(localStorage.getItem('cmra_volunteer')||'null');}catch(e){}
   if(!saved||!saved.volunteerId){
-    showAccessGate('You are not logged in. Open the volunteer app first, join an event, then return to this dashboard.');
+    showAccessGate('You are not signed in. Go to <a href="/habo319/" style="color:var(--accent)">the landing page</a> to sign in, or open the volunteer app to join as a volunteer first.');
     return;
   }
   S.volunteerId=saved.volunteerId;
   S.displayName=saved.displayName||null;
-  // getActiveEvent (v3) returns { eventId, name, status, gpsPingIntervalSec, scoutEnabled, maxVolunteers }
   api('getActiveEvent').then(function(ev){
     if(!ev){showAccessGate('There is no active event.');return;}
     S.event=ev;
@@ -510,6 +519,51 @@ function boot(){
     firstLoad();
   }).catch(function(err){
     showAccessGate('Could not verify access: '+(err.message||'unknown error'));
+  });
+}
+
+/**
+ * Boot path for persistent TLs who signed in via /habo319/.
+ * Validates session token, hydrates event, auto-joins this event as TL if needed.
+ */
+function bootWithTLSession(tlSession){
+  api('auth_whoAmI',{sessionToken:tlSession.sessionToken}).then(function(who){
+    if(!who){
+      localStorage.removeItem('cmra_tl_session');
+      showAccessGate('Your session expired. <a href="/habo319/" style="color:var(--accent)">Sign in again</a>.');
+      return;
+    }
+    S.tlId=who.tlId;
+    S.displayName=who.displayName;
+    S.tlEmail=who.email;
+    // Get the active event
+    return api('getActiveEvent').then(function(ev){
+      if(!ev){showAccessGate('There is no active event right now. Check back when the event is live.');return Promise.reject('no-event');}
+      S.event=ev;
+      S.eventStatus=ev.status||'active';
+      // Ensure a volunteer record exists in this event for the TL — auto-join + promote.
+      return api('auth_ensureTLInEvent',{
+        sessionToken:tlSession.sessionToken,
+        eventId:ev.eventId
+      });
+    }).then(function(ensured){
+      if(!ensured)return;
+      S.volunteerId=ensured.volunteerId;
+      S.role='team_leader';
+      S.currentState=ensured.currentState||'approved';
+      // Persist as a cmra_volunteer record too so the rest of the dashboard (which expects this) works
+      localStorage.setItem('cmra_volunteer',JSON.stringify({
+        eventId:S.event.eventId,
+        volunteerId:S.volunteerId,
+        displayName:S.displayName,
+        trackingMode:'external'
+      }));
+      showDashboard();
+      firstLoad();
+    });
+  }).catch(function(err){
+    if(err==='no-event')return;
+    showAccessGate('Could not verify TL session: '+(err.message||err));
   });
 }
 function showAccessGate(msg){
