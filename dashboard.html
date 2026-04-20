@@ -78,6 +78,12 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 .btn-sm:disabled{opacity:0.5;cursor:not-allowed}
 .btn-sm.primary{background:var(--primary);color:#fff;border-color:var(--primary)}
 
+.actions{flex:0 0 auto;background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;gap:8px}
+.chip{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);padding:10px 6px;font-size:0.74rem;font-weight:600;color:var(--text);cursor:pointer;text-align:center;min-height:48px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-family:inherit}
+.chip:disabled{opacity:0.5;cursor:not-allowed}
+.chip.active{background:var(--accent-dim);color:var(--accent);border-color:var(--accent)}
+.chip .icon{font-size:1.1rem}
+
 #map{height:calc(100vh - 260px);min-height:320px;border-radius:var(--radius);border:1px solid var(--border)}
 .map-legend{display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:0 2px}
 .map-legend .legend-label{font-size:0.7rem;color:var(--text-dim);font-weight:600}
@@ -120,15 +126,17 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 
 .desktop-block{display:none}
 
+/* Password show/hide */
 .pw-wrap{position:relative;display:block;width:100%}
 .pw-wrap input{width:100%;padding-right:44px;box-sizing:border-box}
 .pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px;color:var(--text-dim);line-height:0;font-family:inherit;-webkit-tap-highlight-color:transparent;z-index:2}
 .pw-toggle:active{color:var(--text)}
 .pw-toggle svg{width:20px;height:20px;display:block;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 
+/* Input group for modal forms */
 .ig{margin-bottom:12px}
 .ig label{display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px}
-.ig input,.ig select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:0.95rem;font-family:inherit}
+.ig input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:0.95rem;font-family:inherit}
 .ig input:focus{outline:none;border-color:var(--primary)}
 .err{font-size:0.82rem;color:var(--danger);margin-top:4px;display:none}
 .err.show{display:block}
@@ -137,17 +145,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 .profile-msg{font-size:0.82rem;margin-top:6px;min-height:18px}
 .profile-msg.ok{color:var(--accent)}
 .profile-msg.err{color:var(--danger)}
-
-/* Pin rows */
-.pin-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--surface-2)}
-.pin-row:last-child{border-bottom:none}
-.pin-thumb{width:48px;height:48px;border-radius:var(--radius-xs);object-fit:cover;flex-shrink:0}
-.pin-thumb-empty{display:flex;align-items:center;justify-content:center;background:var(--surface-2);font-size:1.2rem}
-.pin-meta{flex:1;min-width:0}
-.pin-note{font-weight:700;font-size:0.88rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pin-addr{font-size:0.78rem;color:var(--text-dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pin-coords{font-size:0.72rem;color:var(--text-dim);font-family:var(--mono)}
-.pin-time{font-size:0.72rem;color:var(--text-dim)}
 </style>
 </head>
 <body>
@@ -171,7 +168,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <h2 style="margin-bottom:12px">Start a cleanup</h2>
   <p id="create-gate-name" style="font-weight:700;margin-bottom:16px"></p>
   <div style="text-align:left;width:100%;max-width:340px;margin:0 auto">
-    <div class="ig"><label>Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup"></div>
+    <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
     <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
     <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:8px">—</div>
     <div id="cg-map" style="height:160px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:8px;display:none"></div>
@@ -182,35 +179,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <p style="margin-top:16px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
 </div>
 
-<!-- ═══ HOME SCREEN — event-free TL workspace ═══ -->
-<div id="home-screen" style="display:none;flex-direction:column;flex:1;min-height:0;max-width:480px;margin:0 auto;width:100%">
-  <div class="hdr">
-    <div class="ident"><span class="role">TL</span><span class="name" id="home-name">—</span></div>
-    <div style="text-align:center"><span style="font-size:0.72rem;color:var(--text-dim)">Home</span></div>
-    <button class="signout" onclick="openProfile()">Profile</button>
-  </div>
-  <div style="flex:1;overflow-y:auto;padding:14px 16px;background:var(--bg)">
-    <div class="card">
-      <h3>📍 My Pins <span class="muted" id="home-pin-count"></span></h3>
-      <div id="home-pins-list"><div class="empty">No pins yet.</div></div>
-    </div>
-    <button class="big-btn" onclick="openPinModal()" style="margin-bottom:12px;margin-top:0">📍 Pin a location</button>
-    <button class="big-btn" id="home-admin-btn" onclick="openAdminView()" style="display:none;margin-bottom:12px;margin-top:0;background:var(--primary-dim);color:var(--primary-text)">🔑 Admin overview</button>
-    <div class="card">
-      <h3>Start a cleanup</h3>
-      <div class="ig" style="margin-bottom:10px"><label>Event name</label><input id="home-event-name" type="text" placeholder="e.g. Tuesday morning cleanup"></div>
-      <button onclick="homeCaptureLocation()" style="width:100%;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture location</button>
-      <div id="home-loc-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px">—</div>
-      <div id="home-map" style="height:140px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px;display:none"></div>
-      <div id="home-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:10px;display:none">Drag pin to adjust</div>
-      <div class="err" id="home-create-err" style="margin-bottom:8px"></div>
-      <button class="big-btn" onclick="homeCreateEvent()" id="home-create-btn" style="margin-top:0">Create & start</button>
-    </div>
-    <div style="text-align:center;margin-top:10px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></div>
-  </div>
-</div>
-
-<!-- ═══ MAIN — event-mode dashboard ═══ -->
 <div id="main" style="display:none;flex-direction:column;flex:1;min-height:0">
 
   <div class="hdr">
@@ -276,7 +244,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
         <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
           <input id="chat-input" type="text" placeholder="Message your team…" maxlength="1000" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')sendChat()">
-          <button onclick="openPinModal()" style="padding:8px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;cursor:pointer" title="Pin a location">📍</button>
           <button onclick="sendChat()" style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit;white-space:nowrap">Send</button>
         </div>
       </div>
@@ -286,7 +253,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
       <div class="card"><h3>Event</h3><div id="event-details"></div></div>
       <div class="card" id="new-event-card" style="display:none">
         <h3>Start a new cleanup</h3>
-        <div class="ig" style="margin-bottom:10px"><label>Event name</label><input id="ev-new-name" type="text" placeholder="e.g. Tuesday afternoon"></div>
+        <div class="ig" style="margin-bottom:10px"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="ev-new-name" type="text" placeholder="e.g. Tuesday afternoon" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit"></div>
         <button id="ev-loc-btn" onclick="evCaptureLocation()" style="width:100%;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture location</button>
         <div id="ev-loc-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px">—</div>
         <div id="ev-map" style="height:140px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px;display:none"></div>
@@ -310,12 +277,10 @@ var LANDING='/habo319/';
 
 var S={
   sessionToken:null,tlId:null,displayName:null,tlEmail:null,
-  isOrganizer:false,homeMode:false,
   event:null,volunteerId:null,role:null,currentState:null,
   eventStatus:'active',dataState:'hot',
   roster:[],queue:[],teamLeaders:[],stats:null,recentLog:[],
   reportBlob:null,
-  pins:[],pinCount:0,
   activeTab:'team',
   leafletMap:null,mapPaths:[],mapInitialized:false,mapLens:'sqrt_cpue',
   lastRefresh:null,pollTimer:null,freshTimer:null
@@ -341,7 +306,6 @@ function api(action,data){
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
 }
 
-/* ═══ BOOT — decoupled from event ═══ */
 function boot(){
   var saved=null;try{saved=JSON.parse(localStorage.getItem('cmra_tl_session')||'null');}catch(e){}
   if(!saved||!saved.sessionToken){gate('You are not signed in. <a href="'+LANDING+'">Go to the landing page</a> to sign in as a Team Leader.');return;}
@@ -349,188 +313,80 @@ function boot(){
   api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(who){
     if(!who){localStorage.removeItem('cmra_tl_session');gate('Your session expired. <a href="'+LANDING+'">Sign in again</a>.');return Promise.reject('expired');}
     S.tlId=who.tlId;S.displayName=who.displayName;S.tlEmail=who.email;
-    return api('tl_getHome',{sessionToken:S.sessionToken});
-  }).then(function(home){
-    if(!home)return;
-    S.isOrganizer=home.profile.isOrganizer;
-    S.pins=home.recentPins||[];
-    S.pinCount=home.pinCount||0;
-    if(home.hasEvent&&home.activeEvent){
-      S.event=home.activeEvent;
-      S.eventStatus=home.activeEvent.status||'active';
-      S.dataState=home.activeEvent.dataState||'hot';
-      S.homeMode=false;
-      return api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:home.activeEvent.eventId});
-    }else{
-      S.homeMode=true;
-      showHome();
-      return Promise.reject('home-mode');
-    }
+    return api('getActiveEvent');
+  }).then(function(ev){
+    if(!ev){showCreateGate();return Promise.reject('no-event');}
+    S.event=ev;S.eventStatus=ev.status||'active';S.dataState=ev.dataState||'hot';
+    return api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:ev.eventId});
   }).then(function(ensured){
     if(!ensured)return;
     S.volunteerId=ensured.volunteerId;S.role='team_leader';S.currentState=ensured.currentState||'approved';
     showMain();firstLoad();
   }).catch(function(err){
-    if(err==='expired'||err==='home-mode')return;
+    if(err==='expired'||err==='no-event')return;
     gate('Could not load dashboard: '+(err.message||err));
   });
 }
 
-function gate(msg){$('loading-gate').style.display='none';$('main').style.display='none';$('create-gate').style.display='none';$('home-screen').style.display='none';$('access-gate').style.display='flex';$('access-gate-msg').innerHTML=msg;}
+function gate(msg){$('loading-gate').style.display='none';$('main').style.display='none';$('create-gate').style.display='none';$('access-gate').style.display='flex';$('access-gate-msg').innerHTML=msg;}
 
 function showCreateGate(){
-  S.homeMode=true;
-  showHome();
+  $('loading-gate').style.display='none';$('main').style.display='none';$('access-gate').style.display='none';
+  $('create-gate').style.display='flex';
+  $('create-gate-name').textContent='Welcome, '+(S.displayName||'Team Leader')+'.';
 }
 
-/* ═══ HOME SCREEN — event-free TL workspace ═══ */
-function showHome(){
-  $('loading-gate').style.display='none';$('access-gate').style.display='none';$('create-gate').style.display='none';$('main').style.display='none';
-  $('home-screen').style.display='flex';
-  $('home-name').textContent=S.displayName||'Team Leader';
-  renderHomePins();
-  var adminBtn=$('home-admin-btn');
-  if(adminBtn)adminBtn.style.display=S.isOrganizer?'block':'none';
-}
-
-function renderHomePins(){
-  var el=$('home-pins-list');
-  if(!S.pins||!S.pins.length){el.innerHTML='<div class="empty">No pins yet. Tap the button below to pin a location.</div>';$('home-pin-count').textContent='';return;}
-  $('home-pin-count').textContent='('+S.pinCount+')';
-  var h='';
-  for(var i=0;i<S.pins.length;i++){var p=S.pins[i];
-    h+='<div class="pin-row">';
-    if(p.photo_thumb){h+='<img src="'+esc(p.photo_thumb)+'" class="pin-thumb" alt="pin photo">';}
-    else{h+='<div class="pin-thumb pin-thumb-empty">📍</div>';}
-    h+='<div class="pin-meta"><div class="pin-note">'+esc(p.note||'Location pin')+'</div>';
-    if(p.address)h+='<div class="pin-addr">'+esc(p.address)+'</div>';
-    if(p.lat&&p.lon)h+='<div class="pin-coords">'+p.lat.toFixed(5)+', '+p.lon.toFixed(5)+'</div>';
-    h+='<div class="pin-time">'+fmtTime(p.created_at)+'</div></div>';
-    h+='<button class="btn-sm" onclick="deletePin(\''+esc(p.pin_id)+'\')">✕</button></div>';
-  }
-  el.innerHTML=h;
-}
-
-function deletePin(pinId){
-  if(!confirm('Delete this pin?'))return;
-  api('tl_deletePin',{sessionToken:S.sessionToken,pinId:pinId}).then(function(){
-    S.pins=S.pins.filter(function(p){return p.pin_id!==pinId;});
-    S.pinCount=Math.max(0,S.pinCount-1);
-    renderHomePins();
-  }).catch(function(e){alert('Delete failed: '+e.message);});
-}
-
-/* ═══ Home screen event creation ═══ */
-var homeLocationBuffer=null;var homeMap=null;var homeMarker=null;
-function homeCaptureLocation(){
-  $('home-loc-status').textContent='Getting location…';
+var cgLocationBuffer=null;
+var cgMap=null;var cgMarker=null;
+function cgCaptureLocation(){
+  $('cg-loc-status').textContent='Getting location…';
   navigator.geolocation.getCurrentPosition(function(pos){
-    homeLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
-    $('home-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
-    $('home-map').style.display='block';$('home-map-hint').style.display='block';
+    cgLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('cg-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    // Show adjustable map
+    $('cg-map').style.display='block';
+    $('cg-map-hint').style.display='block';
     setTimeout(function(){
-      if(!homeMap){
-        homeMap=L.map('home-map',{zoomControl:true,attributionControl:false}).setView([homeLocationBuffer.lat,homeLocationBuffer.lon],16);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(homeMap);
-        homeMarker=L.marker([homeLocationBuffer.lat,homeLocationBuffer.lon],{draggable:true}).addTo(homeMap);
-        homeMarker.on('dragend',function(e){var ll=e.target.getLatLng();homeLocationBuffer.lat=ll.lat;homeLocationBuffer.lon=ll.lng;$('home-loc-status').textContent='✓ Pin adjusted';});
-      }else{homeMarker.setLatLng([homeLocationBuffer.lat,homeLocationBuffer.lon]);homeMap.setView([homeLocationBuffer.lat,homeLocationBuffer.lon],16);homeMap.invalidateSize();}
-    },100);
-  },function(err){$('home-loc-status').textContent='⚠ '+err.message;},{enableHighAccuracy:true,timeout:10000});
-}
-function homeCreateEvent(){
-  var name=$('home-event-name').value.trim();var err=$('home-create-err');err.style.display='none';
-  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
-  $('home-create-btn').disabled=true;
-  api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:homeLocationBuffer}).then(function(d){
-    $('home-create-btn').disabled=false;
-    S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
-    S.eventStatus=d.status;S.dataState=d.dataState;S.volunteerId=d.volunteerId;S.role='team_leader';S.currentState='approved';S.homeMode=false;
-    $('home-screen').style.display='none';showMain();firstLoad();
-  }).catch(function(e){$('home-create-btn').disabled=false;err.textContent=e.message||'Could not create event';err.style.display='block';});
-}
-
-/* ═══ PIN CREATION MODAL ═══ */
-var pinLocationBuffer=null;var pinPhotoBase64=null;var pinPhotoMimeType=null;
-function openPinModal(){
-  pinLocationBuffer=null;pinPhotoBase64=null;pinPhotoMimeType=null;
-  var h='<div style="text-align:left"><div style="font-weight:800;font-size:1.1rem;margin-bottom:14px">📍 Pin a location</div>';
-  h+='<div class="ig"><label>Photo (optional)</label><input type="file" accept="image/*" capture="environment" id="pin-photo-input" onchange="pinPhotoSelected(this)" style="font-size:0.85rem"><div id="pin-photo-preview" style="margin-top:6px"></div></div>';
-  h+='<div class="ig"><label>Note / caption</label><input id="pin-note" type="text" placeholder="What\'s here?" maxlength="500"></div>';
-  h+='<div class="ig"><label>Address (optional)</label><input id="pin-address" type="text" placeholder="e.g. 123 Main St"></div>';
-  h+='<button onclick="pinCaptureGPS()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:4px">📍 Capture GPS location</button>';
-  h+='<div id="pin-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:12px">—</div>';
-  h+='<div class="err" id="pin-err" style="margin-bottom:8px"></div>';
-  h+='<button class="big-btn" onclick="submitPin()" id="btn-submit-pin" style="margin-top:0">Save pin</button>';
-  h+='<button class="big-btn" onclick="hideBusy()" style="margin-top:6px;background:var(--surface-2);color:var(--text)">Cancel</button></div>';
-  $('overlay-content').innerHTML=h;$('overlay').classList.add('active');
-  pinCaptureGPS();
-}
-function pinPhotoSelected(input){
-  if(!input.files||!input.files[0])return;var file=input.files[0];pinPhotoMimeType=file.type||'image/jpeg';
-  var reader=new FileReader();reader.onload=function(e){
-    var img=new Image();img.onload=function(){
-      var maxDim=800,w=img.width,h=img.height;
-      if(w>maxDim||h>maxDim){if(w>h){h=Math.round(h*(maxDim/w));w=maxDim;}else{w=Math.round(w*(maxDim/h));h=maxDim;}}
-      var canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;canvas.getContext('2d').drawImage(img,0,0,w,h);
-      var dataUrl=canvas.toDataURL('image/jpeg',0.6);pinPhotoBase64=dataUrl.split(',')[1];pinPhotoMimeType='image/jpeg';
-      $('pin-photo-preview').innerHTML='<img src="'+dataUrl+'" style="max-width:100%;max-height:120px;border-radius:var(--radius-sm);border:1px solid var(--border)">';
-    };img.src=e.target.result;
-  };reader.readAsDataURL(file);
-}
-function pinCaptureGPS(){
-  $('pin-gps-status').textContent='Getting location…';
-  navigator.geolocation.getCurrentPosition(function(pos){pinLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};$('pin-gps-status').textContent='✓ '+pos.coords.latitude.toFixed(5)+', '+pos.coords.longitude.toFixed(5)+' (±'+Math.round(pos.coords.accuracy)+'m)';},function(err){$('pin-gps-status').textContent='⚠ '+err.message+' — you can save without GPS';},{enableHighAccuracy:true,timeout:10000});
-}
-function submitPin(){
-  var note=($('pin-note')?$('pin-note').value:'').trim();var address=($('pin-address')?$('pin-address').value:'').trim();
-  var errEl=$('pin-err');errEl.style.display='none';
-  if(!note&&!pinPhotoBase64&&!pinLocationBuffer){errEl.textContent='Add a note, photo, or GPS location';errEl.style.display='block';return;}
-  $('btn-submit-pin').disabled=true;
-  var payload={sessionToken:S.sessionToken,lat:pinLocationBuffer?pinLocationBuffer.lat:null,lon:pinLocationBuffer?pinLocationBuffer.lon:null,address:address||null,note:note||null,photoBase64:pinPhotoBase64||null,photoMimeType:pinPhotoMimeType||null};
-  if(S.event&&S.event.eventId)payload.eventId=S.event.eventId;
-  api('tl_createPin',payload).then(function(pin){
-    $('btn-submit-pin').disabled=false;hideBusy();S.pins.unshift(pin);S.pinCount++;
-    if(S.homeMode)renderHomePins();
-    if(!S.homeMode)refreshAll();
-  }).catch(function(e){$('btn-submit-pin').disabled=false;errEl.textContent=e.message||'Pin failed';errEl.style.display='block';});
-}
-
-/* ═══ ADMIN VIEW ═══ */
-function openAdminView(){
-  showBusy('Loading admin view…');
-  api('tl_getAdminView',{sessionToken:S.sessionToken,includeAllPins:true}).then(function(data){
-    hideBusy();
-    var h='<div style="text-align:left;max-height:70vh;overflow-y:auto"><div style="font-weight:800;font-size:1.1rem;margin-bottom:14px">Admin Overview</div>';
-    h+='<h3 style="font-size:0.88rem;margin-bottom:8px">Events ('+data.events.length+')</h3>';
-    for(var i=0;i<data.events.length;i++){var ev=data.events[i];
-      h+='<div style="padding:6px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem"><span style="font-weight:700">'+esc(ev.eventName)+'</span> <span class="pill '+(ev.status==='ended'?'ended':'active')+'">'+esc(ev.status)+'</span> <span class="pill '+esc(ev.dataState||'hot')+'">'+esc(ev.dataState||'hot')+'</span></div>';
-    }
-    h+='<h3 style="font-size:0.88rem;margin:14px 0 8px">Team Leaders ('+data.teamLeaders.length+')</h3>';
-    for(var j=0;j<data.teamLeaders.length;j++){var tl=data.teamLeaders[j];
-      h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2)"><div style="font-weight:700;font-size:0.9rem">'+esc(tl.displayName)+'</div>';
-      h+='<div style="font-size:0.78rem;color:var(--text-dim)">'+esc(tl.email)+' · '+tl.pinCount+' pins';
-      if(tl.isOrganizer)h+=' · <span style="color:var(--primary);font-weight:700">Admin</span>';
-      h+='</div>';
-      if(tl.recentPins&&tl.recentPins.length){
-        h+='<div style="margin-top:6px;padding-left:10px;border-left:2px solid var(--border)">';
-        for(var k=0;k<Math.min(tl.recentPins.length,3);k++){var pin=tl.recentPins[k];
-          h+='<div style="font-size:0.78rem;color:var(--text-dim);padding:2px 0">📍 '+esc(pin.note||'Pin')+' · '+fmtTime(pin.created_at)+(pin.photo_thumb?' 📷':'')+'</div>';
-        }
-        if(tl.recentPins.length>3)h+='<div style="font-size:0.72rem;color:var(--text-dim)">+'+(tl.recentPins.length-3)+' more</div>';
-        h+='</div>';
+      if(!cgMap){
+        cgMap=L.map('cg-map',{zoomControl:true,attributionControl:false}).setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(cgMap);
+        cgMarker=L.marker([cgLocationBuffer.lat,cgLocationBuffer.lon],{draggable:true}).addTo(cgMap);
+        cgMarker.on('dragend',function(e){
+          var ll=e.target.getLatLng();
+          cgLocationBuffer.lat=ll.lat;cgLocationBuffer.lon=ll.lng;
+          $('cg-loc-status').textContent='✓ Pin adjusted';
+        });
+      }else{
+        cgMarker.setLatLng([cgLocationBuffer.lat,cgLocationBuffer.lon]);
+        cgMap.setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);
+        cgMap.invalidateSize();
       }
-      h+='</div>';
-    }
-    h+='<button class="big-btn" onclick="hideBusy()" style="margin-top:14px;background:var(--surface-2);color:var(--text)">Close</button></div>';
-    $('overlay-content').innerHTML=h;$('overlay').classList.add('active');
-  }).catch(function(e){hideBusy();alert('Admin view failed: '+e.message);});
+    },100);
+  },function(err){
+    $('cg-loc-status').textContent='⚠ '+err.message+' — you can skip this';
+  },{enableHighAccuracy:true,timeout:10000});
 }
 
-/* ═══ EVENT MODE — existing functions preserved ═══ */
+function cgCreateEvent(){
+  var name=$('cg-name').value.trim();
+  var err=$('cg-err');err.style.display='none';
+  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
+  $('cg-btn').disabled=true;
+  api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:cgLocationBuffer}).then(function(d){
+    $('cg-btn').disabled=false;
+    S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
+    S.eventStatus=d.status;S.dataState=d.dataState;
+    S.volunteerId=d.volunteerId;S.role='team_leader';S.currentState='approved';
+    $('create-gate').style.display='none';
+    showMain();firstLoad();
+  }).catch(function(e){
+    $('cg-btn').disabled=false;
+    err.textContent=e.message||'Could not create event';err.style.display='block';
+  });
+}
 
 function showMain(){
-  $('loading-gate').style.display='none';$('access-gate').style.display='none';$('home-screen').style.display='none';
+  $('loading-gate').style.display='none';$('access-gate').style.display='none';
   $('main').style.display='flex';
   $('hdr-name').textContent=S.displayName||'Team Leader';
   $('event-name-line').textContent=S.event.name||'';
@@ -559,13 +415,21 @@ function openProfile(){
       '<div class="ig"><label>Phone</label><input id="prof-phone" type="tel" value=""></div>'+
       '<button class="big-btn" onclick="saveProfile()" id="btn-save-profile">Save profile</button>'+
       '<div class="profile-msg" id="prof-msg"></div>'+
-      '<div class="profile-section"><h3>Change password</h3>'+
-        '<div class="ig"><label>Current password</label><div class="pw-wrap"><input id="prof-cur-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-cur-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>'+
-        '<div class="ig"><label>New password (8+ chars)</label><div class="pw-wrap"><input id="prof-new-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-new-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div></div>'+
-        '<button class="big-btn" onclick="changePassword()" id="btn-change-pw">Change password</button><div class="profile-msg" id="pw-msg"></div>'+
+      '<div class="profile-section">'+
+        '<h3>Change password</h3>'+
+        '<div class="ig"><label>Current password</label>'+
+          '<div class="pw-wrap"><input id="prof-cur-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-cur-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>'+
+        '</div>'+
+        '<div class="ig"><label>New password (8+ chars)</label>'+
+          '<div class="pw-wrap"><input id="prof-new-pw" type="password"><button type="button" class="pw-toggle" onclick="togglePw(this,\'prof-new-pw\')" aria-label="Show password"><svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></button></div>'+
+        '</div>'+
+        '<button class="big-btn" onclick="changePassword()" id="btn-change-pw">Change password</button>'+
+        '<div class="profile-msg" id="pw-msg"></div>'+
       '</div>'+
-      '<div class="profile-section"><button class="big-btn danger" onclick="doSignOut()">Sign out</button>'+
-        '<button class="big-btn" onclick="hideBusy()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Close</button></div>'+
+      '<div class="profile-section">'+
+        '<button class="big-btn danger" onclick="doSignOut()">Sign out</button>'+
+        '<button class="big-btn" onclick="closeProfile()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Close</button>'+
+      '</div>'+
     '</div>';
   $('overlay').classList.add('active');
 }
@@ -577,28 +441,43 @@ function togglePw(btn,inputId){
 }
 function saveProfile(){
   var msg=$('prof-msg');msg.className='profile-msg';msg.textContent='';
-  var name=$('prof-name').value.trim();var email=$('prof-email').value.trim().toLowerCase();var phone=$('prof-phone').value.trim();
+  var name=$('prof-name').value.trim();
+  var email=$('prof-email').value.trim().toLowerCase();
+  var phone=$('prof-phone').value.trim();
   if(!name){msg.className='profile-msg err';msg.textContent='Name required';return;}
   if(!email){msg.className='profile-msg err';msg.textContent='Email required';return;}
   $('btn-save-profile').disabled=true;
   api('auth_updateOwnProfile',{sessionToken:S.sessionToken,displayName:name,email:email,phone:phone}).then(function(){
-    $('btn-save-profile').disabled=false;S.displayName=name;S.tlEmail=email;$('hdr-name').textContent=name;
+    $('btn-save-profile').disabled=false;
+    S.displayName=name;S.tlEmail=email;
+    $('hdr-name').textContent=name;
     msg.className='profile-msg ok';msg.textContent='Saved.';
-  }).catch(function(e){$('btn-save-profile').disabled=false;msg.className='profile-msg err';msg.textContent=e.message||'Save failed';});
+  }).catch(function(e){
+    $('btn-save-profile').disabled=false;
+    msg.className='profile-msg err';msg.textContent=e.message||'Save failed';
+  });
 }
 function changePassword(){
   var msg=$('pw-msg');msg.className='profile-msg';msg.textContent='';
-  var cur=$('prof-cur-pw').value;var next=$('prof-new-pw').value;
+  var cur=$('prof-cur-pw').value;
+  var next=$('prof-new-pw').value;
   if(!cur){msg.className='profile-msg err';msg.textContent='Current password required';return;}
   if(!next||next.length<8){msg.className='profile-msg err';msg.textContent='New password must be 8+ chars';return;}
   $('btn-change-pw').disabled=true;
   api('auth_changeOwnPassword',{sessionToken:S.sessionToken,currentPassword:cur,newPassword:next}).then(function(){
-    $('btn-change-pw').disabled=false;$('prof-cur-pw').value='';$('prof-new-pw').value='';msg.className='profile-msg ok';msg.textContent='Password changed.';
-  }).catch(function(e){$('btn-change-pw').disabled=false;msg.className='profile-msg err';msg.textContent=e.message||'Change failed';});
+    $('btn-change-pw').disabled=false;
+    $('prof-cur-pw').value='';$('prof-new-pw').value='';
+    msg.className='profile-msg ok';msg.textContent='Password changed.';
+  }).catch(function(e){
+    $('btn-change-pw').disabled=false;
+    msg.className='profile-msg err';msg.textContent=e.message||'Change failed';
+  });
 }
 
 function firstLoad(){
-  refreshAll();loadChat();startChatPoll();
+  refreshAll();
+  loadChat();
+  startChatPoll();
   if(S.pollTimer)clearInterval(S.pollTimer);
   S.pollTimer=setInterval(function(){if(document.visibilityState==='visible')refreshAll();},30000);
   if(S.freshTimer)clearInterval(S.freshTimer);
@@ -612,7 +491,11 @@ function refreshAll(){
     S.teamLeaders=blob.teamLeaders||[];S.stats=blob.stats||null;
     S.recentLog=blob.recentLog||[];
     S.eventStatus=blob.eventStatus||S.eventStatus;S.dataState=blob.dataState||S.dataState;
-    if(blob.eventId&&S.event&&blob.eventId!==S.event.eventId){location.reload();return;}
+    // Detect event change — if blob is for a different event, reload
+    if(blob.eventId&&S.event&&blob.eventId!==S.event.eventId){
+      location.reload();return;
+    }
+    // Update event display data from blob
     if(blob.eventName&&S.event)S.event.name=blob.eventName;
     S.lastRefresh=Date.now();
     renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
@@ -623,11 +506,13 @@ function refreshAll(){
 }
 
 function updateFreshness(){
-  if(!S.lastRefresh)return;var age=Math.floor((Date.now()-S.lastRefresh)/1000);
+  if(!S.lastRefresh)return;
+  var age=Math.floor((Date.now()-S.lastRefresh)/1000);
   var el=$('hdr-fresh');var t=$('hdr-fresh-text');
   if(age<60){t.textContent=age+'s';el.classList.remove('stale');}
   else{t.textContent=Math.floor(age/60)+'m';el.classList.toggle('stale',age>180);}
 }
+
 function updateBadges(){
   var qb=$('badge-team');
   if(S.queue.length>0){qb.textContent=S.queue.length;qb.classList.remove('hidden');}
@@ -636,10 +521,15 @@ function updateBadges(){
 
 function switchTab(name){
   S.activeTab=name;
-  var tabs=document.querySelectorAll('.tab');for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',tabs[i].dataset.tab===name);
-  var panes=document.querySelectorAll('.pane');for(var i=0;i<panes.length;i++)panes[i].classList.remove('active');
+  var tabs=document.querySelectorAll('.tab');
+  for(var i=0;i<tabs.length;i++)tabs[i].classList.toggle('active',tabs[i].dataset.tab===name);
+  var panes=document.querySelectorAll('.pane');
+  for(var i=0;i<panes.length;i++)panes[i].classList.remove('active');
   $('pane-'+name).classList.add('active');
-  if(name==='map'){if(!S.mapInitialized)initMap();else setTimeout(function(){if(S.leafletMap)S.leafletMap.invalidateSize();},80);}
+  if(name==='map'){
+    if(!S.mapInitialized)initMap();
+    else setTimeout(function(){if(S.leafletMap)S.leafletMap.invalidateSize();},80);
+  }
   if(name==='chat'){loadChat();}
 }
 
@@ -654,19 +544,31 @@ function renderTeam(){
   var myTeam=S.roster.filter(function(v){return v.teamLeaderId===S.volunteerId||v.volunteerId===S.volunteerId;});
   if(myTeam.length===0){$('roster-list').innerHTML='<div class="empty">No one on your team yet.</div>';return;}
   var h='';for(var i=0;i<myTeam.length;i++){var v=myTeam[i];var actions='';
-    if(v.volunteerId!==S.volunteerId&&v.currentState!=='accounted_for'&&v.currentState!=='left_early'){actions+='<button class="btn-sm" onclick="doAccount(this,\''+v.volunteerId+'\')">Accounted</button>';}
+    if(v.volunteerId!==S.volunteerId&&v.currentState!=='accounted_for'&&v.currentState!=='left_early'){
+      actions+='<button class="btn-sm" onclick="doAccount(this,\''+v.volunteerId+'\')">Accounted</button>';
+    }
     actions+='<button class="btn-sm" onclick="editVolunteer(\''+v.volunteerId+'\')">Edit</button>';
-    if(v.volunteerId!==S.volunteerId){actions+='<button class="btn-sm" style="color:var(--danger)" onclick="deleteVolunteer(\''+v.volunteerId+'\',\''+esc(v.displayName)+'\')">✕</button>';}
+    if(v.volunteerId!==S.volunteerId){
+      actions+='<button class="btn-sm" style="color:var(--danger)" onclick="deleteVolunteer(\''+v.volunteerId+'\',\''+esc(v.displayName)+'\')">✕</button>';
+    }
     h+='<div class="vol-row state-'+esc(v.currentState)+'"><div class="avatar">'+esc(initials(v.displayName))+'</div><div class="meta"><div class="name">'+esc(v.displayName)+(v.volunteerId===S.volunteerId?' <span class="muted">(you)</span>':'')+'</div><div class="state">'+esc(v.currentState)+'</div></div><div class="actions">'+actions+'</div></div>';
   }$('roster-list').innerHTML=h;
 }
-function doApprove(btn,volId){btn.disabled=true;btn.textContent='…';api('approveVolunteer',{targetVolunteerId:volId}).then(refreshAll).catch(function(e){btn.disabled=false;btn.textContent='Approve';alert('Error: '+e.message);});}
-function doBulkApprove(){if(!confirm('Approve all '+S.queue.length+' waiting volunteers?'))return;showBusy('Approving…');api('bulkApprove').then(function(){hideBusy();refreshAll();}).catch(function(e){hideBusy();alert('Error: '+e.message);});}
-function doAccount(btn,volId){btn.disabled=true;api('accountForVolunteer',{targetVolunteerId:volId,decision:'accounted_for'}).then(refreshAll).catch(function(e){btn.disabled=false;alert('Error: '+e.message);});}
 
-/* Volunteer CRUD modal */
+function doApprove(btn,volId){btn.disabled=true;btn.textContent='…';
+  api('approveVolunteer',{targetVolunteerId:volId}).then(refreshAll).catch(function(e){btn.disabled=false;btn.textContent='Approve';alert('Error: '+e.message);});
+}
+function doBulkApprove(){if(!confirm('Approve all '+S.queue.length+' waiting volunteers?'))return;
+  showBusy('Approving…');api('bulkApprove').then(function(){hideBusy();refreshAll();}).catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+function doAccount(btn,volId){btn.disabled=true;
+  api('accountForVolunteer',{targetVolunteerId:volId,decision:'accounted_for'}).then(refreshAll).catch(function(e){btn.disabled=false;alert('Error: '+e.message);});
+}
+
+/* ═══ Volunteer CRUD modal ═══ */
 function editVolunteer(volId){
-  var v=null;for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===volId){v=S.roster[i];break;}}
+  var v=null;
+  for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===volId){v=S.roster[i];break;}}
   for(var i=0;i<S.queue.length;i++){if(S.queue[i].volunteerId===volId){v=S.queue[i];break;}}
   if(!v){alert('Volunteer not found');return;}
   var stateOptions=['joined','approved','in_transit','at_zone','collecting','between_legs','session_complete','accounted_for','left_early'];
@@ -674,24 +576,60 @@ function editVolunteer(volId){
   var stateSel='',trackSel='';
   for(var i=0;i<stateOptions.length;i++)stateSel+='<option value="'+stateOptions[i]+'"'+(v.currentState===stateOptions[i]?' selected':'')+'>'+stateOptions[i]+'</option>';
   for(var i=0;i<trackingOptions.length;i++)trackSel+='<option value="'+trackingOptions[i]+'"'+((v.trackingMode||'')===trackingOptions[i]?' selected':'')+'>'+(trackingOptions[i]||'—')+'</option>';
+  
+  // Legs list with delete action
   var legsHtml='';
   if(v.legs&&v.legs.length>0){
     legsHtml+='<div class="profile-section"><h3>Completed legs ('+v.legs.length+')</h3>';
-    for(var i=0;i<v.legs.length;i++){var leg=v.legs[i];var miles=leg.distanceM?(leg.distanceM/1609.34).toFixed(2):'—';
-      legsHtml+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem"><div style="flex:1"><strong>Leg '+leg.legNumber+'</strong> · '+leg.weightLbs.toFixed(2)+' lbs · '+miles+' mi</div><button class="btn-sm" style="color:var(--danger)" onclick="deleteLeg(\''+volId+'\',\''+leg.legId+'\')">Delete</button></div>';
-    }legsHtml+='</div>';
+    for(var i=0;i<v.legs.length;i++){var leg=v.legs[i];
+      var miles=leg.distanceM?(leg.distanceM/1609.34).toFixed(2):'—';
+      legsHtml+='<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem">'+
+        '<div style="flex:1"><strong>Leg '+leg.legNumber+'</strong> · '+leg.weightLbs.toFixed(2)+' lbs · '+miles+' mi</div>'+
+        '<button class="btn-sm" style="color:var(--danger)" onclick="deleteLeg(\''+volId+'\',\''+leg.legId+'\')">Delete</button>'+
+      '</div>';
+    }
+    legsHtml+='</div>';
   }
-  $('overlay-content').innerHTML='<div style="font-weight:800;font-size:1.1rem;margin-bottom:12px;text-align:left">Edit volunteer</div><div style="text-align:left"><div class="ig"><label>Display name</label><input id="ev-name" type="text" value="'+esc(v.displayName||'')+'"></div><div class="ig"><label>State</label><select id="ev-state">'+stateSel+'</select></div><div class="ig"><label>Tracking mode</label><select id="ev-tracking">'+trackSel+'</select></div><div class="err" id="ev-err"></div><button class="big-btn" id="btn-save-vol" onclick="saveEditVolunteer(\''+volId+'\')">Save</button>'+legsHtml+'<button class="big-btn" onclick="hideBusy()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Close</button></div>';
+  
+  $('overlay-content').innerHTML=
+    '<div style="font-weight:800;font-size:1.1rem;margin-bottom:12px;text-align:left">Edit volunteer</div>'+
+    '<div style="text-align:left">'+
+      '<div class="ig"><label>Display name</label><input id="ev-name" type="text" value="'+esc(v.displayName||'')+'"></div>'+
+      '<div class="ig"><label>State</label><select id="ev-state" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:0.95rem;font-family:inherit">'+stateSel+'</select></div>'+
+      '<div class="ig"><label>Tracking mode</label><select id="ev-tracking" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);font-size:0.95rem;font-family:inherit">'+trackSel+'</select></div>'+
+      '<div class="err" id="ev-err"></div>'+
+      '<button class="big-btn" id="btn-save-vol" onclick="saveEditVolunteer(\''+volId+'\')">Save</button>'+
+      legsHtml+
+      '<button class="big-btn" onclick="hideBusy()" style="margin-top:8px;background:var(--surface-2);color:var(--text)">Close</button>'+
+    '</div>';
   $('overlay').classList.add('active');
 }
-function deleteLeg(volId,legId){if(!confirm('Delete this leg? Soft-delete.'))return;api('deleteLeg',{targetVolunteerId:volId,legId:legId,reason:'tl_remove'}).then(function(){hideBusy();refreshAll();}).catch(function(e){alert('Error: '+e.message);});}
+
+function deleteLeg(volId,legId){
+  if(!confirm('Delete this leg? It will be marked deleted and excluded from all reports. This is a soft-delete.'))return;
+  api('deleteLeg',{targetVolunteerId:volId,legId:legId,reason:'tl_remove'}).then(function(){
+    hideBusy();refreshAll();
+  }).catch(function(e){alert('Error: '+e.message);});
+}
 function saveEditVolunteer(volId){
-  var msg=$('ev-err');msg.classList.remove('show');var name=$('ev-name').value.trim();var state=$('ev-state').value;var tracking=$('ev-tracking').value||null;
+  var msg=$('ev-err');msg.classList.remove('show');
+  var name=$('ev-name').value.trim();
+  var state=$('ev-state').value;
+  var tracking=$('ev-tracking').value||null;
   if(!name){msg.textContent='Name required';msg.classList.add('show');return;}
   $('btn-save-vol').disabled=true;
-  api('updateVolunteer',{targetVolunteerId:volId,displayName:name,currentState:state,trackingMode:tracking}).then(function(){hideBusy();refreshAll();}).catch(function(e){$('btn-save-vol').disabled=false;msg.textContent=e.message||'Save failed';msg.classList.add('show');});
+  api('updateVolunteer',{targetVolunteerId:volId,displayName:name,currentState:state,trackingMode:tracking}).then(function(){
+    hideBusy();refreshAll();
+  }).catch(function(e){
+    $('btn-save-vol').disabled=false;
+    msg.textContent=e.message||'Save failed';msg.classList.add('show');
+  });
 }
-function deleteVolunteer(volId,name){if(!confirm('Remove "'+name+'"? Soft-delete.'))return;api('softDeleteVolunteer',{targetVolunteerId:volId,reason:'tl_remove'}).then(refreshAll).catch(function(e){alert('Error: '+e.message);});}
+function deleteVolunteer(volId,name){
+  if(!confirm('Remove "'+name+'" from this event? Soft-delete, can be restored.'))return;
+  api('softDeleteVolunteer',{targetVolunteerId:volId,reason:'tl_remove'}).then(refreshAll)
+    .catch(function(e){alert('Error: '+e.message);});
+}
 
 /* Stats */
 function renderStats(){
@@ -712,14 +650,19 @@ function renderStats(){
 /* Feed */
 function renderFeed(){
   if(!S.recentLog||S.recentLog.length===0){$('feed-list').innerHTML='<div class="empty">No activity yet.</div>';return;}
-  var recent=S.recentLog.slice().reverse().slice(0,50);var h='';
-  for(var i=0;i<recent.length;i++){var e=recent[i];var who=lookupName(e.volunteer_id)||(e.volunteer_id?e.volunteer_id.substring(0,6):'—');var msg=describe(e);
+  var recent=S.recentLog.slice().reverse().slice(0,50);
+  var h='';for(var i=0;i<recent.length;i++){var e=recent[i];
+    var who=lookupName(e.volunteer_id)||(e.volunteer_id?e.volunteer_id.substring(0,6):'—');
+    var msg=describe(e);
     h+='<div class="feed-row"><div class="when">'+fmtTime(e.ts)+'</div><div><span class="who">'+esc(who)+'</span> '+esc(msg)+'</div></div>';
   }$('feed-list').innerHTML=h;
 }
-function lookupName(vid){for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===vid)return S.roster[i].displayName;}return vid?'(removed)':null;}
+function lookupName(vid){
+  for(var i=0;i<S.roster.length;i++){if(S.roster[i].volunteerId===vid)return S.roster[i].displayName;}
+  return vid?'(removed)':null;
+}
 function describe(e){switch(e.mutation_type){
-  case'volunteer_joined':return'joined';case'state_transition':return(e.from_state||'?')+' → '+(e.to_state||'?');
+  case'volunteer_joined':return'joined';case'state_transition':return (e.from_state||'?')+' → '+(e.to_state||'?');
   case'session_start':return'started session';case'leg_start':return'started leg';case'leg_end':return'completed leg';
   case'session_finish':return'finished session';case'leg_cancelled':return'cancelled leg';case'leg_deleted':return'leg deleted';
   case'accountability':return e.to_state||'accounted';case'team_arrived_at_zone':return'team arrived at zone';
@@ -729,7 +672,6 @@ function describe(e){switch(e.mutation_type){
   case'activity_pocket_enter':return'🔒 pocket mode';case'activity_pocket_exit':return'🔓 exited pocket mode';
   case'gates_updated':return'completed gates';case'tracking_choice':return'chose tracking';
   case'volunteer_updated':return'profile updated';case'volunteer_deleted':return'removed';
-  case'location_pin':return'📍 pinned a location';
   default:return e.mutation_type;
 }}
 
@@ -742,24 +684,35 @@ function initMap(){
   S.mapInitialized=true;
 }
 function setLens(lens){S.mapLens=lens;
-  var pills=document.querySelectorAll('.map-pill[data-lens]');for(var i=0;i<pills.length;i++)pills[i].classList.toggle('active',pills[i].dataset.lens===lens);
+  var pills=document.querySelectorAll('.map-pill[data-lens]');
+  for(var i=0;i<pills.length;i++)pills[i].classList.toggle('active',pills[i].dataset.lens===lens);
+  // Update legend
   var bar=$('legend-bar'),lo=$('legend-low'),hi=$('legend-high');
-  if(lens==='divergence'){bar.style.background='linear-gradient(to right,rgb(50,100,220),rgb(220,220,230),rgb(220,50,50))';lo.textContent='Over-rated';hi.textContent='Under-rated';}
-  else{bar.style.background='linear-gradient(to right,rgb(0,200,80),rgb(128,200,0),rgb(200,180,0),rgb(255,100,0),rgb(255,0,0))';lo.textContent='Low';hi.textContent='High';}
+  if(lens==='divergence'){
+    bar.style.background='linear-gradient(to right,rgb(50,100,220),rgb(220,220,230),rgb(220,50,50))';
+    lo.textContent='Over-rated';hi.textContent='Under-rated';
+  }else{
+    bar.style.background='linear-gradient(to right,rgb(0,200,80),rgb(128,200,0),rgb(200,180,0),rgb(255,100,0),rgb(255,0,0))';
+    lo.textContent='Low';hi.textContent='High';
+  }
   if(S.reportBlob)renderMapPaths();
 }
 function doRefreshPaths(){var btn=$('btn-refresh-paths');btn.disabled=true;btn.textContent='Loading…';
-  api('generateReport').then(function(res){btn.disabled=false;btn.textContent='Refresh paths';if(res&&res.blob){S.reportBlob=res.blob;renderMapPaths();}refreshAll();}).catch(function(e){btn.disabled=false;btn.textContent='Refresh paths';alert('Error: '+e.message);});
+  api('generateReport').then(function(res){btn.disabled=false;btn.textContent='Refresh paths';
+    if(res&&res.blob){S.reportBlob=res.blob;renderMapPaths();}refreshAll();
+  }).catch(function(e){btn.disabled=false;btn.textContent='Refresh paths';alert('Error: '+e.message);});
 }
 function renderMapPaths(){
   if(!S.leafletMap||!S.reportBlob)return;
   for(var i=0;i<S.mapPaths.length;i++)S.leafletMap.removeLayer(S.mapPaths[i]);S.mapPaths=[];
-  var vols=(S.reportBlob.volunteers||[]).concat(S.reportBlob.externalTrackers||[]);var bounds=[];
+  var vols=(S.reportBlob.volunteers||[]).concat(S.reportBlob.externalTrackers||[]);
+  var bounds=[];
   for(var v=0;v<vols.length;v++){var sessions=vols[v].sessions||[];
     for(var s=0;s<sessions.length;s++){var legs=sessions[s].legs||[];
       for(var l=0;l<legs.length;l++){var leg=legs[l];
         if(!leg.trackPoints||leg.trackPoints.length<2)continue;
-        var color=lensColor(leg);var latlngs=leg.trackPoints.map(function(p){return[p.lat,p.lon];});
+        var color=lensColor(leg);
+        var latlngs=leg.trackPoints.map(function(p){return[p.lat,p.lon];});
         for(var p=0;p<latlngs.length;p++)bounds.push(latlngs[p]);
         var poly=L.polyline(latlngs,{color:color,weight:leg.inFlight?5:3,opacity:leg.inFlight?0.95:0.8}).addTo(S.leafletMap);
         poly.bindPopup('<strong>'+esc(vols[v].displayName)+'</strong><br>Leg '+leg.legNumber+'<br>Weight: '+fmtLbs(leg.weightLbs)+' lbs<br>Distance: '+fmtMiles(leg.distanceM)+' mi<br>√CPUE: '+(leg.sqrtCpueRaw!=null?leg.sqrtCpueRaw.toFixed(4):'—'));
@@ -768,54 +721,81 @@ function renderMapPaths(){
   if(bounds.length>0)S.leafletMap.fitBounds(bounds,{padding:[20,20]});
 }
 function lensColor(leg){var v=null;
-  if(S.mapLens==='sqrt_cpue')v=leg.sqrtCpueRaw;else if(S.mapLens==='post_rating')v=leg.postRating;else if(S.mapLens==='divergence')v=leg.divergence;
+  if(S.mapLens==='sqrt_cpue')v=leg.sqrtCpueRaw;
+  else if(S.mapLens==='post_rating')v=leg.postRating;
+  else if(S.mapLens==='divergence')v=leg.divergence;
   if(v==null)return'#8e8e93';
-  if(S.mapLens==='divergence'){var clamped=Math.max(-5,Math.min(5,v));var norm=(clamped+5)/10;
+  if(S.mapLens==='divergence'){
+    // Bidirectional: -5 (blue) → 0 (white) → +5 (red)
+    var clamped=Math.max(-5,Math.min(5,v));
+    var norm=(clamped+5)/10; // 0=blue, 0.5=white, 1=red
     if(norm<0.5){var t=norm*2;return'rgb('+Math.floor(50+170*t)+','+Math.floor(100+120*t)+','+Math.floor(220-190*t)+')';}
-    else{var t=(norm-0.5)*2;return'rgb('+Math.floor(220)+','+Math.floor(220-170*t)+','+Math.floor(230-180*t)+')';}}
-  var norm=Math.max(0,Math.min(10,Math.abs(v)))/10;var r=Math.floor(norm*255);var g=Math.floor((1-Math.abs(norm-0.5)*2)*200);var b=Math.floor((1-norm)*80);
+    else{var t=(norm-0.5)*2;return'rgb('+Math.floor(220)+','+Math.floor(220-170*t)+','+Math.floor(230-180*t)+')';}
+  }
+  var norm=Math.max(0,Math.min(10,Math.abs(v)))/10;
+  var r=Math.floor(norm*255);var g=Math.floor((1-Math.abs(norm-0.5)*2)*200);var b=Math.floor((1-norm)*80);
   return'rgb('+r+','+g+','+b+')';
 }
 
 /* Chat */
-var chatMessages=[];var chatPollTimer=null;
-function loadChat(){api('getChatMessages',{limit:100}).then(function(d){chatMessages=d.messages||[];renderChat();}).catch(function(){});}
+var chatMessages=[];
+var chatPollTimer=null;
+
+function loadChat(){
+  api('getChatMessages',{limit:100}).then(function(d){
+    chatMessages=d.messages||[];renderChat();
+  }).catch(function(){});
+}
+
 function renderChat(){
   var el=$('chat-messages');if(!el)return;
   if(chatMessages.length===0){el.innerHTML='<div class="empty">No messages yet. Say hello!</div>';return;}
-  var h='';for(var i=0;i<chatMessages.length;i++){var m=chatMessages[i];var isMine=m.author_id===S.volunteerId;var isAI=!!m.is_ai;
+  var h='';
+  for(var i=0;i<chatMessages.length;i++){
+    var m=chatMessages[i];
+    var isMine=m.author_id===S.volunteerId;
+    var isAI=!!m.is_ai;
     var cls='chat-msg'+(isMine?' mine':' theirs')+(isAI?' ai':'');
-    h+='<div class="'+cls+'"><div class="chat-author">'+(isAI?'🌱 CMRA':esc(m.author_name||'?'))+'</div>';
-    // Pin messages show thumbnail
-    if(m.type==='pin'&&m.pin){
-      h+='<div class="chat-bubble">';
-      if(m.pin.photo_thumb)h+='<img src="'+esc(m.pin.photo_thumb)+'" style="max-width:100%;max-height:100px;border-radius:6px;margin-bottom:6px;display:block">';
-      h+=esc(m.text);
-      if(m.pin.address)h+='<div style="font-size:0.75rem;color:var(--text-dim);margin-top:4px">📍 '+esc(m.pin.address)+'</div>';
-      if(m.pin.lat&&m.pin.lon)h+='<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--mono)">'+m.pin.lat.toFixed(5)+', '+m.pin.lon.toFixed(5)+'</div>';
-      h+='</div>';
-    }else{
-      h+='<div class="chat-bubble">'+esc(m.text)+'</div>';
-    }
-    h+='<div class="chat-time">'+fmtTime(m.timestamp)+'</div></div>';
+    h+='<div class="'+cls+'">';
+    h+='<div class="chat-author">'+(isAI?'🌱 CMRA':esc(m.author_name||'?'))+'</div>';
+    h+='<div class="chat-bubble">'+esc(m.text)+'</div>';
+    h+='<div class="chat-time">'+fmtTime(m.timestamp)+'</div>';
+    h+='</div>';
   }
-  el.innerHTML=h;el.scrollTop=el.scrollHeight;
+  el.innerHTML=h;
+  el.scrollTop=el.scrollHeight;
 }
+
 function sendChat(){
-  var input=$('chat-input');var text=(input.value||'').trim();if(!text)return;
-  var sendBtn=input.parentElement.querySelector('button:last-child');
-  input.value='';input.disabled=true;if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
+  var input=$('chat-input');
+  var text=(input.value||'').trim();
+  if(!text)return;
+  var sendBtn=input.parentElement.querySelector('button');
+  input.value='';input.disabled=true;
+  if(sendBtn){sendBtn.disabled=true;sendBtn.textContent='...';}
   api('sendChatMessage',{text:text}).then(function(d){
-    input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}input.focus();
+    input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}
+    input.focus();
     if(d.message)chatMessages.push(d.message);
-    if(d.aiResponse){chatMessages.push({id:'ai_'+Date.now(),author_id:'cmra_ai',author_name:'CMRA',author_role:'assistant',text:d.aiResponse,timestamp:new Date().toISOString(),is_ai:true});}
+    if(d.aiResponse){
+      chatMessages.push({
+        id:'ai_'+Date.now(),author_id:'cmra_ai',author_name:'CMRA',
+        author_role:'assistant',text:d.aiResponse,
+        timestamp:new Date().toISOString(),is_ai:true
+      });
+    }
     renderChat();
   }).catch(function(e){input.disabled=false;if(sendBtn){sendBtn.disabled=false;sendBtn.textContent='Send';}alert('Send failed: '+e.message);});
 }
+
 function startChatPoll(){
   if(chatPollTimer)clearInterval(chatPollTimer);
-  chatPollTimer=setInterval(function(){if(document.visibilityState!=='visible')return;if(S.activeTab!=='chat')return;
-    api('getChatMessages',{limit:100}).then(function(d){chatMessages=d.messages||[];renderChat();}).catch(function(){});
+  chatPollTimer=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
+    if(S.activeTab!=='chat')return;
+    api('getChatMessages',{limit:100}).then(function(d){
+      chatMessages=d.messages||[];renderChat();
+    }).catch(function(){});
   },10000);
 }
 
@@ -832,57 +812,60 @@ function renderEvent(){
     h+='<div class="stat-row"><span class="k">Total weight</span><span class="v">'+fmtLbs(S.stats.totalWeightLbs)+' lbs</span></div>';
     h+='<div class="stat-row"><span class="k">Total distance</span><span class="v">'+fmtMiles(S.stats.totalDistanceM)+' mi</span></div>';
     h+='<div class="stat-row"><span class="k">Total duration</span><span class="v">'+fmtHrs(S.stats.totalDurationSec)+'</span></div>';
-    h+='<div class="stat-row"><span class="k">Accounted for</span><span class="v">'+S.stats.accountedCount+'</span></div></div>';
+    h+='<div class="stat-row"><span class="k">Accounted for</span><span class="v">'+S.stats.accountedCount+'</span></div>';
+    h+='</div>';
   }
   $('event-details').innerHTML=h;
-  var nec=$('new-event-card');if(nec)nec.style.display=(S.eventStatus==='ended')?'block':'none';
+  // Show new-event card when current event is ended
+  var nec=$('new-event-card');
+  if(nec)nec.style.display=(S.eventStatus==='ended')?'block':'none';
 }
 
-var evLocationBuffer=null;var evMap=null;var evMarker=null;
+var evLocationBuffer=null;
+var evMap=null;var evMarker=null;
 function evCaptureLocation(){
   $('ev-loc-status').textContent='Getting location…';
   navigator.geolocation.getCurrentPosition(function(pos){
-    evLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};$('ev-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
-    $('ev-map').style.display='block';$('ev-map-hint').style.display='block';
+    evLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('ev-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    $('ev-map').style.display='block';
+    $('ev-map-hint').style.display='block';
     setTimeout(function(){
-      if(!evMap){evMap=L.map('ev-map',{zoomControl:true,attributionControl:false}).setView([evLocationBuffer.lat,evLocationBuffer.lon],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(evMap);evMarker=L.marker([evLocationBuffer.lat,evLocationBuffer.lon],{draggable:true}).addTo(evMap);evMarker.on('dragend',function(e){var ll=e.target.getLatLng();evLocationBuffer.lat=ll.lat;evLocationBuffer.lon=ll.lng;$('ev-loc-status').textContent='✓ Pin adjusted';});}
-      else{evMarker.setLatLng([evLocationBuffer.lat,evLocationBuffer.lon]);evMap.setView([evLocationBuffer.lat,evLocationBuffer.lon],16);evMap.invalidateSize();}
+      if(!evMap){
+        evMap=L.map('ev-map',{zoomControl:true,attributionControl:false}).setView([evLocationBuffer.lat,evLocationBuffer.lon],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(evMap);
+        evMarker=L.marker([evLocationBuffer.lat,evLocationBuffer.lon],{draggable:true}).addTo(evMap);
+        evMarker.on('dragend',function(e){
+          var ll=e.target.getLatLng();
+          evLocationBuffer.lat=ll.lat;evLocationBuffer.lon=ll.lng;
+          $('ev-loc-status').textContent='✓ Pin adjusted';
+        });
+      }else{
+        evMarker.setLatLng([evLocationBuffer.lat,evLocationBuffer.lon]);
+        evMap.setView([evLocationBuffer.lat,evLocationBuffer.lon],16);
+        evMap.invalidateSize();
+      }
     },100);
-  },function(err){$('ev-loc-status').textContent='⚠ '+err.message+' — you can skip this';},{enableHighAccuracy:true,timeout:10000});
+  },function(err){
+    $('ev-loc-status').textContent='⚠ '+err.message;
+  },{enableHighAccuracy:true,timeout:10000});
 }
+
 function evCreateEvent(){
-  var name=$('ev-new-name').value.trim();var err=$('ev-new-err');err.style.display='none';
+  var name=$('ev-new-name').value.trim();
+  var err=$('ev-new-err');err.style.display='none';
   if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
   $('ev-new-btn').disabled=true;
   api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:evLocationBuffer}).then(function(d){
-    $('ev-new-btn').disabled=false;S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
-    S.eventStatus=d.status;S.dataState=d.dataState;S.volunteerId=d.volunteerId;
+    $('ev-new-btn').disabled=false;
+    S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
+    S.eventStatus=d.status;S.dataState=d.dataState;
+    S.volunteerId=d.volunteerId;
     renderPills();refreshAll();
-  }).catch(function(e){$('ev-new-btn').disabled=false;err.textContent=e.message||'Could not create event';err.style.display='block';});
-}
-
-/* Create-gate event creation (fallback) */
-var cgLocationBuffer=null;var cgMap=null;var cgMarker=null;
-function cgCaptureLocation(){
-  $('cg-loc-status').textContent='Getting location…';
-  navigator.geolocation.getCurrentPosition(function(pos){
-    cgLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};$('cg-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
-    $('cg-map').style.display='block';$('cg-map-hint').style.display='block';
-    setTimeout(function(){
-      if(!cgMap){cgMap=L.map('cg-map',{zoomControl:true,attributionControl:false}).setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(cgMap);cgMarker=L.marker([cgLocationBuffer.lat,cgLocationBuffer.lon],{draggable:true}).addTo(cgMap);cgMarker.on('dragend',function(e){var ll=e.target.getLatLng();cgLocationBuffer.lat=ll.lat;cgLocationBuffer.lon=ll.lng;$('cg-loc-status').textContent='✓ Pin adjusted';});}
-      else{cgMarker.setLatLng([cgLocationBuffer.lat,cgLocationBuffer.lon]);cgMap.setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);cgMap.invalidateSize();}
-    },100);
-  },function(err){$('cg-loc-status').textContent='⚠ '+err.message+' — you can skip this';},{enableHighAccuracy:true,timeout:10000});
-}
-function cgCreateEvent(){
-  var name=$('cg-name').value.trim();var err=$('cg-err');err.style.display='none';
-  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
-  $('cg-btn').disabled=true;
-  api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:cgLocationBuffer}).then(function(d){
-    $('cg-btn').disabled=false;S.event={eventId:d.eventId,name:d.name,status:d.status,dataState:d.dataState};
-    S.eventStatus=d.status;S.dataState=d.dataState;S.volunteerId=d.volunteerId;S.role='team_leader';S.currentState='approved';
-    $('create-gate').style.display='none';showMain();firstLoad();
-  }).catch(function(e){$('cg-btn').disabled=false;err.textContent=e.message||'Could not create event';err.style.display='block';});
+  }).catch(function(e){
+    $('ev-new-btn').disabled=false;
+    err.textContent=e.message||'Could not create event';err.style.display='block';
+  });
 }
 
 boot();
