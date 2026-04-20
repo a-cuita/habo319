@@ -170,7 +170,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <div style="text-align:left;width:100%;max-width:340px;margin:0 auto">
     <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
     <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
-    <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:14px">—</div>
+    <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:8px">—</div>
+    <div id="cg-map" style="height:160px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:8px;display:none"></div>
+    <div id="cg-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:14px;display:none">Drag the pin to adjust</div>
     <div class="err" id="cg-err" style="margin-bottom:10px"></div>
     <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
   </div>
@@ -181,7 +183,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 
   <div class="hdr">
     <div class="ident"><span class="role">TL</span><span class="name" id="hdr-name">—</span></div>
-    <div class="fresh" id="hdr-fresh" onclick="refreshAll()"><span class="dot"></span><span id="hdr-fresh-text">—</span></div>
+    <div class="fresh" id="hdr-fresh" onclick="refreshAll()" title="Tap to refresh"><span class="dot"></span><span id="hdr-fresh-text">—</span><div style="font-size:0.55rem;color:var(--text-dim);margin-top:1px">tap to refresh</div></div>
     <button class="signout" onclick="openProfile()">Profile</button>
   </div>
   <div class="status-bar">
@@ -253,7 +255,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <h3>Start a new cleanup</h3>
         <div class="ig" style="margin-bottom:10px"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="ev-new-name" type="text" placeholder="e.g. Tuesday afternoon" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit"></div>
         <button id="ev-loc-btn" onclick="evCaptureLocation()" style="width:100%;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture location</button>
-        <div id="ev-loc-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:10px">—</div>
+        <div id="ev-loc-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px">—</div>
+        <div id="ev-map" style="height:140px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px;display:none"></div>
+        <div id="ev-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:10px;display:none">Drag pin to adjust</div>
         <div class="err" id="ev-new-err" style="margin-bottom:8px"></div>
         <button class="big-btn" onclick="evCreateEvent()" id="ev-new-btn">Create & start</button>
       </div>
@@ -333,11 +337,31 @@ function showCreateGate(){
 }
 
 var cgLocationBuffer=null;
+var cgMap=null;var cgMarker=null;
 function cgCaptureLocation(){
   $('cg-loc-status').textContent='Getting location…';
   navigator.geolocation.getCurrentPosition(function(pos){
     cgLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
     $('cg-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    // Show adjustable map
+    $('cg-map').style.display='block';
+    $('cg-map-hint').style.display='block';
+    setTimeout(function(){
+      if(!cgMap){
+        cgMap=L.map('cg-map',{zoomControl:true,attributionControl:false}).setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(cgMap);
+        cgMarker=L.marker([cgLocationBuffer.lat,cgLocationBuffer.lon],{draggable:true}).addTo(cgMap);
+        cgMarker.on('dragend',function(e){
+          var ll=e.target.getLatLng();
+          cgLocationBuffer.lat=ll.lat;cgLocationBuffer.lon=ll.lng;
+          $('cg-loc-status').textContent='✓ Pin adjusted';
+        });
+      }else{
+        cgMarker.setLatLng([cgLocationBuffer.lat,cgLocationBuffer.lon]);
+        cgMap.setView([cgLocationBuffer.lat,cgLocationBuffer.lon],16);
+        cgMap.invalidateSize();
+      }
+    },100);
   },function(err){
     $('cg-loc-status').textContent='⚠ '+err.message+' — you can skip this';
   },{enableHighAccuracy:true,timeout:10000});
@@ -467,6 +491,12 @@ function refreshAll(){
     S.teamLeaders=blob.teamLeaders||[];S.stats=blob.stats||null;
     S.recentLog=blob.recentLog||[];
     S.eventStatus=blob.eventStatus||S.eventStatus;S.dataState=blob.dataState||S.dataState;
+    // Detect event change — if blob is for a different event, reload
+    if(blob.eventId&&S.event&&blob.eventId!==S.event.eventId){
+      location.reload();return;
+    }
+    // Update event display data from blob
+    if(blob.eventName&&S.event)S.event.name=blob.eventName;
     S.lastRefresh=Date.now();
     renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
     var cl=$('content-loading');if(cl)cl.style.display='none';
@@ -637,7 +667,12 @@ function describe(e){switch(e.mutation_type){
   case'session_finish':return'finished session';case'leg_cancelled':return'cancelled leg';case'leg_deleted':return'leg deleted';
   case'accountability':return e.to_state||'accounted';case'team_arrived_at_zone':return'team arrived at zone';
   case'team_left_garden':return'team left garden';case'promoted_to_tl':return'promoted to Team Leader';
-  case'event_created':return'event created';case'event_ended':return'event ended';default:return e.mutation_type;
+  case'event_created':return'event created';case'event_ended':return'event ended';
+  case'activity_paused':return'⏸ paused';case'activity_resumed':return'▶ resumed';
+  case'activity_pocket_enter':return'🔒 pocket mode';case'activity_pocket_exit':return'🔓 exited pocket mode';
+  case'gates_updated':return'completed gates';case'tracking_choice':return'chose tracking';
+  case'volunteer_updated':return'profile updated';case'volunteer_deleted':return'removed';
+  default:return e.mutation_type;
 }}
 
 /* Map */
@@ -787,11 +822,30 @@ function renderEvent(){
 }
 
 var evLocationBuffer=null;
+var evMap=null;var evMarker=null;
 function evCaptureLocation(){
   $('ev-loc-status').textContent='Getting location…';
   navigator.geolocation.getCurrentPosition(function(pos){
     evLocationBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
     $('ev-loc-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    $('ev-map').style.display='block';
+    $('ev-map-hint').style.display='block';
+    setTimeout(function(){
+      if(!evMap){
+        evMap=L.map('ev-map',{zoomControl:true,attributionControl:false}).setView([evLocationBuffer.lat,evLocationBuffer.lon],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(evMap);
+        evMarker=L.marker([evLocationBuffer.lat,evLocationBuffer.lon],{draggable:true}).addTo(evMap);
+        evMarker.on('dragend',function(e){
+          var ll=e.target.getLatLng();
+          evLocationBuffer.lat=ll.lat;evLocationBuffer.lon=ll.lng;
+          $('ev-loc-status').textContent='✓ Pin adjusted';
+        });
+      }else{
+        evMarker.setLatLng([evLocationBuffer.lat,evLocationBuffer.lon]);
+        evMap.setView([evLocationBuffer.lat,evLocationBuffer.lon],16);
+        evMap.invalidateSize();
+      }
+    },100);
   },function(err){
     $('ev-loc-status').textContent='⚠ '+err.message;
   },{enableHighAccuracy:true,timeout:10000});
