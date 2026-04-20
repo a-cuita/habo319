@@ -179,7 +179,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <p class="muted" style="margin-bottom:10px">Generate a report snapshot, then stitch data to close the event permanently. Only works when an event is ended.</p>
     <button class="btn secondary" onclick="doGenerateReport()" id="btn-gen-report">Generate report</button>
     <button class="btn" onclick="doStitchData()" id="btn-stitch-data" style="margin-top:8px;background:var(--amber);color:#fff">Stitch data (finalize)</button>
-    <div id="finalize-status" class="muted" style="margin-top:10px;font-size:0.82rem"></div>
+    <div id="finalize-status" class="muted" style="margin-top:10px;font-size:0.82rem;word-break:break-word;max-height:200px;overflow-y:auto"></div>
   </div>
 
   <!-- Debug & tools -->
@@ -261,6 +261,8 @@ function api(action,data){
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
 }
+
+function fmtLocal(iso){if(!iso)return'—';var d=new Date(iso);if(isNaN(d))return'—';return d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
 
 function togglePw(btn,inputId){
   var input=document.getElementById(inputId);if(!input)return;
@@ -524,7 +526,10 @@ function doGenerateReport(){
   api('generateReport',{adminKey:S.adminKey,eventId:S.activeEventId}).then(function(r){
     btn.disabled=false;
     if(r&&r.debounced){$('finalize-status').textContent='Debounced. Next available in '+r.nextAvailableInSec+'s.';return;}
-    $('finalize-status').textContent='Report generated. Data state: '+(r.dataState||'?')+'. Stats: '+JSON.stringify(r.blob&&r.blob.stats||{});
+    var s=r.blob&&r.blob.stats||{};
+    $('finalize-status').innerHTML='Report generated. State: '+(r.dataState||'?')+'<br>'+
+      'Volunteers: '+(s.volunteerCount||0)+' · Legs: '+(s.legCount||0)+'<br>'+
+      'Weight: '+(s.totalWeightLbs||0)+' lbs · Distance: '+((s.totalDistanceM||0)/1609.34).toFixed(2)+' mi';
     loadActiveEvent(); loadAllEvents();
   }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
 }
@@ -535,7 +540,7 @@ function doStitchData(){
   api('stitchData',{adminKey:S.adminKey,eventId:S.activeEventId}).then(function(r){
     btn.disabled=false;
     if(r.stitchPartial){$('finalize-status').textContent='Partial stitch: '+r.volunteersStitched+' done. Run again.';}
-    else if(r.ok){$('finalize-status').textContent='Stitch complete at '+r.stitchedAt+'. Data frozen.';}
+    else if(r.ok){$('finalize-status').textContent='Stitch complete at '+fmtLocal(r.stitchedAt)+'. Data frozen.';}
     else{$('finalize-status').textContent='Stitch finished with issues: '+(r.stitchError||JSON.stringify(r.stitchErrors||{}));}
     loadActiveEvent(); loadAllEvents();
   }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
