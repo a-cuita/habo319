@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>CMRA · Volunteer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
@@ -107,6 +109,9 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 .tip strong{color:#92400e}
 
 .cancel-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:50;font-family:inherit}
+
+.vol-map{height:260px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
+.vol-map.external{height:200px}
 </style>
 </head>
 <body>
@@ -142,9 +147,9 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
   <div class="screen" id="screen-gates">
     <h1>Before you start</h1>
     <p class="lede">Read and acknowledge these. Both are required.</p>
-    <div class="gate-toggle" id="gt-liability" onclick="toggleGate('liability')">
+    <div class="gate-toggle" id="gt-driving_ack" onclick="toggleGate('driving_ack')">
       <div class="chk">✓</div>
-      <div class="gt-text"><strong>I understand the risks.</strong> Litter cleanup involves walking on streets, handling discarded materials, and weather exposure. I'm responsible for my own safety.</div>
+      <div class="gt-text"><strong>I acknowledge driving and walking risks.</strong> Getting to and from the cleanup zone, and walking in it, involves roads, cars, uneven ground, and weather. I'm responsible for my own safety.</div>
     </div>
     <div class="gate-toggle" id="gt-data_transparency" onclick="toggleGate('data_transparency')">
       <div class="chk">✓</div>
@@ -218,8 +223,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
   <div class="screen" id="screen-collecting">
     <div class="gps-status" id="gps-ind"><span class="dot"></span><span id="gps-text">Getting GPS…</span></div>
-    <h1>Collecting</h1>
-    <p class="lede">Keep the app open while you walk. Tap below when your bag is full.</p>
+    <div class="vol-map" id="vol-map-native"></div>
     <div class="coll-metrics">
       <div class="coll-metric"><div class="val" id="coll-dist">0.0000</div><div class="lbl">miles</div></div>
       <div class="coll-metric"><div class="val" id="coll-time">0:00</div><div class="lbl">min:sec</div></div>
@@ -228,8 +232,8 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
   </div>
 
   <div class="screen" id="screen-collecting-external">
-    <h1>Using external tracker</h1>
-    <p class="lede">Your other app is tracking. Come back when your bag is full.</p>
+    <div class="gps-status" id="gps-ind-ext"><span class="dot"></span><span id="gps-text-ext">—</span></div>
+    <div class="vol-map external" id="vol-map-external"></div>
     <div class="tip"><strong>Remember:</strong> You'll need distance and time from your tracker for this leg.</div>
     <div class="coll-metrics">
       <div class="coll-metric"><div class="val" id="coll-ext-time">0:00</div><div class="lbl">session time</div></div>
@@ -316,14 +320,17 @@ var RATING_LABELS=['No litter','Almost none','Minimal','Light','Moderate-light',
 
 var S={
   event:null, volunteerId:null, displayName:null, role:null, currentState:null,
-  gates:{liability:false,data_transparency:false},
+  gates:{driving_ack:false,data_transparency:false},
   trackingMode:null, trackingApp:null,
   sessionId:null, legId:null, legNumber:0,
   preRating:5, postRating:5,
   gpsWatchId:null, gpsBuffer:[], gpsBufferTimer:null,
+  extWatchId:null, extLastPos:null,
   collectStartMs:null, collectTickTimer:null,
   pollTimer:null,
-  currentLegResult:null, sessionSummary:null
+  currentLegResult:null, sessionSummary:null,
+  mapNative:null, mapNativeMarker:null, mapNativeTrack:null,
+  mapExternal:null, mapExternalMarker:null, mapExternalTrack:null
 };
 
 function $(id){return document.getElementById(id);}
@@ -383,7 +390,7 @@ function boot(){
 function startFresh(){showScreen('screen-welcome');}
 
 function routeByState(){
-  if(!S.gates.liability||!S.gates.data_transparency){renderGates();showScreen('screen-gates');return;}
+  if(!S.gates.driving_ack||!S.gates.data_transparency){renderGates();showScreen('screen-gates');return;}
   if(!S.trackingMode){updateTrackingSelectUI();showScreen('screen-tracking');return;}
   switch(S.currentState){
     case 'joined': case 'waiting': showScreen('screen-waiting');startPollingForApproval();break;
@@ -422,9 +429,9 @@ function submitName(){
 
 /* ═══ Gates ═══ */
 function renderGates(){
-  $('gt-liability').classList.toggle('checked',!!S.gates.liability);
+  $('gt-driving_ack').classList.toggle('checked',!!S.gates.driving_ack);
   $('gt-data_transparency').classList.toggle('checked',!!S.gates.data_transparency);
-  $('g-btn').disabled=!(S.gates.liability&&S.gates.data_transparency);
+  $('g-btn').disabled=!(S.gates.driving_ack&&S.gates.data_transparency);
 }
 function toggleGate(key){S.gates[key]=!S.gates[key];renderGates();}
 function submitGates(){
@@ -432,7 +439,7 @@ function submitGates(){
   api('updateGates',{gates:S.gates}).then(function(){
     hideBusy();updateTrackingSelectUI();showScreen('screen-tracking');
   }).catch(function(e){
-    hideBusy();$('g-btn').disabled=!(S.gates.liability&&S.gates.data_transparency);
+    hideBusy();$('g-btn').disabled=!(S.gates.driving_ack&&S.gates.data_transparency);
     showError(e.message);
   });
 }
@@ -492,11 +499,78 @@ function launchCollecting(){
   S.collectStartMs=Date.now();S.currentLegResult=null;
   if(S.trackingMode==='native'){
     $('coll-dist').textContent='0.0000';$('coll-time').textContent='0:00';
-    showScreen('screen-collecting');startNativeGPS();startCollectTicker(false);
+    showScreen('screen-collecting');
+    setTimeout(function(){initNativeMap();},50); // wait for screen to be visible before Leaflet init
+    startNativeGPS();startCollectTicker(false);
   }else{
-    $('coll-ext-time').textContent='0:00';showScreen('screen-collecting-external');startCollectTicker(true);
+    $('coll-ext-time').textContent='0:00';showScreen('screen-collecting-external');
+    setTimeout(function(){initExternalMap();},50);
+    startExternalWatch();
+    startCollectTicker(true);
   }
 }
+
+/* ═══ Map init + updates ═══ */
+function initNativeMap(){
+  if(S.mapNative){S.mapNative.invalidateSize();return;}
+  if(typeof L==='undefined')return;
+  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  S.mapNative=L.map('vol-map-native',{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.mapNative);
+  S.mapNativeTrack=L.polyline([],{color:'#2c8a3d',weight:4,opacity:0.85}).addTo(S.mapNative);
+}
+function updateNativeMap(pt){
+  if(!S.mapNative)return;
+  var ll=[pt.lat,pt.lon];
+  if(!S.mapNativeMarker){
+    S.mapNativeMarker=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#2563eb',fillOpacity:1}).addTo(S.mapNative);
+  }else{
+    S.mapNativeMarker.setLatLng(ll);
+  }
+  if(S.mapNativeTrack){
+    var pts=S.mapNativeTrack.getLatLngs();
+    pts.push(ll);
+    S.mapNativeTrack.setLatLngs(pts);
+  }
+  S.mapNative.setView(ll,Math.max(17,S.mapNative.getZoom()),{animate:true});
+}
+function initExternalMap(){
+  if(S.mapExternal){S.mapExternal.invalidateSize();return;}
+  if(typeof L==='undefined')return;
+  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  S.mapExternal=L.map('vol-map-external',{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.mapExternal);
+  S.mapExternalTrack=L.polyline([],{color:'#2c8a3d',weight:4,opacity:0.85,dashArray:'4 6'}).addTo(S.mapExternal);
+}
+function startExternalWatch(){
+  if(!navigator.geolocation){setExtGPSStatus('err','GPS not available');return;}
+  setExtGPSStatus('warn','Getting GPS fix…');
+  try{
+    S.extWatchId=navigator.geolocation.watchPosition(function(pos){
+      var ll=[pos.coords.latitude,pos.coords.longitude];
+      S.extLastPos={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy};
+      setExtGPSStatus('ok','Live position · ±'+Math.round(pos.coords.accuracy)+'m');
+      if(S.mapExternal){
+        if(!S.mapExternalMarker){
+          S.mapExternalMarker=L.circleMarker(ll,{radius:8,color:'#fff',weight:3,fillColor:'#d97706',fillOpacity:1}).addTo(S.mapExternal);
+        }else{
+          S.mapExternalMarker.setLatLng(ll);
+        }
+        if(S.mapExternalTrack){
+          var pts=S.mapExternalTrack.getLatLngs();
+          pts.push(ll);
+          S.mapExternalTrack.setLatLngs(pts);
+        }
+        S.mapExternal.setView(ll,Math.max(17,S.mapExternal.getZoom()),{animate:true});
+      }
+    },function(err){setExtGPSStatus('err','GPS error: '+err.message);},
+    {enableHighAccuracy:true,maximumAge:5000,timeout:20000});
+  }catch(e){setExtGPSStatus('err','GPS start failed');}
+}
+function stopExternalWatch(){
+  if(S.extWatchId!==null&&S.extWatchId!==undefined){try{navigator.geolocation.clearWatch(S.extWatchId);}catch(e){}S.extWatchId=null;}
+}
+function setExtGPSStatus(cls,txt){var el=$('gps-ind-ext');if(!el)return;el.className='gps-status '+cls;$('gps-text-ext').textContent=txt;}
 
 function startCollectTicker(external){
   if(S.collectTickTimer)clearInterval(S.collectTickTimer);
@@ -520,6 +594,7 @@ function startNativeGPS(){
       var pt={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy,heading:pos.coords.heading,speed:pos.coords.speed,timestamp:new Date(pos.timestamp).toISOString()};
       S.gpsBuffer.push(pt);
       updateCollectingDistance();
+      updateNativeMap(pt);
       setGPSStatus('ok','GPS · ±'+Math.round(pos.coords.accuracy)+'m');
     },function(err){setGPSStatus('err','GPS error: '+err.message);},
     {enableHighAccuracy:true,maximumAge:2000,timeout:20000});
@@ -553,7 +628,7 @@ function hav(lat1,lon1,lat2,lon2){
 
 /* ═══ Weight entry ═══ */
 function gotoWeight(){stopNativeGPS();stopCollectTicker();$('w-weight').value='';$('w-weight-err').classList.remove('show');showScreen('screen-weight');}
-function gotoWeightExternal(){stopCollectTicker();$('we-weight').value='';$('we-dist').value='';$('we-dur').value='';$('we-shot').value='';$('we-err').classList.remove('show');showScreen('screen-weight-external');}
+function gotoWeightExternal(){stopExternalWatch();stopCollectTicker();$('we-weight').value='';$('we-dist').value='';$('we-dur').value='';$('we-shot').value='';$('we-err').classList.remove('show');showScreen('screen-weight-external');}
 
 function submitWeightNative(){
   $('w-weight-err').classList.remove('show');
@@ -658,7 +733,7 @@ function startPollingForAccountability(){
 /* ═══ Cancel ═══ */
 function cancelActiveLeg(){
   if(!confirm('Cancel this leg? It won\'t count. Your GPS trail will be saved as deleted.'))return;
-  stopNativeGPS();stopCollectTicker();showBusy('Cancelling…');
+  stopNativeGPS();stopExternalWatch();stopCollectTicker();showBusy('Cancelling…');
   api('cancelActiveLeg',{sessionId:S.sessionId,legId:S.legId,reason:'user_cancel'}).then(function(){
     hideBusy();S.currentLegResult=null;S.currentState='between_legs';showScreen('screen-at-zone');
   }).catch(function(e){hideBusy();showError(e.message);});
