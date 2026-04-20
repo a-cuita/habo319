@@ -167,6 +167,23 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <div id="tl-list" style="margin-top:14px"></div>
   </div>
 
+  <!-- Gate Management -->
+  <div class="card">
+    <h2>Volunteer Gates</h2>
+    <p class="muted" style="margin-bottom:10px">Configure the acknowledgments volunteers must check before joining. Changes apply to new volunteers immediately.</p>
+    <div id="gate-list"><div class="muted">Loading…</div></div>
+    <details style="margin-top:10px">
+      <summary style="cursor:pointer;font-weight:700;font-size:0.88rem;padding:6px 0">Add a gate</summary>
+      <div style="padding-top:8px">
+        <div class="ig"><label>Gate key (no spaces, e.g. liability_waiver)</label><input id="new-gate-key" type="text" autocapitalize="off" autocorrect="off"></div>
+        <div class="ig"><label>Title (bold text volunteers see)</label><input id="new-gate-title" type="text"></div>
+        <div class="ig"><label>Description (detail text)</label><input id="new-gate-desc" type="text"></div>
+        <div class="err" id="gate-add-err"></div>
+        <button class="btn secondary" onclick="doAddGate()">Add gate</button>
+      </div>
+    </details>
+  </div>
+
   <!-- All events -->
   <div class="card">
     <h2>All events</h2>
@@ -363,6 +380,7 @@ function loadMain(){
   loadActiveEvent();
   loadAllEvents();
   loadTLList();
+  loadGateList();
 }
 
 function loadActiveEvent(){
@@ -544,6 +562,55 @@ function doStitchData(){
     else{$('finalize-status').textContent='Stitch finished with issues: '+(r.stitchError||JSON.stringify(r.stitchErrors||{}));}
     loadActiveEvent(); loadAllEvents();
   }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
+}
+
+/* ═══ Gate Management ═══ */
+var orgGates=[];
+
+function loadGateList(){
+  api('getGateConfig').then(function(d){
+    orgGates=d.gates||[];
+    renderGateList();
+  }).catch(function(e){$('gate-list').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
+}
+
+function renderGateList(){
+  if(orgGates.length===0){$('gate-list').innerHTML='<div class="muted">No gates configured. Add one below.</div>';return;}
+  var h='';
+  for(var i=0;i<orgGates.length;i++){
+    var g=orgGates[i];
+    h+='<div style="padding:8px 0;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:8px">';
+    h+='<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:0.88rem">'+esc(g.title)+'</div>';
+    h+='<div style="font-size:0.78rem;color:var(--text-dim)">'+esc(g.description||'')+'</div>';
+    h+='<div style="font-size:0.7rem;color:var(--text-dim);font-family:var(--mono)">key: '+esc(g.key)+'</div></div>';
+    h+='<button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;min-height:auto" onclick="doRemoveGate('+i+')">Remove</button>';
+    h+='</div>';
+  }
+  $('gate-list').innerHTML=h;
+}
+
+function doAddGate(){
+  var key=$('new-gate-key').value.trim().replace(/\s+/g,'_').toLowerCase();
+  var title=$('new-gate-title').value.trim();
+  var desc=$('new-gate-desc').value.trim();
+  var err=$('gate-add-err');err.textContent='';err.classList.remove('show');
+  if(!key||!title){err.textContent='Key and title are required';err.classList.add('show');return;}
+  // Check for duplicate keys
+  for(var i=0;i<orgGates.length;i++){if(orgGates[i].key===key){err.textContent='A gate with that key already exists';err.classList.add('show');return;}}
+  orgGates.push({key:key,title:title,description:desc,required:true});
+  api('updateGateConfig',{gates:orgGates}).then(function(){
+    $('new-gate-key').value='';$('new-gate-title').value='';$('new-gate-desc').value='';
+    renderGateList();
+  }).catch(function(e){orgGates.pop();err.textContent=e.message;err.classList.add('show');});
+}
+
+function doRemoveGate(idx){
+  var g=orgGates[idx];
+  if(!confirm('Remove gate "'+g.title+'"?'))return;
+  orgGates.splice(idx,1);
+  api('updateGateConfig',{gates:orgGates}).then(function(){
+    renderGateList();
+  }).catch(function(e){loadGateList();alert('Error: '+e.message);});
 }
 
 /* ═══ Debug tools ═══ */
