@@ -110,8 +110,42 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
 .cancel-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:50;font-family:inherit}
 
+.chat-btn{position:relative}
+.chat-badge{position:absolute;top:2px;right:0;min-width:16px;height:16px;line-height:16px;padding:0 4px;background:var(--danger);color:#fff;border-radius:8px;font-size:0.6rem;font-weight:700;font-family:var(--font);display:none}
+.chat-badge.show{display:block}
+
+.vol-chat-msg{margin-bottom:10px;max-width:85%}
+.vol-chat-msg.mine{margin-left:auto}
+.vol-chat-msg.theirs{margin-right:auto}
+.vol-chat-msg .vc-author{font-size:0.7rem;font-weight:700;color:var(--text-dim);margin-bottom:2px}
+.vol-chat-msg.mine .vc-author{text-align:right}
+.vol-chat-msg .vc-bubble{padding:8px 12px;border-radius:12px;font-size:0.88rem;line-height:1.45;word-wrap:break-word}
+.vol-chat-msg.mine .vc-bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px}
+.vol-chat-msg.theirs .vc-bubble{background:var(--surface-2);color:var(--text);border-bottom-left-radius:4px}
+.vol-chat-msg.ai .vc-bubble{background:var(--accent-dim);color:var(--text);border:1px solid var(--accent);border-bottom-left-radius:4px}
+.vol-chat-msg.ai .vc-author{color:var(--accent)}
+.vol-chat-msg .vc-time{font-size:0.65rem;color:var(--text-dim);margin-top:2px}
+.vol-chat-msg.mine .vc-time{text-align:right}
+
 .vol-map{height:260px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:14px;overflow:hidden}
 .vol-map.external{height:200px}
+
+.pocket-screen{background:#111;color:#eee;min-height:100vh;margin:-20px -18px -50px;padding:20px 18px;display:flex;flex-direction:column}
+.pocket-header{text-align:center;padding:16px 0 12px}
+.pocket-lock-icon{font-size:1.6rem;margin-bottom:4px}
+.pocket-label{font-size:0.72rem;text-transform:uppercase;letter-spacing:1px;color:#888;font-weight:700}
+.pocket-time{font-family:var(--mono);font-size:2rem;font-weight:800;color:#fff;margin-top:4px}
+.pocket-map{height:120px;border-radius:var(--radius-sm);overflow:hidden;margin-bottom:10px;border:1px solid #333}
+.pocket-stats{background:#1a1a1a;border:1px solid #333;border-radius:var(--radius-sm);padding:10px 12px;margin-bottom:10px;font-size:0.82rem;line-height:1.6}
+.pocket-stats .ps-row{display:flex;justify-content:space-between;color:#aaa}
+.pocket-stats .ps-row .ps-val{color:#fff;font-family:var(--mono);font-weight:700}
+.pocket-chat{background:#1a1a1a;border:1px solid #333;border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:auto;max-height:140px;overflow-y:auto;font-size:0.78rem;line-height:1.5;color:#aaa}
+.pocket-chat .pc-msg{margin-bottom:6px}
+.pocket-chat .pc-name{color:#6b9;font-weight:700}
+.pocket-chat .pc-ai{color:#7b7}
+.pocket-unlock{position:relative;margin-top:16px;height:56px;background:#222;border-radius:28px;border:2px solid #444;overflow:hidden;cursor:pointer;user-select:none;-webkit-user-select:none}
+.pocket-unlock-progress{position:absolute;left:0;top:0;height:100%;width:0;background:var(--accent);border-radius:26px;transition:width 0.1s linear}
+.pocket-unlock-text{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:0.9rem;color:#888;letter-spacing:0.5px}
 </style>
 </head>
 <body>
@@ -119,6 +153,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 <div class="topbar">
   <div class="brand"><span>🌱</span><span>CMRA</span></div>
   <div class="event-name" id="event-name">—</div>
+  <button class="gear chat-btn" id="chat-toggle" onclick="toggleChat()" aria-label="Chat" style="display:none">💬<span class="chat-badge" id="chat-badge"></span></button>
   <button class="gear" onclick="openAdmin()" aria-label="Admin">⚙️</button>
 </div>
 
@@ -228,7 +263,10 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <div class="coll-metric"><div class="val" id="coll-dist">0.0000</div><div class="lbl">miles</div></div>
       <div class="coll-metric"><div class="val" id="coll-time">0:00</div><div class="lbl">min:sec</div></div>
     </div>
-    <button class="btn btn-secondary" onclick="togglePause()" id="pause-btn" style="margin-bottom:10px">⏸ Pause (set phone down)</button>
+    <div style="display:flex;gap:8px;margin-bottom:10px">
+      <button class="btn btn-secondary" onclick="togglePause()" id="pause-btn" style="flex:1;margin:0">⏸ Pause</button>
+      <button class="btn btn-secondary" onclick="enterPocketMode()" style="flex:1;margin:0">🔒 Pocket</button>
+    </div>
     <button class="btn btn-accent" onclick="gotoWeight()">Bag full — weigh it</button>
   </div>
 
@@ -242,6 +280,25 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     </div>
     <button class="btn btn-secondary" onclick="togglePause()" id="pause-btn-ext" style="margin-bottom:10px">⏸ Pause (set phone down)</button>
     <button class="btn btn-accent" onclick="gotoWeightExternal()">Bag full — enter data</button>
+  </div>
+
+  <div class="screen" id="screen-pocket">
+    <div class="pocket-screen">
+      <div class="pocket-header">
+        <div class="pocket-lock-icon">🔒</div>
+        <div class="pocket-label">Pocket Mode — GPS Active</div>
+        <div class="pocket-time" id="pocket-time">0:00</div>
+      </div>
+      <div class="pocket-map" id="pocket-map"></div>
+      <div class="pocket-stats" id="pocket-stats"></div>
+      <div class="pocket-chat" id="pocket-chat"></div>
+      <div class="pocket-unlock" id="pocket-unlock"
+        ontouchstart="pocketHoldStart(event)" ontouchend="pocketHoldEnd()"
+        onmousedown="pocketHoldStart(event)" onmouseup="pocketHoldEnd()" onmouseleave="pocketHoldEnd()">
+        <div class="pocket-unlock-progress" id="pocket-unlock-bar"></div>
+        <div class="pocket-unlock-text">Hold to unlock</div>
+      </div>
+    </div>
   </div>
 
   <div class="screen" id="screen-weight">
@@ -308,6 +365,21 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <h1>All set</h1>
     <p class="lede">Your Team Leader has accounted for you. You're free to go.</p>
     <p class="muted">Thank you for today. 🌱</p>
+  </div>
+
+  <div class="screen" id="screen-chat">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+      <h1 style="margin:0">Team Chat</h1>
+      <button class="btn btn-ghost" onclick="closeChat()" style="min-height:auto;padding:6px 12px;font-size:0.85rem">← Back</button>
+    </div>
+    <p class="muted" style="margin-bottom:12px;font-size:0.8rem">Type <strong>@cmra</strong> to ask the AI assistant. Everyone on the team sees all messages.</p>
+    <div class="card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:300px">
+      <div id="vol-chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
+      <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
+        <input id="vol-chat-input" type="text" placeholder="Message your team…" maxlength="1000" style="flex:1;padding:10px 12px;border:1px solid var(--border-hi);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')volSendChat()">
+        <button onclick="volSendChat()" style="padding:8px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit">Send</button>
+      </div>
+    </div>
   </div>
 
   <div class="screen" id="screen-event-ended">
@@ -402,6 +474,7 @@ function boot(){
         S.displayName=d.displayName||S.displayName;
         S.gates=d.gates||{};
         S.trackingMode=d.trackingMode||S.trackingMode;
+        showChatButton();startVolChatPoll();
         routeByState();
       }).catch(function(){localStorage.removeItem('cmra_volunteer');startFresh();});
     }else{startFresh();}
@@ -441,7 +514,7 @@ function routeByState(){
       else showScreen('screen-at-zone');
       break;
     case 'session_complete': renderDone();showScreen('screen-done');startPollingForAccountability();break;
-    case 'accounted_for': case 'left_early': showScreen('screen-accounted');break;
+    case 'accounted_for': case 'left_early': showScreen('screen-accounted');startPollingForEventEnd();break;
     default: showScreen('screen-welcome');
   }
 }
@@ -456,7 +529,7 @@ function submitName(){
   api('joinEvent',{displayName:name}).then(function(d){
     hideBusy();$('w-btn').disabled=false;
     S.volunteerId=d.volunteerId;S.displayName=d.displayName;S.currentState='joined';
-    persist();
+    persist();showChatButton();startVolChatPoll();
     if(d.nameModified){alert('Another volunteer has that name. We saved you as "'+d.displayName+'".');}
     S.gates={};renderGates();showScreen('screen-gates');
   }).catch(function(e){
@@ -535,6 +608,7 @@ function updatePre(v){S.preRating=parseInt(v,10);$('pre-val').textContent=S.preR
 /* ═══ Start session ═══ */
 function startSession(){
   $('pre-btn').disabled=true;showBusy('Starting session…');
+  S.collectStartMs=0;
   api('startOrResumeSession',{preRating:S.preRating,trackingMode:S.trackingMode,trackingApp:S.trackingApp}).then(function(d){
     hideBusy();$('pre-btn').disabled=false;
     S.sessionId=d.sessionId;S.legId=d.legId;S.legNumber=d.legNumber||1;
@@ -544,7 +618,8 @@ function startSession(){
 }
 
 function launchCollecting(){
-  S.collectStartMs=Date.now();S.currentLegResult=null;
+  if(!S.collectStartMs)S.collectStartMs=Date.now();
+  S.currentLegResult=null;
   if(S.trackingMode==='native'){
     $('coll-dist').textContent='0.0000';$('coll-time').textContent='0:00';
     showScreen('screen-collecting');
@@ -623,7 +698,7 @@ function setExtGPSStatus(cls,txt){var el=$('gps-ind-ext');if(!el)return;el.class
 function startCollectTicker(external){
   if(S.collectTickTimer)clearInterval(S.collectTickTimer);
   S.collectTickTimer=setInterval(function(){
-    var elapsed=Math.floor((Date.now()-S.collectStartMs)/1000);
+    var elapsed=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000));
     var m=Math.floor(elapsed/60),s=elapsed%60;
     var txt=m+':'+(s<10?'0':'')+s;
     if(external)$('coll-ext-time').textContent=txt;
@@ -762,7 +837,7 @@ function renderLegResults(){
 
 /* ═══ Next leg / Finish session ═══ */
 function startNextLeg(){
-  showBusy('Starting leg…');S.currentLegResult=null;
+  showBusy('Starting leg…');S.currentLegResult=null;S.collectStartMs=0;
   api('startNextLeg',{sessionId:S.sessionId}).then(function(d){
     hideBusy();S.legId=d.legId;S.legNumber=d.legNumber;S.currentState='collecting';
     launchCollecting();
@@ -796,7 +871,21 @@ function startPollingForAccountability(){
     api('getVolunteerStatus').then(function(d){
       if(!d)return;
       S.currentState=d.currentState;
-      if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');}
+      if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');startPollingForEventEnd();}
+    }).catch(function(){});
+  },10000);
+}
+
+function startPollingForEventEnd(){
+  stopPolling();
+  S.pollTimer=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
+    api('getActiveEvent').then(function(ev){
+      if(!ev||ev.status==='ended'){
+        stopPolling();
+        if(ev&&ev.endMessage)S.eventEndMessage=ev.endMessage;
+        showEventEnded();
+      }
     }).catch(function(){});
   },10000);
 }
@@ -818,6 +907,10 @@ function resumeCollecting(){
     S.trackingMode=d.trackingMode||S.trackingMode;
     if(d.activeLeg){
       S.legId=d.activeLeg.legId;S.legNumber=d.activeLeg.legNumber||1;
+      // Use server start time so timer survives refresh
+      if(d.activeLeg.startTime){
+        S.collectStartMs=new Date(d.activeLeg.startTime).getTime();
+      }
       launchCollecting();
     }else{
       S.currentState='between_legs';showScreen('screen-at-zone');
@@ -836,6 +929,205 @@ function openAdmin(){
 function doSignOut(){
   if(!confirm('Clear your volunteer session from this browser?'))return;
   localStorage.removeItem('cmra_volunteer');hideBusy();location.reload();
+}
+
+/* ═══ Pocket Mode ═══ */
+var pocketMap=null;
+var pocketTimer=null;
+var pocketHoldTimer=null;
+var pocketHoldProgress=0;
+var POCKET_HOLD_MS=1500;
+
+function enterPocketMode(){
+  showScreen('screen-pocket');
+  $('cancel-fab').style.display='none';
+  // Keep GPS and collect ticker running — just switch the display
+  startPocketUpdater();
+  setTimeout(initPocketMap,100);
+  updatePocketView();
+}
+
+function exitPocketMode(){
+  if(pocketTimer){clearInterval(pocketTimer);pocketTimer=null;}
+  // Return to collecting screen
+  if(S.trackingMode==='native')showScreen('screen-collecting');
+  else showScreen('screen-collecting-external');
+  $('cancel-fab').style.display='flex';
+}
+
+function startPocketUpdater(){
+  if(pocketTimer)clearInterval(pocketTimer);
+  pocketTimer=setInterval(function(){
+    updatePocketView();
+    // Also update the pocket time display
+    var elapsed=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000));
+    var m=Math.floor(elapsed/60),s=elapsed%60;
+    $('pocket-time').textContent=m+':'+(s<10?'0':'')+s;
+  },1000);
+}
+
+function updatePocketView(){
+  // Stats
+  var dist=$('coll-dist')?$('coll-dist').textContent:'—';
+  var time=$('coll-time')?$('coll-time').textContent:($('coll-ext-time')?$('coll-ext-time').textContent:'—');
+  var h='';
+  h+='<div class="ps-row"><span>Distance</span><span class="ps-val">'+dist+' mi</span></div>';
+  h+='<div class="ps-row"><span>Leg</span><span class="ps-val">#'+(S.legNumber||1)+'</span></div>';
+  h+='<div class="ps-row"><span>GPS points</span><span class="ps-val">'+S.gpsBuffer.length+' buffered</span></div>';
+  $('pocket-stats').innerHTML=h;
+
+  // Chat (last 5 messages, read-only)
+  var ch='';
+  var recent=volChatMessages.slice(-5);
+  if(recent.length===0){ch='<div style="color:#555">No chat messages</div>';}
+  for(var i=0;i<recent.length;i++){
+    var m=recent[i];
+    var nameClass=m.is_ai?'pc-ai':'pc-name';
+    var name=m.is_ai?'🌱 CMRA':(m.author_name||'?');
+    ch+='<div class="pc-msg"><span class="'+nameClass+'">'+esc(name)+':</span> '+esc(m.text)+'</div>';
+  }
+  $('pocket-chat').innerHTML=ch;
+}
+
+function initPocketMap(){
+  if(pocketMap){pocketMap.invalidateSize();return;}
+  if(typeof L==='undefined')return;
+  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  pocketMap=L.map('pocket-map',{zoomControl:false,attributionControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,doubleClickZoom:false}).setView([start.lat,start.lon],17);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(pocketMap);
+}
+
+function pocketHoldStart(e){
+  e.preventDefault();
+  pocketHoldProgress=0;
+  var bar=$('pocket-unlock-bar');
+  bar.style.width='0%';
+  pocketHoldTimer=setInterval(function(){
+    pocketHoldProgress+=50;
+    var pct=Math.min(100,Math.round(pocketHoldProgress/POCKET_HOLD_MS*100));
+    bar.style.width=pct+'%';
+    if(pocketHoldProgress>=POCKET_HOLD_MS){
+      clearInterval(pocketHoldTimer);pocketHoldTimer=null;
+      bar.style.width='0%';
+      exitPocketMode();
+    }
+  },50);
+}
+function pocketHoldEnd(){
+  if(pocketHoldTimer){clearInterval(pocketHoldTimer);pocketHoldTimer=null;}
+  pocketHoldProgress=0;
+  $('pocket-unlock-bar').style.width='0%';
+}
+
+/* ═══ Volunteer Chat ═══ */
+var volChatMessages=[];
+var volChatPollTimer=null;
+var volChatLastSeen=0;
+var volChatPreviousScreen=null;
+
+function showChatButton(){
+  if(S.volunteerId)$('chat-toggle').style.display='';
+}
+
+function toggleChat(){
+  if(document.querySelector('#screen-chat.active')){
+    closeChat();
+  }else{
+    // Remember current screen
+    var current=document.querySelector('.screen.active');
+    volChatPreviousScreen=current?current.id:null;
+    volChatLastSeen=volChatMessages.length;
+    updateChatBadge();
+    showScreen('screen-chat');
+    volLoadChat();
+    // Also hide cancel fab if showing
+    $('cancel-fab').style.display='none';
+  }
+}
+
+function closeChat(){
+  if(volChatPreviousScreen){
+    showScreen(volChatPreviousScreen);
+    // Restore cancel fab if on collecting screen
+    if(volChatPreviousScreen==='screen-collecting'||volChatPreviousScreen==='screen-collecting-external'){
+      $('cancel-fab').style.display='flex';
+    }
+    volChatPreviousScreen=null;
+  }else{
+    routeByState();
+  }
+}
+
+function volLoadChat(){
+  if(!S.volunteerId)return;
+  api('getChatMessages',{limit:100}).then(function(d){
+    volChatMessages=d.messages||[];
+    volRenderChat();
+  }).catch(function(){});
+}
+
+function volRenderChat(){
+  var el=$('vol-chat-messages');if(!el)return;
+  if(volChatMessages.length===0){el.innerHTML='<div style="text-align:center;padding:24px;color:var(--text-dim)">No messages yet. Say hello!</div>';return;}
+  var h='';
+  for(var i=0;i<volChatMessages.length;i++){
+    var m=volChatMessages[i];
+    var isMine=m.author_id===S.volunteerId;
+    var isAI=!!m.is_ai;
+    var cls='vol-chat-msg'+(isMine?' mine':' theirs')+(isAI?' ai':'');
+    h+='<div class="'+cls+'">';
+    h+='<div class="vc-author">'+(isAI?'🌱 CMRA':esc(m.author_name||'?'))+'</div>';
+    h+='<div class="vc-bubble">'+esc(m.text)+'</div>';
+    var t=m.timestamp?new Date(m.timestamp):null;
+    h+='<div class="vc-time">'+(t?t.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'')+'</div>';
+    h+='</div>';
+  }
+  el.innerHTML=h;
+  el.scrollTop=el.scrollHeight;
+}
+
+function volSendChat(){
+  var input=$('vol-chat-input');
+  var text=(input.value||'').trim();
+  if(!text||!S.volunteerId)return;
+  input.value='';input.disabled=true;
+  api('sendChatMessage',{text:text}).then(function(d){
+    input.disabled=false;input.focus();
+    if(d.message)volChatMessages.push(d.message);
+    if(d.aiResponse){
+      volChatMessages.push({
+        id:'ai_'+Date.now(),author_id:'cmra_ai',author_name:'CMRA',
+        author_role:'assistant',text:d.aiResponse,
+        timestamp:new Date().toISOString(),is_ai:true
+      });
+    }
+    volChatLastSeen=volChatMessages.length;
+    updateChatBadge();
+    volRenderChat();
+  }).catch(function(e){input.disabled=false;alert('Send failed: '+e.message);});
+}
+
+function startVolChatPoll(){
+  if(volChatPollTimer)clearInterval(volChatPollTimer);
+  volChatPollTimer=setInterval(function(){
+    if(document.visibilityState!=='visible')return;
+    if(!S.volunteerId)return;
+    api('getChatMessages',{limit:100}).then(function(d){
+      var newMsgs=d.messages||[];
+      if(newMsgs.length!==volChatMessages.length){
+        volChatMessages=newMsgs;
+        updateChatBadge();
+        if(document.querySelector('#screen-chat.active'))volRenderChat();
+      }
+    }).catch(function(){});
+  },15000);
+}
+
+function updateChatBadge(){
+  var badge=$('chat-badge');if(!badge)return;
+  var unread=Math.max(0,volChatMessages.length-volChatLastSeen);
+  if(unread>0){badge.textContent=unread;badge.classList.add('show');}
+  else{badge.classList.remove('show');}
 }
 
 boot();
