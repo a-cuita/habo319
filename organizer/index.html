@@ -61,6 +61,12 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 @keyframes sp{to{transform:rotate(360deg)}}
 .back-link{margin-top:18px;text-align:center}
 .back-link a{color:var(--text-dim);text-decoration:none;font-size:0.85rem}
+
+/* Password show/hide */
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:44px}
+.pw-toggle{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;padding:6px 8px;color:var(--text-dim);font-size:0.85rem;font-weight:600;font-family:inherit;-webkit-tap-highlight-color:transparent}
+.pw-toggle:active{color:var(--text)}
 </style>
 </head>
 <body>
@@ -73,7 +79,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
   <div class="card">
     <div class="ig">
       <label>Admin key</label>
-      <input id="admin-key" type="password" autocapitalize="off" autocorrect="off">
+      <div class="pw-wrap"><input id="admin-key" type="password" autocapitalize="off" autocorrect="off"><button type="button" class="pw-toggle" onclick="togglePw(this,'admin-key')">Show</button></div>
       <div class="err" id="gate-err"></div>
     </div>
     <button class="btn" onclick="doUnlock()" id="btn-unlock">Unlock</button>
@@ -134,6 +140,64 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <div id="all-events"><div class="muted">Loading…</div></div>
   </div>
 
+  <!-- Event lifecycle (generate report / stitch) -->
+  <div class="card" id="finalize-card">
+    <h2>Finalize event</h2>
+    <p class="muted" style="margin-bottom:10px">Generate a report snapshot, then stitch data to close the event permanently. Only works when an event is ended.</p>
+    <button class="btn secondary" onclick="doGenerateReport()" id="btn-gen-report">Generate report</button>
+    <button class="btn" onclick="doStitchData()" id="btn-stitch-data" style="margin-top:8px;background:var(--amber);color:#fff">Stitch data (finalize)</button>
+    <div id="finalize-status" class="muted" style="margin-top:10px;font-size:0.82rem"></div>
+  </div>
+
+  <!-- Debug & tools -->
+  <div class="card" id="debug-card">
+    <h2>Debug &amp; tools</h2>
+    <p class="muted" style="margin-bottom:10px">Inspect state, run tests, bootstrap fake data, clear caches. Use instead of pasting scripts.</p>
+
+    <details style="margin-bottom:8px">
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0">Diagnostics</summary>
+      <div style="padding-top:6px">
+        <button class="btn secondary" onclick="doDebug('debug_listAll','List events + volunteers')" style="margin-bottom:6px">List all (events, volunteers, tab counts)</button>
+        <button class="btn secondary" onclick="doDebug('debug_activeEvent','Active-event diagnostic')" style="margin-bottom:6px">Active-event diagnostic</button>
+        <button class="btn secondary" onclick="doDebug('debug_cacheStatus','Cache status')">Cache status</button>
+      </div>
+    </details>
+
+    <details style="margin-bottom:8px">
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0">Tests</summary>
+      <div style="padding-top:6px">
+        <button class="btn secondary" onclick="doDebug('debug_smokeTest','Smoke test')">Run smoke test</button>
+      </div>
+    </details>
+
+    <details style="margin-bottom:8px">
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0">Bootstrap</summary>
+      <div style="padding-top:6px">
+        <button class="btn secondary" onclick="doBootstrap()">Bootstrap test event (3 volunteers)</button>
+      </div>
+    </details>
+
+    <details style="margin-bottom:8px">
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0;color:var(--danger)">Destructive</summary>
+      <div style="padding-top:6px">
+        <button class="btn secondary" onclick="doClearCache()">Clear cache only</button>
+        <button class="btn" onclick="doNuke()" style="margin-top:6px;background:var(--danger);color:#fff">NUKE all vault data</button>
+        <p class="muted" style="font-size:0.78rem;margin-top:6px">Nuke wipes every event. TL accounts stay. Requires typed confirmation.</p>
+      </div>
+    </details>
+
+    <details>
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0">Re-stitch</summary>
+      <div style="padding-top:6px">
+        <p class="muted" style="font-size:0.82rem;margin-bottom:6px">Force a re-stitch on an already-cool event. Only use if stitching missed legs or GPS didn't fold in.</p>
+        <div class="ig"><label>Event ID</label><input id="restitch-id" type="text" placeholder="event_1234567890"></div>
+        <button class="btn secondary" onclick="doReStitch()">Force re-stitch</button>
+      </div>
+    </details>
+
+    <pre id="debug-output" style="margin-top:14px;padding:10px;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius-sm);font-family:var(--mono);font-size:0.72rem;white-space:pre-wrap;max-height:320px;overflow-y:auto;display:none"></pre>
+  </div>
+
   <div class="back-link">
     <button class="btn secondary" onclick="doLock()">Lock organizer</button>
     <div style="margin-top:10px"><a href="/habo319/">← Back to landing</a></div>
@@ -160,6 +224,12 @@ function api(action,data){
   return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)})
     .then(function(r){return r.json();})
     .then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});
+}
+
+function togglePw(btn,inputId){
+  var input=$(inputId);if(!input)return;
+  if(input.type==='password'){input.type='text';btn.textContent='Hide';}
+  else{input.type='password';btn.textContent='Show';}
 }
 
 /* ═══ Unlock ═══ */
@@ -205,10 +275,19 @@ function loadActiveEvent(){
 }
 
 function loadAllEvents(){
-  api('auth_listTLs').catch(function(){}); // warm auth tab if needed
-  // We don't have a listAllEvents handler in the unified backend yet. Add a minimal lookup via getActiveEvent.
-  // For now just show the active one.
-  $('all-events').innerHTML='<div class="muted">Only the current active event is shown above. Past events accessible via the admin sheet.</div>';
+  api('debug_listAll',{adminKey:S.adminKey}).then(function(d){
+    var events=(d&&d.events)||[];
+    if(events.length===0){$('all-events').innerHTML='<div class="muted">No events yet.</div>';return;}
+    var h='';
+    for(var i=0;i<events.length;i++){
+      var ev=events[i];
+      if(ev.error){h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.folderName)+'</div><div class="sub">'+esc(ev.error)+'</div></div></div>';continue;}
+      var status='<span class="pill '+(ev.status||'')+'">'+esc(ev.status||'')+'</span>';
+      var ds='<span class="pill '+(ev.dataState||'')+'">'+esc(ev.dataState||'')+'</span>';
+      h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.eventName||ev.eventId)+' '+status+' '+ds+'</div><div class="sub">'+esc(ev.eventId)+' · '+(ev.volunteerCount||0)+' volunteers · '+(ev.legCount||0)+' legs · '+(ev.totalWeightLbs||0)+' lbs</div></div></div>';
+    }
+    $('all-events').innerHTML=h;
+  }).catch(function(e){$('all-events').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
 }
 
 function loadTLList(){
@@ -216,10 +295,59 @@ function loadTLList(){
     if(!list||list.length===0){$('tl-list').innerHTML='<div class="muted">No Team Leaders registered yet.</div>';return;}
     var h='<h3 style="font-size:0.85rem;font-weight:700;margin-bottom:6px;color:var(--text-dim)">Registered TLs ('+list.length+')</h3>';
     for(var i=0;i<list.length;i++){var tl=list[i];
-      h+='<div class="event-row"><div class="meta"><div class="name">'+esc(tl.displayName)+(tl.active?'':' <span class="muted">(inactive)</span>')+'</div><div class="sub">'+esc(tl.email)+(tl.hasPendingInvite?' · invite pending':'')+'</div></div></div>';
+      var statusBits=[];
+      if(!tl.active)statusBits.push('inactive');
+      if(tl.hasPendingInvite)statusBits.push('invite pending');
+      if(!tl.emailVerified)statusBits.push('unverified');
+      var status=statusBits.length?' · '+statusBits.join(' · '):'';
+      h+='<div class="event-row" style="flex-wrap:wrap;gap:6px"><div class="meta"><div class="name">'+esc(tl.displayName)+'</div><div class="sub">'+esc(tl.email)+status+'</div></div>'+
+        '<div style="display:flex;gap:4px;flex-wrap:wrap">'+
+        '<button class="btn secondary" style="padding:6px 10px;font-size:0.75rem;min-height:auto;width:auto" onclick="editTL(\''+tl.tlId+'\')">Edit</button>'+
+        (tl.active
+          ?'<button class="btn secondary" style="padding:6px 10px;font-size:0.75rem;min-height:auto;width:auto;color:var(--danger)" onclick="deleteTL(\''+tl.tlId+'\',\''+esc(tl.displayName)+'\')">Delete</button>'
+          :'<button class="btn secondary" style="padding:6px 10px;font-size:0.75rem;min-height:auto;width:auto" onclick="restoreTL(\''+tl.tlId+'\')">Restore</button>'
+        )+
+        '</div></div>';
     }
     $('tl-list').innerHTML=h;
   }).catch(function(e){$('tl-list').innerHTML='<div class="muted">Error loading TLs: '+esc(e.message)+'</div>';});
+}
+
+/* ═══ TL CRUD from organizer ═══ */
+function editTL(tlId){
+  api('auth_listTLs').then(function(list){
+    var tl=null;for(var i=0;i<list.length;i++)if(list[i].tlId===tlId){tl=list[i];break;}
+    if(!tl){alert('TL not found');return;}
+    $('overlay-content').innerHTML=
+      '<div style="font-weight:800;font-size:1.05rem;margin-bottom:12px">Edit TL</div>'+
+      '<div class="ig"><label>Display name</label><input id="edit-tl-name" type="text" value="'+esc(tl.displayName||'')+'"></div>'+
+      '<div class="ig"><label>Email</label><input id="edit-tl-email" type="email" value="'+esc(tl.email||'')+'" autocapitalize="off" autocorrect="off"></div>'+
+      '<div class="ig"><label>Phone</label><input id="edit-tl-phone" type="tel" value="'+esc(tl.phone||'')+'"></div>'+
+      '<div class="err" id="edit-tl-err" style="margin-bottom:10px"></div>'+
+      '<button class="btn" onclick="saveEditTL(\''+tlId+'\')">Save</button>'+
+      '<button class="btn secondary" onclick="hideBusy()" style="margin-top:8px">Cancel</button>';
+    $('overlay').classList.add('active');
+  });
+}
+function saveEditTL(tlId){
+  clearErr('edit-tl-err');
+  var name=$('edit-tl-name').value.trim();
+  var email=$('edit-tl-email').value.trim().toLowerCase();
+  var phone=$('edit-tl-phone').value.trim();
+  if(!name){showErr('edit-tl-err','Name required');return;}
+  if(!email){showErr('edit-tl-err','Email required');return;}
+  api('auth_updateTL',{adminKey:S.adminKey,tlId:tlId,displayName:name,email:email,phone:phone}).then(function(){
+    hideBusy();loadTLList();
+  }).catch(function(e){showErr('edit-tl-err',e.message);});
+}
+function deleteTL(tlId,name){
+  if(!confirm('Soft-delete TL "'+name+'"? They will not be able to sign in. You can restore later.'))return;
+  api('auth_softDeleteTL',{adminKey:S.adminKey,tlId:tlId}).then(function(){loadTLList();})
+    .catch(function(e){alert('Error: '+e.message);});
+}
+function restoreTL(tlId){
+  api('auth_restoreTL',{adminKey:S.adminKey,tlId:tlId}).then(function(){loadTLList();})
+    .catch(function(e){alert('Error: '+e.message);});
 }
 
 /* ═══ Create event ═══ */
@@ -282,6 +410,73 @@ function doInviteTL(){
     hideBusy();$('btn-invite').disabled=false;
     showErr('invite-err',e.message||'Invite failed');
   });
+}
+
+/* ═══ Finalize: generate report + stitch ═══ */
+function doGenerateReport(){
+  var btn=$('btn-gen-report');btn.disabled=true;
+  $('finalize-status').textContent='Generating report…';
+  api('generateReport',{adminKey:S.adminKey}).then(function(r){
+    btn.disabled=false;
+    if(r&&r.debounced){$('finalize-status').textContent='Debounced. Next available in '+r.nextAvailableInSec+'s.';return;}
+    $('finalize-status').textContent='Report generated. Data state: '+(r.dataState||'?')+'. Stats: '+JSON.stringify(r.blob&&r.blob.stats||{});
+    loadActiveEvent(); loadAllEvents();
+  }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
+}
+function doStitchData(){
+  if(!confirm('Stitch data and finalize the event? After this, no more writes are accepted on that event.'))return;
+  var btn=$('btn-stitch-data');btn.disabled=true;
+  $('finalize-status').textContent='Stitching…';
+  api('stitchData',{adminKey:S.adminKey}).then(function(r){
+    btn.disabled=false;
+    if(r.stitchPartial){$('finalize-status').textContent='Partial stitch: '+r.volunteersStitched+' done. Run again.';}
+    else if(r.ok){$('finalize-status').textContent='Stitch complete at '+r.stitchedAt+'. Data frozen.';}
+    else{$('finalize-status').textContent='Stitch finished with issues: '+(r.stitchError||JSON.stringify(r.stitchErrors||{}));}
+    loadActiveEvent(); loadAllEvents();
+  }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
+}
+
+/* ═══ Debug tools ═══ */
+function doDebug(action,label){
+  var out=$('debug-output');
+  out.style.display='block';
+  out.textContent=label+'…';
+  api(action,{adminKey:S.adminKey}).then(function(d){
+    out.textContent=label+' · '+new Date().toLocaleTimeString()+'\n\n'+JSON.stringify(d,null,2);
+  }).catch(function(e){out.textContent=label+' failed: '+e.message;});
+}
+function doBootstrap(){
+  if(!confirm('Create a new test event with 3 dummy volunteers? Only works if there\'s no active event.'))return;
+  var out=$('debug-output');out.style.display='block';out.textContent='Bootstrapping test event…';
+  api('admin_bootstrapTest',{adminKey:S.adminKey,volunteerCount:3}).then(function(d){
+    out.textContent='Bootstrapped:\n\n'+JSON.stringify(d,null,2);
+    loadActiveEvent(); loadAllEvents();
+  }).catch(function(e){out.textContent='Bootstrap failed: '+e.message;});
+}
+function doClearCache(){
+  var out=$('debug-output');out.style.display='block';out.textContent='Clearing cache…';
+  api('admin_clearCache',{adminKey:S.adminKey}).then(function(d){
+    out.textContent='Cleared '+d.cleared+' cache keys.';
+  }).catch(function(e){out.textContent='Clear failed: '+e.message;});
+}
+function doNuke(){
+  var typed=prompt('This wipes EVERY event and its data. TL accounts stay.\n\nType exactly:\n\nYES I AM SURE');
+  if(typed!=='YES I AM SURE'){alert('Nuke cancelled.');return;}
+  var out=$('debug-output');out.style.display='block';out.textContent='Nuking…';
+  api('admin_nukeAllData',{adminKey:S.adminKey,confirmNuke:'YES I AM SURE'}).then(function(d){
+    out.textContent='Nuke complete:\n\n'+JSON.stringify(d,null,2);
+    loadActiveEvent(); loadAllEvents();
+  }).catch(function(e){out.textContent='Nuke failed: '+e.message;});
+}
+function doReStitch(){
+  var eid=$('restitch-id').value.trim();
+  if(!eid){alert('Enter an event ID');return;}
+  if(!confirm('Force re-stitch on '+eid+'? This resets stitched_at on every volunteer and runs stitch again.'))return;
+  var out=$('debug-output');out.style.display='block';out.textContent='Re-stitching '+eid+'…';
+  api('admin_reStitchEvent',{adminKey:S.adminKey,eventId:eid}).then(function(d){
+    out.textContent='Re-stitch result:\n\n'+JSON.stringify(d,null,2);
+    loadAllEvents();
+  }).catch(function(e){out.textContent='Re-stitch failed: '+e.message;});
 }
 
 /* ═══ Init ═══ */
