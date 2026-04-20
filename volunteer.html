@@ -515,8 +515,18 @@ function startPollingForApproval(){
 function stopPolling(){if(S.pollTimer){clearInterval(S.pollTimer);S.pollTimer=null;}}
 
 /* ═══ Transit → at-zone ═══ */
-function markInTransit(){showScreen('screen-transit');}
-function markAtZone(){showScreen('screen-at-zone');}
+function markInTransit(){
+  showBusy('Updating…');
+  api('volunteerTransition',{toState:'in_transit'}).then(function(d){
+    hideBusy();S.currentState='in_transit';showScreen('screen-transit');
+  }).catch(function(e){hideBusy();showError(e.message);});
+}
+function markAtZone(){
+  showBusy('Updating…');
+  api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+    hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+  }).catch(function(e){hideBusy();showError(e.message);});
+}
 
 /* ═══ Pre-rating ═══ */
 function gotoPreRating(){$('pre-slider').value=5;updatePre(5);showScreen('screen-pre-rating');}
