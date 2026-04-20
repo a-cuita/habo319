@@ -164,10 +164,35 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <p><a href="/habo319/">← Back to landing</a></p>
 </div>
 
-<div class="gate" id="create-gate" style="display:none">
-  <h2 style="margin-bottom:12px">Start a cleanup</h2>
-  <p id="create-gate-name" style="font-weight:700;margin-bottom:16px"></p>
-  <div style="text-align:left;width:100%;max-width:340px;margin:0 auto">
+<div class="gate" id="create-gate" style="display:none;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <h2 id="home-greeting" style="margin-bottom:4px">Welcome</h2>
+  <p id="home-subtitle" style="margin-bottom:16px">Your workspace — pins, events, and more.</p>
+
+  <!-- Active event banner -->
+  <div id="home-active-event" style="display:none;text-align:left;width:100%;max-width:400px;margin:0 auto 16px;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);padding:14px 16px">
+    <div style="font-weight:700;font-size:0.95rem" id="home-event-name">—</div>
+    <div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px" id="home-event-status">—</div>
+    <button class="big-btn" onclick="joinActiveEvent()" id="home-join-btn" style="margin-top:10px;width:100%">Open dashboard</button>
+  </div>
+
+  <!-- Pins -->
+  <div style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h3 style="margin:0;font-size:0.95rem;font-weight:800">📍 My Pins</h3>
+      <button onclick="showPinModal()" style="padding:6px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">+ Drop pin</button>
+    </div>
+    <div id="home-pins" style="font-size:0.88rem"><div class="muted" style="text-align:center;padding:10px 0">Loading pins…</div></div>
+  </div>
+
+  <!-- Past events -->
+  <div id="home-past-events-section" style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px;display:none">
+    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">📋 Past Events</h3>
+    <div id="home-past-events"></div>
+  </div>
+
+  <!-- Create event -->
+  <div style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px">
+    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">🌱 Start a cleanup</h3>
     <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
     <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
     <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:8px">—</div>
@@ -176,8 +201,32 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="err" id="cg-err" style="margin-bottom:10px"></div>
     <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
   </div>
-  <p style="margin-top:16px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
+
+  <p style="margin-top:8px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
 </div>
+
+<!-- Pin creation modal -->
+<div class="overlay" id="pin-overlay" onclick="if(event.target===this)closePinModal()"><div class="overlay-card" id="pin-modal" style="text-align:left;max-width:380px">
+  <h3 style="margin:0 0 12px;font-weight:800">Drop a pin</h3>
+  <button onclick="pinCaptureGPS()" id="pin-gps-btn" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture my location</button>
+  <div id="pin-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:10px">—</div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Note</label><input id="pin-note" type="text" placeholder="e.g. Heavy dumping spot near creek" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit"></div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Category</label>
+    <select id="pin-category" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit;background:var(--surface)">
+      <option value="general">General</option>
+      <option value="dumping">Dumping spot</option>
+      <option value="hazard">Hazard</option>
+      <option value="access">Access point</option>
+      <option value="parking">Parking</option>
+      <option value="meetup">Meetup point</option>
+    </select>
+  </div>
+  <div class="err" id="pin-err" style="margin-bottom:8px"></div>
+  <div style="display:flex;gap:8px">
+    <button onclick="closePinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
+    <button onclick="submitPin()" id="pin-submit-btn" style="flex:1;padding:10px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.88rem;cursor:pointer;font-family:inherit" disabled>Save pin</button>
+  </div>
+</div></div>
 
 <div id="main" style="display:none;flex-direction:column;flex:1;min-height:0">
 
@@ -333,7 +382,126 @@ function gate(msg){$('loading-gate').style.display='none';$('main').style.displa
 function showCreateGate(){
   $('loading-gate').style.display='none';$('main').style.display='none';$('access-gate').style.display='none';
   $('create-gate').style.display='flex';
-  $('create-gate-name').textContent='Welcome, '+(S.displayName||'Team Leader')+'.';
+  $('home-greeting').textContent='Welcome, '+(S.displayName||'Team Leader')+'.';
+  loadTLHome();
+}
+
+function loadTLHome(){
+  api('tl_getHome',{sessionToken:S.sessionToken}).then(function(d){
+    // Active event banner
+    if(d.activeEvent){
+      S.homeEvent=d.activeEvent;
+      $('home-event-name').textContent=d.activeEvent.name;
+      $('home-event-status').textContent=d.activeEvent.status+' · '+d.activeEvent.dataState;
+      $('home-join-btn').textContent=(d.activeEvent.status==='active')?'Open dashboard':'View ended event';
+      $('home-active-event').style.display='block';
+    }else{
+      $('home-active-event').style.display='none';
+    }
+    // Pins
+    renderHomePins(d.pins||[]);
+    // Past events
+    if(d.pastEvents&&d.pastEvents.length>0){
+      $('home-past-events-section').style.display='block';
+      var h='';
+      for(var i=0;i<d.pastEvents.length;i++){
+        var ev=d.pastEvents[i];
+        h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2);font-size:0.85rem">';
+        h+='<span style="font-weight:700">'+esc(ev.name)+'</span>';
+        h+=' <span style="color:var(--text-dim);font-size:0.75rem">'+esc(ev.dataState)+'</span>';
+        if(ev.endedAt)h+=' <span style="color:var(--text-dim);font-size:0.72rem">'+fmtTime(ev.endedAt)+'</span>';
+        h+='</div>';
+      }
+      $('home-past-events').innerHTML=h;
+    }
+  }).catch(function(e){
+    $('home-pins').innerHTML='<div class="muted" style="text-align:center;padding:10px 0">Could not load home: '+esc(e.message)+'</div>';
+  });
+}
+
+function renderHomePins(pins){
+  if(pins.length===0){$('home-pins').innerHTML='<div style="text-align:center;padding:14px 0;color:var(--text-dim);font-size:0.85rem;border:1px dashed var(--border);border-radius:var(--radius-sm)">No pins yet. Drop one to mark a spot.</div>';return;}
+  var h='';
+  for(var i=0;i<pins.length;i++){
+    var p=pins[i];
+    var catIcons={general:'📍',dumping:'🗑️',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋'};
+    var icon=catIcons[p.category]||'📍';
+    h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2);display:flex;align-items:flex-start;gap:8px">';
+    h+='<span style="font-size:1.1rem">'+icon+'</span>';
+    h+='<div style="flex:1;min-width:0">';
+    h+='<div style="font-weight:600;font-size:0.88rem">'+esc(p.note||p.category)+'</div>';
+    h+='<div style="font-size:0.72rem;color:var(--text-dim)">'+p.lat.toFixed(5)+', '+p.lon.toFixed(5);
+    if(p.created_at)h+=' · '+fmtTime(p.created_at);
+    h+='</div></div>';
+    h+='<button onclick="deletePin(\''+esc(p.id)+'\')" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:0.85rem;padding:4px" title="Delete">✕</button>';
+    h+='</div>';
+  }
+  $('home-pins').innerHTML=h;
+}
+
+function joinActiveEvent(){
+  if(!S.homeEvent)return;
+  S.event=S.homeEvent;S.eventStatus=S.homeEvent.status;S.dataState=S.homeEvent.dataState;
+  api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:S.homeEvent.eventId}).then(function(ensured){
+    if(!ensured)return;
+    S.volunteerId=ensured.volunteerId;S.role='team_leader';S.currentState=ensured.currentState||'approved';
+    $('create-gate').style.display='none';
+    showMain();firstLoad();
+  }).catch(function(e){
+    alert('Could not open dashboard: '+e.message);
+  });
+}
+
+/* ═══ Pin Modal ═══ */
+var pinGPS=null;
+
+function showPinModal(){
+  pinGPS=null;
+  $('pin-note').value='';$('pin-category').value='general';
+  $('pin-gps-status').textContent='—';
+  $('pin-err').textContent='';$('pin-err').style.display='none';
+  $('pin-submit-btn').disabled=true;
+  $('pin-overlay').classList.add('active');
+}
+function closePinModal(){$('pin-overlay').classList.remove('active');}
+
+function pinCaptureGPS(){
+  $('pin-gps-status').textContent='Getting location…';
+  $('pin-gps-btn').disabled=true;
+  navigator.geolocation.getCurrentPosition(function(pos){
+    pinGPS={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('pin-gps-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    $('pin-gps-btn').disabled=false;
+    $('pin-submit-btn').disabled=false;
+  },function(err){
+    $('pin-gps-status').textContent='⚠ '+err.message;
+    $('pin-gps-btn').disabled=false;
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
+function submitPin(){
+  if(!pinGPS){$('pin-err').textContent='Capture your location first';$('pin-err').style.display='block';return;}
+  $('pin-submit-btn').disabled=true;$('pin-submit-btn').textContent='Saving…';
+  api('tl_createPin',{
+    sessionToken:S.sessionToken,
+    lat:pinGPS.lat,lon:pinGPS.lon,
+    note:$('pin-note').value.trim(),
+    category:$('pin-category').value
+  }).then(function(){
+    $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
+    closePinModal();
+    loadTLHome();
+  }).catch(function(e){
+    $('pin-submit-btn').disabled=false;$('pin-submit-btn').textContent='Save pin';
+    $('pin-err').textContent=e.message;$('pin-err').style.display='block';
+  });
+}
+
+function deletePin(pinId){
+  if(!confirm('Delete this pin?'))return;
+  api('tl_deletePin',{sessionToken:S.sessionToken,pinId:pinId}).then(function(){
+    loadTLHome();
+  }).catch(function(e){alert('Delete failed: '+e.message);});
 }
 
 var cgLocationBuffer=null;
