@@ -48,7 +48,7 @@
 .assign-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.85rem}.assign-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary)}
 .preview-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
 .preview-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:360px}
-.preview-card h4{font-weight:800;font-size:0.95rem;margin-bottom:6px}.preview-card p{font-size:0.88rem;color:var(--text-dim);line-height:1.5}.preview-card img{width:100%;border-radius:var(--radius-xs);margin-bottom:8px}
+.preview-card h4{font-weight:800;font-size:0.95rem;margin-bottom:6px}.preview-card p{font-size:0.88rem;color:var(--text-dim);line-height:1.5}.preview-card img{width:100%;display:block}
 .save-status{font-size:0.78rem;margin-top:6px;min-height:18px}
 .save-status.ok{color:var(--accent)}.save-status.err{color:var(--danger)}
 @media(max-width:680px){.sidebar{width:100%;height:auto;max-height:35vh;border-right:none;border-bottom:1px solid var(--border)}.app{flex-direction:column}.markup-tools{gap:6px}.color-swatch{width:32px;height:32px}}
@@ -74,7 +74,7 @@
 <div class="assign-section"><label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Assign to locations</label><div class="assign-row"><input type="checkbox" id="assign-all" onchange="toggleAssignAll()"><label for="assign-all" style="font-weight:700">All locations</label></div><div id="assign-events"></div></div>
 <div style="margin-top:20px" class="btn-row"><button class="btn btn-accent" onclick="saveCard()" id="btn-save">Save card</button></div>
 <div class="save-status" id="save-status"></div>
-<div class="preview-section"><label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Preview</label><div class="preview-card"><h4 id="preview-title">Title</h4><div id="preview-img"></div><p id="preview-body">Body text</p></div></div>
+<div class="preview-section"><label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Preview</label><div class="preview-card"><div id="preview-dots" style="text-align:center;margin-bottom:8px"></div><h4 id="preview-title">Title</h4><p id="preview-body">Body text</p><div id="preview-img" style="margin-top:8px"></div></div></div>
 </div></div></div>
 </div>
 <script>
@@ -231,6 +231,15 @@ function updatePreview(){
   }else if(IMG.croppedData){
     imgEl.innerHTML='<img src="'+IMG.croppedData+'">';
   }else{imgEl.innerHTML='';}
+  // Render dots
+  var dotsEl=$('preview-dots');
+  if(LIBRARY.length>1){
+    var idx=0;for(var i=0;i<LIBRARY.length;i++){if(LIBRARY[i].id===ACTIVE_ID){idx=i;break;}}
+    var dots='';for(var i=0;i<LIBRARY.length;i++){
+      dots+='<span style="display:inline-block;width:8px;height:8px;border-radius:50%;margin:0 3px;background:'+(i===idx?'var(--primary)':'var(--border)')+'"></span>';
+    }
+    dotsEl.innerHTML=dots;
+  }else{dotsEl.innerHTML='';}
 }
 
 function showUploadPhase(){$('img-drop').style.display='flex';$('crop-container').style.display='none';$('markup-container').style.display='none';$('img-area').classList.remove('has-image');}
