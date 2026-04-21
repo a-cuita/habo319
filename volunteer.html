@@ -170,15 +170,15 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
   </div>
 
   <div class="screen" id="screen-no-event">
-    <h1>No active event</h1>
-    <p class="lede">There's no cleanup happening right now. Check back when the organizer starts one.</p>
+    <h1>No active location</h1>
+    <p class="lede">No active cleanup locations right now. Check back when your organizer sets one up.</p>
   </div>
 
   <div class="screen" id="screen-event-picker">
-    <h1>Join a cleanup</h1>
-    <p class="lede">Multiple events are active. Pick one to join.</p>
+    <h1>Join a cleanup location</h1>
+    <p class="lede">Multiple locations are active. Pick one to join.</p>
     <div class="ig" style="margin-bottom:12px">
-      <input id="ep-search" type="text" placeholder="Search by event code…" oninput="filterEvents()" autocapitalize="characters" autocorrect="off" style="text-transform:uppercase">
+      <input id="ep-search" type="text" placeholder="Search by location code…" oninput="filterEvents()" autocapitalize="characters" autocorrect="off" style="text-transform:uppercase">
     </div>
     <div id="ep-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:10px"></div>
     <div id="ep-list"></div>
@@ -192,7 +192,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <input id="w-name" type="text" maxlength="40" autocapitalize="words" autocorrect="off">
       <div class="err" id="w-err"></div>
     </div>
-    <button class="btn btn-primary" onclick="submitName()" id="w-btn">Join event</button>
+    <button class="btn btn-primary" onclick="submitName()" id="w-btn">Join</button>
   </div>
 
   <div class="screen" id="screen-gates">
@@ -392,7 +392,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
   </div>
 
   <div class="screen" id="screen-event-ended">
-    <h1>Event ended</h1>
+    <h1>Cleanup complete</h1>
     <div class="card" id="end-msg-card" style="display:none">
       <div class="body" id="end-msg-body"></div>
     </div>
@@ -1021,7 +1021,7 @@ function startNextLeg(){
 }
 
 function finishSession(){
-  if(!confirm('Finish this session? You can join again later if the event is still running.'))return;
+  if(!confirm('Finish this session? You can join again later if the location is still running.'))return;
   showBusy('Finishing session…');
   api('finishSession',{sessionId:S.sessionId,postRating:S.postRating}).then(function(d){
     hideBusy();S.sessionSummary=d;S.currentState='session_complete';
