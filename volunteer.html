@@ -736,10 +736,54 @@ function markInTransit(){
   }).catch(function(e){hideBusy();showError(e.message);});
 }
 function markAtZone(){
-  showBusy('Updating…');
-  api('volunteerTransition',{toState:'at_zone'}).then(function(d){
-    hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
-  }).catch(function(e){hideBusy();showError(e.message);});
+  // External trackers: skip GPS check, remind to confirm with TL
+  if(S.trackingMode==='external'){
+    if(!confirm('Please confirm with your Team Leader (via chat or text) that you\'re at your zone before proceeding.')){return;}
+    showBusy('Updating…');
+    api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+      hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+    }).catch(function(e){hideBusy();showError(e.message);});
+    return;
+  }
+  
+  // Native trackers: GPS proximity check
+  var zoneLoc=S.event&&S.event.startingLocation;
+  if(!zoneLoc||zoneLoc.lat==null){
+    // No zone GPS set — just proceed
+    showBusy('Updating…');
+    api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+      hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+    }).catch(function(e){hideBusy();showError(e.message);});
+    return;
+  }
+  
+  showBusy('Checking your location…');
+  navigator.geolocation.getCurrentPosition(function(pos){
+    var dist=haversineKm(pos.coords.latitude,pos.coords.longitude,zoneLoc.lat,zoneLoc.lon)*1000;
+    if(dist<=50){
+      // Within 50m — proceed
+      api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+        hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+      }).catch(function(e){hideBusy();showError(e.message);});
+    }else{
+      hideBusy();
+      var distText=dist<1000?Math.round(dist)+' meters':(dist/1000).toFixed(1)+' km';
+      if(confirm('You appear to be about '+distText+' from your zone. Are you sure you\'re at the right spot?')){
+        showBusy('Updating…');
+        api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+          hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+        }).catch(function(e){hideBusy();showError(e.message);});
+      }
+    }
+  },function(err){
+    hideBusy();
+    if(confirm('Could not get your GPS location ('+err.message+'). Proceed anyway?')){
+      showBusy('Updating…');
+      api('volunteerTransition',{toState:'at_zone'}).then(function(d){
+        hideBusy();S.currentState='at_zone';showScreen('screen-at-zone');
+      }).catch(function(e){hideBusy();showError(e.message);});
+    }
+  },{enableHighAccuracy:true,timeout:10000});
 }
 
 /* ═══ Pre-rating ═══ */
