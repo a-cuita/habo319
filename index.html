@@ -139,9 +139,32 @@ h2{font-size:1.15rem;font-weight:800;margin-bottom:8px}
     <div class="err" id="login-err"></div>
     <button class="btn btn-primary" onclick="doLogin()" id="btn-login">Sign in</button>
   </div>
-  <div class="link-row"><a href="#" onclick="showClaim();return false;">I have an invite code</a></div>
+  <div class="link-row"><a href="#" onclick="showClaim();return false;">I have an invite code</a> · <a href="#" onclick="showRequestAccess();return false;">Request access</a></div>
   <div class="link-row dim"><a href="#" onclick="showForgot();return false;">Forgot password?</a></div>
   <div class="link-row dim"><a href="#" onclick="showHome();return false;">← Back</a></div>
+</div>
+
+<!-- ═══ Request Access ═══ -->
+<div class="screen" id="screen-request-access">
+  <h2>Request access</h2>
+  <p class="lede">Enter your details and we'll notify the organizer. You'll receive an invite code once approved.</p>
+  <div class="card">
+    <div class="ig">
+      <label>Your name</label>
+      <input id="req-name" type="text" placeholder="First and last name">
+    </div>
+    <div class="ig">
+      <label>Your email</label>
+      <input id="req-email" type="email" placeholder="you@example.com" autocapitalize="off" autocorrect="off">
+    </div>
+    <div class="ig">
+      <label>Organization / who directed you here</label>
+      <input id="req-org" type="text" placeholder="e.g. Keep Montgomery Beautiful, Lydia Smith">
+    </div>
+    <div class="err" id="req-err"></div>
+    <button class="btn btn-primary" onclick="doRequestAccess()" id="btn-req">Request access</button>
+  </div>
+  <div class="link-row dim"><a href="#" onclick="showTLLogin();return false;">← Back to sign-in</a></div>
 </div>
 
 <!-- ═══ TL Claim Invite ═══ -->
@@ -234,7 +257,27 @@ function togglePw(btn,inputId){
 function showHome(){showScreen('screen-home');}
 function showTLLogin(){showScreen('screen-tl-login');}
 function showClaim(){showScreen('screen-tl-claim');}
+function showRequestAccess(){showScreen('screen-request-access');}
 function showForgot(){$('forgot-step1').style.display='block';$('forgot-step2').style.display='none';showScreen('screen-tl-forgot');}
+
+function doRequestAccess(){
+  var name=$('req-name').value.trim();
+  var email=$('req-email').value.trim();
+  var org=$('req-org').value.trim();
+  if(!name){showErr('req-err','Enter your name');return;}
+  if(!email){showErr('req-err','Enter your email');return;}
+  if(!org){showErr('req-err','Enter who directed you here');return;}
+  $('btn-req').disabled=true;showBusy('Sending request…');
+  api('requestAccess',{name:name,email:email,organization:org}).then(function(){
+    hideBusy();$('btn-req').disabled=false;
+    $('req-name').value='';$('req-email').value='';$('req-org').value='';
+    alert('Request sent! You will receive an invite code via email once approved.');
+    showTLLogin();
+  }).catch(function(e){
+    hideBusy();$('btn-req').disabled=false;
+    showErr('req-err',e.message||'Request failed');
+  });
+}
 
 /* ═══ TL Login ═══ */
 function doLogin(){
