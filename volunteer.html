@@ -110,6 +110,15 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 
 .cancel-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:50;font-family:inherit}
 
+.wiki-carousel{margin-top:16px}
+.wiki-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:left;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.wiki-card h4{margin:0 0 6px;font-weight:800;font-size:0.95rem}
+.wiki-card p{margin:0;font-size:0.88rem;color:var(--text-dim);line-height:1.5;white-space:pre-wrap}
+.wiki-card img{width:100%;border-radius:var(--radius-sm);margin-bottom:8px}
+.wiki-dots{text-align:center;margin-top:8px}
+.wiki-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border);margin:0 3px;cursor:pointer}
+.wiki-dot.active{background:var(--primary)}
+
 .ep-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s}
 .ep-card:active{border-color:var(--primary)}
 .ep-card .ep-name{font-weight:800;font-size:1rem;margin-bottom:2px}
@@ -234,24 +243,28 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <div class="body muted">When approved, this page will update automatically. You can close the app and come back — your spot is saved.</div>
     </div>
     <div style="text-align:center;margin-top:20px"><div class="sp"></div></div>
+    <div class="wiki-carousel"></div>
   </div>
 
   <div class="screen" id="screen-approved">
     <h1>You're approved</h1>
     <p class="lede">Head out to your cleanup zone. Tap below when you start walking.</p>
     <button class="btn btn-primary" onclick="markInTransit()">I'm heading out</button>
+    <div class="wiki-carousel"></div>
   </div>
 
   <div class="screen" id="screen-transit">
     <h1>On your way</h1>
     <p class="lede">When you arrive at your cleanup spot, tap below.</p>
     <button class="btn btn-primary" onclick="markAtZone()">I'm at my zone</button>
+    <div class="wiki-carousel"></div>
   </div>
 
   <div class="screen" id="screen-at-zone">
     <h1>At your zone</h1>
     <p class="lede">Ready to start collecting. Rate the litter situation before you begin.</p>
     <button class="btn btn-primary" onclick="gotoPreRating()">Start session</button>
+    <div class="wiki-carousel"></div>
   </div>
 
   <div class="screen" id="screen-pre-rating">
@@ -481,6 +494,64 @@ function persist(){
   }));
 }
 
+/* ═══ Wiki Cards Slideshow ═══ */
+var wikiCards=[];
+var wikiIndex=0;
+var wikiTimer=null;
+var wikiTouchStart=null;
+
+function loadWikiCards(){
+  api('getWikiCards').then(function(d){
+    wikiCards=d.cards||[];
+    if(wikiCards.length>0){
+      wikiIndex=0;
+      renderWikiCards();
+      startWikiTimer();
+    }
+  }).catch(function(){});
+}
+
+function startWikiTimer(){
+  if(wikiTimer)clearInterval(wikiTimer);
+  if(wikiCards.length<=1)return;
+  wikiTimer=setInterval(function(){
+    wikiIndex=(wikiIndex+1)%wikiCards.length;
+    renderWikiCards();
+  },8000);
+}
+
+function renderWikiCards(){
+  var containers=document.querySelectorAll('.wiki-carousel');
+  if(wikiCards.length===0){containers.forEach(function(c){c.innerHTML='';});return;}
+  var card=wikiCards[wikiIndex];
+  var html='<div class="wiki-card" ontouchstart="wikiTouchStart=event.touches[0].clientX" ontouchend="wikiSwipe(event)">';
+  if(card.imageUrl||card.image)html+='<img src="'+esc(card.imageUrl||card.image)+'" onerror="this.style.display=\'none\'">';
+  html+='<h4>'+esc(card.title||'')+'</h4>';
+  html+='<p>'+esc(card.body||'')+'</p>';
+  html+='</div>';
+  if(wikiCards.length>1){
+    html+='<div class="wiki-dots">';
+    for(var i=0;i<wikiCards.length;i++){
+      html+='<span class="wiki-dot'+(i===wikiIndex?' active':'')+'" onclick="wikiGoTo('+i+')"></span>';
+    }
+    html+='</div>';
+  }
+  containers.forEach(function(c){c.innerHTML=html;});
+}
+
+function wikiGoTo(i){
+  wikiIndex=i;renderWikiCards();startWikiTimer();
+}
+
+function wikiSwipe(e){
+  if(!wikiTouchStart||!e.changedTouches||!e.changedTouches[0])return;
+  var diff=wikiTouchStart-e.changedTouches[0].clientX;
+  if(Math.abs(diff)<40)return;
+  if(diff>0)wikiIndex=(wikiIndex+1)%wikiCards.length;
+  else wikiIndex=(wikiIndex-1+wikiCards.length)%wikiCards.length;
+  renderWikiCards();startWikiTimer();
+}
+
 /* ═══ Boot ═══ */
 var allActiveEvents=[];
 var volunteerGPS=null;
@@ -500,6 +571,7 @@ function boot(){
         S.event=match;S.volunteerId=saved.volunteerId;S.displayName=saved.displayName;
         S.trackingMode=saved.trackingMode;S.trackingApp=saved.trackingApp;
         $('event-name').textContent=match.name||'';S.eventEndMessage=match.endMessage||null;
+        loadWikiCards();
         if(match.status==='ended'){showEventEnded();return;}
         api('getVolunteerStatus').then(function(d){
           if(!d){localStorage.removeItem('cmra_volunteer');bootPickEvent();return;}
@@ -574,6 +646,7 @@ function selectEvent(ev){
   if(!ev)return;
   S.event=ev;$('event-name').textContent=ev.name||'';
   S.eventEndMessage=ev.endMessage||null;
+  loadWikiCards();
   if(ev.status==='ended'){showEventEnded();return;}
   startFresh();
 }
