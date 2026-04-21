@@ -352,7 +352,7 @@ function doSignOut(){
 (function loadCommunity(){
   api('listActiveEvents').then(function(events){
     var el=$('community-events');if(!el)return;
-    if(!events||events.length===0){el.innerHTML='<div style="color:var(--text-dim);font-size:0.88rem">No active cleanups right now. Check back on event day.</div>';return;}
+    if(!events||events.length===0){el.innerHTML='<div style="color:var(--text-dim);font-size:0.88rem">No active cleanup locations right now. Check back on event day.</div>';return;}
     var h='';
     for(var i=0;i<events.length;i++){
       var e=events[i];
