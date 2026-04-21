@@ -124,19 +124,19 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 <div class="screen" id="screen-main">
   <h1>Organizer</h1>
 
-  <!-- Active event summary -->
+  <!-- Active events with per-event actions -->
   <div class="card" id="active-card">
-    <h2>Current event</h2>
+    <h2>Active Events</h2>
     <div id="active-body"><div class="muted">Loading…</div></div>
   </div>
 
   <!-- Create event form -->
   <div class="card" id="create-card">
     <h2>Create new event</h2>
-    <p class="muted" style="margin-bottom:10px">Only one active event at a time. End the current one before creating another.</p>
+    <p class="muted" style="margin-bottom:10px">Multiple events can run simultaneously. Each can be claimed by a Team Leader.</p>
     <div class="ig">
       <label>Event name</label>
-      <input id="new-name" type="text" placeholder="e.g., Earth Day 2026 · Downtown">
+      <input id="new-name" type="text" placeholder="e.g., Downtown Cleanup">
     </div>
     <div class="ig">
       <label>Event date</label>
@@ -184,19 +184,10 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     </details>
   </div>
 
-  <!-- All events -->
+  <!-- All events history -->
   <div class="card">
-    <h2>All events</h2>
+    <h2>Event history</h2>
     <div id="all-events"><div class="muted">Loading…</div></div>
-  </div>
-
-  <!-- Event lifecycle (generate report / stitch) -->
-  <div class="card" id="finalize-card">
-    <h2>Finalize event</h2>
-    <p class="muted" style="margin-bottom:10px">Generate a report snapshot, then stitch data to close the event permanently. Only works when an event is ended.</p>
-    <button class="btn secondary" onclick="doGenerateReport()" id="btn-gen-report">Generate report</button>
-    <button class="btn" onclick="doStitchData()" id="btn-stitch-data" style="margin-top:8px;background:var(--amber);color:#fff">Stitch data (finalize)</button>
-    <div id="finalize-status" class="muted" style="margin-top:10px;font-size:0.82rem;word-break:break-word;max-height:200px;overflow-y:auto"></div>
   </div>
 
   <!-- Debug & tools -->
@@ -384,18 +375,44 @@ function loadMain(){
 }
 
 function loadActiveEvent(){
-  api('getActiveEvent').then(function(ev){
-    if(!ev){S.activeEventId=null;$('active-body').innerHTML='<div class="muted">No active event right now.</div>';return;}
-    S.activeEventId=ev.eventId;
-    var status='<span class="pill '+(ev.status||'active')+'">'+esc(ev.status||'active')+'</span>';
-    var ds='<span class="pill '+(ev.dataState||'hot')+'">'+esc(ev.dataState||'hot')+'</span>';
-    var h='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.name)+status+ds+(ev.eventCode?' <span style="font-family:var(--mono);color:var(--primary);font-weight:700;letter-spacing:1px">'+esc(ev.eventCode)+'</span>':'')+'</div><div class="sub">'+esc(ev.eventId)+'</div></div></div>';
-    if(ev.status==='active'){
-      h+='<div class="ig" style="margin-top:10px"><label>Event-end message (volunteers see this when you end the event)</label><textarea id="end-msg" rows="3" placeholder="Thanks for showing up today. See you at the next one." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.95rem;resize:vertical"></textarea></div>';
-      h+='<button class="btn danger" style="margin-top:6px" onclick="doEndEventOrganizer(\''+ev.eventId+'\')">End event</button>';
-    }else if(ev.endMessage){
-      h+='<div class="muted" style="margin-top:10px;font-size:0.82rem">Last end-message: "'+esc(ev.endMessage)+'"</div>';
+  api('listActiveEvents').then(function(events){
+    if(!events||events.length===0){
+      S.activeEventId=null;
+      $('active-body').innerHTML='<div class="muted">No active events right now. Create one below.</div>';
+      return;
     }
+    var h='';
+    for(var i=0;i<events.length;i++){
+      var ev=events[i];
+      var status='<span class="pill '+(ev.status||'active')+'">'+esc(ev.status||'active')+'</span>';
+      var ds='<span class="pill '+(ev.dataState||'hot')+'">'+esc(ev.dataState||'hot')+'</span>';
+      var code=ev.eventCode?'<span style="font-family:var(--mono);color:var(--primary);font-weight:700;letter-spacing:1px;margin-left:6px">'+esc(ev.eventCode)+'</span>':'';
+      
+      h+='<div style="border:1px solid var(--border);border-radius:var(--radius);padding:12px 14px;margin-bottom:12px">';
+      h+='<div style="font-weight:700;font-size:0.95rem">'+esc(ev.name)+code+'</div>';
+      h+='<div style="margin-top:4px">'+status+' '+ds+'</div>';
+      h+='<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;font-family:var(--mono)">'+esc(ev.eventId)+'</div>';
+      
+      // Claimed status
+      if(ev.claimedByName)h+='<div style="font-size:0.82rem;margin-top:6px">TL: <strong>'+esc(ev.claimedByName)+'</strong></div>';
+      else h+='<div style="font-size:0.82rem;margin-top:6px;color:var(--accent)">Unclaimed — waiting for a TL</div>';
+      
+      // Actions based on status
+      if(ev.status==='active'){
+        h+='<div style="margin-top:10px"><div class="ig"><textarea id="end-msg-'+i+'" rows="2" placeholder="Event-end message for volunteers" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.85rem;resize:vertical"></textarea></div>';
+        h+='<button class="btn danger" style="margin-top:4px;width:100%" onclick="doEndEventOrganizer(\''+esc(ev.eventId)+'\','+i+')">End event</button></div>';
+      }else{
+        // Ended — show pipeline actions
+        h+='<div style="margin-top:10px;display:flex;gap:6px">';
+        h+='<button class="btn secondary" style="flex:1;font-size:0.8rem" onclick="doGenerateReportFor(\''+esc(ev.eventId)+'\',this)">Generate report</button>';
+        h+='<button class="btn secondary" style="flex:1;font-size:0.8rem" onclick="doStitchDataFor(\''+esc(ev.eventId)+'\',this)">Stitch data</button>';
+        h+='</div>';
+        h+='<div class="muted" style="font-size:0.75rem;margin-top:4px" id="status-'+esc(ev.eventId)+'"></div>';
+      }
+      h+='</div>';
+    }
+    // Set activeEventId to first one for backward compat
+    S.activeEventId=events[0].eventId;
     $('active-body').innerHTML=h;
   }).catch(function(e){$('active-body').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
 }
@@ -410,7 +427,10 @@ function loadAllEvents(){
       if(ev.error){h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.folderName)+'</div><div class="sub">'+esc(ev.error)+'</div></div></div>';continue;}
       var status='<span class="pill '+(ev.status||'')+'">'+esc(ev.status||'')+'</span>';
       var ds='<span class="pill '+(ev.dataState||'')+'">'+esc(ev.dataState||'')+'</span>';
-      h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.eventName||ev.eventId)+' '+status+' '+ds+'</div><div class="sub">'+esc(ev.eventId)+' · '+(ev.volunteerCount||0)+' volunteers · '+(ev.legCount||0)+' legs · '+(ev.totalWeightLbs||0)+' lbs</div></div></div>';
+      var code=ev.eventCode?'<span style="font-family:var(--mono);color:var(--primary);font-weight:700;letter-spacing:1px;margin-left:4px">'+esc(ev.eventCode)+'</span>':'';
+      h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.eventName||ev.eventId)+code+' '+status+' '+ds+'</div>';
+      h+='<div class="sub">'+esc(ev.eventId)+' · '+(ev.volunteerCount||0)+' vols · '+(ev.legCount||0)+' legs · '+(ev.totalWeightLbs||0)+' lbs</div></div></div>';
+    }
     }
     $('all-events').innerHTML=h;
   }).catch(function(e){$('all-events').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
@@ -503,22 +523,43 @@ function doCreateEvent(){
 }
 
 /* ═══ End event ═══ */
-function doEndEventOrganizer(eventId){
-  var msgEl=$('end-msg');
+function doEndEventOrganizer(eventId,idx){
+  var msgEl=$('end-msg-'+idx);
   var endMessage=msgEl?msgEl.value.trim():'';
   if(!confirm('End this event? Volunteer app will stop accepting new joins. Dashboard stays available for accountability.'))return;
   showBusy('Ending event…');
-  api('endEvent',{eventId:eventId,adminKey:S.adminKey,endMessage:endMessage}).then(function(r){
-    hideBusy();
-    alert('Event ended.');
+  api('endEvent',{eventId:eventId,endMessage:endMessage}).then(function(r){
+    hideBusy();alert('Event ended.');
     loadActiveEvent();loadAllEvents();
-  }).catch(function(e){
-    hideBusy();
-    alert('Error: '+(e.message||'could not end event'));
-  });
+  }).catch(function(e){hideBusy();alert('Error: '+(e.message||'could not end event'));});
 }
 
-/* ═══ Invite TL ═══ */
+function doGenerateReportFor(eventId,btn){
+  btn.disabled=true;btn.textContent='Generating…';
+  var statusEl=$('status-'+eventId);
+  if(statusEl)statusEl.textContent='Generating report…';
+  api('generateReport',{eventId:eventId}).then(function(r){
+    btn.disabled=false;btn.textContent='Generate report';
+    if(r&&r.debounced){if(statusEl)statusEl.textContent='Debounced. Try in '+r.nextAvailableInSec+'s.';return;}
+    var s=r.blob&&r.blob.stats||{};
+    if(statusEl)statusEl.innerHTML='Report done · '+(s.volunteerCount||0)+' vols · '+(s.legCount||0)+' legs · '+(s.totalWeightLbs||0)+' lbs';
+    loadActiveEvent();loadAllEvents();
+  }).catch(function(e){btn.disabled=false;btn.textContent='Generate report';if(statusEl)statusEl.textContent='Error: '+e.message;});
+}
+
+function doStitchDataFor(eventId,btn){
+  if(!confirm('Stitch data for this event? After this, no more writes accepted.'))return;
+  btn.disabled=true;btn.textContent='Stitching…';
+  var statusEl=$('status-'+eventId);
+  if(statusEl)statusEl.textContent='Stitching…';
+  api('stitchData',{eventId:eventId}).then(function(r){
+    btn.disabled=false;btn.textContent='Stitch data';
+    if(r.stitchPartial){if(statusEl)statusEl.textContent='Partial: '+r.volunteersStitched+' done. Run again.';}
+    else if(r.ok){if(statusEl)statusEl.textContent='Stitch complete at '+fmtLocal(r.stitchedAt)+'. Data frozen.';}
+    else{if(statusEl)statusEl.textContent='Issues: '+(r.stitchError||'unknown');}
+    loadActiveEvent();loadAllEvents();
+  }).catch(function(e){btn.disabled=false;btn.textContent='Stitch data';if(statusEl)statusEl.textContent='Error: '+e.message;});
+}
 function doInviteTL(){
   clearErr('invite-err');
   var email=$('tl-email').value.trim().toLowerCase();
@@ -535,33 +576,6 @@ function doInviteTL(){
     hideBusy();$('btn-invite').disabled=false;
     showErr('invite-err',e.message||'Invite failed');
   });
-}
-
-/* ═══ Finalize: generate report + stitch ═══ */
-function doGenerateReport(){
-  var btn=$('btn-gen-report');btn.disabled=true;
-  $('finalize-status').textContent='Generating report…';
-  api('generateReport',{adminKey:S.adminKey,eventId:S.activeEventId}).then(function(r){
-    btn.disabled=false;
-    if(r&&r.debounced){$('finalize-status').textContent='Debounced. Next available in '+r.nextAvailableInSec+'s.';return;}
-    var s=r.blob&&r.blob.stats||{};
-    $('finalize-status').innerHTML='Report generated. State: '+(r.dataState||'?')+'<br>'+
-      'Volunteers: '+(s.volunteerCount||0)+' · Legs: '+(s.legCount||0)+'<br>'+
-      'Weight: '+(s.totalWeightLbs||0)+' lbs · Distance: '+((s.totalDistanceM||0)/1609.34).toFixed(2)+' mi';
-    loadActiveEvent(); loadAllEvents();
-  }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
-}
-function doStitchData(){
-  if(!confirm('Stitch data and finalize the event? After this, no more writes are accepted on that event.'))return;
-  var btn=$('btn-stitch-data');btn.disabled=true;
-  $('finalize-status').textContent='Stitching…';
-  api('stitchData',{adminKey:S.adminKey,eventId:S.activeEventId}).then(function(r){
-    btn.disabled=false;
-    if(r.stitchPartial){$('finalize-status').textContent='Partial stitch: '+r.volunteersStitched+' done. Run again.';}
-    else if(r.ok){$('finalize-status').textContent='Stitch complete at '+fmtLocal(r.stitchedAt)+'. Data frozen.';}
-    else{$('finalize-status').textContent='Stitch finished with issues: '+(r.stitchError||JSON.stringify(r.stitchErrors||{}));}
-    loadActiveEvent(); loadAllEvents();
-  }).catch(function(e){btn.disabled=false;$('finalize-status').textContent='Error: '+e.message;});
 }
 
 /* ═══ Gate Management ═══ */
@@ -619,7 +633,29 @@ function doDebug(action,label){
   out.style.display='block';
   out.textContent=label+'…';
   api(action,{adminKey:S.adminKey}).then(function(d){
-    out.textContent=label+' · '+new Date().toLocaleTimeString()+'\n\n'+JSON.stringify(d,null,2);
+    var ts=new Date().toLocaleTimeString();
+    if(action==='debug_listAll'&&d){
+      // Format list nicely
+      var lines=[label+' · '+ts,''];
+      if(d.events){
+        lines.push('EVENTS ('+d.events.length+')');
+        lines.push('─'.repeat(40));
+        for(var i=0;i<d.events.length;i++){
+          var e=d.events[i];
+          if(e.error){lines.push('  ✗ '+e.folderName+': '+e.error);continue;}
+          lines.push('  '+(e.status==='active'?'●':'○')+' '+e.eventName+(e.eventCode?' ['+e.eventCode+']':''));
+          lines.push('    '+e.status+' · '+e.dataState+' · '+(e.volunteerCount||0)+' vols · '+(e.legCount||0)+' legs · '+(e.totalWeightLbs||0)+' lbs');
+          lines.push('    '+e.eventId);
+        }
+      }
+      out.textContent=lines.join('\n');
+    }else if(action==='debug_cacheStatus'&&d){
+      var lines=[label+' · '+ts,''];
+      for(var k in d)lines.push('  '+k+': '+JSON.stringify(d[k]));
+      out.textContent=lines.join('\n');
+    }else{
+      out.textContent=label+' · '+ts+'\n\n'+JSON.stringify(d,null,2);
+    }
   }).catch(function(e){out.textContent=label+' failed: '+e.message;});
 }
 function doBootstrap(){
