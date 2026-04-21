@@ -389,7 +389,7 @@ function loadActiveEvent(){
     S.activeEventId=ev.eventId;
     var status='<span class="pill '+(ev.status||'active')+'">'+esc(ev.status||'active')+'</span>';
     var ds='<span class="pill '+(ev.dataState||'hot')+'">'+esc(ev.dataState||'hot')+'</span>';
-    var h='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.name)+status+ds+'</div><div class="sub">'+esc(ev.eventId)+'</div></div></div>';
+    var h='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.name)+status+ds+(ev.eventCode?' <span style="font-family:var(--mono);color:var(--primary);font-weight:700;letter-spacing:1px">'+esc(ev.eventCode)+'</span>':'')+'</div><div class="sub">'+esc(ev.eventId)+'</div></div></div>';
     if(ev.status==='active'){
       h+='<div class="ig" style="margin-top:10px"><label>Event-end message (volunteers see this when you end the event)</label><textarea id="end-msg" rows="3" placeholder="Thanks for showing up today. See you at the next one." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.95rem;resize:vertical"></textarea></div>';
       h+='<button class="btn danger" style="margin-top:6px" onclick="doEndEventOrganizer(\''+ev.eventId+'\')">End event</button>';
