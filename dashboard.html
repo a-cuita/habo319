@@ -165,7 +165,10 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 </div>
 
 <div class="gate" id="create-gate" style="display:none;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch">
-  <h2 id="home-greeting" style="margin-bottom:4px">Welcome</h2>
+  <div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;margin:0 auto">
+    <h2 id="home-greeting" style="margin-bottom:4px">Welcome</h2>
+    <button id="home-org-btn" onclick="toggleOrgPanel()" style="font-size:1.3rem;background:none;border:none;cursor:pointer;padding:4px 8px;display:none" title="Organizer">👑</button>
+  </div>
   <p id="home-subtitle" style="margin-bottom:16px">Your workspace — pins, locations, and more.</p>
 
   <!-- Active events -->
@@ -419,7 +422,9 @@ function showCreateGate(){
 function loadTLHome(){
   api('tl_getHome',{sessionToken:S.sessionToken}).then(function(d){
     S.isOrganizer=d.profile.isOrganizer;
-    // Show organizer button if god mode
+    // Show organizer button on TL Home
+    var homeOrgBtn=$('home-org-btn');if(homeOrgBtn)homeOrgBtn.style.display=S.isOrganizer?'':'none';
+    // Show organizer button in dashboard header (if visible)
     var orgBtn=$('hdr-org-btn');if(orgBtn)orgBtn.style.display=S.isOrganizer?'':'none';
     
     // Active events
