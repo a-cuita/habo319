@@ -231,6 +231,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="ident"><span class="role">TL</span><span class="name" id="hdr-name">—</span></div>
     <div class="fresh" id="hdr-fresh" onclick="refreshAll()" title="Tap to refresh" style="cursor:pointer;padding:6px 10px;-webkit-tap-highlight-color:rgba(0,0,0,0.1)"><span class="dot"></span><span id="hdr-fresh-text">—</span><div style="font-size:0.55rem;color:var(--text-dim);margin-top:1px">tap to refresh</div></div>
     <button class="signout" onclick="showPinModal()" style="font-size:1.1rem;padding:4px 8px" title="Drop pin">📍</button>
+    <button class="signout" id="hdr-org-btn" onclick="toggleOrgPanel()" style="font-size:1rem;padding:4px 8px;display:none" title="Organizer">👑</button>
     <button class="signout" onclick="openProfile()">Profile</button>
   </div>
   <div class="status-bar">
@@ -245,6 +246,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="tab" data-tab="chat" onclick="switchTab('chat')">Chat <span class="badge hidden" id="badge-chat"></span></div>
     <div class="tab" data-tab="feed" onclick="switchTab('feed')">Feed</div>
     <div class="tab" data-tab="map" onclick="switchTab('map')">Map</div>
+    <div class="tab" data-tab="collect" onclick="switchTab('collect')">Collect</div>
     <div class="tab" data-tab="event" onclick="switchTab('event')">Event</div>
   </div>
 
@@ -313,7 +315,76 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <p class="muted">Ending the event, generating reports, and finalizing data are organizer actions. Ask your organizer.</p>
       </div>
     </div>
+
+    <div class="pane" id="pane-collect">
+      <div class="card" id="coll-idle">
+        <h3>🎒 Collect</h3>
+        <p class="muted">Start a collection session as a participant. Your GPS data will be tracked alongside your team's.</p>
+        <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Cleanliness pre-rating (1–10)</label>
+          <input id="tl-pre-rating" type="range" min="1" max="10" value="5" style="width:100%" oninput="$('tl-pre-val').textContent=this.value">
+          <div style="text-align:center;font-weight:700" id="tl-pre-val">5</div>
+        </div>
+        <button class="big-btn" onclick="tlStartCollecting()" id="tl-coll-start">Start collecting</button>
+      </div>
+      <div class="card" id="coll-active" style="display:none">
+        <h3>Collecting…</h3>
+        <div id="tl-coll-gps" style="font-size:0.82rem;color:var(--text-dim);margin-bottom:8px">Getting GPS…</div>
+        <div style="display:flex;gap:16px;margin-bottom:12px">
+          <div style="text-align:center;flex:1"><div style="font-family:var(--mono);font-size:1.4rem;font-weight:800" id="tl-coll-dist">0.0000</div><div style="font-size:0.72rem;color:var(--text-dim)">miles</div></div>
+          <div style="text-align:center;flex:1"><div style="font-family:var(--mono);font-size:1.4rem;font-weight:800" id="tl-coll-time">0:00</div><div style="font-size:0.72rem;color:var(--text-dim)">min:sec</div></div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="big-btn" onclick="tlTogglePause()" id="tl-pause-btn" style="flex:1;background:var(--surface-2);color:var(--text);border:1px solid var(--border)">⏸ Pause</button>
+        </div>
+        <button class="big-btn" onclick="tlEndLeg()" style="background:var(--accent)">End this leg</button>
+      </div>
+      <div class="card" id="coll-weight" style="display:none">
+        <h3>Weigh your bag</h3>
+        <div class="ig"><label>Weight (lbs)</label><input id="tl-weight" type="number" step="0.01" min="0" inputmode="decimal" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
+        <div class="err" id="tl-weight-err"></div>
+        <button class="big-btn" onclick="tlSubmitWeight()">Submit</button>
+      </div>
+      <div class="card" id="coll-done" style="display:none">
+        <h3>Leg complete</h3>
+        <div id="tl-leg-results"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="big-btn" onclick="tlNextLeg()" style="flex:1">Next leg</button>
+          <button class="big-btn" onclick="tlFinishSession()" style="flex:1;background:var(--surface-2);color:var(--text);border:1px solid var(--border)">Finish</button>
+        </div>
+      </div>
+    </div>
+
   </div>
+</div>
+
+<!-- Organizer Panel (god mode) -->
+<div class="overlay" id="org-panel-overlay" onclick="if(event.target===this)toggleOrgPanel()" style="z-index:9998">
+<div id="org-panel" style="position:fixed;bottom:0;left:0;right:0;max-height:80vh;background:var(--surface);border-top:2px solid var(--primary);border-radius:var(--radius) var(--radius) 0 0;padding:20px 18px 30px;overflow-y:auto;-webkit-overflow-scrolling:touch;box-shadow:0 -4px 24px rgba(0,0,0,0.15);z-index:9999">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <h3 style="margin:0;font-weight:800">👑 Organizer</h3>
+    <button onclick="toggleOrgPanel()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px">✕</button>
+  </div>
+
+  <div style="margin-bottom:14px">
+    <h4 style="margin:0 0 6px;font-size:0.85rem;font-weight:700">End event</h4>
+    <div class="ig"><textarea id="org-end-msg" rows="2" placeholder="Event-end message for volunteers" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.88rem;resize:vertical"></textarea></div>
+    <button class="big-btn" onclick="orgEndEvent()" style="background:var(--danger);width:100%">End event</button>
+  </div>
+
+  <div style="margin-bottom:14px">
+    <h4 style="margin:0 0 6px;font-size:0.85rem;font-weight:700">Data pipeline</h4>
+    <div style="display:flex;gap:8px">
+      <button class="big-btn" onclick="orgGenerateReport()" id="org-report-btn" style="flex:1;background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-size:0.82rem">Generate report</button>
+      <button class="big-btn" onclick="orgStitchData()" id="org-stitch-btn" style="flex:1;background:var(--surface-2);color:var(--text);border:1px solid var(--border);font-size:0.82rem">Stitch data</button>
+    </div>
+    <div id="org-pipeline-status" style="font-size:0.78rem;color:var(--text-dim);margin-top:6px"></div>
+  </div>
+
+  <div style="margin-bottom:14px">
+    <h4 style="margin:0 0 6px;font-size:0.85rem;font-weight:700">Event assignments</h4>
+    <div id="org-assignments"><div class="muted" style="font-size:0.82rem">Loading…</div></div>
+  </div>
+</div>
 </div>
 
 <div class="overlay" id="overlay" onclick="if(event.target===this)hideBusy()"><div class="overlay-card" id="overlay-content"></div></div>
@@ -323,7 +394,7 @@ var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfv
 var LANDING='/habo319/';
 
 var S={
-  sessionToken:null,tlId:null,displayName:null,tlEmail:null,
+  sessionToken:null,tlId:null,displayName:null,tlEmail:null,isOrganizer:false,
   event:null,volunteerId:null,role:null,currentState:null,
   eventStatus:'active',dataState:'hot',
   roster:[],queue:[],teamLeaders:[],stats:null,recentLog:[],
@@ -359,7 +430,7 @@ function boot(){
   S.sessionToken=saved.sessionToken;
   api('auth_whoAmI',{sessionToken:saved.sessionToken}).then(function(who){
     if(!who){localStorage.removeItem('cmra_tl_session');gate('Your session expired. <a href="'+LANDING+'">Sign in again</a>.');return Promise.reject('expired');}
-    S.tlId=who.tlId;S.displayName=who.displayName;S.tlEmail=who.email;
+    S.tlId=who.tlId;S.displayName=who.displayName;S.tlEmail=who.email;S.isOrganizer=!!who.isOrganizer;
     return api('listActiveEvents');
   }).then(function(events){
     if(!events||events.length===0){showCreateGate();return Promise.reject('no-event');}
@@ -393,18 +464,35 @@ function showCreateGate(){
 
 function loadTLHome(){
   api('tl_getHome',{sessionToken:S.sessionToken}).then(function(d){
+    S.isOrganizer=d.profile.isOrganizer;
+    // Show organizer button if god mode
+    var orgBtn=$('hdr-org-btn');if(orgBtn)orgBtn.style.display=S.isOrganizer?'':'none';
+    
     // Active events
     var evts=d.activeEvents||[];
     var evH='';
     if(evts.length>0){
       for(var i=0;i<evts.length;i++){
         var ae=evts[i];
-        evH+='<div style="text-align:left;background:var(--accent-dim);border:1px solid var(--accent);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px">';
+        var isMine=ae.claimedByTL===S.tlId||ae.createdByTL===S.tlId;
+        var isClaimed=!!ae.claimedByTL;
+        var bgColor=isMine?'var(--accent-dim)':(isClaimed?'var(--surface-2)':'var(--surface)');
+        var borderColor=isMine?'var(--accent)':(isClaimed?'var(--border)':'var(--primary)');
+        evH+='<div style="text-align:left;background:'+bgColor+';border:1px solid '+borderColor+';border-radius:var(--radius);padding:14px 16px;margin-bottom:10px'+(isClaimed&&!isMine?';opacity:0.7':'')+'">';
         evH+='<div style="font-weight:700;font-size:0.95rem">'+esc(ae.name)+'</div>';
         evH+='<div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px">'+esc(ae.status)+' · '+esc(ae.dataState);
         if(ae.eventCode)evH+=' · <span style="font-family:var(--mono);font-weight:700;color:var(--primary)">'+esc(ae.eventCode)+'</span>';
         evH+='</div>';
-        evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:10px;width:100%">'+(ae.status==='active'?'Open dashboard':'View ended event')+'</button>';
+        if(isClaimed&&!isMine){
+          evH+='<div style="font-size:0.82rem;color:var(--text-dim);margin-top:6px">Claimed by <strong>'+esc(ae.claimedByName||'another TL')+'</strong></div>';
+          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%;background:var(--surface-2);color:var(--text);border:1px solid var(--border)">View dashboard</button>';
+        }else if(isMine){
+          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:10px;width:100%">Open dashboard</button>';
+        }else{
+          // Unclaimed — available to claim
+          evH+='<div style="font-size:0.82rem;color:var(--accent);margin-top:6px;font-weight:600">Available — claim to manage</div>';
+          evH+='<button class="big-btn" onclick="claimEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%">Claim & manage</button>';
+        }
         evH+='</div>';
       }
     }
@@ -430,6 +518,15 @@ function loadTLHome(){
   }).catch(function(e){
     $('home-pins').innerHTML='<div class="muted" style="text-align:center;padding:10px 0">Could not load home: '+esc(e.message)+'</div>';
   });
+}
+
+function claimEvent(eventId){
+  showBusy('Claiming event…');
+  api('claimEvent',{sessionToken:S.sessionToken,eventId:eventId}).then(function(d){
+    hideBusy();
+    // Go straight to dashboard
+    joinSpecificEvent(eventId);
+  }).catch(function(e){hideBusy();alert('Could not claim: '+e.message);});
 }
 
 function renderHomePins(pins){
@@ -601,6 +698,7 @@ function showMain(){
   $('main').style.display='flex';
   $('hdr-name').textContent=S.displayName||'Team Leader';
   $('event-name-line').textContent=S.event.name||'';
+  var orgBtn=$('hdr-org-btn');if(orgBtn)orgBtn.style.display=S.isOrganizer?'':'none';
   renderPills();
 }
 
@@ -1121,6 +1219,171 @@ function evCreateEvent(){
     $('ev-new-btn').disabled=false;
     err.textContent=e.message||'Could not create event';err.style.display='block';
   });
+}
+
+/* ═══ Organizer Panel (god mode) ═══ */
+function toggleOrgPanel(){
+  var panel=$('org-panel-overlay');
+  if(panel.classList.contains('active')){panel.classList.remove('active');}
+  else{panel.classList.add('active');orgLoadAssignments();}
+}
+
+function orgEndEvent(){
+  if(!S.event)return;
+  if(!confirm('End this event? Volunteers will see the end message.'))return;
+  var msg=$('org-end-msg').value.trim();
+  showBusy('Ending event…');
+  api('endEvent',{eventId:S.event.eventId,endMessage:msg}).then(function(){
+    hideBusy();alert('Event ended.');toggleOrgPanel();refreshAll();
+  }).catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+
+function orgGenerateReport(){
+  $('org-report-btn').disabled=true;$('org-pipeline-status').textContent='Generating…';
+  api('generateReport').then(function(r){
+    $('org-report-btn').disabled=false;
+    if(r&&r.debounced){$('org-pipeline-status').textContent='Debounced. Try in '+r.nextAvailableInSec+'s.';}
+    else{$('org-pipeline-status').textContent='Report generated. State: '+(r.dataState||'?');if(r.blob)S.reportBlob=r.blob;}
+    refreshAll();
+  }).catch(function(e){$('org-report-btn').disabled=false;$('org-pipeline-status').textContent='Error: '+e.message;});
+}
+
+function orgStitchData(){
+  if(!confirm('Stitch data? After this, no more writes on this event.'))return;
+  $('org-stitch-btn').disabled=true;$('org-pipeline-status').textContent='Stitching…';
+  api('stitchData',{eventId:S.event.eventId}).then(function(r){
+    $('org-stitch-btn').disabled=false;
+    if(r.ok)$('org-pipeline-status').textContent='Stitch complete. Data frozen.';
+    else $('org-pipeline-status').textContent='Issues: '+(r.stitchError||'unknown');
+    refreshAll();
+  }).catch(function(e){$('org-stitch-btn').disabled=false;$('org-pipeline-status').textContent='Error: '+e.message;});
+}
+
+function orgLoadAssignments(){
+  if(!S.event)return;
+  api('listActiveEvents').then(function(events){
+    var h='';
+    for(var i=0;i<events.length;i++){
+      var e=events[i];
+      h+='<div style="padding:6px 0;border-bottom:1px solid var(--surface-2);font-size:0.82rem;display:flex;justify-content:space-between;align-items:center">';
+      h+='<div><strong>'+esc(e.name)+'</strong>';
+      if(e.eventCode)h+=' <span style="font-family:var(--mono);color:var(--primary)">'+esc(e.eventCode)+'</span>';
+      h+='<br><span style="color:var(--text-dim)">'+(e.claimedByName?'Claimed by '+esc(e.claimedByName):'Unclaimed')+'</span></div>';
+      if(e.claimedByTL){h+='<button onclick="orgUnclaimEvent(\''+esc(e.eventId)+'\')" style="padding:4px 10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.75rem;cursor:pointer;font-family:inherit">Unclaim</button>';}
+      h+='</div>';
+    }
+    if(!h)h='<div class="muted" style="font-size:0.82rem">No active events</div>';
+    $('org-assignments').innerHTML=h;
+  }).catch(function(){$('org-assignments').innerHTML='<div class="muted">Error loading</div>';});
+}
+
+function orgUnclaimEvent(eventId){
+  if(!confirm('Unclaim this event?'))return;
+  api('unclaimEvent',{eventId:eventId}).then(function(){orgLoadAssignments();}).catch(function(e){alert('Error: '+e.message);});
+}
+
+/* ═══ TL Collect Tab ═══ */
+var tlColl={gpsWatchId:null,gpsBuffer:[],startMs:null,tickTimer:null,paused:false,pauseMs:null,
+  sessionId:null,legId:null,legNumber:0,totalDist:0,lastPos:null};
+
+function tlStartCollecting(){
+  var pre=parseInt($('tl-pre-rating').value)||5;
+  $('tl-coll-start').disabled=true;
+  api('startOrResumeSession',{preRating:pre,trackingMode:'native'}).then(function(d){
+    $('tl-coll-start').disabled=false;
+    tlColl.sessionId=d.sessionId;tlColl.legId=d.legId;tlColl.legNumber=d.legNumber||1;
+    tlColl.startMs=Date.now();tlColl.totalDist=0;tlColl.lastPos=null;tlColl.paused=false;
+    $('coll-idle').style.display='none';$('coll-active').style.display='block';
+    tlStartGPS();tlStartTicker();
+  }).catch(function(e){$('tl-coll-start').disabled=false;alert('Error: '+e.message);});
+}
+
+function tlStartGPS(){
+  if(!navigator.geolocation)return;
+  tlColl.gpsWatchId=navigator.geolocation.watchPosition(function(pos){
+    var pt={lat:pos.coords.latitude,lon:pos.coords.longitude,accuracy:pos.coords.accuracy,timestamp:Date.now()};
+    if(tlColl.lastPos){
+      var d=haversineM(tlColl.lastPos.lat,tlColl.lastPos.lon,pt.lat,pt.lon);
+      if(d>2)tlColl.totalDist+=d;
+    }
+    tlColl.lastPos=pt;tlColl.gpsBuffer.push(pt);
+    $('tl-coll-dist').textContent=(tlColl.totalDist/1609.34).toFixed(4);
+    $('tl-coll-gps').textContent='GPS · ±'+Math.round(pos.coords.accuracy)+'m · '+tlColl.gpsBuffer.length+' pts';
+    // Flush buffer periodically
+    if(tlColl.gpsBuffer.length>=10){tlFlushGPS();}
+  },function(){$('tl-coll-gps').textContent='GPS error';},{enableHighAccuracy:true,maximumAge:3000,timeout:15000});
+}
+
+function tlStopGPS(){if(tlColl.gpsWatchId!=null){try{navigator.geolocation.clearWatch(tlColl.gpsWatchId);}catch(e){}tlColl.gpsWatchId=null;}}
+
+function tlFlushGPS(){
+  if(tlColl.gpsBuffer.length===0)return;
+  var batch=tlColl.gpsBuffer.splice(0);
+  api('submitGPSBatch',{sessionId:tlColl.sessionId,legId:tlColl.legId,points:batch}).catch(function(){
+    // Put back on failure
+    tlColl.gpsBuffer=batch.concat(tlColl.gpsBuffer);
+  });
+}
+
+function haversineM(a,b,c,d){var R=6371000,x=(c-a)*Math.PI/180,y=(d-b)*Math.PI/180,z=Math.sin(x/2)*Math.sin(x/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(y/2)*Math.sin(y/2);return R*2*Math.atan2(Math.sqrt(z),Math.sqrt(1-z));}
+
+function tlStartTicker(){
+  if(tlColl.tickTimer)clearInterval(tlColl.tickTimer);
+  tlColl.tickTimer=setInterval(function(){
+    var elapsed=Math.max(0,Math.floor((Date.now()-tlColl.startMs)/1000));
+    var m=Math.floor(elapsed/60),s=elapsed%60;
+    $('tl-coll-time').textContent=m+':'+(s<10?'0':'')+s;
+  },1000);
+}
+
+function tlTogglePause(){
+  tlColl.paused=!tlColl.paused;
+  var btn=$('tl-pause-btn');
+  if(tlColl.paused){btn.textContent='▶ Resume';tlStopGPS();clearInterval(tlColl.tickTimer);tlColl.pauseMs=Date.now();}
+  else{btn.textContent='⏸ Pause';if(tlColl.pauseMs){tlColl.startMs+=(Date.now()-tlColl.pauseMs);tlColl.pauseMs=null;}tlStartGPS();tlStartTicker();}
+}
+
+function tlEndLeg(){
+  tlStopGPS();clearInterval(tlColl.tickTimer);tlFlushGPS();
+  $('coll-active').style.display='none';$('coll-weight').style.display='block';
+  $('tl-weight').value='';$('tl-weight-err').textContent='';
+}
+
+function tlSubmitWeight(){
+  var w=parseFloat($('tl-weight').value);
+  if(isNaN(w)||w<0){$('tl-weight-err').textContent='Enter a valid weight';return;}
+  showBusy('Submitting…');
+  api('endLeg',{sessionId:tlColl.sessionId,legId:tlColl.legId,weightLbs:w}).then(function(d){
+    hideBusy();$('coll-weight').style.display='none';$('coll-done').style.display='block';
+    var h='';
+    h+='<div class="stat-row"><span class="k">Weight</span><span class="v">'+fmtLbs(d.weightLbs)+' lbs</span></div>';
+    h+='<div class="stat-row"><span class="k">Distance</span><span class="v">'+fmtMiles(d.distanceM)+' mi</span></div>';
+    h+='<div class="stat-row"><span class="k">Duration</span><span class="v">'+(d.durationSec?Math.round(d.durationSec/60):0)+' min</span></div>';
+    if(d.sqrtCpue!=null)h+='<div class="stat-row"><span class="k">√CPUE</span><span class="v">'+d.sqrtCpue.toFixed(4)+'</span></div>';
+    $('tl-leg-results').innerHTML=h;
+    refreshAll();
+  }).catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+
+function tlNextLeg(){
+  showBusy('Starting leg…');
+  api('startNextLeg',{sessionId:tlColl.sessionId}).then(function(d){
+    hideBusy();tlColl.legId=d.legId;tlColl.legNumber=d.legNumber;
+    tlColl.startMs=Date.now();tlColl.totalDist=0;tlColl.lastPos=null;tlColl.paused=false;
+    $('coll-done').style.display='none';$('coll-active').style.display='block';
+    $('tl-coll-dist').textContent='0.0000';$('tl-coll-time').textContent='0:00';
+    tlStartGPS();tlStartTicker();
+  }).catch(function(e){hideBusy();alert('Error: '+e.message);});
+}
+
+function tlFinishSession(){
+  if(!confirm('Finish your collection session?'))return;
+  showBusy('Finishing…');tlFlushGPS();
+  api('finishSession',{sessionId:tlColl.sessionId}).then(function(){
+    hideBusy();$('coll-done').style.display='none';$('coll-idle').style.display='block';
+    tlColl.sessionId=null;tlColl.legId=null;
+    alert('Session complete!');refreshAll();
+  }).catch(function(e){hideBusy();alert('Error: '+e.message);});
 }
 
 boot();
