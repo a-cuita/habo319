@@ -217,7 +217,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
       <option value="meetup">Meetup point</option>
     </select>
   </div>
-  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*" capture="environment" style="font-size:0.85rem;font-family:inherit"></div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*" style="font-size:0.85rem;font-family:inherit"></div>
   <div class="err" id="pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closePinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -918,7 +918,10 @@ function renderFeed(){
   var h='';for(var i=0;i<recent.length;i++){var e=recent[i];
     var who=lookupName(e.volunteer_id)||(e.volunteer_id?e.volunteer_id.substring(0,6):'—');
     var msg=describe(e);
-    h+='<div class="feed-row"><div class="when">'+fmtTime(e.ts)+'</div><div><span class="who">'+esc(who)+'</span> '+esc(msg)+'</div></div>';
+    var detail=describeDetail(e,recent,i);
+    h+='<div class="feed-row"><div class="when">'+fmtTime(e.ts)+'</div><div><span class="who">'+esc(who)+'</span> '+esc(msg);
+    if(detail)h+='<div style="font-size:0.72rem;color:var(--text-dim);margin-top:2px;font-family:var(--mono)">'+esc(detail)+'</div>';
+    h+='</div></div>';
   }$('feed-list').innerHTML=h;
 }
 function lookupName(vid){
@@ -936,8 +939,44 @@ function describe(e){switch(e.mutation_type){
   case'activity_pocket_enter':return'🔒 pocket mode';case'activity_pocket_exit':return'🔓 exited pocket mode';
   case'gates_updated':return'completed gates';case'tracking_choice':return'chose tracking';
   case'volunteer_updated':return'profile updated';case'volunteer_deleted':return'removed';
+  case'pin_created':return'📍 dropped pin';
   default:return e.mutation_type;
 }}
+function describeDetail(e,list,idx){
+  var p=null;try{p=JSON.parse(e.payload_json||'{}');}catch(x){return null;}
+  if(e.mutation_type==='leg_end'&&p){
+    var parts=[];
+    if(p.weight_lbs!=null)parts.push(p.weight_lbs.toFixed(2)+' lbs');
+    if(p.distance_m!=null)parts.push((p.distance_m/1609.34).toFixed(3)+' mi');
+    if(p.duration_sec!=null)parts.push(Math.round(p.duration_sec/60)+' min');
+    if(p.sqrt_cpue_raw!=null)parts.push('√CPUE '+p.sqrt_cpue_raw.toFixed(2));
+    return parts.join(' · ');
+  }
+  if(e.mutation_type==='activity_resumed'){
+    // Find matching pause to calculate duration
+    for(var j=idx+1;j<list.length;j++){
+      if(list[j].volunteer_id===e.volunteer_id&&list[j].mutation_type==='activity_paused'){
+        var pausedAt=new Date(list[j].ts),resumedAt=new Date(e.ts);
+        var durSec=Math.round((resumedAt-pausedAt)/1000);
+        if(durSec>0)return'paused for '+Math.floor(durSec/60)+'m '+durSec%60+'s';
+        break;
+      }
+    }
+  }
+  if(e.mutation_type==='pin_created'&&p){
+    var parts=[];
+    if(p.note)parts.push(p.note);
+    if(p.category&&p.category!=='general')parts.push(p.category);
+    return parts.join(' · ')||null;
+  }
+  if(e.mutation_type==='session_finish'&&p){
+    var parts=[];
+    if(p.total_weight_lbs!=null)parts.push(p.total_weight_lbs.toFixed(2)+' lbs total');
+    if(p.leg_count!=null)parts.push(p.leg_count+' legs');
+    return parts.join(' · ')||null;
+  }
+  return null;
+}
 
 /* Map */
 function initMap(){
