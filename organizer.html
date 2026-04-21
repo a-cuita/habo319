@@ -193,6 +193,18 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     </details>
   </div>
 
+  <!-- Settings -->
+  <div class="card">
+    <h2>Settings</h2>
+    <div style="margin-bottom:12px">
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Access request notification emails</label>
+      <p class="muted" style="font-size:0.78rem;margin-bottom:6px">Comma-separated. When someone requests TL access, all listed emails get notified.</p>
+      <input id="cfg-access-emails" type="text" placeholder="organizer@example.com, tl2@example.com" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:inherit">
+      <button class="btn primary" onclick="saveAccessEmails()" style="margin-top:6px">Save</button>
+      <div id="cfg-access-status" style="font-size:0.78rem;color:var(--text-dim);margin-top:4px"></div>
+    </div>
+  </div>
+
   <!-- All events history -->
   <div class="card">
     <h2>Location history</h2>
@@ -381,6 +393,7 @@ function loadMain(){
   loadAllEvents();
   loadTLList();
   loadGateList();
+  loadAccessEmails();
 }
 
 function loadActiveEvent(){
@@ -789,6 +802,22 @@ function doReStitch(){
     out.textContent='Re-stitch result:\n\n'+JSON.stringify(d,null,2);
     loadAllEvents();
   }).catch(function(e){out.textContent='Re-stitch failed: '+e.message;});
+}
+
+/* ═══ Access Request Email Config ═══ */
+function loadAccessEmails(){
+  api('admin_getSetting',{key:'access_request_emails'}).then(function(d){
+    $('cfg-access-emails').value=d.value||'';
+  }).catch(function(){});
+}
+
+function saveAccessEmails(){
+  var val=$('cfg-access-emails').value.trim();
+  if(!val){$('cfg-access-status').textContent='Enter at least one email';return;}
+  api('admin_setSetting',{key:'access_request_emails',value:val,description:'Comma-separated emails that receive TL access requests'}).then(function(){
+    $('cfg-access-status').textContent='✓ Saved';
+    setTimeout(function(){$('cfg-access-status').textContent='';},3000);
+  }).catch(function(e){$('cfg-access-status').textContent='Error: '+e.message;});
 }
 </script>
 </body>
