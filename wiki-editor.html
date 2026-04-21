@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>CMRA Wiki Card Editor</title>
+<style>
+:root{--bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;--border:#d1d1d6;--primary:#2563eb;--primary-dim:#dbeafe;--primary-text:#1d4ed8;--accent:#2c8a3d;--accent-dim:#d4f1dc;--amber:#d97706;--danger:#dc2626;--text:#1c1c1e;--text-dim:#8e8e93;--radius:14px;--radius-sm:10px;--radius-xs:8px;--font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}html,body{width:100%;height:100%;font-family:var(--font);background:var(--bg);color:var(--text);line-height:1.5;overflow:hidden}
+.auth-gate{display:flex;align-items:center;justify-content:center;height:100vh;padding:24px}
+.auth-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:28px;max-width:340px;width:100%;text-align:center}
+.auth-card h1{font-size:1.2rem;margin-bottom:6px}.auth-card p{font-size:0.85rem;color:var(--text-dim);margin-bottom:16px}
+.auth-card input{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit;margin-bottom:10px}
+.auth-card input:focus{outline:none;border-color:var(--primary)}.auth-card .err{color:var(--danger);font-size:0.82rem;margin-bottom:8px;min-height:18px}
+.app{display:none;height:100vh;flex-direction:row}.app.active{display:flex}
+.sidebar{width:260px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;height:100vh}
+.sidebar-header{padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.sidebar-header h2{font-size:0.95rem;font-weight:800}
+.sidebar-list{flex:1;overflow-y:auto;padding:6px 0}
+.sidebar-item{padding:10px 16px;cursor:pointer;border-bottom:1px solid var(--surface-2);font-size:0.85rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sidebar-item:hover{background:var(--surface-2)}.sidebar-item.active{background:var(--primary-dim);color:var(--primary-text);font-weight:700}
+.sidebar-item .sub{font-size:0.72rem;color:var(--text-dim);margin-top:2px;font-weight:400}
+.sidebar-empty{padding:20px 16px;color:var(--text-dim);font-size:0.85rem;text-align:center}
+.editor{flex:1;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+.editor-header{padding:12px 20px;border-bottom:1px solid var(--border);background:var(--surface);display:flex;align-items:center;justify-content:space-between;gap:10px;flex-shrink:0}
+.editor-header h2{font-size:0.95rem;font-weight:700}.editor-body{flex:1;overflow-y:auto;padding:20px}
+.editor-empty{display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-dim);font-size:0.95rem}
+.field{margin-bottom:16px}.field label{display:block;font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px}
+.field input,.field textarea{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit;background:var(--surface);color:var(--text)}
+.field input:focus,.field textarea:focus{outline:none;border-color:var(--primary)}.field textarea{resize:vertical;min-height:80px;line-height:1.5}
+.btn{padding:10px 16px;border-radius:var(--radius-sm);font-weight:700;font-size:0.85rem;cursor:pointer;border:none;font-family:inherit}.btn:disabled{opacity:0.5;cursor:not-allowed}
+.btn-primary{background:var(--primary);color:#fff}.btn-accent{background:var(--accent);color:#fff}.btn-danger{background:var(--danger);color:#fff}
+.btn-ghost{background:var(--surface-2);color:var(--text);border:1px solid var(--border)}.btn-sm{padding:6px 12px;font-size:0.78rem}.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+.img-area{border:2px dashed var(--border);border-radius:var(--radius-sm);min-height:200px;position:relative;overflow:hidden;background:var(--surface-2);margin-bottom:8px}
+.img-area.has-image{border-style:solid}.img-drop{display:flex;flex-direction:column;align-items:center;justify-content:center;height:200px;cursor:pointer;color:var(--text-dim);font-size:0.85rem;gap:8px}.img-drop span{font-size:2rem}
+.crop-viewport{width:100%;height:300px;overflow:hidden;position:relative;cursor:grab;touch-action:none}.crop-viewport:active{cursor:grabbing}
+.crop-viewport img{position:absolute;user-select:none;-webkit-user-drag:none;transform-origin:0 0}
+.markup-area{position:relative}.markup-area canvas{display:block;width:100%;border-radius:var(--radius-xs)}
+.markup-tools{display:flex;gap:6px;align-items:center;padding:8px 0;flex-wrap:wrap}
+.color-swatch{width:28px;height:28px;border-radius:50%;cursor:pointer;border:2px solid transparent}.color-swatch.active{border-color:var(--text);box-shadow:0 0 0 2px var(--surface)}
+.tool-btn{padding:6px 10px;font-size:0.78rem;font-weight:600;border:1px solid var(--border);background:var(--surface);border-radius:var(--radius-xs);cursor:pointer;font-family:inherit}
+.tool-btn.active{background:var(--primary);color:#fff;border-color:var(--primary)}
+.assign-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.assign-row{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:0.85rem}.assign-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--primary)}
+.preview-section{margin-top:16px;padding-top:16px;border-top:1px solid var(--border)}
+.preview-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;max-width:360px}
+.preview-card h4{font-weight:800;font-size:0.95rem;margin-bottom:6px}.preview-card p{font-size:0.88rem;color:var(--text-dim);line-height:1.5}.preview-card img{width:100%;border-radius:var(--radius-xs);margin-bottom:8px}
+@media(max-width:680px){.sidebar{width:100%;height:auto;max-height:40vh;border-right:none;border-bottom:1px solid var(--border)}.app{flex-direction:column}}
+</style>
+</head>
+<body>
+<div class="auth-gate" id="auth-gate"><div class="auth-card"><h1>🌱 Wiki Card Editor</h1><p>Create info cards for volunteer waiting rooms.</p><input type="password" id="auth-key" placeholder="Admin key" autocapitalize="off"><div class="err" id="auth-err"></div><button class="btn btn-primary" style="width:100%" onclick="doAuth()">Unlock</button></div></div>
+<div class="app" id="app">
+<div class="sidebar"><div class="sidebar-header"><h2>Card Library</h2><button class="btn btn-sm btn-primary" onclick="newCard()">+ New</button></div><div class="sidebar-list" id="sidebar-list"><div class="sidebar-empty">No cards yet</div></div></div>
+<div class="editor"><div class="editor-header"><h2 id="editor-title">Select a card or create new</h2><div class="btn-row" id="editor-actions" style="display:none"><button class="btn btn-sm btn-ghost" onclick="duplicateCard()">Duplicate</button><button class="btn btn-sm btn-danger" onclick="deleteCard()">Delete</button></div></div>
+<div class="editor-body"><div class="editor-empty" id="editor-empty">Select a card from the library or create a new one.</div>
+<div id="editor-form" style="display:none">
+<div class="field"><label>Title</label><input type="text" id="card-title" placeholder="Card title" maxlength="100"></div>
+<div class="field"><label>Body</label><textarea id="card-body" placeholder="Card content" maxlength="500" rows="4"></textarea></div>
+<div class="field"><label>Image (optional)</label>
+<div class="img-area" id="img-area">
+<div class="img-drop" id="img-drop" onclick="document.getElementById('img-input').click()"><span>📷</span><div>Tap to upload</div></div>
+<input type="file" id="img-input" accept="image/*" style="display:none" onchange="imageUploaded(this)">
+<div id="crop-container" style="display:none"><div class="crop-viewport" id="crop-viewport"><img id="crop-img" draggable="false"></div><div class="btn-row" style="padding:8px"><button class="btn btn-sm btn-primary" onclick="confirmCrop()">Confirm crop</button><button class="btn btn-sm btn-ghost" onclick="clearImage()">Remove</button></div></div>
+<div id="markup-container" style="display:none"><div class="markup-area"><canvas id="markup-canvas"></canvas></div>
+<div class="markup-tools"><button class="tool-btn active" id="tool-draw" onclick="setTool('draw')">Draw</button><button class="tool-btn" id="tool-text" onclick="setTool('text')">Text</button><button class="tool-btn" id="tool-eraser" onclick="setTool('eraser')">Eraser</button><div style="width:1px;height:20px;background:var(--border);margin:0 4px"></div><div id="color-palette"></div><div style="margin-left:auto" class="btn-row"><button class="btn btn-sm btn-ghost" onclick="undoMarkup()">Undo</button><button class="btn btn-sm btn-ghost" onclick="recrop()">Re-crop</button><button class="btn btn-sm btn-danger" onclick="clearImage()">Remove</button></div></div></div>
+</div></div>
+<div class="assign-section"><label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Assign to locations</label><div class="assign-row"><input type="checkbox" id="assign-all" onchange="toggleAssignAll()"><label for="assign-all" style="font-weight:700">All locations</label></div><div id="assign-events"></div></div>
+<div style="margin-top:20px" class="btn-row"><button class="btn btn-accent" onclick="saveCard()" id="btn-save">Save card</button></div>
+<div class="preview-section"><label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Preview</label><div class="preview-card"><h4 id="preview-title">Title</h4><div id="preview-img"></div><p id="preview-body">Body text</p></div></div>
+</div></div></div>
+</div>
+<script>
+var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
+var AUTH={adminKey:null},CARDS=[],EVENTS=[],ACTIVE_ID=null;
+var IMG={raw:null,cropX:0,cropY:0,cropScale:1,croppedData:null,markupHistory:[],tool:'draw',color:'#dc2626',drawing:false};
+var COLORS=['#dc2626','#ea580c','#d97706','#16a34a','#2563eb','#7c3aed','#1c1c1e','#ffffff'];
+function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
+function api(action,data){var body=Object.assign({action:action,version:'v3'},data||{});if(AUTH.adminKey)body.adminKey=AUTH.adminKey;return fetch(API_URL,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)}).then(function(r){return r.json();}).then(function(r){if(!r.success)throw new Error(r.error||'API error');return r.data;});}
+
+function doAuth(){var key=document.getElementById('auth-key').value.trim();if(!key){document.getElementById('auth-err').textContent='Enter admin key';return;}AUTH.adminKey=key;api('getWikiCards').then(function(d){CARDS=d.cards||[];document.getElementById('auth-gate').style.display='none';document.getElementById('app').classList.add('active');loadEvents();renderSidebar();}).catch(function(e){AUTH.adminKey=null;document.getElementById('auth-err').textContent=e.message||'Invalid key';});}
+
+function loadEvents(){api('debug_listAll',{adminKey:AUTH.adminKey}).then(function(d){EVENTS=(d.events||[]).map(function(ev){return{eventId:ev.eventId||ev.event_id,name:ev.eventName||ev.event_name||ev.eventId,status:ev.status};});renderAssignments();}).catch(function(){});}
+
+function renderSidebar(){var el=document.getElementById('sidebar-list');if(CARDS.length===0){el.innerHTML='<div class="sidebar-empty">No cards yet. Tap + New.</div>';return;}var h='';for(var i=0;i<CARDS.length;i++){var c=CARDS[i];var cls='sidebar-item'+(c.id===ACTIVE_ID?' active':'');var al=(!c.assignedTo||c.assignedTo.indexOf('*')!==-1)?'All locations':(c.assignedTo.length+' location(s)');h+='<div class="'+cls+'" onclick="selectCard(\''+c.id+'\')">'+esc(c.title||'Untitled')+'<div class="sub">'+esc(al)+'</div></div>';}el.innerHTML=h;}
+
+function newCard(){var card={id:'wc_'+Date.now(),title:'',body:'',imageData:null,assignedTo:['*'],createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};CARDS.push(card);selectCard(card.id);}
+
+function selectCard(id){ACTIVE_ID=id;var card=findCard(id);if(!card){showEmpty();return;}document.getElementById('editor-empty').style.display='none';document.getElementById('editor-form').style.display='block';document.getElementById('editor-actions').style.display='flex';document.getElementById('editor-title').textContent=card.title||'New card';document.getElementById('card-title').value=card.title||'';document.getElementById('card-body').value=card.body||'';clearImageState();if(card.imageData){IMG.croppedData=card.imageData;showMarkupPhase(card.imageData);}else{showUploadPhase();}renderAssignments();updatePreview();renderSidebar();}
+
+function duplicateCard(){var card=findCard(ACTIVE_ID);if(!card)return;var copy=JSON.parse(JSON.stringify(card));copy.id='wc_'+Date.now();copy.title=card.title+' (copy)';copy.createdAt=new Date().toISOString();CARDS.push(copy);selectCard(copy.id);}
+
+function deleteCard(){if(!confirm('Delete this card?'))return;CARDS=CARDS.filter(function(c){return c.id!==ACTIVE_ID;});ACTIVE_ID=null;showEmpty();renderSidebar();persistCards();}
+
+function saveCard(){var card=findCard(ACTIVE_ID);if(!card)return;card.title=document.getElementById('card-title').value.trim();card.body=document.getElementById('card-body').value.trim();if(!card.title){alert('Title required');return;}var mc=document.getElementById('markup-canvas');if(mc&&mc.width>0&&document.getElementById('markup-container').style.display!=='none'){card.imageData=mc.toDataURL('image/jpeg',0.8);}else if(IMG.croppedData){card.imageData=IMG.croppedData;}else{card.imageData=null;}card.assignedTo=getAssignments();card.updatedAt=new Date().toISOString();document.getElementById('editor-title').textContent=card.title;renderSidebar();updatePreview();persistCards();}
+
+function persistCards(){document.getElementById('btn-save').disabled=true;document.getElementById('btn-save').textContent='Saving...';api('setWikiCards',{cards:CARDS}).then(function(){document.getElementById('btn-save').disabled=false;document.getElementById('btn-save').textContent='Save card';}).catch(function(e){document.getElementById('btn-save').disabled=false;document.getElementById('btn-save').textContent='Save card';alert('Save failed: '+e.message);});}
+
+function findCard(id){for(var i=0;i<CARDS.length;i++){if(CARDS[i].id===id)return CARDS[i];}return null;}
+function showEmpty(){document.getElementById('editor-empty').style.display='flex';document.getElementById('editor-form').style.display='none';document.getElementById('editor-actions').style.display='none';document.getElementById('editor-title').textContent='Select a card or create new';}
+
+function updatePreview(){var t=document.getElementById('card-title').value.trim()||'Title';var b=document.getElementById('card-body').value.trim()||'Body text';document.getElementById('preview-title').textContent=t;document.getElementById('preview-body').textContent=b;var imgEl=document.getElementById('preview-img');var mc=document.getElementById('markup-canvas');if(mc&&mc.width>0&&document.getElementById('markup-container').style.display!=='none'){imgEl.innerHTML='<img src="'+mc.toDataURL('image/jpeg',0.8)+'">';}else if(IMG.croppedData){imgEl.innerHTML='<img src="'+IMG.croppedData+'">';}else{imgEl.innerHTML='';}}
+
+function showUploadPhase(){document.getElementById('img-drop').style.display='flex';document.getElementById('crop-container').style.display='none';document.getElementById('markup-container').style.display='none';document.getElementById('img-area').classList.remove('has-image');}
+function clearImage(){clearImageState();IMG.croppedData=null;showUploadPhase();document.getElementById('img-input').value='';updatePreview();}
+function clearImageState(){IMG.raw=null;IMG.cropX=0;IMG.cropY=0;IMG.cropScale=1;IMG.markupHistory=[];IMG.drawing=false;}
+
+function imageUploaded(input){if(!input.files||!input.files[0])return;var reader=new FileReader();reader.onload=function(e){var img=new Image();img.onload=function(){IMG.raw=img;showCropPhase();};img.src=e.target.result;};reader.readAsDataURL(input.files[0]);}
+
+function showCropPhase(){document.getElementById('img-drop').style.display='none';document.getElementById('crop-container').style.display='block';document.getElementById('markup-container').style.display='none';document.getElementById('img-area').classList.add('has-image');var vp=document.getElementById('crop-viewport');var imgEl=document.getElementById('crop-img');imgEl.src=IMG.raw.src;var vw=vp.offsetWidth;var vh=300;var scale=Math.max(vw/IMG.raw.width,vh/IMG.raw.height);IMG.cropScale=scale;IMG.cropX=(vw-IMG.raw.width*scale)/2;IMG.cropY=(vh-IMG.raw.height*scale)/2;applyCropTransform();var dragging=false,sx,sy,scx,scy;vp.onpointerdown=function(e){dragging=true;sx=e.clientX;sy=e.clientY;scx=IMG.cropX;scy=IMG.cropY;vp.setPointerCapture(e.pointerId);};vp.onpointermove=function(e){if(!dragging)return;IMG.cropX=scx+(e.clientX-sx);IMG.cropY=scy+(e.clientY-sy);applyCropTransform();};vp.onpointerup=function(){dragging=false;};vp.onwheel=function(e){e.preventDefault();var d=e.deltaY>0?0.9:1.1;var min=Math.max(vw/IMG.raw.width,vh/IMG.raw.height)*0.5;IMG.cropScale=Math.max(min,Math.min(5,IMG.cropScale*d));applyCropTransform();};}
+function applyCropTransform(){var el=document.getElementById('crop-img');el.style.transform='translate('+IMG.cropX+'px,'+IMG.cropY+'px) scale('+IMG.cropScale+')';el.style.width=IMG.raw.width+'px';el.style.height=IMG.raw.height+'px';}
+
+function confirmCrop(){var vp=document.getElementById('crop-viewport');var vw=vp.offsetWidth;var vh=300;var c=document.createElement('canvas');c.width=vw;c.height=vh;c.getContext('2d').drawImage(IMG.raw,IMG.cropX,IMG.cropY,IMG.raw.width*IMG.cropScale,IMG.raw.height*IMG.cropScale);IMG.croppedData=c.toDataURL('image/jpeg',0.85);showMarkupPhase(IMG.croppedData);}
+function recrop(){if(!IMG.raw){clearImage();return;}showCropPhase();}
+
+function showMarkupPhase(dataUrl){document.getElementById('img-drop').style.display='none';document.getElementById('crop-container').style.display='none';document.getElementById('markup-container').style.display='block';document.getElementById('img-area').classList.add('has-image');var canvas=document.getElementById('markup-canvas');var ctx=canvas.getContext('2d');var img=new Image();img.onload=function(){canvas.width=img.width;canvas.height=img.height;ctx.drawImage(img,0,0);saveMarkupSnapshot();initMarkupEvents();updatePreview();};img.src=dataUrl;}
+
+function saveMarkupSnapshot(){var c=document.getElementById('markup-canvas');IMG.markupHistory.push(c.toDataURL());if(IMG.markupHistory.length>20)IMG.markupHistory.shift();}
+function undoMarkup(){if(IMG.markupHistory.length<2)return;IMG.markupHistory.pop();var prev=IMG.markupHistory[IMG.markupHistory.length-1];var c=document.getElementById('markup-canvas');var ctx=c.getContext('2d');var img=new Image();img.onload=function(){ctx.clearRect(0,0,c.width,c.height);ctx.drawImage(img,0,0);updatePreview();};img.src=prev;}
+
+function buildColorPalette(){var el=document.getElementById('color-palette');var h='';for(var i=0;i<COLORS.length;i++){var a=COLORS[i]===IMG.color?' active':'';var b=COLORS[i]==='#ffffff'?';border:1px solid var(--border)':'';h+='<span class="color-swatch'+a+'" style="background:'+COLORS[i]+b+'" onclick="pickColor(\''+COLORS[i]+'\',this)"></span>';}el.innerHTML=h;}
+function pickColor(c,el){IMG.color=c;var all=document.querySelectorAll('.color-swatch');for(var i=0;i<all.length;i++)all[i].classList.remove('active');if(el)el.classList.add('active');}
+function setTool(t){IMG.tool=t;document.getElementById('tool-draw').classList.toggle('active',t==='draw');document.getElementById('tool-text').classList.toggle('active',t==='text');document.getElementById('tool-eraser').classList.toggle('active',t==='eraser');}
+
+function initMarkupEvents(){var canvas=document.getElementById('markup-canvas');var ctx=canvas.getContext('2d');function getPos(e){var rect=canvas.getBoundingClientRect();var sx=canvas.width/rect.width;var sy=canvas.height/rect.height;var cx=e.touches?e.touches[0].clientX:e.clientX;var cy=e.touches?e.touches[0].clientY:e.clientY;return{x:(cx-rect.left)*sx,y:(cy-rect.top)*sy};}
+canvas.onpointerdown=function(e){if(IMG.tool==='text'){var pos=getPos(e);var text=prompt('Enter text:');if(!text)return;ctx.font='bold '+Math.max(16,Math.round(canvas.width/20))+'px -apple-system,sans-serif';ctx.fillStyle=IMG.color;ctx.strokeStyle=IMG.color==='#ffffff'?'#000':'rgba(0,0,0,0.4)';ctx.lineWidth=2;ctx.strokeText(text,pos.x,pos.y);ctx.fillText(text,pos.x,pos.y);saveMarkupSnapshot();updatePreview();return;}IMG.drawing=true;var pos=getPos(e);ctx.beginPath();ctx.moveTo(pos.x,pos.y);ctx.lineCap='round';ctx.lineJoin='round';if(IMG.tool==='eraser'){ctx.globalCompositeOperation='destination-out';ctx.lineWidth=Math.max(8,Math.round(canvas.width/25));}else{ctx.globalCompositeOperation='source-over';ctx.strokeStyle=IMG.color;ctx.lineWidth=Math.max(3,Math.round(canvas.width/80));}canvas.setPointerCapture(e.pointerId);};
+canvas.onpointermove=function(e){if(!IMG.drawing)return;var pos=getPos(e);ctx.lineTo(pos.x,pos.y);ctx.stroke();};
+canvas.onpointerup=function(){if(!IMG.drawing)return;IMG.drawing=false;ctx.globalCompositeOperation='source-over';saveMarkupSnapshot();updatePreview();};}
+
+function renderAssignments(){var card=findCard(ACTIVE_ID);var assigned=card?card.assignedTo||[]:[];var isAll=assigned.indexOf('*')!==-1;document.getElementById('assign-all').checked=isAll;var el=document.getElementById('assign-events');if(EVENTS.length===0){el.innerHTML='<div style="font-size:0.78rem;color:var(--text-dim);padding:4px 0">No events loaded yet.</div>';return;}var h='';for(var i=0;i<EVENTS.length;i++){var ev=EVENTS[i];var checked=isAll||assigned.indexOf(ev.eventId)!==-1;h+='<div class="assign-row"><input type="checkbox" id="assign-'+i+'" value="'+esc(ev.eventId)+'"'+(checked?' checked':'')+' onchange="assignChanged()"><label for="assign-'+i+'">'+esc(ev.name)+' <span style="color:var(--text-dim);font-size:0.72rem">('+esc(ev.status)+')</span></label></div>';}el.innerHTML=h;}
+function toggleAssignAll(){var checked=document.getElementById('assign-all').checked;var boxes=document.querySelectorAll('#assign-events input[type=checkbox]');for(var i=0;i<boxes.length;i++)boxes[i].checked=checked;}
+function assignChanged(){var boxes=document.querySelectorAll('#assign-events input[type=checkbox]');var allChecked=true;for(var i=0;i<boxes.length;i++){if(!boxes[i].checked){allChecked=false;break;}}document.getElementById('assign-all').checked=allChecked;}
+function getAssignments(){if(document.getElementById('assign-all').checked)return['*'];var out=[];var boxes=document.querySelectorAll('#assign-events input[type=checkbox]');for(var i=0;i<boxes.length;i++){if(boxes[i].checked)out.push(boxes[i].value);}return out.length>0?out:['*'];}
+
+document.addEventListener('DOMContentLoaded',function(){var ti=document.getElementById('card-title');var tb=document.getElementById('card-body');if(ti)ti.addEventListener('input',updatePreview);if(tb)tb.addEventListener('input',updatePreview);buildColorPalette();document.getElementById('auth-key').addEventListener('keydown',function(e){if(e.key==='Enter')doAuth();});var hash=window.location.hash;if(hash&&hash.indexOf('#key=')===0)document.getElementById('auth-key').value=hash.substring(5);});
+</script>
+</body>
+</html>
