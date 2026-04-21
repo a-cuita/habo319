@@ -126,20 +126,20 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 
   <!-- Active events with per-event actions -->
   <div class="card" id="active-card">
-    <h2>Active Events</h2>
+    <h2>Active Locations</h2>
     <div id="active-body"><div class="muted">Loading…</div></div>
   </div>
 
   <!-- Create event form -->
   <div class="card" id="create-card">
-    <h2>Create new event</h2>
-    <p class="muted" style="margin-bottom:10px">Multiple events can run simultaneously. Each can be claimed by a Team Leader.</p>
+    <h2>Create new location</h2>
+    <p class="muted" style="margin-bottom:10px">Multiple locations can run simultaneously. Each can be claimed by a Team Leader.</p>
     <div class="ig">
-      <label>Event name</label>
-      <input id="new-name" type="text" placeholder="e.g., Downtown Cleanup">
+      <label>Location name</label>
+      <input id="new-name" type="text" placeholder="e.g., Downtown · Dexter Ave">
     </div>
     <div class="ig">
-      <label>Event date</label>
+      <label>Date</label>
       <input id="new-date" type="date">
     </div>
     <div class="ig">
@@ -147,7 +147,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
       <input id="new-loc" type="text" placeholder="e.g., HABO Garden, Montgomery AL">
     </div>
     <div class="err" id="create-err"></div>
-    <button class="btn" onclick="doCreateEvent()" id="btn-create">Create event</button>
+    <button class="btn" onclick="doCreateEvent()" id="btn-create">Create location</button>
   </div>
 
   <!-- TL Management -->
@@ -186,7 +186,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 
   <!-- All events history -->
   <div class="card">
-    <h2>Event history</h2>
+    <h2>Location history</h2>
     <div id="all-events"><div class="muted">Loading…</div></div>
   </div>
 
@@ -198,8 +198,8 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <details style="margin-bottom:8px">
       <summary style="cursor:pointer;font-weight:700;padding:6px 0">Diagnostics</summary>
       <div style="padding-top:6px">
-        <button class="btn secondary" onclick="doDebug('debug_listAll','List events + volunteers')" style="margin-bottom:6px">List all (events, volunteers, tab counts)</button>
-        <button class="btn secondary" onclick="doDebug('debug_activeEvent','Active-event diagnostic')" style="margin-bottom:6px">Active-event diagnostic</button>
+        <button class="btn secondary" onclick="doDebug('debug_listAll','List locations + volunteers')" style="margin-bottom:6px">List all (events, volunteers, tab counts)</button>
+        <button class="btn secondary" onclick="doDebug('debug_activeEvent','Active location diagnostic')" style="margin-bottom:6px">Active location diagnostic</button>
         <button class="btn secondary" onclick="doDebug('debug_cacheStatus','Cache status')">Cache status</button>
       </div>
     </details>
@@ -223,7 +223,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
       <div style="padding-top:6px">
         <button class="btn secondary" onclick="doClearCache()">Clear cache only</button>
         <button class="btn" onclick="doNuke()" style="margin-top:6px;background:var(--danger);color:#fff">NUKE all vault data</button>
-        <p class="muted" style="font-size:0.78rem;margin-top:6px">Nuke wipes every event. TL accounts stay. Requires typed confirmation.</p>
+        <p class="muted" style="font-size:0.78rem;margin-top:6px">Nuke wipes every location. TL accounts stay. Requires typed confirmation.</p>
       </div>
     </details>
 
@@ -378,7 +378,7 @@ function loadActiveEvent(){
   api('listActiveEvents').then(function(events){
     if(!events||events.length===0){
       S.activeEventId=null;
-      $('active-body').innerHTML='<div class="muted">No active events right now. Create one below.</div>';
+      $('active-body').innerHTML='<div class="muted">No active locations right now. Create one below.</div>';
       return;
     }
     var h='';
@@ -395,12 +395,12 @@ function loadActiveEvent(){
       
       // Claimed status
       if(ev.claimedByName)h+='<div style="font-size:0.82rem;margin-top:6px">TL: <strong>'+esc(ev.claimedByName)+'</strong></div>';
-      else h+='<div style="font-size:0.82rem;margin-top:6px;color:var(--accent)">Unclaimed — waiting for a TL</div>';
+      else h+='<div style="font-size:0.82rem;margin-top:6px;color:var(--accent)">Unclaimed — available for a TL</div>';
       
       // Actions based on status
       if(ev.status==='active'){
-        h+='<div style="margin-top:10px"><div class="ig"><textarea id="end-msg-'+i+'" rows="2" placeholder="Event-end message for volunteers" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.85rem;resize:vertical"></textarea></div>';
-        h+='<button class="btn danger" style="margin-top:4px;width:100%" onclick="doEndEventOrganizer(\''+esc(ev.eventId)+'\','+i+')">End event</button></div>';
+        h+='<div style="margin-top:10px"><div class="ig"><textarea id="end-msg-'+i+'" rows="2" placeholder="Closing message for volunteers" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.85rem;resize:vertical"></textarea></div>';
+        h+='<button class="btn danger" style="margin-top:4px;width:100%" onclick="doEndEventOrganizer(\''+esc(ev.eventId)+'\','+i+')">End location</button></div>';
       }else{
         // Ended — show pipeline actions
         h+='<div style="margin-top:10px;display:flex;gap:6px">';
@@ -420,7 +420,7 @@ function loadActiveEvent(){
 function loadAllEvents(){
   api('debug_listAll',{adminKey:S.adminKey}).then(function(d){
     var events=(d&&d.events)||[];
-    if(events.length===0){$('all-events').innerHTML='<div class="muted">No events yet.</div>';return;}
+    if(events.length===0){$('all-events').innerHTML='<div class="muted">No locations yet.</div>';return;}
     var h='';
     for(var i=0;i<events.length;i++){
       var ev=events[i];
@@ -501,7 +501,7 @@ function doCreateEvent(){
   var name=$('new-name').value.trim();
   var date=$('new-date').value;
   var loc=$('new-loc').value.trim();
-  if(!name){showErr('create-err','Enter an event name');return;}
+  if(!name){showErr('create-err','Enter a location name');return;}
   $('btn-create').disabled=true;showBusy('Creating event…');
   var body={
     adminKey:S.adminKey,
@@ -517,18 +517,18 @@ function doCreateEvent(){
     loadActiveEvent();
   }).catch(function(e){
     hideBusy();$('btn-create').disabled=false;
-    showErr('create-err',e.message||'Could not create event');
+    showErr('create-err',e.message||'Could not create location');
   });
 }
 
-/* ═══ End event ═══ */
+/* ═══ End location ═══ */
 function doEndEventOrganizer(eventId,idx){
   var msgEl=$('end-msg-'+idx);
   var endMessage=msgEl?msgEl.value.trim():'';
-  if(!confirm('End this event? Volunteer app will stop accepting new joins. Dashboard stays available for accountability.'))return;
-  showBusy('Ending event…');
+  if(!confirm('End this location? Volunteer app will stop accepting new joins. Dashboard stays available for accountability.'))return;
+  showBusy('Ending location…');
   api('endEvent',{eventId:eventId,endMessage:endMessage}).then(function(r){
-    hideBusy();alert('Event ended.');
+    hideBusy();alert('Location ended.');
     loadActiveEvent();loadAllEvents();
   }).catch(function(e){hideBusy();alert('Error: '+(e.message||'could not end event'));});
 }
@@ -547,7 +547,7 @@ function doGenerateReportFor(eventId,btn){
 }
 
 function doStitchDataFor(eventId,btn){
-  if(!confirm('Stitch data for this event? After this, no more writes accepted.'))return;
+  if(!confirm('Stitch data for this location? After this, no more writes accepted.'))return;
   btn.disabled=true;btn.textContent='Stitching…';
   var statusEl=$('status-'+eventId);
   if(statusEl)statusEl.textContent='Stitching…';
@@ -658,7 +658,7 @@ function doDebug(action,label){
   }).catch(function(e){out.textContent=label+' failed: '+e.message;});
 }
 function doBootstrap(){
-  if(!confirm('Create a new test event with 3 dummy volunteers? Only works if there\'s no active event.'))return;
+  if(!confirm('Create a new test location with 3 dummy volunteers? Only works if there\'s no active event.'))return;
   var out=$('debug-output');out.style.display='block';out.textContent='Bootstrapping test event…';
   api('admin_bootstrapTest',{adminKey:S.adminKey,volunteerCount:3}).then(function(d){
     out.textContent='Bootstrapped:\n\n'+JSON.stringify(d,null,2);
