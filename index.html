@@ -86,29 +86,36 @@ h2{font-size:1.15rem;font-weight:800;margin-bottom:8px}
   <div class="sub">Community litter cleanup coordination</div>
 </div>
 
-<!-- ═══ Home: three-path selector ═══ -->
+<!-- ═══ Home ═══ -->
 <div class="screen active" id="screen-home">
   <div id="signed-in-area"></div>
 
-  <a class="path-card vol" href="volunteer.html">
-    <h2><span class="icon">🧤</span>I'm a Volunteer</h2>
-    <p>Join today's cleanup. Track your collection, rate the litter, earn stats.</p>
-  </a>
-
-  <div class="path-card tl" onclick="showTLLogin()" id="tl-card">
-    <h2><span class="icon">📋</span>Team Leader</h2>
-    <p>Manage your team, approve volunteers, track live positions.</p>
+  <div style="display:flex;gap:10px;margin-bottom:16px">
+    <a class="path-card vol" href="volunteer.html" style="flex:1;margin:0">
+      <h2><span class="icon">🧤</span>Volunteer</h2>
+      <p>Join a cleanup</p>
+    </a>
+    <div class="path-card tl" onclick="showTLLogin()" id="tl-card" style="flex:1;margin:0">
+      <h2><span class="icon">📋</span>Team Leader</h2>
+      <p>Manage a team</p>
+    </div>
   </div>
 
-  <a class="path-card" href="organizer.html">
-    <h2><span class="icon">⚙️</span>Organizer</h2>
-    <p>Create events, invite TLs, run reports, manage data.</p>
-  </a>
+  <!-- Community content inline -->
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+    <h2 style="font-size:1rem;font-weight:800;margin-bottom:10px">🌍 What's happening</h2>
+    <div id="community-events"><div style="color:var(--text-dim);font-size:0.88rem">Loading…</div></div>
+  </div>
 
-  <a class="path-card" href="community.html" style="border-color:transparent;background:var(--surface-2)">
-    <h2><span class="icon">🌍</span>Community</h2>
-    <p>See event stats. No account needed.</p>
-  </a>
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+    <h2 style="font-size:1rem;font-weight:800;margin-bottom:6px">🗺️ Community map — coming soon</h2>
+    <p style="font-size:0.88rem;color:var(--text-dim);line-height:1.5">A public map showing aggregated collection zones, heatmaps, and photos will live here. Zone boundaries, litter-density heatmaps, photo galleries from volunteer-submitted pins, and collection route aggregations — no names, no identifiable info.</p>
+  </div>
+
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:14px">
+    <h2 style="font-size:1rem;font-weight:800;margin-bottom:6px">Want to help?</h2>
+    <p style="font-size:0.88rem;color:var(--text-dim);line-height:1.5">If there's an active cleanup, tap <strong>Volunteer</strong> above to join from your phone. No account needed — just your first name.</p>
+  </div>
 </div>
 
 <!-- ═══ TL Login ═══ -->
@@ -340,6 +347,27 @@ function doSignOut(){
   $('signed-in-area').innerHTML='';
   $('tl-card').style.display='';
 }
+
+/* ═══ Community — load active events ═══ */
+(function loadCommunity(){
+  api('listActiveEvents').then(function(events){
+    var el=$('community-events');if(!el)return;
+    if(!events||events.length===0){el.innerHTML='<div style="color:var(--text-dim);font-size:0.88rem">No active cleanups right now. Check back on event day.</div>';return;}
+    var h='';
+    for(var i=0;i<events.length;i++){
+      var e=events[i];
+      var pill='<span style="display:inline-block;padding:2px 8px;border-radius:8px;font-size:0.7rem;font-weight:700;'+(e.status==='active'?'background:#d4f1dc;color:#2c8a3d':'background:#f0f0f5;color:#8e8e93')+'">'+esc(e.status)+'</span>';
+      h+='<div style="padding:10px 0;'+(i<events.length-1?'border-bottom:1px solid #f0f0f5':'')+'">';
+      h+='<div style="font-weight:700;font-size:0.95rem">'+esc(e.name)+' '+pill+'</div>';
+      if(e.eventCode)h+='<div style="font-family:ui-monospace,monospace;font-size:0.78rem;color:#2563eb;font-weight:700;letter-spacing:1px;margin-top:2px">'+esc(e.eventCode)+'</div>';
+      if(e.date)h+='<div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px">'+esc(e.date)+'</div>';
+      h+='</div>';
+    }
+    el.innerHTML=h;
+  }).catch(function(){
+    var el=$('community-events');if(el)el.innerHTML='<div style="color:var(--text-dim);font-size:0.88rem">Could not load events.</div>';
+  });
+})();
 </script>
 </body>
 </html>
