@@ -111,13 +111,13 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
 .cancel-fab{position:fixed;bottom:20px;right:20px;width:48px;height:48px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:1.4rem;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:50;font-family:inherit}
 
 .wiki-carousel{margin-top:16px}
-.wiki-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px;text-align:left;max-height:280px;overflow-y:auto;-webkit-overflow-scrolling:touch}
-.wiki-card h4{margin:0 0 6px;font-weight:800;font-size:0.95rem}
-.wiki-card p{margin:0;font-size:0.88rem;color:var(--text-dim);line-height:1.5;white-space:pre-wrap}
-.wiki-card img{width:100%;border-radius:var(--radius-sm);margin-bottom:8px}
-.wiki-dots{text-align:center;margin-top:8px}
+.wiki-dots{text-align:center;margin-bottom:8px}
 .wiki-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border);margin:0 3px;cursor:pointer}
 .wiki-dot.active{background:var(--primary)}
+.wiki-card{text-align:left}
+.wiki-card h4{margin:0 0 6px;font-weight:800;font-size:0.95rem}
+.wiki-card p{margin:0 0 10px;font-size:0.88rem;color:var(--text-dim);line-height:1.5;white-space:pre-wrap}
+.wiki-card img{width:100%;border-radius:0;display:block}
 
 .ep-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;margin-bottom:10px;cursor:pointer;transition:border-color 0.15s}
 .ep-card:active{border-color:var(--primary)}
@@ -524,11 +524,8 @@ function renderWikiCards(){
   var containers=document.querySelectorAll('.wiki-carousel');
   if(wikiCards.length===0){containers.forEach(function(c){c.innerHTML='';});return;}
   var card=wikiCards[wikiIndex];
-  var html='<div class="wiki-card" ontouchstart="wikiTouchStart=event.touches[0].clientX" ontouchend="wikiSwipe(event)">';
-  if(card.imageUrl||card.image)html+='<img src="'+esc(card.imageUrl||card.image)+'" onerror="this.style.display=\'none\'">';
-  html+='<h4>'+esc(card.title||'')+'</h4>';
-  html+='<p>'+esc(card.body||'')+'</p>';
-  html+='</div>';
+  var html='';
+  // Dots at top
   if(wikiCards.length>1){
     html+='<div class="wiki-dots">';
     for(var i=0;i<wikiCards.length;i++){
@@ -536,6 +533,11 @@ function renderWikiCards(){
     }
     html+='</div>';
   }
+  html+='<div class="wiki-card" ontouchstart="wikiTouchStart=event.touches[0].clientX" ontouchend="wikiSwipe(event)">';
+  html+='<h4>'+esc(card.title||'')+'</h4>';
+  html+='<p>'+esc(card.body||'')+'</p>';
+  if(card.imageUrl||card.image)html+='<img src="'+esc(card.imageUrl||card.image)+'" onerror="this.style.display=\'none\'">';
+  html+='</div>';
   containers.forEach(function(c){c.innerHTML=html;});
 }
 
