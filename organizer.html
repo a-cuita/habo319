@@ -431,7 +431,6 @@ function loadAllEvents(){
       h+='<div class="event-row"><div class="meta"><div class="name">'+esc(ev.eventName||ev.eventId)+code+' '+status+' '+ds+'</div>';
       h+='<div class="sub">'+esc(ev.eventId)+' · '+(ev.volunteerCount||0)+' vols · '+(ev.legCount||0)+' legs · '+(ev.totalWeightLbs||0)+' lbs</div></div></div>';
     }
-    }
     $('all-events').innerHTML=h;
   }).catch(function(e){$('all-events').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
 }
