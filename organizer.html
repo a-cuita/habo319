@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>CMRA · Organizer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
   --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
@@ -142,9 +144,16 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
       <label>Date</label>
       <input id="new-date" type="date">
     </div>
-    <div class="ig">
-      <label>Starting location (optional)</label>
-      <input id="new-loc" type="text" placeholder="e.g., HABO Garden, Montgomery AL">
+    <button onclick="orgCaptureGPS()" id="org-gps-btn" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture zone GPS</button>
+    <div id="org-gps-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px">—</div>
+    <div id="org-gps-map" style="height:160px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px;display:none"></div>
+    <div id="org-gps-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:10px;display:none">Drag the pin to set the exact zone location</div>
+    <div class="ig" style="margin-top:4px">
+      <label>Or enter coordinates manually</label>
+      <div style="display:flex;gap:6px">
+        <input id="new-lat" type="number" step="any" placeholder="Latitude" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-family:inherit">
+        <input id="new-lon" type="number" step="any" placeholder="Longitude" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-family:inherit">
+      </div>
     </div>
     <div class="err" id="create-err"></div>
     <button class="btn" onclick="doCreateEvent()" id="btn-create">Create location</button>
@@ -250,7 +259,7 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
 
-var S={sessionToken:null,adminKey:null,activeEventId:null,authMethod:null,displayName:null};
+var S={sessionToken:null,adminKey:null,activeEventId:null,authMethod:null,displayName:null,tlList:[]};
 
 function $(id){return document.getElementById(id);}
 function esc(s){var d=document.createElement('div');d.textContent=(s==null?'':s);return d.innerHTML;}
@@ -375,7 +384,11 @@ function loadMain(){
 }
 
 function loadActiveEvent(){
-  api('listActiveEvents').then(function(events){
+  // Load TL list first so we can populate assignment dropdowns
+  api('auth_listTLs').then(function(list){
+    S.tlList=(list||[]).filter(function(t){return t.active;});
+    return api('listActiveEvents');
+  }).then(function(events){
     if(!events||events.length===0){
       S.activeEventId=null;
       $('active-body').innerHTML='<div class="muted">No active locations right now. Create one below.</div>';
@@ -393,16 +406,33 @@ function loadActiveEvent(){
       h+='<div style="margin-top:4px">'+status+' '+ds+'</div>';
       h+='<div style="font-size:0.72rem;color:var(--text-dim);margin-top:4px;font-family:var(--mono)">'+esc(ev.eventId)+'</div>';
       
-      // Claimed status
-      if(ev.claimedByName)h+='<div style="font-size:0.82rem;margin-top:6px">TL: <strong>'+esc(ev.claimedByName)+'</strong></div>';
-      else h+='<div style="font-size:0.82rem;margin-top:6px;color:var(--accent)">Unclaimed — available for a TL</div>';
+      // GPS coordinates
+      if(ev.startingLocation&&ev.startingLocation.lat){
+        h+='<div style="font-size:0.75rem;color:var(--text-dim);margin-top:4px">📍 '+ev.startingLocation.lat.toFixed(5)+', '+ev.startingLocation.lon.toFixed(5)+'</div>';
+      }else{
+        h+='<div style="font-size:0.75rem;color:var(--danger);margin-top:4px">⚠ No GPS set</div>';
+      }
+      h+='<button class="btn secondary" style="padding:4px 10px;font-size:0.75rem;min-height:auto;width:auto;margin-top:4px" onclick="doUpdateLocationGPS(\''+esc(ev.eventId)+'\',this)">📍 Update GPS</button>';
+      
+      // TL Assignment
+      h+='<div style="margin-top:8px;display:flex;align-items:center;gap:6px">';
+      h+='<label style="font-size:0.78rem;font-weight:700;color:var(--text-dim);white-space:nowrap">TL:</label>';
+      h+='<select id="assign-'+i+'" style="flex:1;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-family:inherit;background:var(--surface)">';
+      h+='<option value="">— Unassigned —</option>';
+      for(var t=0;t<S.tlList.length;t++){
+        var tl=S.tlList[t];
+        var sel=(ev.claimedByTL===tl.tlId)?' selected':'';
+        h+='<option value="'+esc(tl.tlId)+'"'+sel+'>'+esc(tl.displayName)+' ('+esc(tl.email)+')</option>';
+      }
+      h+='</select>';
+      h+='<button class="btn secondary" style="padding:4px 10px;font-size:0.78rem;min-height:auto;width:auto;flex-shrink:0" onclick="doAssignTL(\''+esc(ev.eventId)+'\','+i+')">Set</button>';
+      h+='</div>';
       
       // Actions based on status
       if(ev.status==='active'){
         h+='<div style="margin-top:10px"><div class="ig"><textarea id="end-msg-'+i+'" rows="2" placeholder="Closing message for volunteers" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:0.85rem;resize:vertical"></textarea></div>';
         h+='<button class="btn danger" style="margin-top:4px;width:100%" onclick="doEndEventOrganizer(\''+esc(ev.eventId)+'\','+i+')">End location</button></div>';
       }else{
-        // Ended — show pipeline actions
         h+='<div style="margin-top:10px;display:flex;gap:6px">';
         h+='<button class="btn secondary" style="flex:1;font-size:0.8rem" onclick="doGenerateReportFor(\''+esc(ev.eventId)+'\',this)">Generate report</button>';
         h+='<button class="btn secondary" style="flex:1;font-size:0.8rem" onclick="doStitchDataFor(\''+esc(ev.eventId)+'\',this)">Stitch data</button>';
@@ -411,10 +441,20 @@ function loadActiveEvent(){
       }
       h+='</div>';
     }
-    // Set activeEventId to first one for backward compat
     S.activeEventId=events[0].eventId;
     $('active-body').innerHTML=h;
   }).catch(function(e){$('active-body').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
+}
+
+function doAssignTL(eventId,idx){
+  var sel=$('assign-'+idx);
+  var tlId=sel?sel.value:'';
+  if(!tlId){
+    // Unassign
+    api('unclaimEvent',{eventId:eventId}).then(function(){loadActiveEvent();}).catch(function(e){alert('Error: '+e.message);});
+  }else{
+    api('assignEvent',{eventId:eventId,targetTlId:tlId}).then(function(){loadActiveEvent();}).catch(function(e){alert('Error: '+e.message);});
+  }
 }
 
 function loadAllEvents(){
@@ -496,29 +536,89 @@ function restoreTL(tlId){
 }
 
 /* ═══ Create event ═══ */
+var orgGPSBuffer=null;
+var orgGPSMap=null;var orgGPSMarker=null;
+
+function orgCaptureGPS(){
+  $('org-gps-status').textContent='Getting location…';
+  $('org-gps-btn').disabled=true;
+  navigator.geolocation.getCurrentPosition(function(pos){
+    orgGPSBuffer={lat:pos.coords.latitude,lon:pos.coords.longitude};
+    $('new-lat').value=pos.coords.latitude.toFixed(6);
+    $('new-lon').value=pos.coords.longitude.toFixed(6);
+    $('org-gps-status').textContent='✓ Captured (±'+Math.round(pos.coords.accuracy)+'m)';
+    $('org-gps-btn').disabled=false;
+    $('org-gps-map').style.display='block';$('org-gps-hint').style.display='block';
+    setTimeout(function(){
+      if(!orgGPSMap){
+        orgGPSMap=L.map('org-gps-map',{zoomControl:true,attributionControl:false}).setView([orgGPSBuffer.lat,orgGPSBuffer.lon],16);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(orgGPSMap);
+        orgGPSMarker=L.marker([orgGPSBuffer.lat,orgGPSBuffer.lon],{draggable:true}).addTo(orgGPSMap);
+        orgGPSMarker.on('dragend',function(e){
+          var ll=e.target.getLatLng();
+          orgGPSBuffer.lat=ll.lat;orgGPSBuffer.lon=ll.lng;
+          $('new-lat').value=ll.lat.toFixed(6);$('new-lon').value=ll.lng.toFixed(6);
+          $('org-gps-status').textContent='✓ Pin adjusted';
+        });
+      }else{
+        orgGPSMarker.setLatLng([orgGPSBuffer.lat,orgGPSBuffer.lon]);
+        orgGPSMap.setView([orgGPSBuffer.lat,orgGPSBuffer.lon],16);
+        orgGPSMap.invalidateSize();
+      }
+    },100);
+  },function(err){
+    $('org-gps-status').textContent='⚠ '+err.message+' — enter coordinates manually';
+    $('org-gps-btn').disabled=false;
+  },{enableHighAccuracy:true,timeout:10000});
+}
+
 function doCreateEvent(){
   clearErr('create-err');
   var name=$('new-name').value.trim();
   var date=$('new-date').value;
-  var loc=$('new-loc').value.trim();
   if(!name){showErr('create-err','Enter a location name');return;}
-  $('btn-create').disabled=true;showBusy('Creating event…');
-  var body={
-    adminKey:S.adminKey,
-    eventName:name,
-    eventDate:date||null,
-    createdBy:'organizer'
-  };
-  if(loc)body.startingLocation={name:loc};
+  
+  // GPS from buffer or manual entry
+  var lat=parseFloat($('new-lat').value);
+  var lon=parseFloat($('new-lon').value);
+  var startLoc=null;
+  if(orgGPSBuffer)startLoc=orgGPSBuffer;
+  else if(!isNaN(lat)&&!isNaN(lon))startLoc={lat:lat,lon:lon};
+  
+  $('btn-create').disabled=true;showBusy('Creating location…');
+  var body={eventName:name,eventDate:date||null,createdBy:'organizer'};
+  if(startLoc)body.startingLocation=startLoc;
   api('createEvent',body).then(function(r){
     hideBusy();$('btn-create').disabled=false;
-    $('new-name').value='';$('new-loc').value='';
-    alert('Event created: '+r.name);
-    loadActiveEvent();
+    $('new-name').value='';$('new-lat').value='';$('new-lon').value='';
+    orgGPSBuffer=null;
+    $('org-gps-map').style.display='none';$('org-gps-hint').style.display='none';
+    alert('Location created: '+r.name+(r.eventCode?' (Code: '+r.eventCode+')':''));
+    loadActiveEvent();loadAllEvents();
   }).catch(function(e){
     hideBusy();$('btn-create').disabled=false;
     showErr('create-err',e.message||'Could not create location');
   });
+}
+
+function doUpdateLocationGPS(eventId,btn){
+  btn.disabled=true;btn.textContent='Getting GPS…';
+  navigator.geolocation.getCurrentPosition(function(pos){
+    api('updateEventLocation',{eventId:eventId,startingLocation:{lat:pos.coords.latitude,lon:pos.coords.longitude}}).then(function(){
+      btn.disabled=false;btn.textContent='📍 Update GPS';
+      loadActiveEvent();
+    }).catch(function(e){btn.disabled=false;btn.textContent='📍 Update GPS';alert('Error: '+e.message);});
+  },function(err){
+    btn.disabled=false;btn.textContent='📍 Update GPS';
+    var coords=prompt('GPS failed. Enter coordinates as: lat, lon');
+    if(!coords)return;
+    var parts=coords.split(',');
+    var lat=parseFloat(parts[0]),lon=parseFloat(parts[1]);
+    if(isNaN(lat)||isNaN(lon)){alert('Invalid coordinates');return;}
+    api('updateEventLocation',{eventId:eventId,startingLocation:{lat:lat,lon:lon}}).then(function(){
+      loadActiveEvent();
+    }).catch(function(e){alert('Error: '+e.message);});
+  },{enableHighAccuracy:true,timeout:10000});
 }
 
 /* ═══ End location ═══ */
