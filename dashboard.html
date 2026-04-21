@@ -166,7 +166,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 
 <div class="gate" id="create-gate" style="display:none;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch">
   <h2 id="home-greeting" style="margin-bottom:4px">Welcome</h2>
-  <p id="home-subtitle" style="margin-bottom:16px">Your workspace — pins, events, and more.</p>
+  <p id="home-subtitle" style="margin-bottom:16px">Your workspace — pins, locations, and more.</p>
 
   <!-- Active events -->
   <div id="home-active-events" style="width:100%;max-width:400px;margin:0 auto 16px"></div>
@@ -182,20 +182,20 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 
   <!-- Past events -->
   <div id="home-past-events-section" style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px;display:none">
-    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">📋 Past Events</h3>
+    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">📋 Past Locations</h3>
     <div id="home-past-events"></div>
   </div>
 
   <!-- Create event -->
   <div style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px">
-    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">🌱 Start a cleanup</h3>
-    <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="cg-name" type="text" placeholder="e.g. Tuesday morning cleanup" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
+    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">🌱 Start a location</h3>
+    <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Location name</label><input id="cg-name" type="text" placeholder="e.g. Downtown · Dexter Ave" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
     <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
     <div id="cg-loc-status" style="font-size:0.82rem;color:var(--text-dim);text-align:center;margin-bottom:8px">—</div>
     <div id="cg-map" style="height:160px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:8px;display:none"></div>
     <div id="cg-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:14px;display:none">Drag the pin to adjust</div>
     <div class="err" id="cg-err" style="margin-bottom:10px"></div>
-    <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
+    <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start location</button>
   </div>
 
   <p style="margin-top:8px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
@@ -247,7 +247,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="tab" data-tab="chat" onclick="switchTab('chat')">Chat <span class="badge hidden" id="badge-chat"></span></div>
     <div class="tab" data-tab="feed" onclick="switchTab('feed')">Feed</div>
     <div class="tab" data-tab="map" onclick="switchTab('map')">Map</div>
-    <div class="tab" data-tab="event" onclick="switchTab('event')">Event</div>
+    <div class="tab" data-tab="event" onclick="switchTab('event')">Location</div>
   </div>
 
   <div class="content">
@@ -265,7 +265,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     </div>
 
     <div class="pane" id="pane-stats">
-      <div class="card"><h3>Event totals</h3><div id="stats-body"><div class="muted">Loading…</div></div></div>
+      <div class="card"><h3>Location totals</h3><div id="stats-body"><div class="muted">Loading…</div></div></div>
     </div>
 
     <div class="pane" id="pane-feed">
@@ -299,20 +299,20 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     </div>
 
     <div class="pane" id="pane-event">
-      <div class="card"><h3>Event</h3><div id="event-details"></div></div>
+      <div class="card"><h3>Location</h3><div id="event-details"></div></div>
       <div class="card" id="new-event-card" style="display:none">
-        <h3>Start a new cleanup</h3>
-        <div class="ig" style="margin-bottom:10px"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Event name</label><input id="ev-new-name" type="text" placeholder="e.g. Tuesday afternoon" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit"></div>
+        <h3>Start a new location</h3>
+        <div class="ig" style="margin-bottom:10px"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Location name</label><input id="ev-new-name" type="text" placeholder="e.g. Riverside Park" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.95rem;font-family:inherit"></div>
         <button id="ev-loc-btn" onclick="evCaptureLocation()" style="width:100%;padding:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.85rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:6px">📍 Capture location</button>
         <div id="ev-loc-status" style="font-size:0.78rem;color:var(--text-dim);text-align:center;margin-bottom:6px">—</div>
         <div id="ev-map" style="height:140px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:6px;display:none"></div>
         <div id="ev-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:10px;display:none">Drag pin to adjust</div>
         <div class="err" id="ev-new-err" style="margin-bottom:8px"></div>
-        <button class="big-btn" onclick="evCreateEvent()" id="ev-new-btn">Create & start</button>
+        <button class="big-btn" onclick="evCreateEvent()" id="ev-new-btn">Create & start location</button>
       </div>
       <div class="card">
         <h3>Read-only</h3>
-        <p class="muted">Ending the event, generating reports, and finalizing data are organizer actions. Ask your organizer.</p>
+        <p class="muted">Ending locations, generating reports, and finalizing data are organizer actions.</p>
       </div>
     </div>
 
@@ -438,14 +438,14 @@ function loadTLHome(){
         if(ae.eventCode)evH+=' · <span style="font-family:var(--mono);font-weight:700;color:var(--primary)">'+esc(ae.eventCode)+'</span>';
         evH+='</div>';
         if(isClaimed&&!isMine){
-          evH+='<div style="font-size:0.82rem;color:var(--text-dim);margin-top:6px">Claimed by <strong>'+esc(ae.claimedByName||'another TL')+'</strong></div>';
-          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%;background:var(--surface-2);color:var(--text);border:1px solid var(--border)">View dashboard</button>';
+          evH+='<div style="font-size:0.82rem;color:var(--text-dim);margin-top:6px">Managed by <strong>'+esc(ae.claimedByName||'another TL')+'</strong></div>';
+          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%;background:var(--surface-2);color:var(--text);border:1px solid var(--border)">View location</button>';
         }else if(isMine){
-          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:10px;width:100%">Open dashboard</button>';
+          evH+='<button class="big-btn" onclick="joinSpecificEvent(\''+esc(ae.eventId)+'\')" style="margin-top:10px;width:100%">Open location</button>';
         }else{
           // Unclaimed — available to claim
-          evH+='<div style="font-size:0.82rem;color:var(--accent);margin-top:6px;font-weight:600">Available — claim to manage</div>';
-          evH+='<button class="big-btn" onclick="claimEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%">Claim & manage</button>';
+          evH+='<div style="font-size:0.82rem;color:var(--accent);margin-top:6px;font-weight:600">Available — claim this location</div>';
+          evH+='<button class="big-btn" onclick="claimEvent(\''+esc(ae.eventId)+'\')" style="margin-top:8px;width:100%">Claim location</button>';
         }
         evH+='</div>';
       }
@@ -506,7 +506,7 @@ function renderHomePins(pins){
 
 function joinSpecificEvent(eventId){
   if(!eventId)return;
-  showBusy('Opening dashboard…');
+  showBusy('Opening location…');
   api('listActiveEvents').then(function(events){
     var match=null;
     for(var i=0;i<events.length;i++){if(events[i].eventId===eventId){match=events[i];break;}}
@@ -632,7 +632,7 @@ function cgCaptureLocation(){
 function cgCreateEvent(){
   var name=$('cg-name').value.trim();
   var err=$('cg-err');err.style.display='none';
-  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
+  if(!name){err.textContent='Enter a location name';err.style.display='block';return;}
   $('cg-btn').disabled=true;
   api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:cgLocationBuffer}).then(function(d){
     $('cg-btn').disabled=false;
@@ -643,7 +643,7 @@ function cgCreateEvent(){
     showMain();firstLoad();
   }).catch(function(e){
     $('cg-btn').disabled=false;
-    err.textContent=e.message||'Could not create event';err.style.display='block';
+    err.textContent=e.message||'Could not create location';err.style.display='block';
   });
 }
 
@@ -934,7 +934,7 @@ function describe(e){switch(e.mutation_type){
   case'session_finish':return'finished session';case'leg_cancelled':return'cancelled leg';case'leg_deleted':return'leg deleted';
   case'accountability':return e.to_state||'accounted';case'team_arrived_at_zone':return'team arrived at zone';
   case'team_left_garden':return'team left garden';case'promoted_to_tl':return'promoted to Team Leader';
-  case'event_created':return'event created';case'event_ended':return'event ended';
+  case'event_created':return'location created';case'event_ended':return'location ended';
   case'activity_paused':return'⏸ paused';case'activity_resumed':return'▶ resumed';
   case'activity_pocket_enter':return'🔒 pocket mode';case'activity_pocket_exit':return'🔓 exited pocket mode';
   case'gates_updated':return'completed gates';case'tracking_choice':return'chose tracking';
@@ -1200,7 +1200,7 @@ function evCaptureLocation(){
 function evCreateEvent(){
   var name=$('ev-new-name').value.trim();
   var err=$('ev-new-err');err.style.display='none';
-  if(!name){err.textContent='Enter an event name';err.style.display='block';return;}
+  if(!name){err.textContent='Enter a location name';err.style.display='block';return;}
   $('ev-new-btn').disabled=true;
   api('tl_createEvent',{sessionToken:S.sessionToken,eventName:name,startingLocation:evLocationBuffer}).then(function(d){
     $('ev-new-btn').disabled=false;
@@ -1210,7 +1210,7 @@ function evCreateEvent(){
     renderPills();refreshAll();
   }).catch(function(e){
     $('ev-new-btn').disabled=false;
-    err.textContent=e.message||'Could not create event';err.style.display='block';
+    err.textContent=e.message||'Could not create location';err.style.display='block';
   });
 }
 
