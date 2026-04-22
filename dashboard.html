@@ -8,7 +8,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
 :root{
-  --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
+  --bg:#e8f0e8;--surface:#fff;--surface-2:#f0f0f5;
   --border:#d1d1d6;--border-hi:#c7c7cc;
   --primary:#2563eb;--primary-dim:#dbeafe;--primary-text:#1d4ed8;
   --accent:#2c8a3d;--accent-dim:#d4f1dc;
@@ -235,7 +235,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="ident"><span class="role">TL</span><span class="name" id="hdr-name">—</span></div>
     <div class="fresh" id="hdr-fresh" onclick="refreshAll()" title="Tap to refresh" style="cursor:pointer;padding:6px 10px;-webkit-tap-highlight-color:rgba(0,0,0,0.1)"><span class="dot"></span><span id="hdr-fresh-text">—</span><div style="font-size:0.55rem;color:var(--text-dim);margin-top:1px">tap to refresh</div></div>
     <button class="signout" onclick="showPinModal()" style="font-size:1.1rem;padding:4px 8px" title="Drop pin">📍</button>
-    <button class="signout" onclick="toggleCollectPanel()" style="font-size:1rem;padding:4px 8px" title="Collect">🎒</button>
+    <button class="signout" onclick="toggleCollectPanel()" style="font-size:0.75rem;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-xs);font-weight:700" title="Collect">🎒 Collect</button>
     <button class="signout" id="hdr-org-btn" onclick="toggleOrgPanel()" style="font-size:1rem;padding:4px 8px;display:none" title="Organizer">👑</button>
     <button class="signout" onclick="openProfile()">Profile</button>
   </div>
@@ -283,6 +283,10 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <span class="map-pill" data-lens="divergence" onclick="setLens('divergence')">Divergence</span>
         <button class="map-pill" id="btn-refresh-paths" onclick="doRefreshPaths()" style="margin-left:auto">Refresh paths</button>
       </div>
+      <div class="map-controls" style="margin-top:4px">
+        <span class="map-pill active" id="tog-event-pins" onclick="togglePinLayer('event')">Event Pins</span>
+        <span class="map-pill active" id="tog-my-pins" onclick="togglePinLayer('my')">My Pins</span>
+      </div>
       <div class="map-legend" id="map-legend">
         <span class="legend-label" id="legend-low">Low</span>
         <div class="legend-bar" id="legend-bar"></div>
@@ -293,7 +297,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 
     <div class="pane" id="pane-chat">
       <div class="card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:360px">
-        <div style="padding:12px 14px 8px;border-bottom:1px solid var(--surface-2)"><h3 style="margin:0;font-size:0.9rem">Team Chat</h3><div class="muted" style="font-size:0.74rem">Type <strong>@cmra</strong> to ask the AI assistant</div></div>
+        <div style="padding:12px 14px 8px;border-bottom:1px solid var(--surface-2)"><h3 style="margin:0;font-size:0.9rem">Team Chat</h3><div class="muted" style="font-size:0.74rem">AI assistant coming soon</div></div>
         <div id="chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
         <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
           <input id="chat-input" type="text" placeholder="Message your team…" maxlength="1000" style="flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.9rem;font-family:inherit;background:var(--surface);color:var(--text)" onkeydown="if(event.key==='Enter')sendChat()">
@@ -368,7 +372,9 @@ function fmtTime(d){if(!d)return'—';var dt=new Date(d);if(isNaN(dt))return'—
 function fmtLbs(n){return(Math.round((n||0)*100)/100).toFixed(2);}
 function fmtMiles(m){return((m||0)/1609.34).toFixed(4);}
 function fmtHrs(sec){var h=Math.floor((sec||0)/3600);var m=Math.floor(((sec||0)%3600)/60);return h+'h '+m+'m';}
-function showBusy(msg){$('overlay-content').innerHTML='<div class="sp" style="margin:0 auto 12px"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div>';$('overlay').classList.add('active');}
+function toast(msg){var el=document.createElement('div');el.textContent=msg;el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.85rem;font-weight:600;z-index:99999;opacity:0;transition:opacity 0.3s;font-family:var(--font)';document.body.appendChild(el);requestAnimationFrame(function(){el.style.opacity='1';});setTimeout(function(){el.style.opacity='0';setTimeout(function(){el.remove();},300);},2000);}
+
+function showBusy(msg){$('overlay-content').innerHTML='<div class="sp" style="margin:0 auto 12px"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div><div style="font-size:0.7rem;color:var(--text-dim);margin-top:10px">TESTING VERSION — thank you for your patience</div>';$('overlay').classList.add('active');}
 function hideBusy(){$('overlay').classList.remove('active');}
 function initials(name){if(!name)return'?';var p=name.split(' ');return p.length>1?(p[0][0]+p[1][0]).toUpperCase():name.substring(0,2).toUpperCase();}
 
@@ -440,7 +446,7 @@ function loadTLHome(){
         var borderColor=isMine?'var(--accent)':(isClaimed?'var(--border)':'var(--primary)');
         evH+='<div style="text-align:left;background:'+bgColor+';border:1px solid '+borderColor+';border-radius:var(--radius);padding:14px 16px;margin-bottom:10px'+(isClaimed&&!isMine?';opacity:0.7':'')+'">';
         evH+='<div style="font-weight:700;font-size:0.95rem">'+esc(ae.name)+'</div>';
-        evH+='<div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px">'+(ae.volunteerCount||0)+' volunteer'+(ae.volunteerCount===1?'':'s')+' · '+esc(ae.status)+' · '+esc(ae.dataState);
+        evH+='<div style="font-size:0.78rem;color:var(--text-dim);margin-top:2px">'+esc(ae.status)+' · '+esc(ae.dataState);
         if(ae.eventCode)evH+=' · <span style="font-family:var(--mono);font-weight:700;color:var(--primary)">'+esc(ae.eventCode)+'</span>';
         evH+='</div>';
         if(isClaimed&&!isMine){
@@ -729,7 +735,7 @@ function saveProfile(){
     $('btn-save-profile').disabled=false;
     S.displayName=name;S.tlEmail=email;
     $('hdr-name').textContent=name;
-    msg.className='profile-msg ok';msg.textContent='Saved.';
+    msg.className='profile-msg ok';msg.textContent='Saved.';toast('Profile saved');
   }).catch(function(e){
     $('btn-save-profile').disabled=false;
     msg.className='profile-msg err';msg.textContent=e.message||'Save failed';
@@ -745,7 +751,7 @@ function changePassword(){
   api('auth_changeOwnPassword',{sessionToken:S.sessionToken,currentPassword:cur,newPassword:next}).then(function(){
     $('btn-change-pw').disabled=false;
     $('prof-cur-pw').value='';$('prof-new-pw').value='';
-    msg.className='profile-msg ok';msg.textContent='Password changed.';
+    msg.className='profile-msg ok';msg.textContent='Password changed.';toast('Password changed');
   }).catch(function(e){
     $('btn-change-pw').disabled=false;
     msg.className='profile-msg err';msg.textContent=e.message||'Change failed';
@@ -835,13 +841,13 @@ function renderTeam(){
 }
 
 function doApprove(btn,volId){btn.disabled=true;btn.textContent='…';
-  api('approveVolunteer',{targetVolunteerId:volId}).then(refreshAll).catch(function(e){btn.disabled=false;btn.textContent='Approve';alert('Error: '+e.message);});
+  api('approveVolunteer',{targetVolunteerId:volId}).then(function(){toast('Approved');refreshAll();}).catch(function(e){btn.disabled=false;btn.textContent='Approve';alert('Error: '+e.message);});
 }
 function doBulkApprove(){if(!confirm('Approve all '+S.queue.length+' waiting volunteers?'))return;
-  showBusy('Approving…');api('bulkApprove').then(function(){hideBusy();refreshAll();}).catch(function(e){hideBusy();alert('Error: '+e.message);});
+  showBusy('Approving…');api('bulkApprove').then(function(){hideBusy();toast('All approved');refreshAll();}).catch(function(e){hideBusy();alert('Error: '+e.message);});
 }
 function doAccount(btn,volId){btn.disabled=true;
-  api('accountForVolunteer',{targetVolunteerId:volId,decision:'accounted_for'}).then(refreshAll).catch(function(e){btn.disabled=false;alert('Error: '+e.message);});
+  api('accountForVolunteer',{targetVolunteerId:volId,decision:'accounted_for'}).then(function(){toast('Accounted');refreshAll();}).catch(function(e){btn.disabled=false;alert('Error: '+e.message);});
 }
 
 /* ═══ Volunteer CRUD modal ═══ */
@@ -898,7 +904,7 @@ function saveEditVolunteer(volId){
   if(!name){msg.textContent='Name required';msg.classList.add('show');return;}
   $('btn-save-vol').disabled=true;
   api('updateVolunteer',{targetVolunteerId:volId,displayName:name,currentState:state,trackingMode:tracking}).then(function(){
-    hideBusy();refreshAll();
+    hideBusy();toast('Saved');refreshAll();
   }).catch(function(e){
     $('btn-save-vol').disabled=false;
     msg.textContent=e.message||'Save failed';msg.classList.add('show');
@@ -1042,26 +1048,56 @@ function renderMapPaths(){
 }
 
 /* Map pins */
-var mapPinMarkers=[];
+var mapEventPinMarkers=[];
+var mapMyPinMarkers=[];
+var showEventPins=true;
+var showMyPins=true;
+
+function togglePinLayer(which){
+  if(which==='event'){showEventPins=!showEventPins;$('tog-event-pins').classList.toggle('active',showEventPins);}
+  else{showMyPins=!showMyPins;$('tog-my-pins').classList.toggle('active',showMyPins);}
+  for(var i=0;i<mapEventPinMarkers.length;i++){if(showEventPins)mapEventPinMarkers[i].addTo(S.leafletMap);else S.leafletMap.removeLayer(mapEventPinMarkers[i]);}
+  for(var i=0;i<mapMyPinMarkers.length;i++){if(showMyPins)mapMyPinMarkers[i].addTo(S.leafletMap);else S.leafletMap.removeLayer(mapMyPinMarkers[i]);}
+}
+
 function loadMapPins(){
-  if(!S.leafletMap||!S.event)return;
-  api('getEventPins').then(function(d){
-    // Clear old pin markers
-    for(var i=0;i<mapPinMarkers.length;i++)S.leafletMap.removeLayer(mapPinMarkers[i]);
-    mapPinMarkers=[];
+  if(!S.leafletMap)return;
+  var i;
+  for(i=0;i<mapEventPinMarkers.length;i++)S.leafletMap.removeLayer(mapEventPinMarkers[i]);mapEventPinMarkers=[];
+  for(i=0;i<mapMyPinMarkers.length;i++)S.leafletMap.removeLayer(mapMyPinMarkers[i]);mapMyPinMarkers=[];
+  var catColors={general:'#3b82f6',dumping:'#ef4444',hazard:'#f59e0b',access:'#10b981',parking:'#6366f1',meetup:'#ec4899'};
+  
+  function makeMarker(p,isMine){
+    var color=catColors[p.category]||'#3b82f6';
+    var border=isMine?'#f59e0b':'#fff';
+    var marker=L.circleMarker([p.lat,p.lon],{radius:isMine?9:8,color:border,weight:isMine?3:2,fillColor:color,fillOpacity:0.9});
+    var popup='<strong>'+esc(p.author_name||p.created_by||'Pin')+'</strong>'+(isMine?' <span style="color:#f59e0b;font-size:0.7rem">★ mine</span>':'')+'<br>'+esc(p.note||p.category);
+    if(p.photoUrl)popup+='<br><img src="'+esc(p.photoUrl)+'" style="max-width:150px;max-height:100px;margin-top:4px;border-radius:4px" onerror="this.style.display=\'none\'">';
+    popup+='<br><span style="font-size:0.7rem;color:#888">'+fmtTime(p.created_at)+'</span>';
+    marker.bindPopup(popup);
+    return marker;
+  }
+  
+  // Event pins
+  if(S.event){
+    api('getEventPins').then(function(d){
+      var pins=d.pins||[];
+      for(var i=0;i<pins.length;i++){
+        var m=makeMarker(pins[i],false);
+        mapEventPinMarkers.push(m);
+        if(showEventPins)m.addTo(S.leafletMap);
+      }
+    }).catch(function(e){console.log('getEventPins error:',e);});
+  }
+  // TL personal pins
+  api('tl_listPins',{sessionToken:S.sessionToken}).then(function(d){
     var pins=d.pins||[];
     for(var i=0;i<pins.length;i++){
-      var p=pins[i];
-      var catColors={general:'#3b82f6',dumping:'#ef4444',hazard:'#f59e0b',access:'#10b981',parking:'#6366f1',meetup:'#ec4899'};
-      var color=catColors[p.category]||'#3b82f6';
-      var marker=L.circleMarker([p.lat,p.lon],{radius:8,color:'#fff',weight:2,fillColor:color,fillOpacity:0.9}).addTo(S.leafletMap);
-      var popup='<strong>'+esc(p.author_name||'Pin')+'</strong><br>'+esc(p.note||p.category);
-      if(p.photoUrl)popup+='<br><img src="'+esc(p.photoUrl)+'" style="max-width:150px;max-height:100px;margin-top:4px;border-radius:4px" onerror="this.style.display=\'none\'">';
-      popup+='<br><span style="font-size:0.7rem;color:#888">'+fmtTime(p.created_at)+'</span>';
-      marker.bindPopup(popup);
-      mapPinMarkers.push(marker);
+      var m=makeMarker(pins[i],true);
+      mapMyPinMarkers.push(m);
+      if(showMyPins)m.addTo(S.leafletMap);
     }
-  }).catch(function(){});
+  }).catch(function(e){console.log('tl_listPins error:',e);});
 }
 function lensColor(leg){var v=null;
   if(S.mapLens==='sqrt_cpue')v=leg.sqrtCpueRaw;
@@ -1069,14 +1105,18 @@ function lensColor(leg){var v=null;
   else if(S.mapLens==='divergence')v=leg.divergence;
   if(v==null)return'#8e8e93';
   if(S.mapLens==='divergence'){
-    // Bidirectional: -5 (blue) → 0 (white) → +5 (red)
     var clamped=Math.max(-5,Math.min(5,v));
-    var norm=(clamped+5)/10; // 0=blue, 0.5=white, 1=red
+    var norm=(clamped+5)/10;
     if(norm<0.5){var t=norm*2;return'rgb('+Math.floor(50+170*t)+','+Math.floor(100+120*t)+','+Math.floor(220-190*t)+')';}
     else{var t=(norm-0.5)*2;return'rgb('+Math.floor(220)+','+Math.floor(220-170*t)+','+Math.floor(230-180*t)+')';}
   }
+  // 5-stop gradient matching legend: green→yellow-green→yellow→orange→red
   var norm=Math.max(0,Math.min(10,Math.abs(v)))/10;
-  var r=Math.floor(norm*255);var g=Math.floor((1-Math.abs(norm-0.5)*2)*200);var b=Math.floor((1-norm)*80);
+  var stops=[[0,200,80],[128,200,0],[200,180,0],[255,100,0],[255,0,0]];
+  var idx=norm*4;var lo=Math.floor(idx);var hi=Math.min(lo+1,4);var t=idx-lo;
+  var r=Math.floor(stops[lo][0]+(stops[hi][0]-stops[lo][0])*t);
+  var g=Math.floor(stops[lo][1]+(stops[hi][1]-stops[lo][1])*t);
+  var b=Math.floor(stops[lo][2]+(stops[hi][2]-stops[lo][2])*t);
   return'rgb('+r+','+g+','+b+')';
 }
 
@@ -1236,6 +1276,10 @@ function toggleOrgPanel(){
     panel.classList.remove('active');
     $('org-iframe').src='about:blank';
   }else{
+    // Pre-set organizer session so the iframe auto-authenticates
+    if(S.sessionToken){
+      localStorage.setItem('cmra_organizer_session',JSON.stringify({sessionToken:S.sessionToken}));
+    }
     panel.classList.add('active');
     $('org-iframe').src='organizer.html';
   }
