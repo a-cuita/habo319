@@ -5,7 +5,9 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>CMRA Map</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css">
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
 <style>
 :root{
   --bg:#f2f2f7;--surface:#fff;--surface-2:#f0f0f5;
@@ -55,9 +57,16 @@ body{display:flex;flex-direction:column}
   </select>
   <button onclick="refreshData()" id="btn-refresh">Refresh</button>
   <div class="spacer"></div>
+  <select id="draw-target" style="padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.82rem;font-family:inherit;background:var(--surface)">
+    <option value="community">Community</option>
+    <option value="tl">TL Dashboard</option>
+    <option value="volunteer">Volunteer</option>
+  </select>
+  <button onclick="saveAnnotations()" id="btn-save-draw" style="background:var(--accent);color:#fff;border-color:var(--accent)">Save</button>
   <label class="layer-toggle"><input type="checkbox" id="tog-paths" checked onchange="toggleLayer('paths')"> Paths</label>
   <label class="layer-toggle"><input type="checkbox" id="tog-pins" checked onchange="toggleLayer('pins')"> Pins</label>
   <label class="layer-toggle"><input type="checkbox" id="tog-zones" checked onchange="toggleLayer('zones')"> Zones</label>
+  <label class="layer-toggle"><input type="checkbox" id="tog-annotations" checked onchange="toggleLayer('annotations')"> Drawings</label>
 </div>
 
 <div id="map"></div>
@@ -78,9 +87,10 @@ body{display:flex;flex-direction:column}
 <script>
 var API_URL='https://script.google.com/macros/s/AKfycbxbcHE2mwrnhZHYnLTZwVyPqPfvK3G6ObRtPTtwXQmoVR1s-DVWp479p6bZOOLN5x9eag/exec';
 
-var map,allEvents=[],pathLayers=[],pinLayers=[],zoneLayers=[];
+var map,allEvents=[],pathLayers=[],pinLayers=[],zoneLayers=[],annotationLayers=[];
 var reportBlobs={};
 var currentLens='sqrt_cpue';
+var drawnItems,drawControl;
 
 // Auth — try TL session, then organizer session, then admin key
 function getAuth(){
@@ -104,18 +114,91 @@ function init(){
   map=L.map('map',{zoomControl:true}).setView([32.3617,-86.2792],13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(map);
   
-  // Get mode from URL params
+  // Drawing layer
+  drawnItems=new L.FeatureGroup();
+  map.addLayer(drawnItems);
+  
   var params=new URLSearchParams(window.location.search);
   var mode=params.get('mode')||'all';
   var eventId=params.get('eventId');
+  var lens=params.get('lens');
+  var configTarget=params.get('config');
   
-  // Hide controls for community mode
-  if(mode==='community'){
-    document.querySelector('.toolbar').style.display='none';
-    document.body.style.paddingTop='0';
+  // Drawing tools (not on posted/community views)
+  if(mode!=='community'&&mode!=='embed'&&!configTarget){
+    drawControl=new L.Control.Draw({
+      position:'topright',
+      draw:{
+        polyline:{shapeOptions:{color:'#e53e3e',weight:3}},
+        polygon:{shapeOptions:{color:'#3b82f6',weight:2,fillOpacity:0.15}},
+        rectangle:{shapeOptions:{color:'#f59e0b',weight:2,fillOpacity:0.15}},
+        circle:{shapeOptions:{color:'#8b5cf6',weight:2,fillOpacity:0.15}},
+        marker:true,
+        circlemarker:false
+      },
+      edit:{featureGroup:drawnItems,remove:true}
+    });
+    map.addControl(drawControl);
+    
+    map.on(L.Draw.Event.CREATED,function(e){
+      var layer=e.layer;
+      var label=prompt('Label (optional):');
+      if(label){layer.bindPopup('<strong>'+esc(label)+'</strong>');layer._annotationLabel=label;}
+      var color=prompt('Color? (red/blue/yellow/green/purple or hex)','red');
+      if(color){
+        var cm={red:'#e53e3e',blue:'#3b82f6',yellow:'#f59e0b',green:'#10b981',purple:'#8b5cf6',orange:'#f97316',black:'#1c1c1e',white:'#ffffff'};
+        var c=cm[color.toLowerCase()]||color;
+        if(layer.setStyle)layer.setStyle({color:c,fillColor:c});
+        layer._annotationColor=c;
+      }
+      drawnItems.addLayer(layer);
+    });
+    
+    // Shift+click for text labels
+    map.on('click',function(e){
+      if(!e.originalEvent.shiftKey)return;
+      var text=prompt('Text label:');
+      if(!text)return;
+      var marker=L.marker(e.latlng,{icon:L.divIcon({className:'',html:'<div style="font-size:13px;font-weight:800;color:#1c1c1e;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;padding:2px 6px">'+esc(text)+'</div>',iconSize:[200,20],iconAnchor:[100,10]})});
+      marker._annotationLabel=text;marker._isTextLabel=true;
+      drawnItems.addLayer(marker);
+    });
   }
   
-  // Load events
+  // Hide toolbar for posted/community views
+  if(mode==='community'||mode==='embed'){
+    document.querySelector('.toolbar').style.display='none';
+  }
+  
+  if(lens){
+    document.getElementById('lens-select').value=lens;
+    currentLens=lens;
+  }
+  
+  // Load posted config or direct
+  if(configTarget){
+    document.querySelector('.toolbar').style.display='none';
+    api('getPostedMap',{target:configTarget}).then(function(d){
+      if(d.config){
+        var c=d.config;
+        if(c.eventId)eventId=c.eventId;
+        if(c.lens){currentLens=c.lens;document.getElementById('lens-select').value=c.lens;}
+      }
+      loadEventsAndData(eventId);
+      loadAnnotations(configTarget);
+    }).catch(function(){loadEventsAndData(eventId);});
+  }else{
+    loadEventsAndData(eventId);
+    // Load annotations for current draw target
+    loadAnnotations(document.getElementById('draw-target').value);
+  }
+  
+  if(configTarget||mode==='community'){
+    setInterval(function(){loadEventData();},60000);
+  }
+}
+
+function loadEventsAndData(eventId){
   api('listActiveEvents').then(function(events){
     allEvents=events||[];
     var sel=document.getElementById('event-select');
@@ -125,9 +208,7 @@ function init(){
       opt.textContent=allEvents[i].name+(allEvents[i].eventCode?' ('+allEvents[i].eventCode+')':'');
       sel.appendChild(opt);
     }
-    if(eventId){sel.value=eventId;}
-    
-    // Load zone markers for all events
+    if(eventId)sel.value=eventId;
     loadZones();
     loadEventData();
   }).catch(function(e){console.error('Init error:',e);loadEventData();});
@@ -305,9 +386,9 @@ function lensColor(leg){
 // ═══ Layer Toggles ═══
 function toggleLayer(name){
   var checked=document.getElementById('tog-'+name).checked;
-  var layers=name==='paths'?pathLayers:name==='pins'?pinLayers:zoneLayers;
+  var layers=name==='paths'?pathLayers:name==='pins'?pinLayers:name==='zones'?zoneLayers:name==='annotations'?[drawnItems]:[];
   for(var i=0;i<layers.length;i++){
-    if(checked)layers[i].addTo(map);
+    if(checked){if(!map.hasLayer(layers[i]))layers[i].addTo(map);}
     else map.removeLayer(layers[i]);
   }
 }
@@ -315,6 +396,90 @@ function toggleLayer(name){
 function clearLayers(arr){
   for(var i=0;i<arr.length;i++){try{map.removeLayer(arr[i]);}catch(e){}}
   arr.length=0;
+}
+
+// ═══ Annotations — save/load per target ═══
+function saveAnnotations(){
+  var target=document.getElementById('draw-target').value;
+  var eventId=document.getElementById('event-select').value;
+  var annotations=[];
+  drawnItems.eachLayer(function(layer){
+    var a={label:layer._annotationLabel||'',color:layer._annotationColor||null,isText:!!layer._isTextLabel};
+    if(layer instanceof L.Marker){
+      a.type='marker';a.lat=layer.getLatLng().lat;a.lon=layer.getLatLng().lng;
+    }else if(layer instanceof L.Circle){
+      a.type='circle';a.lat=layer.getLatLng().lat;a.lon=layer.getLatLng().lng;a.radius=layer.getRadius();
+      a.color=layer.options.color;
+    }else if(layer instanceof L.Rectangle){
+      var b=layer.getBounds();
+      a.type='rectangle';a.bounds=[[b.getSouth(),b.getWest()],[b.getNorth(),b.getEast()]];
+      a.color=layer.options.color;
+    }else if(layer instanceof L.Polygon){
+      a.type='polygon';a.latlngs=layer.getLatLngs()[0].map(function(ll){return[ll.lat,ll.lng];});
+      a.color=layer.options.color;
+    }else if(layer instanceof L.Polyline){
+      a.type='polyline';a.latlngs=layer.getLatLngs().map(function(ll){return[ll.lat,ll.lng];});
+      a.color=layer.options.color;
+    }
+    annotations.push(a);
+  });
+  
+  var config={
+    eventId:eventId||null,
+    lens:document.getElementById('lens-select').value,
+    annotations:annotations,
+    center:[map.getCenter().lat,map.getCenter().lng],
+    zoom:map.getZoom(),
+    postedAt:new Date().toISOString()
+  };
+  
+  var btn=document.getElementById('btn-save-draw');
+  btn.disabled=true;btn.textContent='Saving…';
+  api('admin_setSetting',{key:'map_config_'+target,value:config,description:'Posted map for '+target}).then(function(){
+    btn.disabled=false;btn.textContent='Save';
+    alert('Saved to '+target+'!');
+  }).catch(function(e){btn.disabled=false;btn.textContent='Save';alert('Error: '+e.message);});
+}
+
+function loadAnnotations(target){
+  if(!target)return;
+  api('getPostedMap',{target:target}).then(function(d){
+    if(!d.config||!d.config.annotations)return;
+    renderAnnotations(d.config.annotations);
+    if(d.config.center&&d.config.zoom){
+      map.setView(d.config.center,d.config.zoom);
+    }
+  }).catch(function(){});
+}
+
+function renderAnnotations(annotations){
+  drawnItems.clearLayers();
+  for(var i=0;i<annotations.length;i++){
+    var a=annotations[i];
+    var layer;
+    if(a.type==='marker'){
+      if(a.isText&&a.label){
+        layer=L.marker([a.lat,a.lon],{icon:L.divIcon({className:'',html:'<div style="font-size:13px;font-weight:800;color:'+(a.color||'#1c1c1e')+';text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;white-space:nowrap;padding:2px 6px">'+esc(a.label)+'</div>',iconSize:[200,20],iconAnchor:[100,10]})});
+      }else{
+        layer=L.marker([a.lat,a.lon]);
+      }
+    }else if(a.type==='circle'){
+      layer=L.circle([a.lat,a.lon],{radius:a.radius,color:a.color||'#8b5cf6',weight:2,fillOpacity:0.15});
+    }else if(a.type==='rectangle'){
+      layer=L.rectangle(a.bounds,{color:a.color||'#f59e0b',weight:2,fillOpacity:0.15});
+    }else if(a.type==='polygon'){
+      layer=L.polygon(a.latlngs,{color:a.color||'#3b82f6',weight:2,fillOpacity:0.15});
+    }else if(a.type==='polyline'){
+      layer=L.polyline(a.latlngs,{color:a.color||'#e53e3e',weight:3});
+    }
+    if(layer){
+      if(a.label)layer.bindPopup('<strong>'+esc(a.label)+'</strong>');
+      layer._annotationLabel=a.label;
+      layer._annotationColor=a.color;
+      layer._isTextLabel=a.isText;
+      drawnItems.addLayer(layer);
+    }
+  }
 }
 
 init();
