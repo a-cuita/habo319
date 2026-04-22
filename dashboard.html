@@ -221,9 +221,10 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
       <option value="access">Access point</option>
       <option value="parking">Parking</option>
       <option value="meetup">Meetup point</option>
+      <option value="wastebin">Public waste bin</option>
     </select>
   </div>
-  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*" style="font-size:0.85rem;font-family:inherit"></div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*"
   <div class="err" id="pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closePinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -514,7 +515,7 @@ function renderHomePins(pins){
   var h='';
   for(var i=0;i<pins.length;i++){
     var p=pins[i];
-    var catIcons={general:'📍',dumping:'🗑️',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋'};
+    var catIcons={general:'📍',dumping:'🚫',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋',wastebin:'🗑️'};
     var icon=catIcons[p.category]||'📍';
     h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2);display:flex;align-items:flex-start;gap:8px">';
     if(p.photoUrl){h+='<img src="'+esc(p.photoUrl)+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">';}
