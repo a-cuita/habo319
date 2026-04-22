@@ -234,6 +234,31 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     </div>
   </div>
 
+  <!-- Map Editor -->
+  <div class="card">
+    <h2>Map Editor</h2>
+    <p class="muted" style="margin-bottom:8px">Configure the map view, then post it to a destination. Recipients see exactly what you see.</p>
+    <div style="margin-bottom:8px;display:flex;gap:6px;flex-wrap:wrap">
+      <select id="map-event" style="flex:1;min-width:120px;padding:6px;border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:inherit" onchange="updateMapFrame()">
+        <option value="">All locations</option>
+      </select>
+      <select id="map-lens" style="padding:6px;border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-family:inherit" onchange="updateMapFrame()">
+        <option value="sqrt_cpue">√CPUE</option>
+        <option value="post_rating">Rating</option>
+        <option value="divergence">Divergence</option>
+      </select>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:10px">
+      <iframe id="map-frame" src="map.html" style="width:100%;height:350px;border:none"></iframe>
+    </div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">
+      <button class="btn primary" onclick="postMap('community')" style="flex:1;font-size:0.82rem">Post → Community</button>
+      <button class="btn primary" onclick="postMap('tl')" style="flex:1;font-size:0.82rem">Post → TL Dashboard</button>
+      <button class="btn primary" onclick="postMap('volunteer')" style="flex:1;font-size:0.82rem">Post → Volunteer</button>
+    </div>
+    <div id="map-post-status" style="font-size:0.78rem;color:var(--text-dim);margin-top:6px"></div>
+  </div>
+
   <!-- All events history -->
   <div class="card">
     <h2>Location history</h2>
@@ -529,6 +554,7 @@ function loadAllEvents(){
     }
     $('all-events').innerHTML=h;
     vbPopulateEvents(events);
+    populateMapEventSelect(events);
   }).catch(function(e){$('all-events').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
 }
 
@@ -862,6 +888,36 @@ function saveAccessEmails(){
     $('cfg-access-status').textContent='✓ Saved';
     setTimeout(function(){$('cfg-access-status').textContent='';},3000);
   }).catch(function(e){$('cfg-access-status').textContent='Error: '+e.message;});
+}
+
+/* ═══ Map Editor ═══ */
+function populateMapEventSelect(events){
+  var sel=$('map-event');if(!sel)return;
+  sel.innerHTML='<option value="">All locations</option>';
+  for(var i=0;i<events.length;i++){
+    var e=events[i];
+    sel.innerHTML+='<option value="'+esc(e.eventId)+'">'+esc(e.eventName||e.eventId)+'</option>';
+  }
+}
+
+function updateMapFrame(){
+  var eventId=$('map-event').value;
+  var lens=$('map-lens').value;
+  var src='map.html?lens='+lens;
+  if(eventId)src+='&eventId='+encodeURIComponent(eventId);
+  $('map-frame').src=src;
+}
+
+function postMap(target){
+  var config={
+    eventId:$('map-event').value||null,
+    lens:$('map-lens').value||'sqrt_cpue',
+    postedAt:new Date().toISOString()
+  };
+  api('admin_setSetting',{key:'map_config_'+target,value:config,description:'Posted map config for '+target}).then(function(){
+    $('map-post-status').textContent='✓ Posted to '+target+' — live now';
+    setTimeout(function(){$('map-post-status').textContent='';},4000);
+  }).catch(function(e){$('map-post-status').textContent='Error: '+e.message;});
 }
 
 /* ═══ CPUE Config ═══ */
