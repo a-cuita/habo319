@@ -221,10 +221,9 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
       <option value="access">Access point</option>
       <option value="parking">Parking</option>
       <option value="meetup">Meetup point</option>
-      <option value="wastebin">Public waste bin</option>
     </select>
   </div>
-  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*"
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="pin-photo" type="file" accept="image/*" style="font-size:0.85rem;font-family:inherit"></div>
   <div class="err" id="pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closePinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -297,14 +296,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
         <span class="legend-label" id="legend-high">High</span>
       </div>
       <div id="map"></div>
-      <div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px 4px;font-size:0.72rem;color:var(--text-dim)">
-        <span>●<span style="color:#3b82f6">⬤</span> General</span>
-        <span>●<span style="color:#ef4444">⬤</span> Dumping</span>
-        <span>●<span style="color:#f59e0b">⬤</span> Hazard</span>
-        <span>●<span style="color:#10b981">⬤</span> Access</span>
-        <span>●<span style="color:#6366f1">⬤</span> Parking</span>
-        <span>●<span style="color:#ec4899">⬤</span> Meetup</span>
-      </div>
     </div>
 
     <div class="pane" id="pane-chat">
@@ -515,7 +506,7 @@ function renderHomePins(pins){
   var h='';
   for(var i=0;i<pins.length;i++){
     var p=pins[i];
-    var catIcons={general:'📍',dumping:'🚫',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋',wastebin:'🗑️'};
+    var catIcons={general:'📍',dumping:'🗑️',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋'};
     var icon=catIcons[p.category]||'📍';
     h+='<div style="padding:8px 0;border-bottom:1px solid var(--surface-2);display:flex;align-items:flex-start;gap:8px">';
     if(p.photoUrl){h+='<img src="'+esc(p.photoUrl)+'" style="width:48px;height:48px;object-fit:cover;border-radius:6px;flex-shrink:0" onerror="this.style.display=\'none\'">';}
@@ -1083,9 +1074,10 @@ function loadMapPins(){
   var catColors={general:'#3b82f6',dumping:'#ef4444',hazard:'#f59e0b',access:'#10b981',parking:'#6366f1',meetup:'#ec4899'};
   
   function makeMarker(p,isMine){
-    var color=catColors[p.category]||'#3b82f6';
-    var border=isMine?'#f59e0b':'#fff';
-    var marker=L.circleMarker([p.lat,p.lon],{radius:isMine?9:8,color:border,weight:isMine?3:2,fillColor:color,fillOpacity:0.9});
+    var catEmoji={general:'📍',dumping:'🚫',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋',wastebin:'🗑️'};
+    var emoji=catEmoji[p.category]||'📍';
+    var size=isMine?26:22;
+    var marker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:'<div style="font-size:'+size+'px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4))'+(isMine?';border-bottom:2px solid #f59e0b':'')+'">'+emoji+'</div>',iconSize:[size,size],iconAnchor:[size/2,size],popupAnchor:[0,-size]})});
     var popup='<strong>'+esc(p.author_name||p.created_by||'Pin')+'</strong>'+(isMine?' <span style="color:#f59e0b;font-size:0.7rem">★ mine</span>':'')+'<br>'+esc(p.note||p.category);
     if(p.photoUrl)popup+='<br><img src="'+esc(p.photoUrl)+'" style="max-width:150px;max-height:100px;margin-top:4px;border-radius:4px" onerror="this.style.display=\'none\'">';
     popup+='<br><span style="font-size:0.7rem;color:#888">'+fmtTime(p.created_at)+'</span>';
