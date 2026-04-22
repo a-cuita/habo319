@@ -460,6 +460,7 @@ var S={
   extWatchId:null, extLastPos:null,
   collectStartMs:null, collectTickTimer:null,
   paused:false, pauseStartMs:null,
+  cumulativeDistM:0, totalPauseMs:0,
   pollTimer:null,
   currentLegResult:null, sessionSummary:null,
   sameBagMode:false, sameBagPriorWeight:0,
@@ -886,11 +887,11 @@ function startSession(){
 
 function launchCollecting(){
   if(!S.collectStartMs)S.collectStartMs=Date.now();
-  S.currentLegResult=null;
+  S.currentLegResult=null;S.cumulativeDistM=0;S.totalPauseMs=0;
   if(S.trackingMode==='native'){
     $('coll-dist').textContent='0.0000';$('coll-time').textContent='0:00';
     showScreen('screen-collecting');
-    setTimeout(function(){initNativeMap();},50); // wait for screen to be visible before Leaflet init
+    setTimeout(function(){initNativeMap();},50);
     startNativeGPS();startCollectTicker(false);
   }else{
     $('coll-ext-time').textContent='0:00';showScreen('screen-collecting-external');
@@ -1013,7 +1014,7 @@ function togglePause(){
     else{stopExternalWatch();}
     api('reportActivity',{activity:'paused'}).catch(function(){});
   }else{
-    if(S.pauseStartMs){S.collectStartMs+=(Date.now()-S.pauseStartMs);S.pauseStartMs=null;}
+    if(S.pauseStartMs){var pd=Date.now()-S.pauseStartMs;S.collectStartMs+=pd;S.totalPauseMs+=pd;S.pauseStartMs=null;}
     if(S.trackingMode==='native'){startNativeGPS();startCollectTicker(false);}
     else{startExternalWatch();startCollectTicker(true);}
     var _e=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000)),_m=Math.floor(_e/60),_s=_e%60,_t=_m+':'+(_s<10?'0':'')+_s;
@@ -1047,15 +1048,15 @@ function stopNativeGPS(){
 }
 function flushGPSBatch(){
   if(S.gpsBuffer.length===0)return;
+  if(S.gpsBuffer.length>=2){for(var i=1;i<S.gpsBuffer.length;i++)S.cumulativeDistM+=hav(S.gpsBuffer[i-1].lat,S.gpsBuffer[i-1].lon,S.gpsBuffer[i].lat,S.gpsBuffer[i].lon);}
   var batch=S.gpsBuffer.slice();S.gpsBuffer=[];
   api('submitGPSBatch',{legId:S.legId,points:batch}).catch(function(){S.gpsBuffer=batch.concat(S.gpsBuffer);});
 }
 function setGPSStatus(cls,txt){var el=$('gps-ind');el.className='gps-status '+cls;$('gps-text').textContent=txt;}
 function updateCollectingDistance(){
-  if(S.gpsBuffer.length<2)return;
-  var total=0;
-  for(var i=1;i<S.gpsBuffer.length;i++)total+=hav(S.gpsBuffer[i-1].lat,S.gpsBuffer[i-1].lon,S.gpsBuffer[i].lat,S.gpsBuffer[i].lon);
-  $('coll-dist').textContent=(total/1609.34).toFixed(4);
+  var bufferDist=0;
+  if(S.gpsBuffer.length>=2){for(var i=1;i<S.gpsBuffer.length;i++)bufferDist+=hav(S.gpsBuffer[i-1].lat,S.gpsBuffer[i-1].lon,S.gpsBuffer[i].lat,S.gpsBuffer[i].lon);}
+  $('coll-dist').textContent=((S.cumulativeDistM+bufferDist)/1609.34).toFixed(4);
 }
 function hav(lat1,lon1,lat2,lon2){
   var R=6371000,toRad=function(d){return d*Math.PI/180;};
@@ -1163,7 +1164,11 @@ function renderLegResults(){
   h+='<div class="lr-row"><span class="k">Weight</span><span class="v">'+(r.weightLbs!=null?r.weightLbs.toFixed(2):'—')+' lbs</span></div>';
   h+='<div class="lr-row"><span class="k">Distance</span><span class="v">'+(r.distanceM!=null?(r.distanceM/1609.34).toFixed(4):'—')+' mi</span></div>';
   var mins=r.durationSec?Math.round(r.durationSec/60*10)/10:null;
-  h+='<div class="lr-row"><span class="k">Duration</span><span class="v">'+(mins!=null?mins+' min':'—')+'</span></div>';
+  var adjustedMins=mins;
+  if(S.totalPauseMs>0&&mins!=null){adjustedMins=Math.round((r.durationSec-S.totalPauseMs/1000)/60*10)/10;}
+  h+='<div class="lr-row"><span class="k">Collecting time</span><span class="v">'+(adjustedMins!=null?adjustedMins+' min':'—')+'</span></div>';
+  if(S.totalPauseMs>0){h+='<div class="lr-row"><span class="k">Pause time</span><span class="v">'+Math.round(S.totalPauseMs/1000/60*10)/10+' min</span></div>';}
+  h+='<div class="lr-row"><span class="k">Total time</span><span class="v">'+(mins!=null?mins+' min':'—')+'</span></div>';
   h+='<div class="lr-row"><span class="k">√CPUE</span><span class="v">'+(r.sqrtCpueRaw!=null?r.sqrtCpueRaw.toFixed(4):'—')+'</span></div>';
   h+='<div class="lr-row"><span class="k">Post rating</span><span class="v">'+(r.postRating!=null?r.postRating:'—')+'/10</span></div>';
   if(r.divergence!=null)h+='<div class="lr-row"><span class="k">Divergence</span><span class="v">'+r.divergence.toFixed(2)+'</span></div>';
@@ -1172,7 +1177,7 @@ function renderLegResults(){
 
 /* ═══ Next leg / Finish session ═══ */
 function startNextLeg(){
-  showBusy('Starting leg…');S.currentLegResult=null;S.collectStartMs=0;
+  showBusy('Starting leg…');S.currentLegResult=null;S.collectStartMs=0;S.cumulativeDistM=0;S.totalPauseMs=0;
   api('startNextLeg',{sessionId:S.sessionId}).then(function(d){
     hideBusy();S.legId=d.legId;S.legNumber=d.legNumber;S.currentState='collecting';
     launchCollecting();
