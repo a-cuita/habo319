@@ -217,6 +217,19 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <p class="muted" style="margin-bottom:10px">Inspect state, run tests, bootstrap fake data, clear caches. Use instead of pasting scripts.</p>
 
     <details style="margin-bottom:8px">
+      <summary style="cursor:pointer;font-weight:700;padding:6px 0">Vault file browser</summary>
+      <div style="padding-top:6px">
+        <p class="muted" style="margin-bottom:8px;font-size:0.78rem">Browse and delete individual files from an event's vault folder. Cannot delete event.json.</p>
+        <div style="margin-bottom:8px">
+          <select id="vb-event-select" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:inherit" onchange="vbLoadFiles()">
+            <option value="">Select a location…</option>
+          </select>
+        </div>
+        <div id="vb-files"><div class="muted" style="font-size:0.82rem">Select a location above</div></div>
+      </div>
+    </details>
+
+    <details style="margin-bottom:8px">
       <summary style="cursor:pointer;font-weight:700;padding:6px 0">Diagnostics</summary>
       <div style="padding-top:6px">
         <button class="btn secondary" onclick="doDebug('debug_listAll','List locations + volunteers')" style="margin-bottom:6px">List all (events, volunteers, tab counts)</button>
@@ -485,6 +498,7 @@ function loadAllEvents(){
       h+='<div class="sub">'+esc(ev.eventId)+' · '+(ev.volunteerCount||0)+' vols · '+(ev.legCount||0)+' legs · '+(ev.totalWeightLbs||0)+' lbs</div></div></div>';
     }
     $('all-events').innerHTML=h;
+    vbPopulateEvents(events);
   }).catch(function(e){$('all-events').innerHTML='<div class="muted">Error: '+esc(e.message)+'</div>';});
 }
 
@@ -818,6 +832,46 @@ function saveAccessEmails(){
     $('cfg-access-status').textContent='✓ Saved';
     setTimeout(function(){$('cfg-access-status').textContent='';},3000);
   }).catch(function(e){$('cfg-access-status').textContent='Error: '+e.message;});
+}
+
+/* ═══ Vault File Browser ═══ */
+function vbPopulateEvents(events){
+  var sel=$('vb-event-select');if(!sel)return;
+  var h='<option value="">Select a location…</option>';
+  for(var i=0;i<events.length;i++){
+    var e=events[i];
+    h+='<option value="'+esc(e.eventId)+'">'+esc(e.eventName||e.eventId)+' ('+esc(e.eventId)+')</option>';
+  }
+  sel.innerHTML=h;
+}
+
+function vbLoadFiles(){
+  var eventId=$('vb-event-select').value;
+  if(!eventId){$('vb-files').innerHTML='<div class="muted" style="font-size:0.82rem">Select a location above</div>';return;}
+  $('vb-files').innerHTML='<div class="muted" style="font-size:0.82rem">Loading…</div>';
+  api('admin_listEventFiles',{eventId:eventId}).then(function(d){
+    var files=d.files||[];
+    if(files.length===0){$('vb-files').innerHTML='<div class="muted" style="font-size:0.82rem">No files in vault</div>';return;}
+    var h='';
+    for(var i=0;i<files.length;i++){
+      var f=files[i];
+      var sizeKB=Math.round(f.size/1024);
+      var isProtected=f.name==='event.json';
+      h+='<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--surface-2);font-size:0.82rem">';
+      h+='<div><strong>'+esc(f.name)+'</strong> <span style="color:var(--text-dim)">'+sizeKB+'KB · '+fmtLocal(f.updated)+'</span></div>';
+      if(!isProtected){h+='<button onclick="vbDeleteFile(\''+esc(eventId)+'\',\''+esc(f.name)+'\')" style="padding:3px 8px;background:var(--danger-dim);color:var(--danger);border:1px solid var(--danger);border-radius:6px;font-size:0.72rem;cursor:pointer;font-family:inherit;font-weight:700">Delete</button>';}
+      else{h+='<span style="font-size:0.72rem;color:var(--text-dim)">protected</span>';}
+      h+='</div>';
+    }
+    $('vb-files').innerHTML=h;
+  }).catch(function(e){$('vb-files').innerHTML='<div class="muted" style="font-size:0.82rem;color:var(--danger)">Error: '+esc(e.message)+'</div>';});
+}
+
+function vbDeleteFile(eventId,fileName){
+  if(!confirm('Delete "'+fileName+'" from '+eventId+'? This cannot be undone.'))return;
+  api('admin_deleteEventFile',{eventId:eventId,fileName:fileName}).then(function(){
+    vbLoadFiles();
+  }).catch(function(e){alert('Error: '+e.message);});
 }
 </script>
 </body>
