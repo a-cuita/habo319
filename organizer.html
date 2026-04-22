@@ -198,21 +198,30 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
     <h2>Settings</h2>
     
     <div style="margin-bottom:16px">
-      <label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">CPUE Formula</label>
-      <select id="cfg-cpue-formula" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:inherit;margin-bottom:6px">
-        <option value="w_over_speed">weight / speed (lbs / mph) — default</option>
-        <option value="w_over_distance">weight / distance (lbs / mi)</option>
-        <option value="w_times_time_over_distance">weight × time / distance</option>
-        <option value="w_over_time">weight / time (lbs / hr)</option>
-      </select>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <label style="font-size:0.82rem;color:var(--text-dim)"><input type="checkbox" id="cfg-cpue-sqrt" checked> Use square root (√CPUE)</label>
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">CPUE Formulas</label>
+      <div style="background:var(--surface-2);border-radius:8px;padding:10px;margin-bottom:10px;font-size:0.75rem;color:var(--text-dim);line-height:1.6">
+        <strong>Variables:</strong> w = weight (lbs), d = distance (mi), t = time (hrs), s = speed (mph = d/t)<br>
+        <strong>After CPUE:</strong> cpue = raw result, display = display result, rating = post-cleanliness (1-10)<br>
+        <strong>Functions:</strong> SQRT(), ABS(), MIN(), MAX(), LOG(), ROUND(), IF(cond, then, else), POW()<br>
+        <strong>Operators:</strong> + - * / ^ ( ) &gt; &lt; &gt;= &lt;= == !=
       </div>
-      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-        <label style="font-size:0.82rem;color:var(--text-dim);white-space:nowrap">Scale (max):</label>
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.78rem;color:var(--text-dim);font-weight:600">Raw CPUE</label>
+        <input id="cfg-cpue-raw" type="text" value="w / (d / t)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:var(--mono)">
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.78rem;color:var(--text-dim);font-weight:600">Display value (shown on map/results)</label>
+        <input id="cfg-cpue-display" type="text" value="SQRT(cpue)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:var(--mono)">
+      </div>
+      <div style="margin-bottom:8px">
+        <label style="font-size:0.78rem;color:var(--text-dim);font-weight:600">Divergence (rating vs measurement)</label>
+        <input id="cfg-cpue-div" type="text" value="rating - MIN(scale, display)" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:var(--mono)">
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px">
+        <label style="font-size:0.82rem;color:var(--text-dim);white-space:nowrap">Scale (max for gradient):</label>
         <input id="cfg-cpue-scale" type="number" value="10" min="1" max="100" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:0.88rem;font-family:inherit">
       </div>
-      <button class="btn primary" onclick="saveCpueConfig()" style="margin-bottom:4px">Save CPUE config</button>
+      <button class="btn primary" onclick="saveCpueConfig()" style="margin-bottom:4px">Save formulas</button>
       <div id="cfg-cpue-status" style="font-size:0.78rem;color:var(--text-dim)"></div>
     </div>
 
@@ -860,8 +869,9 @@ function loadCpueConfig(){
   api('admin_getSetting',{key:'cpue_config'}).then(function(d){
     if(d.value){
       var c=typeof d.value==='string'?JSON.parse(d.value):d.value;
-      $('cfg-cpue-formula').value=c.formula||'w_over_speed';
-      $('cfg-cpue-sqrt').checked=c.useSqrt!==false;
+      $('cfg-cpue-raw').value=c.cpueFormula||'w / (d / t)';
+      $('cfg-cpue-display').value=c.displayFormula||'SQRT(cpue)';
+      $('cfg-cpue-div').value=c.divergenceFormula||'rating - MIN(scale, display)';
       $('cfg-cpue-scale').value=c.scale||10;
     }
   }).catch(function(){});
@@ -869,8 +879,9 @@ function loadCpueConfig(){
 
 function saveCpueConfig(){
   var config={
-    formula:$('cfg-cpue-formula').value,
-    useSqrt:$('cfg-cpue-sqrt').checked,
+    cpueFormula:$('cfg-cpue-raw').value.trim()||'w / (d / t)',
+    displayFormula:$('cfg-cpue-display').value.trim()||'SQRT(cpue)',
+    divergenceFormula:$('cfg-cpue-div').value.trim()||'rating - MIN(scale, display)',
     scale:parseInt($('cfg-cpue-scale').value)||10
   };
   api('admin_setSetting',{key:'cpue_config',value:config,description:'CPUE formula configuration'}).then(function(){
