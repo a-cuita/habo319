@@ -381,14 +381,14 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <h1>Session complete</h1>
     <p class="lede">Nice work. Your team leader can see your totals.</p>
     <div class="lr-list" id="done-list"></div>
-    <div class="vol-map" id="vol-map-done" style="margin-top:14px"></div>
+    <div class="vol-map" id="vol-map-done" style="margin-top:14px;height:250px;border-radius:var(--radius-sm);overflow:hidden"><iframe class="vol-map-iframe" src="about:blank" style="width:100%;height:100%;border:none"></iframe></div>
     <div class="card"><div class="body muted">Please stay at your zone until your Team Leader confirms you're accounted for.</div></div>
   </div>
 
   <div class="screen" id="screen-accounted">
     <h1>All set</h1>
     <p class="lede">Your Team Leader has accounted for you. You're free to go.</p>
-    <div class="vol-map" id="vol-map-accounted" style="margin-top:14px"></div>
+    <div class="vol-map" id="vol-map-accounted" style="margin-top:14px;height:250px;border-radius:var(--radius-sm);overflow:hidden"><iframe class="vol-map-iframe" src="about:blank" style="width:100%;height:100%;border:none"></iframe></div>
     <p class="muted">Thank you for today. 🌱</p>
   </div>
 
@@ -414,7 +414,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     </div>
     <p class="lede">Thanks for volunteering today. Your session data was saved.</p>
     <div class="lr-list" id="ended-session-list" style="display:none"></div>
-    <div class="vol-map" id="vol-map-ended" style="margin-top:14px"></div>
+    <div class="vol-map" id="vol-map-ended" style="margin-top:14px;height:250px;border-radius:var(--radius-sm);overflow:hidden"><iframe class="vol-map-iframe" src="about:blank" style="width:100%;height:100%;border:none"></iframe></div>
   </div>
 
 </div>
@@ -924,14 +924,13 @@ function loadVolMapPins(map){
 
 var endMaps={};
 function initEndMap(containerId){
-  if(typeof L==='undefined')return;
-  if(endMaps[containerId]){endMaps[containerId].invalidateSize();return;}
-  var el=document.getElementById(containerId);if(!el)return;
-  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
-  var map=L.map(containerId,{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
-  endMaps[containerId]=map;
-  loadVolMapPins(map);
+  var container=document.getElementById(containerId);
+  if(!container)return;
+  var iframe=container.querySelector('iframe');
+  if(!iframe)return;
+  if(iframe.src&&iframe.src!=='about:blank')return;
+  var eid=S.event?S.event.eventId:'';
+  iframe.src='map.html?config=volunteer'+(eid?'&eventId='+encodeURIComponent(eid):'');
 }
 
 function initNativeMap(){
