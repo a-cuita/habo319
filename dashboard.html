@@ -164,33 +164,36 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
   <p><a href="/habo319/">← Back to landing</a></p>
 </div>
 
-<div class="gate" id="create-gate" style="display:none;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch">
-  <div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;margin:0 auto">
-    <h2 id="home-greeting" style="margin-bottom:4px">Welcome</h2>
+<div class="gate" id="create-gate" style="display:none;justify-content:flex-start;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;width:100%;max-width:400px;margin:0 auto 4px">
+    <h2 id="home-greeting" style="margin:0">Welcome</h2>
     <button id="home-org-btn" onclick="toggleOrgPanel()" style="font-size:1.3rem;background:none;border:none;cursor:pointer;padding:4px 8px;display:none" title="Organizer">👑</button>
   </div>
-  <p id="home-subtitle" style="margin-bottom:16px">Your workspace — pins, locations, and more.</p>
+  <p id="home-subtitle" style="margin-bottom:16px;width:100%;max-width:400px;margin-left:auto;margin-right:auto;color:var(--text-dim);font-size:0.88rem">Your workspace — pins, locations, and more.</p>
 
-  <!-- Active events -->
-  <div id="home-active-events" style="width:100%;max-width:400px;margin:0 auto 16px"></div>
-
-  <!-- Pins -->
-  <div style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-      <h3 style="margin:0;font-size:0.95rem;font-weight:800">📍 My Pins</h3>
-      <button onclick="showPinModal()" style="padding:6px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">+ Drop pin</button>
-    </div>
-    <div id="home-pins" style="font-size:0.88rem"><div class="muted" style="text-align:center;padding:10px 0">Loading pins…</div></div>
+  <!-- Active Locations -->
+  <div style="width:100%;max-width:400px;margin:0 auto 12px">
+    <h3 style="margin:0 0 10px;font-size:1rem;font-weight:800">📍 Active Locations</h3>
+    <div id="home-active-events"><div class="muted" style="text-align:center;padding:10px 0;font-size:0.85rem">No active locations</div></div>
   </div>
 
-  <!-- Past events -->
-  <div id="home-past-events-section" style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px;display:none">
+  <!-- My Pins -->
+  <div style="width:100%;max-width:400px;margin:0 auto 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+      <h3 style="margin:0;font-size:0.95rem;font-weight:800">📌 My Pins</h3>
+      <button onclick="showPinModal()" style="padding:6px 14px;background:var(--primary);color:#fff;border:none;border-radius:var(--radius-sm);font-weight:700;font-size:0.82rem;cursor:pointer;font-family:inherit">+ Drop pin</button>
+    </div>
+    <div id="home-pins" style="font-size:0.88rem"><div class="muted" style="text-align:center;padding:10px 0">Loading…</div></div>
+  </div>
+
+  <!-- Past Locations -->
+  <div id="home-past-events-section" style="width:100%;max-width:400px;margin:0 auto 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;display:none">
     <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">📋 Past Locations</h3>
     <div id="home-past-events"></div>
   </div>
 
-  <!-- Create event -->
-  <div style="text-align:left;width:100%;max-width:400px;margin:0 auto 16px">
+  <!-- Create Location -->
+  <div style="width:100%;max-width:400px;margin:0 auto 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px">
     <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">🌱 Start a location</h3>
     <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Location name</label><input id="cg-name" type="text" placeholder="e.g. Downtown · Dexter Ave" style="width:100%;padding:12px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:1rem;font-family:inherit"></div>
     <button id="cg-loc-btn" onclick="cgCaptureLocation()" style="width:100%;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:0.88rem;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:8px">📍 Capture my location</button>
@@ -198,10 +201,10 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div id="cg-map" style="height:160px;border-radius:var(--radius-sm);border:1px solid var(--border);margin-bottom:8px;display:none"></div>
     <div id="cg-map-hint" style="font-size:0.72rem;color:var(--text-dim);text-align:center;margin-bottom:14px;display:none">Drag the pin to adjust</div>
     <div class="err" id="cg-err" style="margin-bottom:10px"></div>
-    <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start location</button>
+    <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
   </div>
 
-  <p style="margin-top:8px"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
+  <p style="margin-top:4px;text-align:center"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
 </div>
 
 <!-- Pin creation modal -->
