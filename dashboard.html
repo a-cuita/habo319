@@ -792,7 +792,6 @@ function refreshAll(){
     renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
     var cl=$('content-loading');if(cl)cl.style.display='none';
     if(S.activeTab==='map'&&!S.mapInitialized)initMap();
-    if(S.activeTab==='map'&&S.reportBlob)renderMapPaths();
   }).catch(function(err){console.error('refreshAll',err);});
 }
 
@@ -1050,7 +1049,6 @@ function renderMapPaths(){
         S.mapPaths.push(poly);
       }}}
   if(bounds.length>0)S.leafletMap.fitBounds(bounds,{padding:[20,20]});
-  loadMapPins();
 }
 
 /* Map pins */
@@ -1058,6 +1056,7 @@ var mapEventPinMarkers=[];
 var mapMyPinMarkers=[];
 var showEventPins=true;
 var showMyPins=true;
+var mapPinsLoaded=false;
 
 function togglePinLayer(which){
   if(which==='event'){showEventPins=!showEventPins;$('tog-event-pins').classList.toggle('active',showEventPins);}
