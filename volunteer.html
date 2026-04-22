@@ -435,9 +435,10 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <option value="access">Access point</option>
       <option value="parking">Parking</option>
       <option value="meetup">Meetup point</option>
+      <option value="wastebin">Public waste bin</option>
     </select>
   </div>
-  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="vol-pin-photo" type="file" accept="image/*" style="font-size:0.85rem;font-family:inherit"></div>
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="vol-pin-photo"
   <div class="err" id="vol-pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closeVolPinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -913,7 +914,9 @@ function loadVolMapPins(map){
     for(var i=0;i<pins.length;i++){
       var p=pins[i];
       var color=catColors[p.category]||'#3b82f6';
-      var marker=L.circleMarker([p.lat,p.lon],{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:0.9}).addTo(map);
+      var catEmoji={general:'📍',dumping:'🚫',hazard:'⚠️',access:'🚪',parking:'🅿️',meetup:'👋',wastebin:'🗑️'};
+      var emoji=catEmoji[p.category]||'📍';
+      var marker=L.marker([p.lat,p.lon],{icon:L.divIcon({className:'',html:'<div style="font-size:20px;filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4))">'+emoji+'</div>',iconSize:[20,20],iconAnchor:[10,20],popupAnchor:[0,-20]})}).addTo(map);
       marker.bindPopup('<strong>'+esc(p.author_name||'Pin')+'</strong><br>'+esc(p.note||p.category));
       volPinMarkers.push(marker);
     }
@@ -1035,6 +1038,7 @@ function startNativeGPS(){
       S.gpsBuffer.push(pt);
       updateCollectingDistance();
       updateNativeMap(pt);
+      if(pocketMap){pocketMap.setView([pt.lat,pt.lon],17);}
       setGPSStatus('ok','GPS · ±'+Math.round(pos.coords.accuracy)+'m');
     },function(err){setGPSStatus('err','GPS error: '+err.message);},
     {enableHighAccuracy:true,maximumAge:2000,timeout:20000});
@@ -1409,9 +1413,10 @@ function updatePocketView(){
 }
 
 function initPocketMap(){
-  if(pocketMap){pocketMap.invalidateSize();return;}
+  if(pocketMap){pocketMap.invalidateSize();if(S.gpsBuffer.length>0){var lp=S.gpsBuffer[S.gpsBuffer.length-1];pocketMap.setView([lp.lat,lp.lon],17);}return;}
   if(typeof L==='undefined')return;
-  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  var last=S.gpsBuffer.length>0?S.gpsBuffer[S.gpsBuffer.length-1]:null;
+  var start=last?{lat:last.lat,lon:last.lon}:(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
   pocketMap=L.map('pocket-map',{zoomControl:false,attributionControl:false,dragging:false,touchZoom:false,scrollWheelZoom:false,doubleClickZoom:false}).setView([start.lat,start.lon],17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(pocketMap);
 }
