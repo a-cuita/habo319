@@ -382,7 +382,6 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <p class="lede">Nice work. Your team leader can see your totals.</p>
     <div class="lr-list" id="done-list"></div>
     <div class="vol-map" id="vol-map-done" style="margin-top:14px"></div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;padding:4px;font-size:0.72rem;color:var(--text-dim)"><span style="color:#3b82f6">⬤</span>General <span style="color:#ef4444">⬤</span>Dumping <span style="color:#f59e0b">⬤</span>Hazard <span style="color:#10b981">⬤</span>Access <span style="color:#6366f1">⬤</span>Parking <span style="color:#ec4899">⬤</span>Meetup</div>
     <div class="card"><div class="body muted">Please stay at your zone until your Team Leader confirms you're accounted for.</div></div>
   </div>
 
@@ -438,7 +437,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <option value="wastebin">Public waste bin</option>
     </select>
   </div>
-  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="vol-pin-photo"
+  <div class="ig"><label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px">Photo (optional)</label><input id="vol-pin-photo" type="file" accept="image/*" style="font-size:0.85rem;font-family:inherit"></div>
   <div class="err" id="vol-pin-err" style="margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
     <button onclick="closeVolPinModal()" style="flex:1;padding:10px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-weight:600;font-size:0.88rem;cursor:pointer;font-family:inherit">Cancel</button>
@@ -1366,6 +1365,12 @@ function exitPocketMode(){
   if(S.trackingMode==='native')showScreen('screen-collecting');
   else showScreen('screen-collecting-external');
   $('cancel-fab').style.display='flex';
+  // Sync pause state UI
+  if(S.paused){
+    stopNativeGPS();stopExternalWatch();stopCollectTicker();
+    var btnIds=['pause-btn','pause-btn-ext'];
+    for(var i=0;i<btnIds.length;i++){var b=$(btnIds[i]);if(b){b.textContent='▶ Resume';b.className='btn btn-primary';}}
+  }
   api('reportActivity',{activity:'pocket_exit'}).catch(function(){});
 }
 
@@ -1373,10 +1378,14 @@ function startPocketUpdater(){
   if(pocketTimer)clearInterval(pocketTimer);
   pocketTimer=setInterval(function(){
     updatePocketView();
-    // Also update the pocket time display
-    var elapsed=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000));
-    var m=Math.floor(elapsed/60),s=elapsed%60;
-    $('pocket-time').textContent=m+':'+(s<10?'0':'')+s;
+    // Show pause state or running timer
+    if(S.paused){
+      $('pocket-time').textContent='PAUSED';
+    }else{
+      var elapsed=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000));
+      var m=Math.floor(elapsed/60),s=elapsed%60;
+      $('pocket-time').textContent=m+':'+(s<10?'0':'')+s;
+    }
   },1000);
 }
 
@@ -1475,6 +1484,12 @@ function closeChat(){
     // Restore cancel fab if on collecting screen
     if(volChatPreviousScreen==='screen-collecting'||volChatPreviousScreen==='screen-collecting-external'){
       $('cancel-fab').style.display='flex';
+      // Sync pause state — ensure GPS and UI match S.paused
+      if(S.paused){
+        stopNativeGPS();stopExternalWatch();stopCollectTicker();
+        var btnIds=['pause-btn','pause-btn-ext'];
+        for(var i=0;i<btnIds.length;i++){var b=$(btnIds[i]);if(b){b.textContent='▶ Resume';b.className='btn btn-primary';}}
+      }
     }
     volChatPreviousScreen=null;
   }else{
