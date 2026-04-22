@@ -429,6 +429,8 @@ function showCreateGate(){
   loadTLHome();
 }
 
+var cachedActiveEvents=[];
+
 function loadTLHome(){
   api('tl_getHome',{sessionToken:S.sessionToken}).then(function(d){
     S.isOrganizer=d.profile.isOrganizer;
@@ -439,6 +441,7 @@ function loadTLHome(){
     
     // Active events
     var evts=d.activeEvents||[];
+    cachedActiveEvents=evts;
     var evH='';
     if(evts.length>0){
       for(var i=0;i<evts.length;i++){
@@ -522,13 +525,14 @@ function renderHomePins(pins){
 function joinSpecificEvent(eventId){
   if(!eventId)return;
   showBusy('Opening location…');
-  api('listActiveEvents').then(function(events){
-    var match=null;
-    for(var i=0;i<events.length;i++){if(events[i].eventId===eventId){match=events[i];break;}}
-    if(!match){hideBusy();alert('Event not found');return Promise.reject('not-found');}
-    S.event=match;S.eventStatus=match.status;S.dataState=match.dataState;
-    return api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:eventId});
-  }).then(function(ensured){
+  // Use cached event data from TL Home — no extra Drive calls
+  var match=null;
+  for(var i=0;i<cachedActiveEvents.length;i++){if(cachedActiveEvents[i].eventId===eventId){match=cachedActiveEvents[i];break;}}
+  if(match)S.event=match;
+  else S.event={eventId:eventId};
+  S.eventStatus=S.event.status||'active';S.dataState=S.event.dataState||'hot';
+  
+  api('auth_ensureTLInEvent',{sessionToken:S.sessionToken,eventId:eventId}).then(function(ensured){
     hideBusy();
     if(!ensured)return;
     S.volunteerId=ensured.volunteerId;S.role='team_leader';S.currentState=ensured.currentState||'approved';
@@ -536,7 +540,6 @@ function joinSpecificEvent(eventId){
     showMain();firstLoad();
   }).catch(function(e){
     hideBusy();
-    if(e==='not-found')return;
     alert('Could not open dashboard: '+(e.message||e));
   });
 }
