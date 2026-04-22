@@ -1168,11 +1168,15 @@ function renderLegResults(){
   h+='<div class="lr-row"><span class="k">Weight</span><span class="v">'+(r.weightLbs!=null?r.weightLbs.toFixed(2):'—')+' lbs</span></div>';
   h+='<div class="lr-row"><span class="k">Distance</span><span class="v">'+(r.distanceM!=null?(r.distanceM/1609.34).toFixed(4):'—')+' mi</span></div>';
   var mins=r.durationSec?Math.round(r.durationSec/60*10)/10:null;
-  var adjustedMins=mins;
-  if(S.totalPauseMs>0&&mins!=null){adjustedMins=Math.round((r.durationSec-S.totalPauseMs/1000)/60*10)/10;}
-  h+='<div class="lr-row"><span class="k">Collecting time</span><span class="v">'+(adjustedMins!=null?adjustedMins+' min':'—')+'</span></div>';
-  if(S.totalPauseMs>0){h+='<div class="lr-row"><span class="k">Pause time</span><span class="v">'+Math.round(S.totalPauseMs/1000/60*10)/10+' min</span></div>';}
-  h+='<div class="lr-row"><span class="k">Total time</span><span class="v">'+(mins!=null?mins+' min':'—')+'</span></div>';
+  var totalSec=r.durationSec||0;
+  var totalMins=Math.round(totalSec/60*10)/10;
+  var collectSec=S.collectStartMs?Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000)):totalSec;
+  var collectMins=Math.round(collectSec/60*10)/10;
+  var pauseSec=Math.max(0,totalSec-collectSec);
+  var pauseMins=Math.round(pauseSec/60*10)/10;
+  h+='<div class="lr-row"><span class="k">Collecting time</span><span class="v">'+collectMins+' min</span></div>';
+  if(pauseSec>5){h+='<div class="lr-row"><span class="k">Pause time</span><span class="v">'+pauseMins+' min</span></div>';}
+  h+='<div class="lr-row"><span class="k">Total time</span><span class="v">'+totalMins+' min</span></div>';
   h+='<div class="lr-row"><span class="k">√CPUE</span><span class="v">'+(r.sqrtCpueRaw!=null?r.sqrtCpueRaw.toFixed(4):'—')+'</span></div>';
   h+='<div class="lr-row"><span class="k">Post rating</span><span class="v">'+(r.postRating!=null?r.postRating:'—')+'/10</span></div>';
   if(r.divergence!=null)h+='<div class="lr-row"><span class="k">Divergence</span><span class="v">'+r.divergence.toFixed(2)+'</span></div>';
