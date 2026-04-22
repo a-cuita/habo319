@@ -313,6 +313,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       </div>
       <div class="pocket-map" id="pocket-map"></div>
       <div class="pocket-stats" id="pocket-stats"></div>
+      <div class="pocket-wiki" id="pocket-wiki" style="background:#1a1a1a;border:1px solid #333;border-radius:var(--radius-sm);padding:8px 12px;margin-bottom:10px;font-size:0.78rem;line-height:1.5;color:#aaa;min-height:42px"></div>
       <div class="pocket-chat" id="pocket-chat"></div>
       <div class="pocket-unlock" id="pocket-unlock"
         ontouchstart="pocketHoldStart(event)" ontouchend="pocketHoldEnd()"
@@ -380,12 +381,14 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     <h1>Session complete</h1>
     <p class="lede">Nice work. Your team leader can see your totals.</p>
     <div class="lr-list" id="done-list"></div>
+    <div class="vol-map" id="vol-map-done" style="margin-top:14px"></div>
     <div class="card"><div class="body muted">Please stay at your zone until your Team Leader confirms you're accounted for.</div></div>
   </div>
 
   <div class="screen" id="screen-accounted">
     <h1>All set</h1>
     <p class="lede">Your Team Leader has accounted for you. You're free to go.</p>
+    <div class="vol-map" id="vol-map-accounted" style="margin-top:14px"></div>
     <p class="muted">Thank you for today. 🌱</p>
   </div>
 
@@ -394,7 +397,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
       <h1 style="margin:0">Team Chat</h1>
       <button class="btn btn-ghost" onclick="closeChat()" style="min-height:auto;padding:6px 12px;font-size:0.85rem">← Back</button>
     </div>
-    <p class="muted" style="margin-bottom:12px;font-size:0.8rem">Type <strong>@cmra</strong> to ask the AI assistant. Everyone on the team sees all messages.</p>
+    <p class="muted" style="margin-bottom:12px;font-size:0.8rem">AI assistant coming soon. Everyone on the team sees all messages.</p>
     <div class="card" style="padding:0;display:flex;flex-direction:column;height:calc(100vh - 220px);min-height:300px">
       <div id="vol-chat-messages" style="flex:1;overflow-y:auto;padding:10px 14px"></div>
       <div style="display:flex;gap:6px;padding:10px 12px;border-top:1px solid var(--surface-2)">
@@ -411,6 +414,7 @@ h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
     </div>
     <p class="lede">Thanks for volunteering today. Your session data was saved.</p>
     <div class="lr-list" id="ended-session-list" style="display:none"></div>
+    <div class="vol-map" id="vol-map-ended" style="margin-top:14px"></div>
   </div>
 
 </div>
@@ -473,7 +477,9 @@ function showScreen(id){
   window.scrollTo(0,0);
   $('cancel-fab').style.display=(id==='screen-collecting'||id==='screen-collecting-external')?'flex':'none';
 }
-function showBusy(msg){$('overlay-content').innerHTML='<div class="sp"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div>';$('overlay').classList.add('active');}
+function toast(msg){var el=document.createElement('div');el.textContent=msg;el.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#fff;padding:10px 20px;border-radius:20px;font-size:0.85rem;font-weight:600;z-index:99999;opacity:0;transition:opacity 0.3s;font-family:var(--font)';document.body.appendChild(el);requestAnimationFrame(function(){el.style.opacity='1';});setTimeout(function(){el.style.opacity='0';setTimeout(function(){el.remove();},300);},2000);}
+
+function showBusy(msg){$('overlay-content').innerHTML='<div class="sp"></div><div style="font-weight:600">'+esc(msg||'Please wait…')+'</div><div style="font-size:0.7rem;color:var(--text-dim);margin-top:10px">TESTING VERSION — thank you for your patience</div>';$('overlay').classList.add('active');}
 function hideBusy(){$('overlay').classList.remove('active');}
 function showError(msg){$('overlay-content').innerHTML='<div style="color:var(--danger);font-weight:700;margin-bottom:10px">Error</div><div style="font-size:0.9rem;margin-bottom:14px">'+esc(msg)+'</div><button class="btn btn-primary" onclick="hideBusy()">OK</button>';$('overlay').classList.add('active');}
 
@@ -668,6 +674,7 @@ function showEventEnded(){
     $('ended-session-list').style.display='block';
   }
   showScreen('screen-event-ended');
+  setTimeout(function(){initEndMap('vol-map-ended');},100);
 }
 
 function startFresh(){showScreen('screen-welcome');}
@@ -691,8 +698,8 @@ function routeByState(){
       if(S.currentLegResult)showScreen('screen-leg-results');
       else showScreen('screen-at-zone');
       break;
-    case 'session_complete': renderDone();showScreen('screen-done');startPollingForAccountability();break;
-    case 'accounted_for': case 'left_early': showScreen('screen-accounted');startPollingForEventEnd();break;
+    case 'session_complete': renderDone();showScreen('screen-done');setTimeout(function(){initEndMap('vol-map-done');},100);startPollingForAccountability();break;
+    case 'accounted_for': case 'left_early': showScreen('screen-accounted');setTimeout(function(){initEndMap('vol-map-accounted');},100);startPollingForEventEnd();break;
     default: showScreen('screen-welcome');
   }
 }
@@ -707,7 +714,7 @@ function submitName(){
   api('joinEvent',{displayName:name}).then(function(d){
     hideBusy();$('w-btn').disabled=false;
     S.volunteerId=d.volunteerId;S.displayName=d.displayName;S.currentState='joined';
-    persist();showChatButton();showPinButton();startVolChatPoll();
+    persist();showChatButton();showPinButton();startVolChatPoll();toast('Joined!');
     if(d.nameModified){alert('Another volunteer has that name. We saved you as "'+d.displayName+'".');}
     S.gates={};loadGateConfig(function(){renderGates();showScreen('screen-gates');});
   }).catch(function(e){
@@ -764,7 +771,7 @@ function toggleGate(key){S.gates[key]=!S.gates[key];renderGates();}
 function submitGates(){
   $('g-btn').disabled=true;showBusy('Saving…');
   api('updateGates',{gates:S.gates}).then(function(){
-    hideBusy();updateTrackingSelectUI();showScreen('screen-tracking');
+    hideBusy();toast('Gates saved');updateTrackingSelectUI();showScreen('screen-tracking');
   }).catch(function(e){
     hideBusy();$('g-btn').disabled=!allGatesChecked();
     showError(e.message);
@@ -781,7 +788,7 @@ function updateTrackingSelectUI(){
 function submitTracking(){
   $('tr-btn').disabled=true;showBusy('Saving…');
   api('updateTrackingChoice',{trackingMode:S.trackingMode,trackingApp:S.trackingApp}).then(function(){
-    hideBusy();persist();
+    hideBusy();persist();toast('Tracking saved');
     if(S.trackingMode==='external')showScreen('screen-external-tips');
     else{showScreen('screen-waiting');startPollingForApproval();}
   }).catch(function(e){hideBusy();$('tr-btn').disabled=false;showError(e.message);});
@@ -797,7 +804,7 @@ function startPollingForApproval(){
       if(!d)return;
       S.currentState=d.currentState;
       if(S.currentState==='approved'){stopPolling();showScreen('screen-approved');}
-      else if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');}
+      else if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');setTimeout(function(){initEndMap('vol-map-accounted');},100);}
     }).catch(function(){});
   },5000);
 }
@@ -894,6 +901,35 @@ function launchCollecting(){
 }
 
 /* ═══ Map init + updates ═══ */
+var volPinMarkers=[];
+
+function loadVolMapPins(map){
+  if(!map||!S.event)return;
+  api('getEventPins').then(function(d){
+    var pins=d.pins||[];
+    var catColors={general:'#3b82f6',dumping:'#ef4444',hazard:'#f59e0b',access:'#10b981',parking:'#6366f1',meetup:'#ec4899'};
+    for(var i=0;i<pins.length;i++){
+      var p=pins[i];
+      var color=catColors[p.category]||'#3b82f6';
+      var marker=L.circleMarker([p.lat,p.lon],{radius:7,color:'#fff',weight:2,fillColor:color,fillOpacity:0.9}).addTo(map);
+      marker.bindPopup('<strong>'+esc(p.author_name||'Pin')+'</strong><br>'+esc(p.note||p.category));
+      volPinMarkers.push(marker);
+    }
+  }).catch(function(){});
+}
+
+var endMaps={};
+function initEndMap(containerId){
+  if(typeof L==='undefined')return;
+  if(endMaps[containerId]){endMaps[containerId].invalidateSize();return;}
+  var el=document.getElementById(containerId);if(!el)return;
+  var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
+  var map=L.map(containerId,{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],15);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+  endMaps[containerId]=map;
+  loadVolMapPins(map);
+}
+
 function initNativeMap(){
   if(S.mapNative){S.mapNative.invalidateSize();return;}
   if(typeof L==='undefined')return;
@@ -901,6 +937,7 @@ function initNativeMap(){
   S.mapNative=L.map('vol-map-native',{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.mapNative);
   S.mapNativeTrack=L.polyline([],{color:'#2c8a3d',weight:4,opacity:0.85}).addTo(S.mapNative);
+  loadVolMapPins(S.mapNative);
 }
 function updateNativeMap(pt){
   if(!S.mapNative)return;
@@ -924,6 +961,7 @@ function initExternalMap(){
   S.mapExternal=L.map('vol-map-external',{zoomControl:true,attributionControl:false}).setView([start.lat,start.lon],17);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(S.mapExternal);
   S.mapExternalTrack=L.polyline([],{color:'#2c8a3d',weight:4,opacity:0.85,dashArray:'4 6'}).addTo(S.mapExternal);
+  loadVolMapPins(S.mapExternal);
 }
 function startExternalWatch(){
   if(!navigator.geolocation){setExtGPSStatus('warn','No GPS — OK for external tracking');return;}
@@ -978,6 +1016,8 @@ function togglePause(){
     if(S.pauseStartMs){S.collectStartMs+=(Date.now()-S.pauseStartMs);S.pauseStartMs=null;}
     if(S.trackingMode==='native'){startNativeGPS();startCollectTicker(false);}
     else{startExternalWatch();startCollectTicker(true);}
+    var _e=Math.max(0,Math.floor((Date.now()-S.collectStartMs)/1000)),_m=Math.floor(_e/60),_s=_e%60,_t=_m+':'+(_s<10?'0':'')+_s;
+    if(S.trackingMode==='native')$('coll-time').textContent=_t;else $('coll-ext-time').textContent=_t;
     api('reportActivity',{activity:'resumed'}).catch(function(){});
   }
 }
@@ -1076,7 +1116,7 @@ function submitWeightNative(){
   var legWeight=computeLegWeight(w);
   $('w-weight-btn').disabled=true;showBusy('Submitting leg…');
   api('endLeg',{sessionId:S.sessionId,legId:S.legId,weightLbs:legWeight}).then(function(d){
-    hideBusy();$('w-weight-btn').disabled=false;
+    hideBusy();$('w-weight-btn').disabled=false;toast('Leg submitted');
     S.currentLegResult=d;S.currentState='between_legs';
     gotoPostRating();
   }).catch(function(e){hideBusy();$('w-weight-btn').disabled=false;showError(e.message);});
@@ -1095,7 +1135,7 @@ function submitWeightExternal(){
     var body={sessionId:S.sessionId,legId:S.legId,weightLbs:legWeight,distanceMiles:d,durationMinutes:m,externalSource:S.trackingApp||'other'};
     if(b64){body.screenshotBase64=b64;body.screenshotMimeType=mime||'image/jpeg';}
     api('submitManualLeg',body).then(function(res){
-      hideBusy();$('we-btn').disabled=false;
+      hideBusy();$('we-btn').disabled=false;toast('Leg submitted');
       S.currentLegResult=res;S.currentState='between_legs';
       gotoPostRating();
     }).catch(function(e){hideBusy();$('we-btn').disabled=false;showError(e.message);});
@@ -1110,7 +1150,7 @@ function updatePost(v){S.postRating=parseInt(v,10);$('post-val').textContent=S.p
 function submitPostRating(){
   $('post-btn').disabled=true;showBusy('Saving…');
   api('updateLegPostRating',{sessionId:S.sessionId,legId:S.legId,postRating:S.postRating}).then(function(d){
-    hideBusy();$('post-btn').disabled=false;
+    hideBusy();$('post-btn').disabled=false;toast('Rating saved');
     if(S.currentLegResult){S.currentLegResult.postRating=S.postRating;S.currentLegResult.divergence=d.divergence;}
     renderLegResults();showScreen('screen-leg-results');
   }).catch(function(e){hideBusy();$('post-btn').disabled=false;showError(e.message);});
@@ -1143,8 +1183,8 @@ function finishSession(){
   if(!confirm('Finish this session? You can join again later if the location is still running.'))return;
   showBusy('Finishing session…');
   api('finishSession',{sessionId:S.sessionId,postRating:S.postRating}).then(function(d){
-    hideBusy();S.sessionSummary=d;S.currentState='session_complete';
-    renderDone();showScreen('screen-done');startPollingForAccountability();
+    hideBusy();toast('Session complete');S.sessionSummary=d;S.currentState='session_complete';
+    renderDone();showScreen('screen-done');setTimeout(function(){initEndMap('vol-map-done');},100);startPollingForAccountability();
   }).catch(function(e){hideBusy();showError(e.message);});
 }
 
@@ -1166,7 +1206,7 @@ function startPollingForAccountability(){
     api('getVolunteerStatus').then(function(d){
       if(!d)return;
       S.currentState=d.currentState;
-      if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');startPollingForEventEnd();}
+      if(S.currentState==='accounted_for'||S.currentState==='left_early'){stopPolling();showScreen('screen-accounted');setTimeout(function(){initEndMap('vol-map-accounted');},100);startPollingForEventEnd();}
     }).catch(function(){});
   },10000);
 }
@@ -1190,7 +1230,7 @@ function cancelActiveLeg(){
   if(!confirm('Cancel this leg? It won\'t count. Your GPS trail will be saved as deleted.'))return;
   stopNativeGPS();stopExternalWatch();stopCollectTicker();showBusy('Cancelling…');
   api('cancelActiveLeg',{sessionId:S.sessionId,legId:S.legId,reason:'user_cancel'}).then(function(){
-    hideBusy();S.currentLegResult=null;S.currentState='between_legs';showScreen('screen-at-zone');
+    hideBusy();toast('Leg cancelled');S.currentLegResult=null;S.currentState='between_legs';showScreen('screen-at-zone');
   }).catch(function(e){hideBusy();showError(e.message);});
 }
 
@@ -1351,6 +1391,15 @@ function updatePocketView(){
     ch+='<div class="pc-msg"><span class="'+nameClass+'">'+esc(name)+':</span> '+esc(m.text)+'</div>';
   }
   $('pocket-chat').innerHTML=ch;
+
+  // Wiki card rotation in pocket mode
+  if(typeof wikiCards!=='undefined' && wikiCards && wikiCards.length>0){
+    var wIdx=Math.floor(Date.now()/8000)%wikiCards.length;
+    var wc=wikiCards[wIdx];
+    var truncBody=(wc.body||'').substring(0,120);
+    if((wc.body||'').length>120)truncBody+='…';
+    $('pocket-wiki').innerHTML='<div style="color:#ddd;font-weight:700;margin-bottom:2px">'+esc(wc.title)+'</div><div>'+esc(truncBody)+'</div>';
+  }
 }
 
 function initPocketMap(){
