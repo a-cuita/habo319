@@ -798,7 +798,13 @@ function refreshAll(){
     S.lastRefresh=Date.now();
     renderPills();renderTeam();renderStats();renderFeed();renderEvent();updateFreshness();updateBadges();
     var cl=$('content-loading');if(cl)cl.style.display='none';
-    if(S.activeTab==='map'&&!S.mapInitialized)initMap();
+    if(S.activeTab==='map'){
+      var iframe=$('tl-map-iframe');
+      if(iframe&&(iframe.src==='about:blank'||!iframe.src)){
+        var eid=S.event?S.event.eventId:'';
+        iframe.src='map.html?config=tl'+(eid?'&eventId='+encodeURIComponent(eid):'');
+      }
+    }
   }).catch(function(err){console.error('refreshAll',err);});
 }
 
@@ -1017,6 +1023,7 @@ function describeDetail(e,list,idx){
 /* Map */
 function initMap(){
   if(S.mapInitialized)return;if(typeof L==='undefined')return;
+  var el=document.getElementById('map');if(!el)return;
   var start=(S.event&&S.event.startingLocation)||{lat:32.3617,lon:-86.2792};
   S.leafletMap=L.map('map').setView([start.lat,start.lon],14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(S.leafletMap);
@@ -1026,8 +1033,8 @@ function initMap(){
 function setLens(lens){S.mapLens=lens;
   var pills=document.querySelectorAll('.map-pill[data-lens]');
   for(var i=0;i<pills.length;i++)pills[i].classList.toggle('active',pills[i].dataset.lens===lens);
-  // Update legend
   var bar=$('legend-bar'),lo=$('legend-low'),hi=$('legend-high');
+  if(!bar||!lo||!hi)return;
   if(lens==='divergence'){
     bar.style.background='linear-gradient(to right,rgb(50,100,220),rgb(220,220,230),rgb(220,50,50))';
     lo.textContent='Over-rated';hi.textContent='Under-rated';
@@ -1037,7 +1044,7 @@ function setLens(lens){S.mapLens=lens;
   }
   if(S.reportBlob)renderMapPaths();
 }
-function doRefreshPaths(){var btn=$('btn-refresh-paths');btn.disabled=true;btn.textContent='Loading…';
+function doRefreshPaths(){var btn=$('btn-refresh-paths');if(!btn)return;btn.disabled=true;btn.textContent='Loading…';
   api('generateReport').then(function(res){btn.disabled=false;btn.textContent='Refresh paths';
     if(res&&res.blob){S.reportBlob=res.blob;renderMapPaths();}refreshAll();
   }).catch(function(e){btn.disabled=false;btn.textContent='Refresh paths';alert('Error: '+e.message);});
@@ -1069,8 +1076,9 @@ var showMyPins=true;
 var mapPinsLoaded=false;
 
 function togglePinLayer(which){
-  if(which==='event'){showEventPins=!showEventPins;$('tog-event-pins').classList.toggle('active',showEventPins);}
-  else{showMyPins=!showMyPins;$('tog-my-pins').classList.toggle('active',showMyPins);}
+  if(!S.leafletMap)return;
+  if(which==='event'){showEventPins=!showEventPins;var te=$('tog-event-pins');if(te)te.classList.toggle('active',showEventPins);}
+  else{showMyPins=!showMyPins;var tm=$('tog-my-pins');if(tm)tm.classList.toggle('active',showMyPins);}
   for(var i=0;i<mapEventPinMarkers.length;i++){if(showEventPins)mapEventPinMarkers[i].addTo(S.leafletMap);else S.leafletMap.removeLayer(mapEventPinMarkers[i]);}
   for(var i=0;i<mapMyPinMarkers.length;i++){if(showMyPins)mapMyPinMarkers[i].addTo(S.leafletMap);else S.leafletMap.removeLayer(mapMyPinMarkers[i]);}
 }
