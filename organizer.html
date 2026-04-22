@@ -196,6 +196,26 @@ h2{font-size:1rem;font-weight:700;margin-bottom:8px}
   <!-- Settings -->
   <div class="card">
     <h2>Settings</h2>
+    
+    <div style="margin-bottom:16px">
+      <label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">CPUE Formula</label>
+      <select id="cfg-cpue-formula" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;font-family:inherit;margin-bottom:6px">
+        <option value="w_over_speed">weight / speed (lbs / mph) — default</option>
+        <option value="w_over_distance">weight / distance (lbs / mi)</option>
+        <option value="w_times_time_over_distance">weight × time / distance</option>
+        <option value="w_over_time">weight / time (lbs / hr)</option>
+      </select>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <label style="font-size:0.82rem;color:var(--text-dim)"><input type="checkbox" id="cfg-cpue-sqrt" checked> Use square root (√CPUE)</label>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+        <label style="font-size:0.82rem;color:var(--text-dim);white-space:nowrap">Scale (max):</label>
+        <input id="cfg-cpue-scale" type="number" value="10" min="1" max="100" style="width:60px;padding:6px;border:1px solid var(--border);border-radius:6px;font-size:0.88rem;font-family:inherit">
+      </div>
+      <button class="btn primary" onclick="saveCpueConfig()" style="margin-bottom:4px">Save CPUE config</button>
+      <div id="cfg-cpue-status" style="font-size:0.78rem;color:var(--text-dim)"></div>
+    </div>
+
     <div style="margin-bottom:12px">
       <label style="display:block;font-size:0.78rem;color:var(--text-dim);font-weight:700;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.3px">Access request notification emails</label>
       <p class="muted" style="font-size:0.78rem;margin-bottom:6px">Comma-separated. When someone requests TL access, all listed emails get notified.</p>
@@ -407,6 +427,7 @@ function loadMain(){
   loadTLList();
   loadGateList();
   loadAccessEmails();
+  loadCpueConfig();
 }
 
 function loadActiveEvent(){
@@ -832,6 +853,30 @@ function saveAccessEmails(){
     $('cfg-access-status').textContent='✓ Saved';
     setTimeout(function(){$('cfg-access-status').textContent='';},3000);
   }).catch(function(e){$('cfg-access-status').textContent='Error: '+e.message;});
+}
+
+/* ═══ CPUE Config ═══ */
+function loadCpueConfig(){
+  api('admin_getSetting',{key:'cpue_config'}).then(function(d){
+    if(d.value){
+      var c=typeof d.value==='string'?JSON.parse(d.value):d.value;
+      $('cfg-cpue-formula').value=c.formula||'w_over_speed';
+      $('cfg-cpue-sqrt').checked=c.useSqrt!==false;
+      $('cfg-cpue-scale').value=c.scale||10;
+    }
+  }).catch(function(){});
+}
+
+function saveCpueConfig(){
+  var config={
+    formula:$('cfg-cpue-formula').value,
+    useSqrt:$('cfg-cpue-sqrt').checked,
+    scale:parseInt($('cfg-cpue-scale').value)||10
+  };
+  api('admin_setSetting',{key:'cpue_config',value:config,description:'CPUE formula configuration'}).then(function(){
+    $('cfg-cpue-status').textContent='✓ Saved — regenerate reports to apply';
+    setTimeout(function(){$('cfg-cpue-status').textContent='';},4000);
+  }).catch(function(e){$('cfg-cpue-status').textContent='Error: '+e.message;});
 }
 
 /* ═══ Vault File Browser ═══ */
