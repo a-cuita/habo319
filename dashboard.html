@@ -204,11 +204,6 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <button class="big-btn" onclick="cgCreateEvent()" id="cg-btn" style="width:100%">Create & start</button>
   </div>
 
-  <div style="width:100%;max-width:400px;margin:0 auto 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;text-align:center">
-    <h3 style="margin:0 0 8px;font-size:0.95rem;font-weight:800">📱 Share with volunteers</h3>
-    <img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=https%3A%2F%2Fa-cuita.github.io%2Fhabo319%2F" alt="QR Code" style="width:180px;height:180px;border-radius:8px;margin-bottom:8px">
-    <p style="font-size:0.82rem;color:var(--danger);font-weight:700;margin:0">Open in Chrome for best experience</p>
-  </div>
   <p style="margin-top:4px;text-align:center"><a href="/habo319/" style="color:var(--text-dim);text-decoration:none;font-size:0.85rem">← Back to landing</a></p>
 </div>
 
@@ -244,6 +239,7 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
     <div class="fresh" id="hdr-fresh" onclick="refreshAll()" title="Tap to refresh" style="cursor:pointer;padding:6px 10px;-webkit-tap-highlight-color:rgba(0,0,0,0.1)"><span class="dot"></span><span id="hdr-fresh-text">—</span><div style="font-size:0.55rem;color:var(--text-dim);margin-top:1px">tap to refresh</div></div>
     <button class="signout" onclick="showPinModal()" style="font-size:1.1rem;padding:4px 8px" title="Drop pin">📍</button>
     <button class="signout" onclick="toggleCollectPanel()" style="font-size:0.75rem;padding:4px 10px;background:var(--accent);color:#fff;border:none;border-radius:var(--radius-xs);font-weight:700" title="Collect">🎒 Collect</button>
+    <button class="signout" id="hdr-map-btn" onclick="toggleMapPanel()" style="font-size:1rem;padding:4px 8px;display:none" title="Map Editor">🗺️</button>
     <button class="signout" id="hdr-org-btn" onclick="toggleOrgPanel()" style="font-size:1rem;padding:4px 8px;display:none" title="Organizer">👑</button>
     <button class="signout" onclick="openProfile()">Profile</button>
   </div>
@@ -346,6 +342,17 @@ body{display:flex;flex-direction:column;min-height:100vh;max-width:480px;margin:
 </div>
 </div>
 
+<!-- Map editor bottom-up panel -->
+<div class="overlay" id="map-panel-overlay" onclick="if(event.target===this)toggleMapPanel()" style="z-index:9996">
+<div style="position:fixed;bottom:0;left:0;right:0;height:90vh;background:var(--surface);border-top:2px solid var(--primary);border-radius:var(--radius) var(--radius) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,0.15);z-index:9997;display:flex;flex-direction:column">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 16px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <h3 style="margin:0;font-weight:800">🗺️ Map Editor</h3>
+    <button onclick="toggleMapPanel()" style="background:none;border:none;font-size:1.2rem;cursor:pointer;padding:4px">✕</button>
+  </div>
+  <iframe id="map-iframe" style="flex:1;border:none;width:100%" src="about:blank"></iframe>
+</div>
+</div>
+
 <!-- Organizer bottom-up panel (iframe of organizer.html) -->
 <div class="overlay" id="org-panel-overlay" onclick="if(event.target===this)toggleOrgPanel()" style="z-index:9998">
 <div style="position:fixed;bottom:0;left:0;right:0;height:85vh;background:var(--surface);border-top:2px solid var(--primary);border-radius:var(--radius) var(--radius) 0 0;box-shadow:0 -4px 24px rgba(0,0,0,0.15);z-index:9999;display:flex;flex-direction:column">
@@ -443,6 +450,7 @@ function loadTLHome(){
     var homeOrgBtn=$('home-org-btn');if(homeOrgBtn)homeOrgBtn.style.display=S.isOrganizer?'':'none';
     // Show organizer button in dashboard header (if visible)
     var orgBtn=$('hdr-org-btn');if(orgBtn)orgBtn.style.display=S.isOrganizer?'':'none';
+    var mapBtn=$('hdr-map-btn');if(mapBtn)mapBtn.style.display=S.isOrganizer?'':'none';
     
     // Active events
     var evts=d.activeEvents||[];
@@ -676,6 +684,7 @@ function showMain(){
   $('hdr-name').textContent=S.displayName||'Team Leader';
   $('event-name-line').textContent=S.event.name||'';
   var orgBtn=$('hdr-org-btn');if(orgBtn)orgBtn.style.display=S.isOrganizer?'':'none';
+  var mapBtn=$('hdr-map-btn');if(mapBtn)mapBtn.style.display=S.isOrganizer?'':'none';
   $('hdr-back-btn').style.display='';
   renderPills();
 }
@@ -1278,6 +1287,18 @@ function evCreateEvent(){
     $('ev-new-btn').disabled=false;
     err.textContent=e.message||'Could not create location';err.style.display='block';
   });
+}
+
+/* ═══ Map Panel (god mode — iframe) ═══ */
+function toggleMapPanel(){
+  var panel=$('map-panel-overlay');
+  if(panel.classList.contains('active')){
+    panel.classList.remove('active');
+    $('map-iframe').src='about:blank';
+  }else{
+    panel.classList.add('active');
+    $('map-iframe').src='map.html';
+  }
 }
 
 /* ═══ Organizer Panel (god mode — iframe) ═══ */
