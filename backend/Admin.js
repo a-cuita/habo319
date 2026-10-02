@@ -23,7 +23,7 @@ function onOpen() {
 
 function openEventsAdmin() {
   ensureSchema_();
-  var html = HtmlService.createTemplateFromFile('Admin').evaluate().setWidth(1100).setHeight(720);
+  var html = HtmlService.createTemplateFromFile('EventsModal').evaluate().setWidth(1100).setHeight(720);
   SpreadsheetApp.getUi().showModalDialog(html, 'Events');
 }
 
