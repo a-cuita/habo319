@@ -13,13 +13,14 @@ A simple site where volunteers in the 319 grant program check in, record attenda
 
 `config.js` holds the backend's web app URL, the only link between the two.
 
-Admin tools (planned) will live in the Sheet itself: a custom menu that opens a modal dialog.
+Admin tools live in the Sheet itself: **HABO 319 Admin → Manage events** opens a modal for creating and editing events, with a live phone/iPad preview of the public site and each event's QR code. Only people who can edit the Sheet see the menu.
 
 ### Sheet tabs
 
 The backend creates these on first use; all of them can be edited by hand.
 
-- **Settings**: `Preview access code` (the code that unlocks the preview questions; clear it to turn preview access off) and `Preview intro`.
+- **Events**: one row per event. A row typed in by hand gets its Event ID and Check-in code the next time the admin modal opens. Hours is a formula over Start and End, so fixing an event's times updates its hours; don't type into that column.
+- **Settings**: `Preview access code` (the code that unlocks the preview questions; clear it to turn preview access off), `Preview intro`, and `Public site URL` (where event QR codes point).
 - **Preview Questions**: one question per row; answer choices separated by `|`, or blank for a written answer.
 - **Preview Responses**: one row per answered question, with who answered and when.
 

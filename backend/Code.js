@@ -26,11 +26,24 @@ var TABS = {
     name: 'Preview Responses',
     header: ['Submitted', 'Submission', 'Name', 'Question', 'Answer', 'Note'],
     widths: [150, 90, 140, 380, 300, 380]
+  },
+  // Hours is a live formula over Start and End, so fixing an event's times by
+  // hand updates its hours. Columns are listed in EVENT_COL (Admin.js).
+  events: {
+    name: 'Events',
+    header: ['Event ID', 'Name', 'Date', 'Start', 'End',
+      '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
+      'Location', 'Check-in code', 'Created', 'Updated'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150],
+    formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
+      9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
   }
 };
 
 var SETTING_PREVIEW_CODE = 'Preview access code';
 var SETTING_PREVIEW_INTRO = 'Preview intro';
+var SETTING_PUBLIC_URL = 'Public site URL';
+var DEFAULT_PUBLIC_URL = 'https://a-cuita.github.io/habo319/';
 
 var SEED_PREVIEW_INTRO =
   "We're rebuilding the HABO 319 volunteer site. Volunteers will check in at events, and their hours " +
@@ -150,26 +163,43 @@ function getDb_() {
   return ss;
 }
 
-// Creates any missing tab, seeding Settings with a random preview access code
-// that can be changed in the Sheet.
+// Brings the Sheet up to date: creates missing tabs, adds missing settings
+// (with defaults that can be changed by hand), and keeps the Sheet's time
+// zone matched to the script's so dates and times read back as written.
 function ensureSchema_() {
   var ss = getDb_();
-  var missing = Object.keys(TABS).some(function (k) { return !ss.getSheetByName(TABS[k].name); });
-  if (!missing) return;
+  var tabsMissing = Object.keys(TABS).some(function (k) { return !ss.getSheetByName(TABS[k].name); });
+  var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
+  if (!tabsMissing && !tzWrong && !missingSettings_(ss).length) return;
   withLock_(function () {
-    ensureTab_(ss, TABS.settings, function (sheet) {
-      var code = String(100000 + Math.floor(Math.random() * 900000));
-      sheet.getRange(2, 2, 2, 1).setNumberFormat('@').setWrap(true);
-      sheet.getRange(2, 1, 2, 2).setValues([
-        [SETTING_PREVIEW_CODE, code],
-        [SETTING_PREVIEW_INTRO, SEED_PREVIEW_INTRO]
-      ]);
-    });
+    if (ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) {
+      ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
+    }
+    ensureTab_(ss, TABS.settings);
     ensureTab_(ss, TABS.questions, function (sheet) {
       sheet.getRange(2, 1, SEED_QUESTIONS.length, 2).setValues(SEED_QUESTIONS).setWrap(true);
     });
     ensureTab_(ss, TABS.responses);
+    ensureTab_(ss, TABS.events);
+    var missing = missingSettings_(ss);
+    if (missing.length) {
+      var sheet = ss.getSheetByName(TABS.settings.name);
+      var row = sheet.getLastRow() + 1;
+      sheet.getRange(row, 2, missing.length, 1).setNumberFormat('@').setWrap(true);
+      sheet.getRange(row, 1, missing.length, 2).setValues(missing);
+    }
   });
+}
+
+// Settings rows that don't exist yet, as [name, default value].
+function missingSettings_(ss) {
+  var sheet = ss.getSheetByName(TABS.settings.name);
+  var have = sheet ? sheet.getDataRange().getDisplayValues().map(function (r) { return r[0].trim(); }) : [];
+  return [
+    [SETTING_PREVIEW_CODE, String(100000 + Math.floor(Math.random() * 900000))],
+    [SETTING_PREVIEW_INTRO, SEED_PREVIEW_INTRO],
+    [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL]
+  ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
 function ensureTab_(ss, tab, seed) {
@@ -178,6 +208,9 @@ function ensureTab_(ss, tab, seed) {
   sheet.getRange(1, 1, 1, tab.header.length).setValues([tab.header]).setFontWeight('bold');
   sheet.setFrozenRows(1);
   tab.widths.forEach(function (w, i) { sheet.setColumnWidth(i + 1, w); });
+  Object.keys(tab.formats || {}).forEach(function (col) {
+    sheet.getRange(2, Number(col), sheet.getMaxRows() - 1, 1).setNumberFormat(tab.formats[col]);
+  });
   if (seed) seed(sheet);
 }
 
