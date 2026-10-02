@@ -13,14 +13,17 @@ A simple site where volunteers in the 319 grant program check in, record attenda
 
 `config.js` holds the backend's web app URL, the only link between the two.
 
-Admin tools live in the Sheet itself: **HABO 319 Admin → Manage events** opens a modal for creating and editing events, with a live phone/iPad preview of the public site and each event's QR code. Only people who can edit the Sheet see the menu.
+Admin tools live in the Sheet itself: the **HABO 319 Admin** menu opens a modal with two views. **Events**: create and edit events, assign a host and co-hosts, and see a live phone/iPad preview of the public site and each event's QR code. **People**: profiles for staff and hosts (title, short bio, headshot), with a preview of how each person appears on public screens. Only people who can edit the Sheet see the menu.
+
+Headshots are kept in a private **Headshots** Drive folder next to the Sheet. Upload one from the modal, or drop images into the folder and pick them there; either way the modal crops it to a 512px square. Public pages will get photos through the backend, so the folder never needs to be shared.
 
 ### Sheet tabs
 
 The backend creates these on first use; all of them can be edited by hand.
 
-- **Events**: one row per event. A row typed in by hand gets its Event ID and Check-in code the next time the admin modal opens. Hours is a formula over Start and End, so fixing an event's times updates its hours; don't type into that column.
-- **Settings**: `Preview access code` (the code that unlocks the preview questions; clear it to turn preview access off), `Preview intro`, and `Public site URL` (where event QR codes point).
+- **Events**: one row per event. A row typed in by hand gets its Event ID and Check-in code the next time the admin modal opens. Hours is a formula over Start and End, so fixing an event's times updates its hours; don't type into that column. Host and Co-hosts name people as `Name (P001)`, with co-hosts separated by `;`; a name typed without its ID is matched by name. With one person on an event, they're the host.
+- **People**: one row per staff member or host. A blank Active cell counts as active; a blank "Show publicly" cell counts as no. Photo is a link to the person's headshot in Drive.
+- **Settings**: `Preview access code` (the code that unlocks the preview questions; clear it to turn preview access off), `Preview intro`, `Public site URL` (where event QR codes point), and `Headshots folder` (filled in when the folder is first created).
 - **Preview Questions**: one question per row; answer choices separated by `|`, or blank for a written answer.
 - **Preview Responses**: one row per answered question, with who answered and when.
 

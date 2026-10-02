@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --bg: #f2f2f7; --surface: #fff; --surface-2: #f0f0f5; --border: #d1d1d6;
+    --primary: #2563eb; --primary-dim: #dbeafe; --accent: #2c8a3d; --accent-dim: #d4f1dc;
+    --amber: #b45309; --amber-dim: #fef3c7;
+    --danger: #dc2626; --text: #1c1c1e; --text-dim: #6e6e73;
+    --radius: 12px; --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { font-family: var(--font); color: var(--text); background: var(--bg); font-size: 14px; line-height: 1.45; }
+  button, input, select, textarea { font: inherit; }
+  [hidden] { display: none !important; }
+
+  .layout { display: grid; grid-template-columns: 400px 1fr; height: 100%; }
+  .left { border-right: 1px solid var(--border); background: var(--surface); display: flex; flex-direction: column; min-height: 0; }
+  .right { display: flex; flex-direction: column; min-height: 0; padding: 14px 18px; }
+  .bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+  .right .bar { padding: 0 0 12px; border: 0; }
+  .form-title { font-size: 1.05rem; font-weight: 800; }
+  .scroll { overflow-y: auto; flex: 1; padding: 12px 16px 20px; }
+
+  .btn { border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 8px; padding: 7px 12px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-block; }
+  .btn.primary { background: var(--primary); border-color: var(--primary); color: #fff; }
+  .btn.small { padding: 4px 10px; font-size: 0.85rem; }
+  .btn:disabled { opacity: 0.55; cursor: default; }
+
+  .group { font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); margin: 14px 0 6px; }
+  .group:first-child { margin-top: 0; }
+  .item { border: 1.5px solid var(--border); border-radius: var(--radius); padding: 10px 12px; margin-bottom: 8px; cursor: pointer; position: relative; }
+  .item.on { border-color: var(--primary); background: var(--primary-dim); }
+  .item .name { font-weight: 700; padding-right: 50px; }
+  .item .meta { color: var(--text-dim); font-size: 0.85rem; }
+  .item .desc { font-size: 0.85rem; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .item .code { font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; color: var(--primary); font-weight: 700; letter-spacing: 1px; }
+  .item .edit { position: absolute; top: 8px; right: 8px; padding: 3px 9px; font-size: 0.8rem; }
+  .item .hosts { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; margin-top: 4px; }
+  .person { display: flex; gap: 10px; align-items: center; }
+  .badge { display: inline-block; font-size: 0.7rem; font-weight: 700; padding: 1px 7px; border-radius: 8px; background: var(--surface-2); color: var(--text-dim); margin-right: 4px; }
+  .badge.warn { background: var(--amber-dim); color: var(--amber); }
+  .empty { color: var(--text-dim); text-align: center; padding: 30px 10px; }
+
+  .avatar { border-radius: 50%; object-fit: cover; flex-shrink: 0; background: var(--surface-2); color: var(--text-dim); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; overflow: hidden; }
+  .avatar.s22 { width: 22px; height: 22px; font-size: 0.6rem; }
+  .avatar.s40 { width: 40px; height: 40px; font-size: 0.85rem; }
+  .avatar.s96 { width: 96px; height: 96px; font-size: 1.6rem; }
+  .avatar.s160 { width: 160px; height: 160px; font-size: 2.6rem; }
+
+  .field { margin-bottom: 12px; }
+  .field > label { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
+  .field input:not([type=checkbox]), .field textarea, .field select { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .field textarea { min-height: 84px; resize: vertical; }
+  .field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 8px; cursor: pointer; }
+  .check input { margin-top: 3px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hint { color: var(--text-dim); font-size: 0.85rem; margin: -4px 0 12px; }
+  .actions { display: flex; gap: 8px; }
+  .error { color: var(--danger); font-size: 0.88rem; margin-top: 10px; }
+  .error:empty { display: none; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .chip { display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 3px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface-2); font-size: 0.85rem; }
+  .chip button { border: 0; background: none; cursor: pointer; color: var(--text-dim); font-size: 1rem; line-height: 1; padding: 0 4px; }
+
+  .photo-block { display: flex; gap: 14px; align-items: center; margin-bottom: 14px; }
+  .photo-buttons { display: flex; flex-wrap: wrap; gap: 6px; }
+  .picker { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px; margin-bottom: 14px; background: var(--bg); }
+  .picker-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem; }
+  .picker-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; max-height: 240px; overflow-y: auto; }
+  .pick { border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); cursor: pointer; padding: 4px; text-align: center; font-size: 0.7rem; color: var(--text-dim); overflow: hidden; }
+  .pick:hover { border-color: var(--primary); }
+  .pick img, .pick .noimg { width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 6px; display: block; background: var(--surface-2); }
+  .pick span { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 3px; }
+
+  .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--surface); }
+  .seg button { border: 0; background: none; padding: 6px 14px; font-weight: 600; cursor: pointer; color: var(--text-dim); }
+  .seg button.on { background: var(--primary); color: #fff; }
+  .selected { font-weight: 700; margin-bottom: 4px; }
+  .selected small { font-weight: 400; color: var(--text-dim); }
+
+  .stage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .device { border: 10px solid #1c1c1e; border-radius: 28px; overflow: hidden; background: #fff; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.18); }
+  .device iframe { border: 0; display: block; transform-origin: 0 0; background: #fff; }
+
+  .qr { flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; text-align: center; }
+  .qr-box { width: min(380px, 60vh); background: #fff; padding: 14px; border-radius: var(--radius); border: 1px solid var(--border); }
+  .qr-box svg { display: block; width: 100%; height: auto; }
+  .qr-name { font-size: 1.1rem; font-weight: 800; }
+  .link-row { display: flex; gap: 6px; width: min(520px, 100%); }
+  .link-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; }
+  .muted { color: var(--text-dim); font-size: 0.85rem; }
+
+  .public-card-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+  .public-card { width: min(420px, 100%); background: var(--surface); border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); padding: 28px 24px; text-align: center; }
+  .public-card .pc-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
+  .public-card .pc-name { font-size: 1.4rem; font-weight: 800; margin-top: 14px; }
+  .public-card .pc-title { color: var(--text-dim); margin-top: 2px; }
+  .public-card .pc-bio { margin-top: 12px; white-space: pre-wrap; }
+</style>
+<?!= include('QrLib'); ?>
+</head>
+<body>
+<div class="layout">
+
+  <section class="left">
+    <div class="bar">
+      <div class="seg" id="modes">
+        <button type="button" data-mode="events">Events</button>
+        <button type="button" data-mode="people">People</button>
+      </div>
+      <div class="form-title" id="form-title" hidden></div>
+      <button class="btn primary" id="new-btn" type="button">+ New event</button>
+    </div>
+
+    <!-- Events -->
+    <div class="scroll" id="events-list-view">
+      <div id="events-list"><div class="empty">Loading…</div></div>
+    </div>
+
+    <form class="scroll" id="event-form" hidden novalidate>
+      <input type="hidden" id="e-id">
+      <div class="field"><label for="e-name">Event name</label><input id="e-name" maxlength="120" placeholder="e.g. Cypress Creek cleanup"></div>
+      <div class="field"><label for="e-date">Date</label><input id="e-date" type="date"></div>
+      <div class="row">
+        <div class="field"><label for="e-start">Start</label><input id="e-start" type="time" step="300"></div>
+        <div class="field"><label for="e-end">End</label><input id="e-end" type="time" step="300"></div>
+      </div>
+      <p class="hint" id="e-hours"></p>
+      <div class="field"><label for="e-location">Location</label><input id="e-location" maxlength="200" placeholder="Optional"></div>
+      <div class="field"><label for="e-description">Description</label><textarea id="e-description" maxlength="2000" placeholder="Optional: what volunteers should know, what to bring"></textarea></div>
+      <div class="field"><label for="e-host">Host</label><select id="e-host"></select></div>
+      <div class="field">
+        <label for="e-cohost-add">Co-hosts</label>
+        <div class="chips" id="e-cohosts"></div>
+        <select id="e-cohost-add"></select>
+      </div>
+      <p class="hint" id="e-host-hint">Optional. With just one person, they're shown as the host. Add people in the People tab.</p>
+      <div class="actions">
+        <button class="btn primary" type="submit" id="e-save">Save event</button>
+        <button class="btn" type="button" data-cancel>Cancel</button>
+      </div>
+      <p class="error" id="e-error"></p>
+    </form>
+
+    <!-- People -->
+    <div class="scroll" id="people-list-view" hidden>
+      <div id="people-list"></div>
+    </div>
+
+    <form class="scroll" id="person-form" hidden novalidate>
+      <input type="hidden" id="p-id">
+      <div class="photo-block">
+        <span id="p-avatar"></span>
+        <div>
+          <div class="photo-buttons">
+            <button class="btn small" type="button" id="p-upload-btn">Upload photo</button>
+            <button class="btn small" type="button" id="p-pick-btn">Choose from folder</button>
+            <button class="btn small" type="button" id="p-remove-btn">Remove</button>
+          </div>
+          <p class="muted" id="p-photo-note" style="margin-top:6px">Photos are cropped to a square.</p>
+          <input type="file" id="p-file" accept="image/*" hidden>
+        </div>
+      </div>
+      <div class="picker" id="p-picker" hidden>
+        <div class="picker-head">
+          <strong>Headshots folder</strong>
+          <span><a id="p-folder-link" target="_blank" rel="noopener">Open in Drive</a> · <a href="#" id="p-picker-close">Close</a></span>
+        </div>
+        <div class="picker-grid" id="p-picker-grid"></div>
+      </div>
+      <div class="field"><label for="p-name">Name</label><input id="p-name" maxlength="100"></div>
+      <div class="field"><label for="p-title">Title</label><input id="p-title" maxlength="100" placeholder="e.g. Volunteer Coordinator"></div>
+      <div class="field"><label for="p-bio">Short bio</label><textarea id="p-bio" maxlength="600" placeholder="A sentence or two volunteers will see"></textarea></div>
+      <div class="row">
+        <div class="field"><label for="p-email">Email</label><input id="p-email" type="email" maxlength="200" placeholder="Not shown publicly"></div>
+        <div class="field"><label for="p-phone">Phone</label><input id="p-phone" type="tel" maxlength="40" placeholder="Not shown publicly"></div>
+      </div>
+      <label class="check"><input type="checkbox" id="p-public"> <span>Show name, photo, title, and bio on public screens</span></label>
+      <label class="check"><input type="checkbox" id="p-active"> <span>Active <span class="muted">(uncheck when someone moves on; their past events keep their name)</span></span></label>
+      <div class="actions" style="margin-top:14px">
+        <button class="btn primary" type="submit" id="p-save">Save person</button>
+        <button class="btn" type="button" data-cancel>Cancel</button>
+      </div>
+      <p class="error" id="p-error"></p>
+    </form>
+
+    <p class="error" id="load-error" style="padding: 0 16px 12px"></p>
+  </section>
+
+  <section class="right">
+    <!-- Events: live preview and QR -->
+    <div id="events-right">
+      <div class="bar">
+        <div class="seg" id="views">
+          <button type="button" data-view="preview" class="on">Preview</button>
+          <button type="button" data-view="qr">QR code</button>
+        </div>
+        <div class="seg" id="devices">
+          <button type="button" data-device="phone" class="on">Phone</button>
+          <button type="button" data-device="ipad">iPad</button>
+        </div>
+      </div>
+      <div class="selected" id="selected"></div>
+    </div>
+    <div class="stage" id="preview-view">
+      <div class="device" id="device"><iframe id="frame" title="Live preview of the public site"></iframe></div>
+    </div>
+    <div class="qr" id="qr-view" hidden>
+      <div class="qr-name" id="qr-name"></div>
+      <div class="qr-box" id="qr-box"></div>
+      <div class="link-row">
+        <input id="qr-url" readonly aria-label="Check-in link">
+        <button class="btn" type="button" id="copy-btn">Copy link</button>
+        <a class="btn" id="open-link" target="_blank" rel="noopener">Open</a>
+      </div>
+      <p class="muted">Scanning this code opens the public site for this event only.</p>
+    </div>
+
+    <!-- People: how someone appears on public screens -->
+    <div class="public-card-stage" id="person-right" hidden>
+      <div class="muted" id="pc-caption"></div>
+      <div class="public-card">
+        <div class="pc-label">Your host</div>
+        <span id="pc-avatar"></span>
+        <div class="pc-name" id="pc-name"></div>
+        <div class="pc-title" id="pc-title"></div>
+        <div class="pc-bio" id="pc-bio"></div>
+      </div>
+      <div id="pc-badges"></div>
+    </div>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var START_VIEW = <?!= JSON.stringify(startView) ?>;
+  var DEVICES = { phone: { w: 390, h: 844 }, ipad: { w: 1180, h: 820 } };
+  var HEADSHOT_PX = 512;
+
+  var state = {
+    mode: START_VIEW === 'people' ? 'people' : 'events',
+    editing: null,            // 'event' | 'person' while a form is open
+    events: [], people: [], publicUrl: '', headshotsFolderUrl: '',
+    eventId: null, personId: null,
+    view: 'preview', device: 'phone',
+    cohosts: [],              // co-host IDs in the open event form
+    photo: { mode: 'keep' },  // pending headshot change in the open person form
+    photoSrc: null            // what the person form's avatar shows
+  };
+
+  function $(id) { return document.getElementById(id); }
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  // google.script.run as a promise.
+  function call(fn, arg) {
+    return new Promise(function (resolve, reject) {
+      var run = google.script.run.withSuccessHandler(resolve).withFailureHandler(reject);
+      if (arg === undefined) run[fn](); else run[fn](arg);
+    });
+  }
+  function message(err) { return (err && err.message) || String(err); }
+
+  /* ── Formatting ── */
+
+  function todayYmd() {
+    var d = new Date();
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  function fmtDate(ymd) {
+    if (!ymd) return 'No date';
+    var p = ymd.split('-').map(Number);
+    return new Date(p[0], p[1] - 1, p[2]).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+  }
+  function fmtTime(hm) {
+    if (!hm) return '?';
+    var p = hm.split(':').map(Number);
+    return (p[0] % 12 || 12) + ':' + ('0' + p[1]).slice(-2) + (p[0] < 12 ? ' AM' : ' PM');
+  }
+  function hoursBetween(start, end) {
+    if (!start || !end) return null;
+    var a = start.split(':').map(Number), b = end.split(':').map(Number);
+    return ((b[0] * 60 + b[1]) - (a[0] * 60 + a[1])) / 60;
+  }
+  function fmtHours(h) {
+    var n = Math.round(h * 100) / 100;
+    return n + (n === 1 ? ' hour' : ' hours');
+  }
+  function initials(name) {
+    var parts = String(name || '?').trim().split(/\s+/);
+    return ((parts[0] || '?')[0] + (parts.length > 1 ? parts[parts.length - 1][0] : '')).toUpperCase();
+  }
+  function avatar(src, name, size) {
+    if (src) {
+      var img = el('img', 'avatar s' + size);
+      img.src = src;
+      img.alt = '';
+      return img;
+    }
+    return el('span', 'avatar s' + size, initials(name));
+  }
+  function person(id) { return state.people.filter(function (p) { return p.id === id; })[0] || null; }
+  function eventById(id) { return state.events.filter(function (e) { return e.id === id; })[0] || null; }
+  function checkinUrl(ev) {
+    var url = new URL(state.publicUrl);
+    if (ev) url.searchParams.set('e', ev.code);
+    return url.toString();
+  }
+
+  /* ── Loading and modes ── */
+
+  function load() {
+    return call('adminLoad').then(apply).catch(function (err) { $('load-error').textContent = message(err); });
+  }
+
+  function apply(data) {
+    state.events = data.events;
+    state.people = data.people;
+    state.publicUrl = data.publicUrl;
+    state.headshotsFolderUrl = data.headshotsFolderUrl;
+    if (data.savedId && state.mode === 'events') state.eventId = data.savedId;
+    if (data.savedId && state.mode === 'people') state.personId = data.savedId;
+    if (!eventById(state.eventId)) {
+      var up = sortedEvents().upcoming;
+      state.eventId = up.length ? up[0].id : (state.events[0] ? state.events[0].id : null);
+    }
+    if (!person(state.personId)) state.personId = state.people[0] ? state.people[0].id : null;
+    render();
+  }
+
+  function setMode(mode) {
+    state.mode = mode;
+    closeForm();
+  }
+
+  function render() {
+    var events = state.mode === 'events', editing = state.editing;
+    document.querySelectorAll('#modes button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === state.mode); });
+    $('modes').hidden = !!editing;
+    $('form-title').hidden = !editing;
+    $('new-btn').hidden = !!editing;
+    $('new-btn').textContent = events ? '+ New event' : '+ New person';
+    $('events-list-view').hidden = !events || !!editing;
+    $('people-list-view').hidden = events || !!editing;
+    $('event-form').hidden = editing !== 'event';
+    $('person-form').hidden = editing !== 'person';
+    $('events-right').hidden = !events;
+    $('preview-view').hidden = !events || state.view !== 'preview';
+    $('qr-view').hidden = !events || state.view !== 'qr';
+    $('person-right').hidden = events;
+    if (!editing) { renderEvents(); renderPeople(); }
+    if (events) renderEventRight(); else renderPersonRight();
+  }
+
+  document.querySelectorAll('#modes button').forEach(function (b) {
+    b.addEventListener('click', function () { setMode(b.dataset.mode); });
+  });
+  $('new-btn').addEventListener('click', function () {
+    if (state.mode === 'events') openEventForm(null); else openPersonForm(null);
+  });
+  document.querySelectorAll('[data-cancel]').forEach(function (b) { b.addEventListener('click', closeForm); });
+
+  function closeForm() {
+    state.editing = null;
+    state.photo = { mode: 'keep' };
+    $('p-picker').hidden = true;
+    render();
+  }
+
+  /* ── Events list ── */
+
+  // Upcoming soonest-first, then past most-recent-first.
+  function sortedEvents() {
+    var today = todayYmd();
+    var upcoming = state.events.filter(function (e) { return e.date && e.date >= today; });
+    var past = state.events.filter(function (e) { return !e.date || e.date < today; });
+    upcoming.sort(function (a, b) { return (a.date + a.start).localeCompare(b.date + b.start); });
+    past.sort(function (a, b) { return (b.date + b.start).localeCompare(a.date + a.start); });
+    return { upcoming: upcoming, past: past };
+  }
+
+  function renderEvents() {
+    var list = $('events-list');
+    list.textContent = '';
+    if (!state.events.length) {
+      list.innerHTML = '<div class="empty">No events yet.<br>Tap <b>+ New event</b> to add one.</div>';
+      return;
+    }
+    var groups = sortedEvents();
+    [['Upcoming', groups.upcoming], ['Past', groups.past]].forEach(function (g) {
+      if (!g[1].length) return;
+      list.appendChild(el('div', 'group', g[0]));
+      g[1].forEach(function (ev) { list.appendChild(eventCard(ev)); });
+    });
+  }
+
+  function eventCard(ev) {
+    var card = el('div', 'item' + (ev.id === state.eventId ? ' on' : ''));
+    card.dataset.id = ev.id;
+    card.appendChild(el('div', 'name', ev.name));
+    var hours = hoursBetween(ev.start, ev.end);
+    card.appendChild(el('div', 'meta', fmtDate(ev.date) + ' · ' + fmtTime(ev.start) + ' – ' + fmtTime(ev.end) +
+      (hours > 0 ? ' · ' + fmtHours(hours) : '')));
+    if (ev.location) card.appendChild(el('div', 'meta', ev.location));
+    if (ev.description) card.appendChild(el('div', 'desc', ev.description));
+    var host = person(ev.hostId);
+    if (host) {
+      var row = el('div', 'hosts');
+      row.appendChild(avatar(host.photoData, host.name, 22));
+      var co = ev.cohostIds.map(person).filter(Boolean).map(function (p) { return p.name; });
+      row.appendChild(el('span', null, 'Host: ' + host.name + (co.length ? ' · Co-hosts: ' + co.join(', ') : '')));
+      card.appendChild(row);
+    }
+    card.appendChild(el('div', 'code', ev.code));
+    var edit = el('button', 'btn edit', 'Edit');
+    edit.type = 'button';
+    edit.addEventListener('click', function (e) { e.stopPropagation(); openEventForm(ev); });
+    card.appendChild(edit);
+    card.addEventListener('click', function () {
+      state.eventId = ev.id;
+      document.querySelectorAll('#events-list .item').forEach(function (c) { c.classList.toggle('on', c.dataset.id === ev.id); });
+      renderEventRight();
+    });
+    return card;
+  }
+
+  /* ── Event form ── */
+
+  function openEventForm(ev) {
+    state.editing = 'event';
+    $('form-title').textContent = ev ? 'Edit event' : 'New event';
+    $('e-id').value = ev ? ev.id : '';
+    $('e-name').value = ev ? ev.name : '';
+    $('e-date').value = ev ? ev.date : '';
+    $('e-start').value = ev ? ev.start : '';
+    $('e-end').value = ev ? ev.end : '';
+    $('e-location').value = ev ? ev.location : '';
+    $('e-description').value = ev ? ev.description : '';
+    state.cohosts = ev ? ev.cohostIds.slice() : [];
+    fillHostSelect(ev ? ev.hostId : '');
+    renderCohosts();
+    $('e-error').textContent = '';
+    updateHoursHint();
+    if (ev) state.eventId = ev.id;
+    render();
+    $('e-name').focus();
+  }
+
+  // Active people, plus anyone already on this event who has since been
+  // marked inactive (so editing doesn't silently drop them).
+  function hostChoices(keepIds) {
+    return state.people
+      .filter(function (p) { return p.active || keepIds.indexOf(p.id) !== -1; })
+      .sort(function (a, b) { return a.name.localeCompare(b.name); });
+  }
+
+  function fillHostSelect(hostId) {
+    var select = $('e-host');
+    select.textContent = '';
+    select.appendChild(new Option('No host', ''));
+    hostChoices([hostId]).forEach(function (p) {
+      select.appendChild(new Option(p.name + (p.title ? ' · ' + p.title : ''), p.id));
+    });
+    select.value = hostId || '';
+  }
+
+  function renderCohosts() {
+    var hostId = $('e-host').value;
+    state.cohosts = state.cohosts.filter(function (id) { return id !== hostId; });
+    var chips = $('e-cohosts');
+    chips.textContent = '';
+    state.cohosts.forEach(function (id) {
+      var p = person(id);
+      if (!p) return;
+      var chip = el('span', 'chip');
+      chip.appendChild(avatar(p.photoData, p.name, 22));
+      chip.appendChild(el('span', null, p.name));
+      var x = el('button', null, '×');
+      x.type = 'button';
+      x.setAttribute('aria-label', 'Remove ' + p.name);
+      x.addEventListener('click', function () {
+        state.cohosts = state.cohosts.filter(function (c) { return c !== id; });
+        renderCohosts();
+      });
+      chip.appendChild(x);
+      chips.appendChild(chip);
+    });
+    var add = $('e-cohost-add');
+    add.textContent = '';
+    add.appendChild(new Option('+ Add a co-host…', ''));
+    hostChoices(state.cohosts).forEach(function (p) {
+      if (p.id !== hostId && state.cohosts.indexOf(p.id) === -1) add.appendChild(new Option(p.name, p.id));
+    });
+    add.hidden = add.options.length === 1 && !state.cohosts.length && !state.people.length;
+  }
+
+  $('e-host').addEventListener('change', renderCohosts);
+  $('e-cohost-add').addEventListener('change', function () {
+    if (this.value) state.cohosts.push(this.value);
+    renderCohosts();
+  });
+
+  function updateHoursHint() {
+    var h = hoursBetween($('e-start').value, $('e-end').value);
+    $('e-hours').textContent = h === null ? '' :
+      h > 0 ? 'Volunteers get ' + fmtHours(h) + ' for this event.' : 'The end time has to be after the start time.';
+  }
+  $('e-start').addEventListener('input', updateHoursHint);
+  $('e-end').addEventListener('input', updateHoursHint);
+
+  $('event-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = {
+      id: $('e-id').value,
+      name: $('e-name').value.trim(),
+      date: $('e-date').value,
+      start: $('e-start').value,
+      end: $('e-end').value,
+      location: $('e-location').value.trim(),
+      description: $('e-description').value.trim(),
+      hostId: $('e-host').value,
+      cohostIds: state.cohosts.slice()
+    };
+    save('adminSaveEvent', input, $('e-save'), 'Save event', $('e-error'));
+  });
+
+  function save(fn, input, button, label, errorEl) {
+    button.disabled = true;
+    button.textContent = 'Saving…';
+    errorEl.textContent = '';
+    call(fn, input)
+      .then(function (data) { state.editing = null; state.photo = { mode: 'keep' }; apply(data); })
+      .catch(function (err) { errorEl.textContent = message(err); })
+      .then(function () { button.disabled = false; button.textContent = label; });
+  }
+
+  /* ── Event preview and QR ── */
+
+  function renderEventRight() {
+    var ev = eventById(state.eventId);
+    var label = $('selected');
+    label.textContent = ev ? ev.name + ' ' : 'Public site ';
+    label.appendChild(el('small', null, ev ? '· ' + fmtDate(ev.date) + ' · code ' + ev.code : '· no event selected'));
+    $('devices').hidden = state.view !== 'preview';
+    if (!state.publicUrl) return;
+    if (state.view === 'preview') renderPreview(ev); else renderQr(ev);
+  }
+
+  function renderPreview(ev) {
+    var frame = $('frame');
+    var url = checkinUrl(ev);
+    if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
+    fitDevice();
+  }
+
+  // Shows the page at the device's real size, scaled down to fit the stage.
+  function fitDevice() {
+    var d = DEVICES[state.device];
+    var stage = $('preview-view');
+    var scale = Math.min((stage.clientWidth - 40) / d.w, (stage.clientHeight - 40) / d.h, 1);
+    var frame = $('frame');
+    frame.style.width = d.w + 'px';
+    frame.style.height = d.h + 'px';
+    frame.style.transform = 'scale(' + scale + ')';
+    $('device').style.width = Math.round(d.w * scale) + 20 + 'px';
+    $('device').style.height = Math.round(d.h * scale) + 20 + 'px';
+  }
+
+  function renderQr(ev) {
+    var box = $('qr-box');
+    if (!ev) {
+      $('qr-name').textContent = '';
+      box.innerHTML = '<p class="muted">Pick an event to see its QR code.</p>';
+      $('qr-url').value = '';
+      $('open-link').removeAttribute('href');
+      return;
+    }
+    var url = checkinUrl(ev);
+    var qr = qrcode(0, 'M');
+    qr.addData(url);
+    qr.make();
+    box.innerHTML = qr.createSvgTag({ cellSize: 8, margin: 2, scalable: true });
+    $('qr-name').textContent = ev.name;
+    $('qr-url').value = url;
+    $('open-link').href = url;
+  }
+
+  document.querySelectorAll('#views button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.view = b.dataset.view;
+      document.querySelectorAll('#views button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      render();
+    });
+  });
+  document.querySelectorAll('#devices button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      state.device = b.dataset.device;
+      document.querySelectorAll('#devices button').forEach(function (x) { x.classList.toggle('on', x === b); });
+      fitDevice();
+    });
+  });
+  $('qr-url').addEventListener('focus', function () { this.select(); });
+  $('copy-btn').addEventListener('click', function () {
+    var input = $('qr-url'), btn = this;
+    if (!input.value) return;
+    var done = function () { btn.textContent = 'Copied'; setTimeout(function () { btn.textContent = 'Copy link'; }, 1500); };
+    var fallback = function () { input.select(); try { document.execCommand('copy'); done(); } catch (e) {} };
+    if (navigator.clipboard) navigator.clipboard.writeText(input.value).then(done, fallback); else fallback();
+  });
+  window.addEventListener('resize', function () { if (state.mode === 'events' && state.view === 'preview') fitDevice(); });
+
+  /* ── People list ── */
+
+  function renderPeople() {
+    var list = $('people-list');
+    list.textContent = '';
+    if (!state.people.length) {
+      list.innerHTML = '<div class="empty">No people yet.<br>Tap <b>+ New person</b> to add your hosts and staff.</div>';
+      return;
+    }
+    var active = state.people.filter(function (p) { return p.active; });
+    var inactive = state.people.filter(function (p) { return !p.active; });
+    var byName = function (a, b) { return a.name.localeCompare(b.name); };
+    [['Active', active.sort(byName)], ['Inactive', inactive.sort(byName)]].forEach(function (g) {
+      if (!g[1].length) return;
+      if (inactive.length) list.appendChild(el('div', 'group', g[0]));
+      g[1].forEach(function (p) { list.appendChild(personCard(p)); });
+    });
+  }
+
+  function personCard(p) {
+    var card = el('div', 'item' + (p.id === state.personId ? ' on' : ''));
+    card.dataset.id = p.id;
+    var row = el('div', 'person');
+    row.appendChild(avatar(p.photoData, p.name, 40));
+    var text = el('div');
+    text.appendChild(el('div', 'name', p.name));
+    if (p.title) text.appendChild(el('div', 'meta', p.title));
+    if (!p.isPublic) text.appendChild(el('span', 'badge warn', 'Not on public screens'));
+    if (!p.photoId) text.appendChild(el('span', 'badge', 'No photo'));
+    row.appendChild(text);
+    card.appendChild(row);
+    var edit = el('button', 'btn edit', 'Edit');
+    edit.type = 'button';
+    edit.addEventListener('click', function (e) { e.stopPropagation(); openPersonForm(p); });
+    card.appendChild(edit);
+    card.addEventListener('click', function () {
+      state.personId = p.id;
+      document.querySelectorAll('#people-list .item').forEach(function (c) { c.classList.toggle('on', c.dataset.id === p.id); });
+      renderPersonRight();
+    });
+    return card;
+  }
+
+  /* ── Person form ── */
+
+  function openPersonForm(p) {
+    state.editing = 'person';
+    state.photo = { mode: 'keep' };
+    state.photoSrc = p ? p.photoData : null;
+    $('form-title').textContent = p ? 'Edit person' : 'New person';
+    $('p-id').value = p ? p.id : '';
+    $('p-name').value = p ? p.name : '';
+    $('p-title').value = p ? p.title : '';
+    $('p-bio').value = p ? p.bio : '';
+    $('p-email').value = p ? p.email : '';
+    $('p-phone').value = p ? p.phone : '';
+    $('p-public').checked = p ? p.isPublic : true;
+    $('p-active').checked = p ? p.active : true;
+    $('p-error').textContent = '';
+    $('p-picker').hidden = true;
+    if (p) state.personId = p.id;
+    render();
+    renderPhotoInForm();
+    $('p-name').focus();
+  }
+
+  function renderPhotoInForm() {
+    var slot = $('p-avatar');
+    slot.textContent = '';
+    slot.appendChild(avatar(state.photoSrc, $('p-name').value || '?', 96));
+    $('p-remove-btn').hidden = !state.photoSrc;
+    var note = { upload: 'New photo, saved when you save this person.', link: 'Using this photo from the folder.',
+      remove: 'Photo will be removed when you save.' }[state.photo.mode];
+    $('p-photo-note').textContent = note || 'Photos are cropped to a square.';
+    renderPersonRight();
+  }
+
+  ['p-name', 'p-title', 'p-bio'].forEach(function (id) {
+    $(id).addEventListener('input', function () { if (id === 'p-name') renderPhotoInForm(); else renderPersonRight(); });
+  });
+  $('p-public').addEventListener('change', renderPersonRight);
+
+  // Crops an image to a centered square (a little above center for portraits,
+  // where faces usually are) and shrinks it to a 512px JPEG.
+  function toHeadshot(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () {
+        var w = img.naturalWidth, h = img.naturalHeight, side = Math.min(w, h);
+        var out = Math.min(HEADSHOT_PX, side);
+        var canvas = document.createElement('canvas');
+        canvas.width = canvas.height = out;
+        var ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, out, out);
+        ctx.drawImage(img, (w - side) / 2, h > w ? (h - side) * 0.25 : 0, side, side, 0, 0, out, out);
+        resolve({ dataUrl: canvas.toDataURL('image/jpeg', 0.85), width: w, height: h });
+      };
+      img.onerror = function () { reject(new Error("That image couldn't be read here. Try a JPG or PNG.")); };
+      img.src = src;
+    });
+  }
+
+  function setPhoto(photo, src) {
+    state.photo = photo;
+    state.photoSrc = src;
+    $('p-error').textContent = '';
+    renderPhotoInForm();
+  }
+
+  $('p-upload-btn').addEventListener('click', function () { $('p-file').click(); });
+  $('p-file').addEventListener('change', function () {
+    var file = this.files[0];
+    this.value = '';
+    if (!file) return;
+    var url = URL.createObjectURL(file);
+    toHeadshot(url)
+      .then(function (shot) { setPhoto({ mode: 'upload', data: shot.dataUrl.split(',')[1] }, shot.dataUrl); })
+      .catch(function (err) { $('p-error').textContent = message(err); })
+      .then(function () { URL.revokeObjectURL(url); });
+  });
+
+  $('p-remove-btn').addEventListener('click', function () { setPhoto({ mode: 'remove' }, null); });
+
+  $('p-pick-btn').addEventListener('click', function () {
+    var picker = $('p-picker'), grid = $('p-picker-grid');
+    picker.hidden = false;
+    grid.innerHTML = '<p class="muted">Loading the Headshots folder…</p>';
+    call('adminListHeadshots').then(function (data) {
+      state.headshotsFolderUrl = data.folderUrl;
+      $('p-folder-link').href = data.folderUrl;
+      grid.textContent = '';
+      if (!data.files.length) {
+        grid.innerHTML = '<p class="muted" style="grid-column: 1 / -1">No images in the folder yet. Use <b>Open in Drive</b> to drop some in, then try again.</p>';
+        return;
+      }
+      data.files.forEach(function (f) {
+        var b = el('button', 'pick');
+        b.type = 'button';
+        b.title = f.name;
+        if (f.thumb) { var img = el('img'); img.src = f.thumb; img.alt = ''; b.appendChild(img); }
+        else b.appendChild(el('div', 'noimg'));
+        b.appendChild(el('span', null, f.name));
+        b.addEventListener('click', function () { pickFromFolder(f); });
+        grid.appendChild(b);
+      });
+    }).catch(function (err) { grid.innerHTML = ''; grid.appendChild(el('p', 'error', message(err))); });
+  });
+  $('p-picker-close').addEventListener('click', function (e) { e.preventDefault(); $('p-picker').hidden = true; });
+
+  // A file that is already a square JPEG headshot is used as is; anything
+  // else is cropped and saved as a new headshot, leaving the original alone.
+  function pickFromFolder(f) {
+    $('p-photo-note').textContent = 'Loading ' + f.name + '…';
+    call('adminGetImage', f.id).then(function (img) {
+      var src = 'data:' + img.mimeType + ';base64,' + img.data;
+      return toHeadshot(src).then(function (shot) {
+        var ready = img.mimeType === 'image/jpeg' && shot.width === shot.height && shot.width <= HEADSHOT_PX;
+        if (ready) setPhoto({ mode: 'link', fileId: f.id }, src);
+        else setPhoto({ mode: 'upload', data: shot.dataUrl.split(',')[1] }, shot.dataUrl);
+        $('p-picker').hidden = true;
+      });
+    }).catch(function (err) { $('p-error').textContent = message(err); renderPhotoInForm(); });
+  }
+
+  $('person-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var input = {
+      id: $('p-id').value,
+      name: $('p-name').value.trim(),
+      title: $('p-title').value.trim(),
+      bio: $('p-bio').value.trim(),
+      email: $('p-email').value.trim(),
+      phone: $('p-phone').value.trim(),
+      isPublic: $('p-public').checked,
+      active: $('p-active').checked,
+      photo: state.photo
+    };
+    save('adminSavePerson', input, $('p-save'), 'Save person', $('p-error'));
+  });
+
+  /* ── Public card preview ── */
+
+  // What volunteers would see for this person. While the form is open it
+  // follows the form; otherwise it shows the selected person.
+  function renderPersonRight() {
+    var editing = state.editing === 'person';
+    var p = editing ? {
+      name: $('p-name').value.trim(), title: $('p-title').value.trim(), bio: $('p-bio').value.trim(),
+      isPublic: $('p-public').checked, photoData: state.photoSrc
+    } : person(state.personId);
+    var slot = $('pc-avatar');
+    slot.textContent = '';
+    var badges = $('pc-badges');
+    badges.textContent = '';
+    if (!p) {
+      $('pc-caption').textContent = 'Add a person to see how they appear on public screens.';
+      $('pc-name').textContent = '';
+      $('pc-title').textContent = '';
+      $('pc-bio').textContent = '';
+      slot.appendChild(avatar(null, '?', 160));
+      return;
+    }
+    $('pc-caption').textContent = 'How ' + (p.name || 'this person') + ' appears on public screens';
+    slot.appendChild(avatar(p.photoData, p.name || '?', 160));
+    $('pc-name').textContent = p.name || 'Name';
+    $('pc-title').textContent = p.title;
+    $('pc-bio').textContent = p.bio;
+    if (!p.isPublic) badges.appendChild(el('span', 'badge warn', 'Hidden from public screens (box unchecked)'));
+  }
+
+  render();
+  load();
+})();
+</script>
+</body>
+</html>

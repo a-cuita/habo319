@@ -33,10 +33,19 @@ var TABS = {
     name: 'Events',
     header: ['Event ID', 'Name', 'Date', 'Start', 'End',
       '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
-      'Location', 'Check-in code', 'Created', 'Updated', 'Description'],
-    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400],
+      'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300],
     formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
       9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
+  },
+  // Hosts on the Events tab refer to people as "Name (P001)". Columns are
+  // listed in PERSON_COL (People.js).
+  people: {
+    name: 'People',
+    header: ['Person ID', 'Name', 'Title', 'Bio', 'Email', 'Phone', 'Photo', 'Show publicly', 'Active',
+      'Created', 'Updated'],
+    widths: [80, 180, 180, 360, 200, 130, 280, 100, 70, 150, 150],
+    formats: { 10: 'yyyy-mm-dd h:mm', 11: 'yyyy-mm-dd h:mm' }
   }
 };
 
@@ -184,6 +193,7 @@ function ensureSchema_() {
     });
     ensureTab_(ss, TABS.responses);
     ensureTab_(ss, TABS.events);
+    ensureTab_(ss, TABS.people);
     Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
     var missing = missingSettings_(ss);
     if (missing.length) {
@@ -202,7 +212,8 @@ function missingSettings_(ss) {
   return [
     [SETTING_PREVIEW_CODE, String(100000 + Math.floor(Math.random() * 900000))],
     [SETTING_PREVIEW_INTRO, SEED_PREVIEW_INTRO],
-    [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL]
+    [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
+    [SETTING_HEADSHOTS_FOLDER, '']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
@@ -240,6 +251,13 @@ function getSetting_(name) {
     if (rows[i][0].trim() === name) return rows[i][1].trim();
   }
   return '';
+}
+
+function setSetting_(name, value) {
+  var sheet = getDb_().getSheetByName(TABS.settings.name);
+  var names = sheet.getDataRange().getDisplayValues().map(function (r) { return r[0].trim(); });
+  var row = names.indexOf(name) + 1 || sheet.getLastRow() + 1;
+  sheet.getRange(row, 1, 1, 2).setValues([[name, value]]);
 }
 
 /* ── Helpers ── */
