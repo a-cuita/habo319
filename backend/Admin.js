@@ -11,7 +11,7 @@
 // Events tab columns (1-based), matching TABS.events.header in Code.js.
 var EVENT_COL = {
   id: 1, name: 2, date: 3, start: 4, end: 5, hours: 6, location: 7, code: 8,
-  created: 9, updated: 10, description: 11, host: 12, cohosts: 13
+  created: 9, updated: 10, description: 11, host: 12, cohosts: 13, waivers: 14
 };
 
 // Unambiguous characters for check-in codes (no 0/O, 1/I/L).
@@ -22,11 +22,13 @@ function onOpen() {
     .createMenu('HABO 319 Admin')
     .addItem('Manage events', 'openEventsAdmin')
     .addItem('Manage people', 'openPeopleAdmin')
+    .addItem('Manage waivers', 'openWaiversAdmin')
     .addToUi();
 }
 
 function openEventsAdmin() { openAdmin_('events'); }
 function openPeopleAdmin() { openAdmin_('people'); }
+function openWaiversAdmin() { openAdmin_('waivers'); }
 
 function openAdmin_(startView) {
   ensureSchema_();
@@ -42,14 +44,20 @@ function include(name) {
 
 /* ── Called from the modal ── */
 
-// Everything the modal shows: events, people (with headshots), and settings.
+// Everything the modal shows: events, people (with headshots), waivers, and
+// settings.
 function adminLoad() {
   ensureSchema_();
   var people = readPeople_();
+  var waivers = readWaivers_();
   people.forEach(function (p) { p.photoData = headshotData_(p.photoId); });
   return {
-    events: readEvents_(people),
+    events: readEvents_(people, waivers),
     people: people,
+    waivers: waivers.map(function (w) {
+      return { id: w.id, title: w.title, text: w.text, type: w.type, active: w.active,
+        placeholder: /^\[Replace/.test(w.text) };
+    }),
     publicUrl: getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL,
     headshotsFolderUrl: getSetting_(SETTING_HEADSHOTS_FOLDER)
   };
@@ -59,7 +67,7 @@ function adminLoad() {
 // ID and a fresh check-in code; editing never changes the code.
 function adminSaveEvent(input) {
   ensureSchema_();
-  var ev = validateEvent_(input, readPeople_());
+  var ev = validateEvent_(input, readPeople_(), readWaivers_());
   var savedId = withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.events.name);
     var last = lastRowWith_(sheet, EVENT_COL.id);
@@ -81,7 +89,8 @@ function adminSaveEvent(input) {
       .setValues([[safeCell_(ev.name), dateSerial_(ev.date), timeSerial_(ev.start), timeSerial_(ev.end)]]);
     sheet.getRange(row, EVENT_COL.location).setValue(safeCell_(ev.location));
     sheet.getRange(row, EVENT_COL.description).setValue(safeCell_(ev.description)).setWrap(true);
-    sheet.getRange(row, EVENT_COL.host, 1, 2).setValues([[safeCell_(ev.hostText), safeCell_(ev.cohostText)]]);
+    sheet.getRange(row, EVENT_COL.host, 1, 3)
+      .setValues([[safeCell_(ev.hostText), safeCell_(ev.cohostText), safeCell_(ev.waiverText)]]);
     sheet.getRange(row, EVENT_COL.updated).setValue(now);
     return ev.id;
   });
@@ -93,13 +102,13 @@ function adminSaveEvent(input) {
 /* ── Events tab ── */
 
 // Every event with a name. Rows typed in by hand get an ID and check-in code
-// filled in the first time they're read. Hosts are matched to people by the
-// ID in parentheses, or by name when a host was typed in without one.
-function readEvents_(people) {
+// filled in the first time they're read. Hosts and waivers are matched by the
+// ID in parentheses, or by name/title when typed in without one.
+function readEvents_(people, waivers) {
   var sheet = getDb_().getSheetByName(TABS.events.name);
   var count = lastRowWith_(sheet, EVENT_COL.id) - 1;
   if (count < 1) return [];
-  var range = sheet.getRange(2, 1, count, EVENT_COL.cohosts);
+  var range = sheet.getRange(2, 1, count, EVENT_COL.waivers);
   var values = range.getValues();
   var shown = range.getDisplayValues();
   backfillIds_(sheet, shown, EVENT_COL.id, EVENT_COL.name, 'E', EVENT_COL.code);
@@ -117,14 +126,15 @@ function readEvents_(people) {
         location: r[EVENT_COL.location - 1].trim(),
         code: r[EVENT_COL.code - 1].trim(),
         description: r[EVENT_COL.description - 1].trim(),
-        hostId: resolvePeople_(r[EVENT_COL.host - 1], people)[0] || '',
-        cohostIds: resolvePeople_(r[EVENT_COL.cohosts - 1], people)
+        hostId: resolveRefs_(r[EVENT_COL.host - 1], people, 'P')[0] || '',
+        cohostIds: resolveRefs_(r[EVENT_COL.cohosts - 1], people, 'P'),
+        waiverIds: resolveRefs_(r[EVENT_COL.waivers - 1], waivers, 'W')
       };
     })
     .filter(function (e) { return e.name; });
 }
 
-function validateEvent_(input, people) {
+function validateEvent_(input, people, waivers) {
   input = input || {};
   var ev = {
     id: clean_(input.id, 20),
@@ -151,9 +161,57 @@ function validateEvent_(input, people) {
   [hostId].concat(cohostIds).forEach(function (id) {
     if (id && !byId[id]) throw new Error('One of the hosts is no longer in the People tab.');
   });
-  ev.hostText = hostId ? personRef_(byId[hostId]) : '';
-  ev.cohostText = cohostIds.map(function (id) { return personRef_(byId[id]); }).join('; ');
+  ev.hostText = hostId ? ref_(byId[hostId]) : '';
+  ev.cohostText = cohostIds.map(function (id) { return ref_(byId[id]); }).join('; ');
+
+  var waiverById = {};
+  waivers.forEach(function (w) { waiverById[w.id] = w; });
+  var waiverIds = (Array.isArray(input.waiverIds) ? input.waiverIds : [])
+    .map(function (id) { return clean_(id, 20); })
+    .filter(function (id, i, all) { return id && all.indexOf(id) === i; });
+  waiverIds.forEach(function (id) {
+    if (!waiverById[id]) throw new Error('One of the waivers is no longer in the Waivers tab.');
+  });
+  ev.waiverText = waiverIds.map(function (id) { return ref_(waiverById[id]); }).join('; ');
   return ev;
+}
+
+// Creates a waiver (input.id empty) or updates one.
+function adminSaveWaiver(input) {
+  ensureSchema_();
+  input = input || {};
+  var w = {
+    id: clean_(input.id, 20),
+    title: clean_(input.title, 120),
+    text: clean_(input.text, 20000),
+    type: input.type === 'Optional' ? 'Optional' : 'Required',
+    active: input.active === true
+  };
+  if (!w.title) throw new Error('Give the waiver a title.');
+  if (!w.text) throw new Error('Add the waiver text.');
+  if (w.active && /^\[Replace/.test(w.text)) throw new Error('Replace the placeholder text before making this waiver active.');
+  var savedId = withLock_(function () {
+    var sheet = getDb_().getSheetByName(TABS.waivers.name);
+    var last = lastRowWith_(sheet, WAIVER_COL.id);
+    var ids = columnValues_(sheet, WAIVER_COL.id, last);
+    var row;
+    if (w.id) {
+      var i = ids.indexOf(w.id);
+      if (i < 0) throw new Error('That waiver is no longer in the Sheet. Close this window and reopen it.');
+      row = i + 2;
+    } else {
+      w.id = nextId_('W', ids);
+      row = last + 1;
+      sheet.getRange(row, WAIVER_COL.id).setValue(w.id);
+    }
+    sheet.getRange(row, WAIVER_COL.title, 1, 3).setValues([[safeCell_(w.title), safeCell_(w.text), w.type]]).setWrap(true);
+    sheet.getRange(row, WAIVER_COL.active).insertCheckboxes().setValue(w.active);
+    sheet.getRange(row, WAIVER_COL.updated).setValue(new Date());
+    return w.id;
+  });
+  var result = adminLoad();
+  result.savedId = savedId;
+  return result;
 }
 
 function newCheckinCode_(taken) {
@@ -210,7 +268,8 @@ function backfillIds_(sheet, shown, idCol, nameCol, prefix, codeCol) {
   });
 }
 
-// E001, E002, ... (or P001, ...) one past the highest existing number.
+// E001, E002, ... (or P001, ...) one past the highest existing number, with
+// at least three digits.
 function nextId_(prefix, ids) {
   var max = 0;
   var pattern = new RegExp('^' + prefix + '(\\d+)$');
@@ -218,7 +277,31 @@ function nextId_(prefix, ids) {
     var m = pattern.exec(id || '');
     if (m) max = Math.max(max, Number(m[1]));
   });
-  return prefix + ('00' + (max + 1)).slice(-3);
+  var n = String(max + 1);
+  while (n.length < 3) n = '0' + n;
+  return prefix + n;
+}
+
+// How a person or waiver is written into an event's cells: "Ana Lee (P001)".
+function ref_(item) {
+  return item.name + ' (' + item.id + ')';
+}
+
+// IDs from a cell such as "Ana Lee (P002); Sam Cole". Entries without an ID
+// in parentheses are matched by name, ignoring case.
+function resolveRefs_(cell, items, prefix) {
+  var idPattern = new RegExp('\\((' + prefix + '\\d+)\\)\\s*$');
+  return String(cell || '').split(';')
+    .map(function (part) {
+      part = part.trim();
+      if (!part) return '';
+      var m = idPattern.exec(part);
+      if (m) return m[1];
+      var name = part.toLowerCase();
+      var match = items.filter(function (it) { return it.name.toLowerCase() === name; })[0];
+      return match ? match.id : '';
+    })
+    .filter(Boolean);
 }
 
 /* ── Dates and times ── */

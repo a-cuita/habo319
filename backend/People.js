@@ -132,27 +132,6 @@ function validatePerson_(input) {
   return p;
 }
 
-// How a person is written into an event's Host / Co-hosts cells.
-function personRef_(person) {
-  return person.name + ' (' + person.id + ')';
-}
-
-// Person IDs for a Host / Co-hosts cell such as "Ana Lee (P002); Sam Cole".
-// Entries without an ID are matched by name, ignoring case.
-function resolvePeople_(cell, people) {
-  return String(cell || '').split(';')
-    .map(function (part) {
-      part = part.trim();
-      if (!part) return '';
-      var m = /\((P\d+)\)\s*$/.exec(part);
-      if (m) return m[1];
-      var name = part.toLowerCase();
-      var match = people.filter(function (p) { return p.name.toLowerCase() === name; })[0];
-      return match ? match.id : '';
-    })
-    .filter(Boolean);
-}
-
 /* ── Headshots ── */
 
 // The Headshots folder, created next to the Sheet the first time it's needed.

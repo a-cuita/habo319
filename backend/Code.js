@@ -33,8 +33,8 @@ var TABS = {
     name: 'Events',
     header: ['Event ID', 'Name', 'Date', 'Start', 'End',
       '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
-      'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts'],
-    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300],
+      'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts', 'Waivers'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300, 300],
     formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
       9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
   },
@@ -46,12 +46,54 @@ var TABS = {
       'Created', 'Updated'],
     widths: [80, 180, 180, 360, 200, 130, 280, 100, 70, 150, 150],
     formats: { 10: 'yyyy-mm-dd h:mm', 11: 'yyyy-mm-dd h:mm' }
+  },
+  // Events list the waivers they use as "Title (W001)". Columns are listed in
+  // WAIVER_COL (Checkin.js).
+  waivers: {
+    name: 'Waivers',
+    header: ['Waiver ID', 'Title', 'Text', 'Type', 'Active', 'Updated'],
+    widths: [80, 220, 600, 90, 70, 150],
+    formats: { 6: 'yyyy-mm-dd h:mm' }
+  },
+  // One row per volunteer, matched by name plus email or phone. The last two
+  // columns are live totals from the Check-ins tab.
+  volunteers: {
+    name: 'Volunteers',
+    header: ['Volunteer ID', 'First name', 'Last name', 'Email', 'Phone', 'First check-in', 'Last check-in',
+      '={"Check-ins"; ARRAYFORMULA(IF(A2:A="", "", COUNTIF(\'Check-ins\'!E2:E, A2:A)))}',
+      '={"Total hours"; ARRAYFORMULA(IF(A2:A="", "", SUMIF(\'Check-ins\'!E2:E, A2:A, \'Check-ins\'!M2:M)))}'],
+    widths: [100, 130, 130, 220, 130, 150, 150, 80, 90],
+    formats: { 5: '@', 6: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 9: '0.00' }
+  },
+  // One row per volunteer per event. Event hours comes live from the Events
+  // tab; type into Adjusted hours for exceptions (late arrival, left early),
+  // and Hours uses it instead.
+  checkins: {
+    name: 'Check-ins',
+    header: ['Check-in ID', 'Checked in', 'Event ID', 'Event', 'Volunteer ID', 'Name', 'Email', 'Phone',
+      'Method', 'Signed name',
+      '={"Event hours"; ARRAYFORMULA(IF(C2:C="", "", IFERROR(VLOOKUP(C2:C, Events!A2:F, 6, FALSE), "")))}',
+      'Adjusted hours',
+      '={"Hours"; ARRAYFORMULA(IF(C2:C="", "", IF(L2:L<>"", L2:L, K2:K)))}'],
+    widths: [100, 150, 80, 220, 100, 180, 220, 130, 80, 180, 90, 110, 70],
+    formats: { 2: 'yyyy-mm-dd h:mm', 8: '@', 11: '0.00', 12: '0.00', 13: '0.00' }
+  },
+  // Every waiver decision at check-in, with a fingerprint of the exact text
+  // the volunteer saw (the same text always gives the same fingerprint).
+  signatures: {
+    name: 'Waiver Signatures',
+    header: ['Signed', 'Check-in ID', 'Event ID', 'Volunteer ID', 'Name', 'Waiver ID', 'Waiver',
+      'Text fingerprint', 'Decision', 'Signed name'],
+    widths: [150, 100, 80, 100, 180, 80, 220, 130, 90, 180],
+    formats: { 1: 'yyyy-mm-dd h:mm' }
   }
 };
 
 var SETTING_PREVIEW_CODE = 'Preview access code';
 var SETTING_PREVIEW_INTRO = 'Preview intro';
 var SETTING_PUBLIC_URL = 'Public site URL';
+var SETTING_OPENS_BEFORE = 'Check-in opens (minutes before start)';
+var SETTING_CLOSES_AFTER = 'Check-in closes (minutes after end)';
 var DEFAULT_PUBLIC_URL = 'https://a-cuita.github.io/habo319/';
 
 var SEED_PREVIEW_INTRO =
@@ -78,11 +120,26 @@ var SEED_QUESTIONS = [
   ['Anything else we should know or include?', '']
 ];
 
+// Placeholders, inactive until someone replaces the text and checks Active.
+var SEED_WAIVERS = [
+  ['W001', 'Liability waiver',
+    '[Replace this with your liability waiver text, then check Active. Until then, it isn\'t offered for events.]',
+    'Required'],
+  ['W002', 'Photo release',
+    '[Replace this with your photo release text, then check Active. Volunteers can agree or decline.]',
+    'Optional'],
+  ['W003', 'Safety acknowledgment',
+    '[Replace this with your safety acknowledgment text, then check Active.]',
+    'Required']
+];
+
 // Actions the site can call, by name. Each handler gets the parsed request.
 var ACTIONS = {
   health: health_,
   previewUnlock: previewUnlock_,
-  previewSubmit: previewSubmit_
+  previewSubmit: previewSubmit_,
+  getEvent: getEvent_,
+  checkIn: checkIn_
 };
 
 // Opening the web app URL in a browser runs the health check, which confirms
@@ -194,6 +251,15 @@ function ensureSchema_() {
     ensureTab_(ss, TABS.responses);
     ensureTab_(ss, TABS.events);
     ensureTab_(ss, TABS.people);
+    ensureTab_(ss, TABS.waivers, function (sheet) {
+      var now = new Date();
+      sheet.getRange(2, 1, SEED_WAIVERS.length, 4).setValues(SEED_WAIVERS).setWrap(true);
+      sheet.getRange(2, 5, SEED_WAIVERS.length, 1).insertCheckboxes().setValue(false);
+      sheet.getRange(2, 6, SEED_WAIVERS.length, 1).setValue(now);
+    });
+    ensureTab_(ss, TABS.checkins);
+    ensureTab_(ss, TABS.volunteers);  // its totals read the Check-ins tab
+    ensureTab_(ss, TABS.signatures);
     Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
     var missing = missingSettings_(ss);
     if (missing.length) {
@@ -213,7 +279,9 @@ function missingSettings_(ss) {
     [SETTING_PREVIEW_CODE, String(100000 + Math.floor(Math.random() * 900000))],
     [SETTING_PREVIEW_INTRO, SEED_PREVIEW_INTRO],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
-    [SETTING_HEADSHOTS_FOLDER, '']
+    [SETTING_HEADSHOTS_FOLDER, ''],
+    [SETTING_OPENS_BEFORE, '60'],
+    [SETTING_CLOSES_AFTER, '60']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 

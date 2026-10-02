@@ -95,6 +95,12 @@
   .link-row input { flex: 1; padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); font-family: ui-monospace, Menlo, monospace; font-size: 0.85rem; }
   .muted { color: var(--text-dim); font-size: 0.85rem; }
 
+  .waiver-list label { display: flex; gap: 8px; align-items: flex-start; padding: 6px 0; cursor: pointer; }
+  .waiver-list label input { margin-top: 3px; }
+  .waiver-preview { width: min(520px, 100%); background: var(--surface); border-radius: 16px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); padding: 20px; }
+  .waiver-preview h3 { font-size: 1.05rem; margin-bottom: 8px; }
+  .waiver-preview .wp-text { max-height: 300px; overflow-y: auto; white-space: pre-wrap; border: 1px solid var(--border); border-radius: 8px; padding: 10px; background: var(--bg); margin-bottom: 12px; }
+  .waiver-preview .wp-choice { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
   .public-card-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
   .public-card { width: min(420px, 100%); background: var(--surface); border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); padding: 28px 24px; text-align: center; }
   .public-card .pc-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
@@ -112,6 +118,7 @@
       <div class="seg" id="modes">
         <button type="button" data-mode="events">Events</button>
         <button type="button" data-mode="people">People</button>
+        <button type="button" data-mode="waivers">Waivers</button>
       </div>
       <div class="form-title" id="form-title" hidden></div>
       <button class="btn primary" id="new-btn" type="button">+ New event</button>
@@ -133,6 +140,10 @@
       <p class="hint" id="e-hours"></p>
       <div class="field"><label for="e-location">Location</label><input id="e-location" maxlength="200" placeholder="Optional"></div>
       <div class="field"><label for="e-description">Description</label><textarea id="e-description" maxlength="2000" placeholder="Optional: what volunteers should know, what to bring"></textarea></div>
+      <div class="field">
+        <label>Waivers volunteers sign</label>
+        <div class="waiver-list" id="e-waivers"></div>
+      </div>
       <div class="field"><label for="e-host">Host</label><select id="e-host"></select></div>
       <div class="field">
         <label for="e-cohost-add">Co-hosts</label>
@@ -189,6 +200,31 @@
       <p class="error" id="p-error"></p>
     </form>
 
+    <!-- Waivers -->
+    <div class="scroll" id="waivers-list-view" hidden>
+      <div id="waivers-list"></div>
+    </div>
+
+    <form class="scroll" id="waiver-form" hidden novalidate>
+      <input type="hidden" id="w-id">
+      <div class="field"><label for="w-title">Title</label><input id="w-title" maxlength="120" placeholder="e.g. Liability waiver"></div>
+      <div class="field">
+        <label for="w-type">Type</label>
+        <select id="w-type">
+          <option value="Required">Required: volunteers must agree to check in</option>
+          <option value="Optional">Optional: volunteers choose yes or no (e.g. photo release)</option>
+        </select>
+      </div>
+      <div class="field"><label for="w-text">Text</label><textarea id="w-text" maxlength="20000" style="min-height: 260px"></textarea></div>
+      <label class="check"><input type="checkbox" id="w-active"> <span>Active <span class="muted">(only active waivers can be added to events)</span></span></label>
+      <p class="hint">Every signature records a fingerprint of the exact text signed, so editing the text later doesn't change what past volunteers agreed to.</p>
+      <div class="actions">
+        <button class="btn primary" type="submit" id="w-save">Save waiver</button>
+        <button class="btn" type="button" data-cancel>Cancel</button>
+      </div>
+      <p class="error" id="w-error"></p>
+    </form>
+
     <p class="error" id="load-error" style="padding: 0 16px 12px"></p>
   </section>
 
@@ -218,7 +254,23 @@
         <button class="btn" type="button" id="copy-btn">Copy link</button>
         <a class="btn" id="open-link" target="_blank" rel="noopener">Open</a>
       </div>
-      <p class="muted">Scanning this code opens the public site for this event only.</p>
+      <p class="muted">Scanning this code opens check-in for this event only.</p>
+      <div class="link-row" style="margin-top: 6px">
+        <input id="kiosk-url" readonly aria-label="iPad check-in screen link">
+        <a class="btn" id="kiosk-link" target="_blank" rel="noopener">Open iPad screen</a>
+      </div>
+      <p class="muted">Open this link on the event iPad: it shows this QR code big, with a sign-in form beside it.</p>
+    </div>
+
+    <!-- Waivers: how a waiver appears at check-in -->
+    <div class="public-card-stage" id="waiver-right" hidden>
+      <div class="muted" id="wp-caption"></div>
+      <div class="waiver-preview">
+        <h3 id="wp-title"></h3>
+        <div class="wp-text" id="wp-text"></div>
+        <div id="wp-choices"></div>
+      </div>
+      <div id="wp-badges"></div>
     </div>
 
     <!-- People: how someone appears on public screens -->
@@ -246,10 +298,10 @@
   var HEADSHOT_PX = 512;
 
   var state = {
-    mode: START_VIEW === 'people' ? 'people' : 'events',
-    editing: null,            // 'event' | 'person' while a form is open
-    events: [], people: [], publicUrl: '', headshotsFolderUrl: '',
-    eventId: null, personId: null,
+    mode: ['people', 'waivers'].indexOf(START_VIEW) !== -1 ? START_VIEW : 'events',
+    editing: null,            // 'event' | 'person' | 'waiver' while a form is open
+    events: [], people: [], waivers: [], publicUrl: '', headshotsFolderUrl: '',
+    eventId: null, personId: null, waiverId: null,
     view: 'preview', device: 'phone',
     cohosts: [],              // co-host IDs in the open event form
     photo: { mode: 'keep' },  // pending headshot change in the open person form
@@ -313,9 +365,15 @@
   }
   function person(id) { return state.people.filter(function (p) { return p.id === id; })[0] || null; }
   function eventById(id) { return state.events.filter(function (e) { return e.id === id; })[0] || null; }
-  function checkinUrl(ev) {
+  function waiver(id) { return state.waivers.filter(function (w) { return w.id === id; })[0] || null; }
+  // The public check-in page for an event: the phone page, or the iPad
+  // (kiosk) screen. Previews turn off saving.
+  function checkinUrl(ev, opts) {
+    opts = opts || {};
     var url = new URL(state.publicUrl);
     if (ev) url.searchParams.set('e', ev.code);
+    if (ev && opts.kiosk) url.searchParams.set('kiosk', '1');
+    if (opts.preview) url.searchParams.set('preview', '1');
     return url.toString();
   }
 
@@ -328,15 +386,18 @@
   function apply(data) {
     state.events = data.events;
     state.people = data.people;
+    state.waivers = data.waivers;
     state.publicUrl = data.publicUrl;
     state.headshotsFolderUrl = data.headshotsFolderUrl;
     if (data.savedId && state.mode === 'events') state.eventId = data.savedId;
     if (data.savedId && state.mode === 'people') state.personId = data.savedId;
+    if (data.savedId && state.mode === 'waivers') state.waiverId = data.savedId;
     if (!eventById(state.eventId)) {
       var up = sortedEvents().upcoming;
       state.eventId = up.length ? up[0].id : (state.events[0] ? state.events[0].id : null);
     }
     if (!person(state.personId)) state.personId = state.people[0] ? state.people[0].id : null;
+    if (!waiver(state.waiverId)) state.waiverId = state.waivers[0] ? state.waivers[0].id : null;
     render();
   }
 
@@ -346,29 +407,36 @@
   }
 
   function render() {
-    var events = state.mode === 'events', editing = state.editing;
-    document.querySelectorAll('#modes button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === state.mode); });
+    var mode = state.mode, events = mode === 'events', editing = state.editing;
+    document.querySelectorAll('#modes button').forEach(function (b) { b.classList.toggle('on', b.dataset.mode === mode); });
     $('modes').hidden = !!editing;
     $('form-title').hidden = !editing;
     $('new-btn').hidden = !!editing;
-    $('new-btn').textContent = events ? '+ New event' : '+ New person';
+    $('new-btn').textContent = { events: '+ New event', people: '+ New person', waivers: '+ New waiver' }[mode];
     $('events-list-view').hidden = !events || !!editing;
-    $('people-list-view').hidden = events || !!editing;
+    $('people-list-view').hidden = mode !== 'people' || !!editing;
+    $('waivers-list-view').hidden = mode !== 'waivers' || !!editing;
     $('event-form').hidden = editing !== 'event';
     $('person-form').hidden = editing !== 'person';
+    $('waiver-form').hidden = editing !== 'waiver';
     $('events-right').hidden = !events;
     $('preview-view').hidden = !events || state.view !== 'preview';
     $('qr-view').hidden = !events || state.view !== 'qr';
-    $('person-right').hidden = events;
-    if (!editing) { renderEvents(); renderPeople(); }
-    if (events) renderEventRight(); else renderPersonRight();
+    $('person-right').hidden = mode !== 'people';
+    $('waiver-right').hidden = mode !== 'waivers';
+    if (!editing) { renderEvents(); renderPeople(); renderWaivers(); }
+    if (events) renderEventRight();
+    else if (mode === 'people') renderPersonRight();
+    else renderWaiverRight();
   }
 
   document.querySelectorAll('#modes button').forEach(function (b) {
     b.addEventListener('click', function () { setMode(b.dataset.mode); });
   });
   $('new-btn').addEventListener('click', function () {
-    if (state.mode === 'events') openEventForm(null); else openPersonForm(null);
+    if (state.mode === 'events') openEventForm(null);
+    else if (state.mode === 'people') openPersonForm(null);
+    else openWaiverForm(null);
   });
   document.querySelectorAll('[data-cancel]').forEach(function (b) { b.addEventListener('click', closeForm); });
 
@@ -423,6 +491,8 @@
       row.appendChild(el('span', null, 'Host: ' + host.name + (co.length ? ' · Co-hosts: ' + co.join(', ') : '')));
       card.appendChild(row);
     }
+    var signs = ev.waiverIds.map(waiver).filter(function (w) { return w && w.active; });
+    if (signs.length) card.appendChild(el('div', 'meta', 'Waivers: ' + signs.map(function (w) { return w.title; }).join(', ')));
     card.appendChild(el('div', 'code', ev.code));
     var edit = el('button', 'btn edit', 'Edit');
     edit.type = 'button';
@@ -449,6 +519,7 @@
     $('e-location').value = ev ? ev.location : '';
     $('e-description').value = ev ? ev.description : '';
     state.cohosts = ev ? ev.cohostIds.slice() : [];
+    renderWaiverChoices(ev ? ev.waiverIds : []);
     fillHostSelect(ev ? ev.hostId : '');
     renderCohosts();
     $('e-error').textContent = '';
@@ -506,6 +577,28 @@
     add.hidden = add.options.length === 1 && !state.cohosts.length && !state.people.length;
   }
 
+  // Active waivers to pick from, plus any inactive ones already on the event
+  // (shown so they can be removed; inactive waivers aren't shown to volunteers).
+  function renderWaiverChoices(selected) {
+    var box = $('e-waivers');
+    box.textContent = '';
+    var list = state.waivers.filter(function (w) { return w.active || selected.indexOf(w.id) !== -1; });
+    if (!list.length) {
+      box.appendChild(el('p', 'muted', 'No active waivers yet. Add them in the Waivers tab.'));
+      return;
+    }
+    list.forEach(function (w) {
+      var label = el('label');
+      var box2 = el('input');
+      box2.type = 'checkbox';
+      box2.value = w.id;
+      box2.checked = selected.indexOf(w.id) !== -1;
+      label.appendChild(box2);
+      label.appendChild(el('span', null, w.title + ' · ' + w.type.toLowerCase() + (w.active ? '' : ' · inactive, not shown')));
+      box.appendChild(label);
+    });
+  }
+
   $('e-host').addEventListener('change', renderCohosts);
   $('e-cohost-add').addEventListener('change', function () {
     if (this.value) state.cohosts.push(this.value);
@@ -531,7 +624,8 @@
       location: $('e-location').value.trim(),
       description: $('e-description').value.trim(),
       hostId: $('e-host').value,
-      cohostIds: state.cohosts.slice()
+      cohostIds: state.cohosts.slice(),
+      waiverIds: Array.prototype.map.call(document.querySelectorAll('#e-waivers input:checked'), function (c) { return c.value; })
     };
     save('adminSaveEvent', input, $('e-save'), 'Save event', $('e-error'));
   });
@@ -560,7 +654,7 @@
 
   function renderPreview(ev) {
     var frame = $('frame');
-    var url = checkinUrl(ev);
+    var url = checkinUrl(ev, { kiosk: state.device === 'ipad', preview: true });
     if (frame.getAttribute('src') !== url) frame.setAttribute('src', url);
     fitDevice();
   }
@@ -585,8 +679,12 @@
       box.innerHTML = '<p class="muted">Pick an event to see its QR code.</p>';
       $('qr-url').value = '';
       $('open-link').removeAttribute('href');
+      $('kiosk-url').value = '';
+      $('kiosk-link').removeAttribute('href');
       return;
     }
+    $('kiosk-url').value = checkinUrl(ev, { kiosk: true });
+    $('kiosk-link').href = $('kiosk-url').value;
     var url = checkinUrl(ev);
     var qr = qrcode(0, 'M');
     qr.addData(url);
@@ -608,10 +706,11 @@
     b.addEventListener('click', function () {
       state.device = b.dataset.device;
       document.querySelectorAll('#devices button').forEach(function (x) { x.classList.toggle('on', x === b); });
-      fitDevice();
+      renderEventRight();
     });
   });
   $('qr-url').addEventListener('focus', function () { this.select(); });
+  $('kiosk-url').addEventListener('focus', function () { this.select(); });
   $('copy-btn').addEventListener('click', function () {
     var input = $('qr-url'), btn = this;
     if (!input.value) return;
@@ -830,6 +929,94 @@
     $('pc-title').textContent = p.title;
     $('pc-bio').textContent = p.bio;
     if (!p.isPublic) badges.appendChild(el('span', 'badge warn', 'Hidden from public screens (box unchecked)'));
+  }
+
+  /* ── Waivers ── */
+
+  function renderWaivers() {
+    var list = $('waivers-list');
+    list.textContent = '';
+    if (!state.waivers.length) {
+      list.innerHTML = '<div class="empty">No waivers yet.<br>Tap <b>+ New waiver</b> to add one.</div>';
+      return;
+    }
+    state.waivers.forEach(function (w) {
+      var card = el('div', 'item' + (w.id === state.waiverId ? ' on' : ''));
+      card.dataset.id = w.id;
+      card.appendChild(el('div', 'name', w.title));
+      card.appendChild(el('div', 'meta', w.type + ' · ' + w.id));
+      if (w.placeholder) card.appendChild(el('span', 'badge warn', 'Placeholder text'));
+      if (!w.active) card.appendChild(el('span', 'badge', 'Inactive'));
+      var edit = el('button', 'btn edit', 'Edit');
+      edit.type = 'button';
+      edit.addEventListener('click', function (e) { e.stopPropagation(); openWaiverForm(w); });
+      card.appendChild(edit);
+      card.addEventListener('click', function () {
+        state.waiverId = w.id;
+        document.querySelectorAll('#waivers-list .item').forEach(function (c) { c.classList.toggle('on', c.dataset.id === w.id); });
+        renderWaiverRight();
+      });
+      list.appendChild(card);
+    });
+  }
+
+  function openWaiverForm(w) {
+    state.editing = 'waiver';
+    $('form-title').textContent = w ? 'Edit waiver' : 'New waiver';
+    $('w-id').value = w ? w.id : '';
+    $('w-title').value = w ? w.title : '';
+    $('w-type').value = w ? w.type : 'Required';
+    $('w-text').value = w ? w.text : '';
+    $('w-active').checked = w ? w.active : true;
+    $('w-error').textContent = '';
+    if (w) state.waiverId = w.id;
+    render();
+    $('w-title').focus();
+  }
+
+  ['w-title', 'w-text'].forEach(function (id) { $(id).addEventListener('input', renderWaiverRight); });
+  $('w-type').addEventListener('change', renderWaiverRight);
+
+  $('waiver-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    save('adminSaveWaiver', {
+      id: $('w-id').value,
+      title: $('w-title').value.trim(),
+      type: $('w-type').value,
+      text: $('w-text').value.trim(),
+      active: $('w-active').checked
+    }, $('w-save'), 'Save waiver', $('w-error'));
+  });
+
+  // What volunteers see for this waiver at check-in.
+  function renderWaiverRight() {
+    var editing = state.editing === 'waiver';
+    var w = editing ? { title: $('w-title').value.trim(), text: $('w-text').value.trim(), type: $('w-type').value, active: true }
+      : waiver(state.waiverId);
+    var choices = $('wp-choices');
+    choices.textContent = '';
+    $('wp-badges').textContent = '';
+    if (!w) {
+      $('wp-caption').textContent = 'Add a waiver to see how volunteers will see it.';
+      $('wp-title').textContent = '';
+      $('wp-text').textContent = '';
+      return;
+    }
+    $('wp-caption').textContent = 'How volunteers see this at check-in';
+    $('wp-title').textContent = w.title || 'Title';
+    $('wp-text').textContent = w.text || 'Waiver text';
+    var opts = w.type === 'Optional' ? ['I agree', 'No thanks'] : ['I agree'];
+    opts.forEach(function (label, i) {
+      var row = el('label', 'wp-choice');
+      var input = el('input');
+      input.type = w.type === 'Optional' ? 'radio' : 'checkbox';
+      input.name = 'wp';
+      input.disabled = true;
+      row.appendChild(input);
+      row.appendChild(el('span', null, label));
+      choices.appendChild(row);
+    });
+    if (!editing && !w.active) $('wp-badges').appendChild(el('span', 'badge', 'Inactive: not shown to volunteers'));
   }
 
   render();

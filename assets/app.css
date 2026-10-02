@@ -44,3 +44,33 @@ body { max-width: 480px; margin: 0 auto; padding: 24px 18px 40px; }
 .link-btn { background: none; border: none; color: var(--text-dim); font: inherit; font-size: 0.88rem; text-decoration: underline; cursor: pointer; padding: 8px; }
 .center { text-align: center; }
 [hidden] { display: none !important; }
+
+/* ── Event check-in ── */
+.preview-banner { background: var(--primary-dim); color: var(--primary); font-weight: 700; font-size: 0.85rem; text-align: center; padding: 8px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; }
+.event-card h2 { font-size: 1.3rem; }
+.event-desc { margin-top: 8px; white-space: pre-wrap; font-size: 0.95rem; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.small { font-size: 0.82rem; }
+.link-btn.inline { padding: 0; font-size: inherit; }
+.waiver h3 { font-size: 1rem; font-weight: 800; margin-bottom: 8px; }
+.waiver-text { max-height: 220px; overflow-y: auto; white-space: pre-wrap; font-size: 0.9rem; line-height: 1.5; background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 12px; }
+.choice-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); margin-bottom: 8px; font-weight: 600; cursor: pointer; }
+.choice-row input { width: 22px; height: 22px; accent-color: var(--accent); }
+.choice-row:has(input:checked) { border-color: var(--accent); background: var(--accent-dim); }
+.done { text-align: center; padding: 32px 20px; }
+.done-mark { width: 64px; height: 64px; margin: 0 auto 14px; border-radius: 50%; background: var(--accent); color: #fff; font-size: 2rem; font-weight: 800; line-height: 64px; }
+.done h2 { font-size: 1.4rem; margin-bottom: 6px; }
+.done p { margin-bottom: 10px; }
+.done-hours { font-weight: 700; color: var(--accent); }
+.done .btn { max-width: 280px; margin: 10px auto 0; }
+
+/* The event iPad: QR code on the left, sign-in form on the right. */
+body.kiosk { max-width: 1180px; padding: 20px 24px; }
+body.kiosk .brand { margin-bottom: 14px; }
+.kiosk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.kiosk-qr { text-align: center; }
+.kiosk-qr #ci-qr { width: min(100%, 420px); margin: 0 auto 12px; }
+.kiosk-qr #ci-qr svg { display: block; width: 100%; height: auto; }
+.kiosk-qr h2 { font-size: 1.4rem; }
+.kiosk-right { max-height: calc(100vh - 110px); overflow-y: auto; padding-right: 4px; }
+@media (max-width: 800px) { .kiosk-grid { grid-template-columns: 1fr; } .kiosk-right { max-height: none; } }
