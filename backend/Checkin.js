@@ -3,22 +3,28 @@
  * event's page by its check-in code (from the QR code or the event iPad),
  * agrees to the event's waivers, and is recorded on the Check-ins tab,
  * matched to or added to the Volunteers tab. Phones and the iPad ("kiosk")
- * use the same two calls: getEvent and checkIn.
+ * use the same two calls, getEvent and checkIn. Event staff use
+ * staffHeadcount and staffRecordCount, behind the event's staff code.
  */
 
 // Column numbers (1-based), matching the headers in TABS (Code.js).
 var WAIVER_COL = { id: 1, title: 2, text: 3, type: 4, active: 5, updated: 6 };
 var VOLUNTEER_COL = { id: 1, first: 2, last: 3, email: 4, phone: 5, firstSeen: 6, lastSeen: 7 };
 var CHECKIN_COL = { id: 1, at: 2, eventId: 3, eventName: 4, volunteerId: 5, name: 6, email: 7, phone: 8,
-  method: 9, signedName: 10 };
+  method: 9, signedName: 10, eventHours: 11, adjustedHours: 12 };
 
 /* ── Called from the site ── */
 
-// What a check-in page needs for one event. Nothing about other volunteers.
+// What a check-in page needs for one event. Nothing about other volunteers,
+// and never the staff code. The iPad (req.kiosk) also gets its banner.
 function getEvent_(req) {
   ensureSchema_();
-  var ev = findEventByCode_(req.code);
+  var people = readPeople_();
+  var ev = findEventByCode_(req.code, readEvents_(people, []));
   var win = checkinWindow_(ev);
+  var kiosk = req.kiosk === true;
+  var wantHosts = ev.hostsOnConfirmation || (kiosk && ev.hostsInBanner);
+  var hosts = wantHosts ? publicHosts_(ev, people) : [];
   return {
     code: ev.code,
     name: ev.name,
@@ -32,7 +38,10 @@ function getEvent_(req) {
     timeZone: win.timeZone,
     waivers: eventWaivers_(ev).map(function (w) {
       return { id: w.id, title: w.title, text: w.text, type: w.type };
-    })
+    }),
+    hostsOnConfirmation: ev.hostsOnConfirmation,
+    hosts: ev.hostsOnConfirmation ? hosts : [],
+    banner: kiosk ? eventBanner_(ev, hosts) : null
   };
 }
 
@@ -40,7 +49,8 @@ function getEvent_(req) {
 // second time just reports the first.
 function checkIn_(req) {
   ensureSchema_();
-  var ev = findEventByCode_(req.code);
+  var events = readEvents_([], []);
+  var ev = findEventByCode_(req.code, events);
   var status = checkinWindow_(ev).status;
   if (status !== 'open') throw new Error(CLOSED_MESSAGES[status]);
 
@@ -61,12 +71,20 @@ function checkIn_(req) {
     var vol = findOrCreateVolunteer_(v, now);
     var sheet = getDb_().getSheetByName(TABS.checkins.name);
     var last = lastRowWith_(sheet, CHECKIN_COL.id);
-    var rows = last > 1 ? sheet.getRange(2, 1, last - 1, CHECKIN_COL.volunteerId).getDisplayValues() : [];
+    var rows = last > 1 ? sheet.getRange(2, 1, last - 1, CHECKIN_COL.adjustedHours).getDisplayValues() : [];
     var mine = rows.filter(function (r) { return r[CHECKIN_COL.volunteerId - 1] === vol.id; });
-    var result = { firstName: v.first, eventName: ev.name, hours: ev.hours, returning: !vol.isNew };
-    if (mine.some(function (r) { return r[CHECKIN_COL.eventId - 1] === ev.id; })) {
+    var already = mine.some(function (r) { return r[CHECKIN_COL.eventId - 1] === ev.id; });
+    var result = {
+      firstName: v.first,
+      eventName: ev.name,
+      hours: ev.hours,
+      // Returning: they have a check-in other than this one.
+      returning: mine.length - (already ? 1 : 0) > 0,
+      eventCount: mine.length + (already ? 0 : 1),
+      totalHours: totalHours_(mine, events) + (already ? 0 : hoursNumber_(ev.hours))
+    };
+    if (already) {
       result.already = true;
-      result.eventCount = mine.length;
       return result;
     }
 
@@ -84,9 +102,90 @@ function checkIn_(req) {
       }));
     }
     result.already = false;
-    result.eventCount = mine.length + 1;
     return result;
   });
+}
+
+// A volunteer's hours across their check-in rows: each event's hours, or the
+// row's Adjusted hours when staff have filled that in.
+function totalHours_(rows, events) {
+  var hoursById = {};
+  events.forEach(function (e) { hoursById[e.id] = hoursNumber_(e.hours); });
+  var total = rows.reduce(function (sum, r) {
+    var adjusted = r[CHECKIN_COL.adjustedHours - 1].trim();
+    return sum + (adjusted !== '' && isFinite(Number(adjusted)) ? Number(adjusted) : (hoursById[r[CHECKIN_COL.eventId - 1]] || 0));
+  }, 0);
+  return Math.round(total * 100) / 100;
+}
+
+function hoursNumber_(text) {
+  var n = Number(String(text || '').replace(/[^\d.]/g, ''));
+  return isFinite(n) ? n : 0;
+}
+
+/* ── Event staff ── */
+
+// Who has checked in, for the event's staff screen.
+function staffHeadcount_(req) {
+  ensureSchema_();
+  var ev = findEventByCode_(req.code);
+  requireStaffCode_(ev, req.staffCode);
+  return headcount_(ev);
+}
+
+// Saves a head count taken on site next to the number checked in, so
+// differences show up in the Head Counts tab.
+function staffRecordCount_(req) {
+  ensureSchema_();
+  var ev = findEventByCode_(req.code);
+  requireStaffCode_(ev, req.staffCode);
+  var staffName = clean_(req.staffName, 80);
+  var counted = Number(req.counted);
+  var note = clean_(req.note, 500);
+  if (!staffName) throw new Error('Enter your name.');
+  if (String(req.counted).trim() === '' || !(counted >= 0 && counted <= 100000 && Math.floor(counted) === counted)) {
+    throw new Error('Enter the number of people you counted.');
+  }
+  return withLock_(function () {
+    var count = headcount_(ev);
+    var sheet = getDb_().getSheetByName(TABS.headcounts.name);
+    sheet.getRange(sheet.getLastRow() + 1, 1, 1, 8).setValues([[
+      new Date(), ev.id, safeCell_(ev.name), safeCell_(staffName), counted, count.count, counted - count.count, safeCell_(note)
+    ]]);
+    count.lastRecorded = { staffName: staffName, counted: counted, system: count.count,
+      time: Utilities.formatDate(new Date(), getDb_().getSpreadsheetTimeZone(), 'h:mm a') };
+    return count;
+  });
+}
+
+function requireStaffCode_(ev, code) {
+  if (!ev.staffCode) throw new Error("This event doesn't have a staff code yet. Set one in the admin menu.");
+  checkCode_('staff:' + ev.id, code, ev.staffCode);
+}
+
+// The event's check-ins, newest first, plus the last head count recorded.
+function headcount_(ev) {
+  var tz = getDb_().getSpreadsheetTimeZone();
+  var time = function (v) { return v instanceof Date ? Utilities.formatDate(v, tz, 'h:mm a') : String(v); };
+  var sheet = getDb_().getSheetByName(TABS.checkins.name);
+  var last = lastRowWith_(sheet, CHECKIN_COL.id);
+  var rows = last > 1 ? sheet.getRange(2, 1, last - 1, CHECKIN_COL.method).getValues() : [];
+  var people = rows
+    .filter(function (r) { return String(r[CHECKIN_COL.eventId - 1]).trim() === ev.id; })
+    .map(function (r) {
+      return { name: String(r[CHECKIN_COL.name - 1]), time: time(r[CHECKIN_COL.at - 1]), method: String(r[CHECKIN_COL.method - 1]) };
+    })
+    .reverse();
+  var counts = getDb_().getSheetByName(TABS.headcounts.name);
+  var recorded = counts.getLastRow() > 1 ? counts.getRange(2, 1, counts.getLastRow() - 1, 6).getValues() : [];
+  var mine = recorded.filter(function (r) { return String(r[1]).trim() === ev.id; });
+  var latest = mine[mine.length - 1];
+  return {
+    eventName: ev.name,
+    count: people.length,
+    people: people,
+    lastRecorded: latest ? { staffName: String(latest[3]), counted: latest[4], system: latest[5], time: time(latest[0]) } : null
+  };
 }
 
 var CLOSED_MESSAGES = {
@@ -97,9 +196,10 @@ var CLOSED_MESSAGES = {
 
 /* ── Events and waivers ── */
 
-function findEventByCode_(code) {
+// The event with this check-in code (any case), from `events` if given.
+function findEventByCode_(code, events) {
   var wanted = clean_(code, 20).toUpperCase();
-  var ev = wanted && readEvents_([], []).filter(function (e) { return e.code.toUpperCase() === wanted; })[0];
+  var ev = wanted && (events || readEvents_([], [])).filter(function (e) { return e.code.toUpperCase() === wanted; })[0];
   if (!ev) throw new Error("We couldn't find that event. Check the link or QR code.");
   return ev;
 }
@@ -118,8 +218,9 @@ function checkinWindow_(ev) {
 }
 
 function minutesSetting_(name, fallback) {
-  var n = Number(getSetting_(name));
-  return isFinite(n) && n >= 0 && getSetting_(name) !== '' ? n : fallback;
+  var raw = getSetting_(name);
+  var n = Number(raw);
+  return raw !== '' && isFinite(n) && n >= 0 ? n : fallback;
 }
 
 // The event's active waivers, in the order the event lists them. A waiver

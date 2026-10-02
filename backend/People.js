@@ -173,8 +173,9 @@ function imageFile_(fileId) {
   return file;
 }
 
-// A person's headshot as a data URL, cached for six hours. Large images
-// linked by hand fall back to Drive's thumbnail.
+// A person's headshot as a data URL. Photos up to 300 KB are sent as they
+// are (cached for six hours when they fit the cache's 100 KB limit); larger
+// images linked by hand fall back to Drive's smaller thumbnail.
 function headshotData_(fileId) {
   if (!fileId) return null;
   var cache = CacheService.getScriptCache();
@@ -182,7 +183,7 @@ function headshotData_(fileId) {
   if (cached) return cached;
   try {
     var file = DriveApp.getFileById(fileId);
-    var data = file.getSize() <= 70 * 1024
+    var data = file.getSize() <= 300 * 1024
       ? 'data:' + file.getMimeType() + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes())
       : thumbnailData_(file);
     if (data && data.length < 100000) cache.put('headshot:' + fileId, data, 6 * 60 * 60);

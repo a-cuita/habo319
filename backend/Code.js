@@ -33,10 +33,11 @@ var TABS = {
     name: 'Events',
     header: ['Event ID', 'Name', 'Date', 'Start', 'End',
       '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
-      'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts', 'Waivers'],
-    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300, 300],
+      'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts', 'Waivers',
+      'Staff code', 'Hosts on confirmation', 'Hosts in banner'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300, 300, 90, 110, 110],
     formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
-      9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
+      9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm', 15: '@' }
   },
   // Hosts on the Events tab refer to people as "Name (P001)". Columns are
   // listed in PERSON_COL (People.js).
@@ -54,6 +55,22 @@ var TABS = {
     header: ['Waiver ID', 'Title', 'Text', 'Type', 'Active', 'Updated'],
     widths: [80, 220, 600, 90, 70, 150],
     formats: { 6: 'yyyy-mm-dd h:mm' }
+  },
+  // Cards that rotate in the event iPad's banner, with the event's hosts.
+  // Columns are listed in CARD_COL (Banner.js).
+  cards: {
+    name: 'Banner Cards',
+    header: ['Card ID', 'Title', 'Text', 'Active', 'Updated'],
+    widths: [80, 240, 520, 70, 150],
+    formats: { 5: 'yyyy-mm-dd h:mm' }
+  },
+  // Head counts that staff record on site, beside the system's count.
+  headcounts: {
+    name: 'Head Counts',
+    header: ['Recorded', 'Event ID', 'Event', 'Staff name', 'Counted on site', 'Checked in (system)',
+      'Difference', 'Note'],
+    widths: [150, 80, 220, 160, 120, 140, 90, 360],
+    formats: { 1: 'yyyy-mm-dd h:mm' }
   },
   // One row per volunteer, matched by name plus email or phone. The last two
   // columns are live totals from the Check-ins tab.
@@ -94,6 +111,7 @@ var SETTING_PREVIEW_INTRO = 'Preview intro';
 var SETTING_PUBLIC_URL = 'Public site URL';
 var SETTING_OPENS_BEFORE = 'Check-in opens (minutes before start)';
 var SETTING_CLOSES_AFTER = 'Check-in closes (minutes after end)';
+var SETTING_BANNER_SECONDS = 'Banner seconds per card';
 var DEFAULT_PUBLIC_URL = 'https://a-cuita.github.io/habo319/';
 
 var SEED_PREVIEW_INTRO =
@@ -139,7 +157,9 @@ var ACTIONS = {
   previewUnlock: previewUnlock_,
   previewSubmit: previewSubmit_,
   getEvent: getEvent_,
-  checkIn: checkIn_
+  checkIn: checkIn_,
+  staffHeadcount: staffHeadcount_,
+  staffRecordCount: staffRecordCount_
 };
 
 // Opening the web app URL in a browser runs the health check, which confirms
@@ -163,7 +183,7 @@ function doPost(e) {
 }
 
 function health_() {
-  ensureSchema_();
+  ensureSchema_(true);
   return { service: SERVICE_NAME, storage: 'connected', time: new Date().toISOString() };
 }
 
@@ -205,7 +225,7 @@ function previewSubmit_(req) {
 function requirePreviewCode_(code) {
   var expected = getSetting_(SETTING_PREVIEW_CODE);
   if (!expected) throw new Error('Preview access is turned off');
-  if (String(code == null ? '' : code).trim() !== expected) throw new Error('Wrong access code');
+  checkCode_('preview', code, expected);
 }
 
 function getPreviewQuestions_() {
@@ -232,14 +252,24 @@ function getDb_() {
 // Brings the Sheet up to date: creates missing tabs, adds missing settings
 // (with defaults that can be changed by hand), and keeps the Sheet's time
 // zone matched to the script's so dates and times read back as written.
-function ensureSchema_() {
+// Every entry point calls this first. A passing check is remembered for ten
+// minutes so check-ins stay quick; `force` (the admin modal and the health
+// check) always checks.
+function ensureSchema_(force) {
+  settingsMemo_ = null;
+  var cache = CacheService.getScriptCache();
+  var cacheKey = 'schema-ok:' + schemaFingerprint_();
+  if (!force && cache.get(cacheKey)) return;
   var ss = getDb_();
   var tabsMissing = Object.keys(TABS).some(function (k) { return !ss.getSheetByName(TABS[k].name); });
   var colsMissing = !tabsMissing && Object.keys(TABS).some(function (k) {
     return ss.getSheetByName(TABS[k].name).getLastColumn() < TABS[k].header.length;
   });
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
-  if (!tabsMissing && !colsMissing && !tzWrong && !missingSettings_(ss).length) return;
+  if (!tabsMissing && !colsMissing && !tzWrong && !missingSettings_(ss).length) {
+    cache.put(cacheKey, '1', 600);
+    return;
+  }
   withLock_(function () {
     if (ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) {
       ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
@@ -260,6 +290,8 @@ function ensureSchema_() {
     ensureTab_(ss, TABS.checkins);
     ensureTab_(ss, TABS.volunteers);  // its totals read the Check-ins tab
     ensureTab_(ss, TABS.signatures);
+    ensureTab_(ss, TABS.cards);
+    ensureTab_(ss, TABS.headcounts);
     Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
     var missing = missingSettings_(ss);
     if (missing.length) {
@@ -268,12 +300,22 @@ function ensureSchema_() {
       sheet.getRange(row, 2, missing.length, 1).setNumberFormat('@').setWrap(true);
       sheet.getRange(row, 1, missing.length, 2).setValues(missing);
     }
+    settingsMemo_ = null;
   });
+  cache.put(cacheKey, '1', 600);
 }
 
-// Settings rows that don't exist yet, as [name, default value].
+// Changes whenever a tab's layout or the list of settings changes, so a new
+// version of the code always re-checks the Sheet.
+function schemaFingerprint_() {
+  var layout = Object.keys(TABS).map(function (k) { return TABS[k].name + ':' + TABS[k].header.length; });
+  return fingerprint_(layout.join('|') + '|' + missingSettings_(null).length);
+}
+
+// Settings rows that don't exist yet, as [name, default value]. With no
+// spreadsheet, every setting.
 function missingSettings_(ss) {
-  var sheet = ss.getSheetByName(TABS.settings.name);
+  var sheet = ss && ss.getSheetByName(TABS.settings.name);
   var have = sheet ? sheet.getDataRange().getDisplayValues().map(function (r) { return r[0].trim(); }) : [];
   return [
     [SETTING_PREVIEW_CODE, String(100000 + Math.floor(Math.random() * 900000))],
@@ -281,7 +323,8 @@ function missingSettings_(ss) {
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_HEADSHOTS_FOLDER, ''],
     [SETTING_OPENS_BEFORE, '60'],
-    [SETTING_CLOSES_AFTER, '60']
+    [SETTING_CLOSES_AFTER, '60'],
+    [SETTING_BANNER_SECONDS, '8']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
@@ -313,10 +356,14 @@ function ensureColumns_(ss, tab) {
   }
 }
 
+// The Settings tab, read once per request (ensureSchema_ starts each request
+// fresh).
+var settingsMemo_ = null;
+
 function getSetting_(name) {
-  var rows = getDb_().getSheetByName(TABS.settings.name).getDataRange().getDisplayValues();
-  for (var i = 1; i < rows.length; i++) {
-    if (rows[i][0].trim() === name) return rows[i][1].trim();
+  if (!settingsMemo_) settingsMemo_ = getDb_().getSheetByName(TABS.settings.name).getDataRange().getDisplayValues();
+  for (var i = 1; i < settingsMemo_.length; i++) {
+    if (settingsMemo_[i][0].trim() === name) return settingsMemo_[i][1].trim();
   }
   return '';
 }
@@ -326,16 +373,38 @@ function setSetting_(name, value) {
   var names = sheet.getDataRange().getDisplayValues().map(function (r) { return r[0].trim(); });
   var row = names.indexOf(name) + 1 || sheet.getLastRow() + 1;
   sheet.getRange(row, 1, 1, 2).setValues([[name, value]]);
+  settingsMemo_ = null;
 }
 
 /* ── Helpers ── */
 
+// Compares an entered access code with the expected one. After 20 wrong
+// tries within 15 minutes, that code is locked for 15 minutes, which makes
+// guessing a short code impractical.
+var MAX_CODE_FAILURES = 20;
+function checkCode_(scope, entered, expected) {
+  var cache = CacheService.getScriptCache();
+  var key = 'code-fails:' + scope;
+  var fails = Number(cache.get(key) || 0);
+  if (fails >= MAX_CODE_FAILURES) throw new Error('Too many wrong codes. Try again in 15 minutes.');
+  if (String(entered == null ? '' : entered).trim() !== expected) {
+    cache.put(key, String(fails + 1), 15 * 60);
+    throw new Error('Wrong access code');
+  }
+}
+
+// Runs fn while holding the script lock. Safe to nest: an inner call just
+// runs inside the outer one's lock.
+var lockDepth_ = 0;
 function withLock_(fn) {
+  if (lockDepth_ > 0) return fn();
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
+  lockDepth_++;
   try {
     return fn();
   } finally {
+    lockDepth_--;
     lock.releaseLock();
   }
 }

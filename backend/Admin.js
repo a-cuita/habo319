@@ -11,7 +11,8 @@
 // Events tab columns (1-based), matching TABS.events.header in Code.js.
 var EVENT_COL = {
   id: 1, name: 2, date: 3, start: 4, end: 5, hours: 6, location: 7, code: 8,
-  created: 9, updated: 10, description: 11, host: 12, cohosts: 13, waivers: 14
+  created: 9, updated: 10, description: 11, host: 12, cohosts: 13, waivers: 14,
+  staffCode: 15, hostsOnConfirmation: 16, hostsInBanner: 17
 };
 
 // Unambiguous characters for check-in codes (no 0/O, 1/I/L).
@@ -23,15 +24,17 @@ function onOpen() {
     .addItem('Manage events', 'openEventsAdmin')
     .addItem('Manage people', 'openPeopleAdmin')
     .addItem('Manage waivers', 'openWaiversAdmin')
+    .addItem('Manage banner cards', 'openCardsAdmin')
     .addToUi();
 }
 
 function openEventsAdmin() { openAdmin_('events'); }
 function openPeopleAdmin() { openAdmin_('people'); }
 function openWaiversAdmin() { openAdmin_('waivers'); }
+function openCardsAdmin() { openAdmin_('cards'); }
 
 function openAdmin_(startView) {
-  ensureSchema_();
+  ensureSchema_(true);
   var template = HtmlService.createTemplateFromFile('AdminModal');
   template.startView = startView;
   SpreadsheetApp.getUi().showModalDialog(template.evaluate().setWidth(1100).setHeight(720), 'HABO 319 Admin');
@@ -44,10 +47,10 @@ function include(name) {
 
 /* ── Called from the modal ── */
 
-// Everything the modal shows: events, people (with headshots), waivers, and
-// settings.
+// Everything the modal shows: events, people (with headshots), waivers,
+// banner cards, and settings.
 function adminLoad() {
-  ensureSchema_();
+  ensureSchema_(true);
   var people = readPeople_();
   var waivers = readWaivers_();
   people.forEach(function (p) { p.photoData = headshotData_(p.photoId); });
@@ -58,6 +61,8 @@ function adminLoad() {
       return { id: w.id, title: w.title, text: w.text, type: w.type, active: w.active,
         placeholder: /^\[Replace/.test(w.text) };
     }),
+    cards: readCards_(),
+    bannerSeconds: bannerSeconds_(),
     publicUrl: getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL,
     headshotsFolderUrl: getSetting_(SETTING_HEADSHOTS_FOLDER)
   };
@@ -89,8 +94,10 @@ function adminSaveEvent(input) {
       .setValues([[safeCell_(ev.name), dateSerial_(ev.date), timeSerial_(ev.start), timeSerial_(ev.end)]]);
     sheet.getRange(row, EVENT_COL.location).setValue(safeCell_(ev.location));
     sheet.getRange(row, EVENT_COL.description).setValue(safeCell_(ev.description)).setWrap(true);
-    sheet.getRange(row, EVENT_COL.host, 1, 3)
-      .setValues([[safeCell_(ev.hostText), safeCell_(ev.cohostText), safeCell_(ev.waiverText)]]);
+    sheet.getRange(row, EVENT_COL.host, 1, 4)
+      .setValues([[safeCell_(ev.hostText), safeCell_(ev.cohostText), safeCell_(ev.waiverText), ev.staffCode]]);
+    sheet.getRange(row, EVENT_COL.hostsOnConfirmation, 1, 2).insertCheckboxes()
+      .setValues([[ev.hostsOnConfirmation, ev.hostsInBanner]]);
     sheet.getRange(row, EVENT_COL.updated).setValue(now);
     return ev.id;
   });
@@ -108,7 +115,7 @@ function readEvents_(people, waivers) {
   var sheet = getDb_().getSheetByName(TABS.events.name);
   var count = lastRowWith_(sheet, EVENT_COL.id) - 1;
   if (count < 1) return [];
-  var range = sheet.getRange(2, 1, count, EVENT_COL.waivers);
+  var range = sheet.getRange(2, 1, count, EVENT_COL.hostsInBanner);
   var values = range.getValues();
   var shown = range.getDisplayValues();
   backfillIds_(sheet, shown, EVENT_COL.id, EVENT_COL.name, 'E', EVENT_COL.code);
@@ -128,7 +135,11 @@ function readEvents_(people, waivers) {
         description: r[EVENT_COL.description - 1].trim(),
         hostId: resolveRefs_(r[EVENT_COL.host - 1], people, 'P')[0] || '',
         cohostIds: resolveRefs_(r[EVENT_COL.cohosts - 1], people, 'P'),
-        waiverIds: resolveRefs_(r[EVENT_COL.waivers - 1], waivers, 'W')
+        waiverIds: resolveRefs_(r[EVENT_COL.waivers - 1], waivers, 'W'),
+        staffCode: r[EVENT_COL.staffCode - 1].trim(),
+        // Blank means yes, so events typed in by hand show their hosts.
+        hostsOnConfirmation: !r[EVENT_COL.hostsOnConfirmation - 1].trim() || isTrue_(r[EVENT_COL.hostsOnConfirmation - 1]),
+        hostsInBanner: !r[EVENT_COL.hostsInBanner - 1].trim() || isTrue_(r[EVENT_COL.hostsInBanner - 1])
       };
     })
     .filter(function (e) { return e.name; });
@@ -143,9 +154,14 @@ function validateEvent_(input, people, waivers) {
     start: clean_(input.start, 5),
     end: clean_(input.end, 5),
     location: clean_(input.location, 200),
-    description: clean_(input.description, 2000)
+    description: clean_(input.description, 2000),
+    staffCode: clean_(input.staffCode, 12),
+    hostsOnConfirmation: input.hostsOnConfirmation !== false,
+    hostsInBanner: input.hostsInBanner !== false
   };
   if (!ev.name) throw new Error('Give the event a name.');
+  if (!ev.staffCode) ev.staffCode = newStaffCode_();
+  if (!/^\d{4,8}$/.test(ev.staffCode)) throw new Error('The staff code has to be 4 to 8 digits.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) throw new Error('Pick a date.');
   if (!/^\d{2}:\d{2}$/.test(ev.start) || !/^\d{2}:\d{2}$/.test(ev.end)) throw new Error('Set a start and end time.');
   if (ev.end <= ev.start) throw new Error('The end time has to be after the start time.');
@@ -176,7 +192,8 @@ function validateEvent_(input, people, waivers) {
   return ev;
 }
 
-// Creates a waiver (input.id empty) or updates one.
+// Creates a waiver (input.id empty) or updates one. input.events maps event
+// IDs to true/false: add the waiver to, or remove it from, those events.
 function adminSaveWaiver(input) {
   ensureSchema_();
   input = input || {};
@@ -207,11 +224,44 @@ function adminSaveWaiver(input) {
     sheet.getRange(row, WAIVER_COL.title, 1, 3).setValues([[safeCell_(w.title), safeCell_(w.text), w.type]]).setWrap(true);
     sheet.getRange(row, WAIVER_COL.active).insertCheckboxes().setValue(w.active);
     sheet.getRange(row, WAIVER_COL.updated).setValue(new Date());
+    setEventWaiver_(w, (input && input.events) || {});
     return w.id;
   });
   var result = adminLoad();
   result.savedId = savedId;
   return result;
+}
+
+// A random four-digit code for an event's staff screen.
+// Adds or removes one waiver on the events named in `events` ({ E001: true }).
+// Runs inside adminSaveWaiver's lock.
+function setEventWaiver_(w, events) {
+  var ids = Object.keys(events);
+  if (!ids.length) return;
+  var waivers = readWaivers_();
+  var sheet = getDb_().getSheetByName(TABS.events.name);
+  var last = lastRowWith_(sheet, EVENT_COL.id);
+  if (last < 2) return;
+  var rows = sheet.getRange(2, 1, last - 1, EVENT_COL.waivers).getDisplayValues();
+  var byId = {};
+  waivers.forEach(function (x) { byId[x.id] = x; });
+  byId[w.id] = { id: w.id, name: w.title };
+  rows.forEach(function (r, i) {
+    var id = r[EVENT_COL.id - 1].trim();
+    if (!Object.prototype.hasOwnProperty.call(events, id)) return;
+    var current = resolveRefs_(r[EVENT_COL.waivers - 1], waivers, 'W');
+    var has = current.indexOf(w.id) !== -1;
+    if (events[id] === true && !has) current.push(w.id);
+    else if (events[id] === false && has) current.splice(current.indexOf(w.id), 1);
+    else return;
+    sheet.getRange(i + 2, EVENT_COL.waivers)
+      .setValue(safeCell_(current.map(function (x) { return byId[x] ? ref_(byId[x]) : x; }).join('; ')));
+    sheet.getRange(i + 2, EVENT_COL.updated).setValue(new Date());
+  });
+}
+
+function newStaffCode_() {
+  return String(1000 + Math.floor(Math.random() * 9000));
 }
 
 function newCheckinCode_(taken) {
@@ -250,6 +300,9 @@ function backfillIds_(sheet, shown, idCol, nameCol, prefix, codeCol) {
   });
   if (!needs) return;
   withLock_(function () {
+    // Re-read under the lock: another request may have just filled these in.
+    var fresh = sheet.getRange(2, 1, shown.length, shown[0].length).getDisplayValues();
+    fresh.forEach(function (r, i) { shown[i] = r; });
     var ids = shown.map(function (r) { return r[idCol - 1].trim(); });
     var codes = codeCol ? shown.map(function (r) { return r[codeCol - 1].trim(); }) : [];
     shown.forEach(function (r, i) {
