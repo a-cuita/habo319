@@ -20,22 +20,46 @@ var ADMIN_SESSION_SECONDS = 2 * 60 * 60;   // ends after two idle hours
 // if any.
 function staffSignIn_(req) {
   ensureSchema_();
-  requireNotLocked_(SIGNIN_SCOPE);
-  var pin = clean_(req.pin, 20);
   var ev = clean_(req.code, 20) ? findEventByCode_(req.code) : null;
+  var where = req.kiosk === true ? 'iPad' : 'Phone or computer';
+  try {
+    requireNotLocked_(SIGNIN_SCOPE);
+  } catch (err) {
+    logSignIn_('Locked out', '', ev, where);
+    throw err;
+  }
+  var pin = clean_(req.pin, 20);
   var open = !!ev && checkinWindow_(ev).status === 'open';
 
   var admin = pin && readAdminPins_().filter(function (a) { return a.active && a.pin === pin; })[0];
   if (admin) {
     var token = Utilities.getUuid();
     CacheService.getScriptCache().put('admin-session:' + token, admin.id, ADMIN_SESSION_SECONDS);
+    logSignIn_('Admin', ref_(admin), ev, where);
     return { role: 'admin', token: token, name: admin.name, headcount: open ? headcount_(ev) : null };
   }
   if (open && ev.staffCode && pin === ev.staffCode) {
+    logSignIn_('Event staff code', '', ev, where);
     return { role: 'staff', headcount: headcount_(ev) };
   }
+  logSignIn_('Wrong code', '', ev, where);
   noteWrongCode_(SIGNIN_SCOPE, open ? 'Wrong code.'
     : "That isn't an admin PIN. Event staff codes only work while check-in is open.");
+}
+
+// One row on the Staff Sign-ins tab. A problem writing it never stops a
+// sign-in.
+function logSignIn_(result, name, ev, where) {
+  try {
+    withLock_(function () {
+      var sheet = getDb_().getSheetByName(TABS.staffLog.name);
+      sheet.getRange(sheet.getLastRow() + 1, 1, 1, 6).setValues([[
+        new Date(), result, safeCell_(name), ev ? ev.id : '', ev ? safeCell_(ev.name) : '(no event open)', where
+      ]]);
+    });
+  } catch (err) {
+    console.error(err);
+  }
 }
 
 function staffSignOut_(req) {

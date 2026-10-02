@@ -98,6 +98,15 @@ var TABS = {
     widths: [100, 150, 80, 220, 100, 180, 220, 130, 80, 180, 90, 110, 70],
     formats: { 2: 'yyyy-mm-dd h:mm', 8: '@', 11: '0.00', 12: '0.00', 13: '0.00' }
   },
+  // Every staff sign-in from the public pages, and every wrong code (the
+  // code typed is never recorded). Only kept here: nothing in the site or
+  // the admin modal shows it.
+  staffLog: {
+    name: 'Staff Sign-ins',
+    header: ['Time', 'Result', 'Name', 'Event ID', 'Event', 'Where'],
+    widths: [160, 130, 180, 80, 240, 140],
+    formats: { 1: 'yyyy-mm-dd h:mm:ss' }
+  },
   // Every waiver decision at check-in, with a fingerprint of the exact text
   // the volunteer saw (the same text always gives the same fingerprint) and
   // a link to the signature they drew, saved in the Signatures folder.
@@ -306,6 +315,7 @@ function ensureSchema_(force) {
     ensureTab_(ss, TABS.signatures);
     ensureTab_(ss, TABS.cards);
     ensureTab_(ss, TABS.headcounts);
+    ensureTab_(ss, TABS.staffLog);
     Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
     var missing = missingSettings_(ss);
     if (missing.length) {

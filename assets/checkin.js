@@ -424,7 +424,7 @@ window.CheckIn = { start: function () {
       var button = e.target.querySelector('button[type=submit]');
       if (!entered) return;
       button.disabled = true;
-      App.api('staffSignIn', { code: event ? event.code : '', pin: entered })
+      App.api('staffSignIn', { code: event ? event.code : '', pin: entered, kiosk: kiosk })
         .then(function (res) {
           if (res.role === 'admin') {
             staff = { token: res.token, name: res.name };
