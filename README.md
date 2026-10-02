@@ -2,18 +2,20 @@
 
 A simple site where volunteers in the 319 grant program check in, record attendance, and log hours.
 
-**Status:** check-in works end to end; the home page still shows "coming soon" (with reviewer questions behind an access code).
+**Status:** check-in works end to end. The home page is the check-in for whichever event is open right now.
 
 ## Pages
 
+- **Home page** https://a-cuita.github.io/habo319/: the check-in for whichever event's check-in is open right now (if two overlap, the one that started first). On a wide screen like the event iPad it's the iPad layout below; on a phone, the phone layout. When nothing is open it shows the next event and when its check-in opens, and switches over on its own once it does.
 - **Event check-in** `?e=CODE`: what an event's QR code opens. A volunteer enters their name and email or phone, agrees to the event's waivers, and is checked in. Their phone remembers their details for next time.
 - **Event iPad** `?e=CODE&kiosk=1`: for the check-in table. The event's QR code, big, and a rotating banner (the event's hosts and any banner cards) beside a sign-in form for people without phones. It resets after each check-in (and after a few idle minutes) and never remembers anyone.
 - **Staff head count**: the small "Staff" link at the bottom of either page. With the event's staff code it shows how many have checked in and who, and lets staff record the number they counted on site.
-- Add `&preview=1` to either to see it with saving turned off; the admin modal's preview does this.
+- **Preview questions** `?questions`: the reviewer questions from the Preview Questions tab, behind the preview access code.
+- Add `&preview=1` to an event page to see it with saving turned off; the admin modal's preview does this.
 
 Check-in is open from 60 minutes before an event starts until 60 minutes after it ends (both adjustable in Settings). Volunteers are matched by first and last name plus email or phone, so family members who share a phone or email keep separate hours. Returning volunteers are welcomed back with their event count and total hours.
 
-Access codes (the preview code and each event's staff code) lock for 15 minutes after 20 wrong tries.
+Access codes (the preview code and each event's staff code) lock for 15 minutes after 5 wrong tries.
 
 ## How it fits together
 

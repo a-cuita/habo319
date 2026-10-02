@@ -15,6 +15,22 @@ var CHECKIN_COL = { id: 1, at: 2, eventId: 3, eventName: 4, volunteerId: 5, name
 
 /* ── Called from the site ── */
 
+// For the home page: the event whose check-in is open right now (the one
+// that started first, if two overlap), or else the next one to open. An
+// empty code means there's no event coming up.
+function activeEvent_() {
+  ensureSchema_();
+  var best = null, bestRank = null;
+  readEvents_([], []).forEach(function (ev) {
+    var win = checkinWindow_(ev);
+    if (win.status !== 'open' && win.status !== 'upcoming') return;
+    // Open events come before upcoming ones, then the earliest first.
+    var rank = (win.status === 'open' ? '0' : '1') + ev.date + ev.start;
+    if (bestRank === null || rank < bestRank) { best = ev; bestRank = rank; }
+  });
+  return { code: best ? best.code : '' };
+}
+
 // What a check-in page needs for one event. Nothing about other volunteers,
 // and never the staff code. The iPad (req.kiosk) also gets its banner.
 function getEvent_(req) {

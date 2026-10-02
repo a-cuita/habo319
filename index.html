@@ -14,7 +14,7 @@
 </header>
 
 <main>
-  <!-- Public view: "coming soon", with a quiet way in for reviewers. -->
+  <!-- Preview questions (?questions): "coming soon", with a way in for reviewers. -->
   <div id="gate">
     <section class="card">
       <h2>Coming soon</h2>
@@ -60,9 +60,10 @@
 <script src="assets/preview.js"></script>
 <script src="assets/checkin.js"></script>
 <script>
-  // ?e=CODE is an event's check-in page (add &kiosk=1 for the event iPad);
-  // anything else is the home page.
-  if (new URLSearchParams(location.search).get('e')) CheckIn.start(); else Preview.start();
+  // The home page is the check-in for whichever event is open right now;
+  // ?e=CODE is one event's check-in (add &kiosk=1 for the event iPad).
+  // ?questions is the old preview questions, behind the preview access code.
+  if (new URLSearchParams(location.search).has('questions')) Preview.start(); else CheckIn.start();
 </script>
 </body>
 </html>

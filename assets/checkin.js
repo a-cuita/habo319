@@ -1,8 +1,11 @@
-// Event check-in, for an event's page (?e=CODE). Two layouts:
+// Event check-in, for an event's page (?e=CODE), or on the home page for
+// whichever event's check-in is open right now. Two layouts:
 //  - phone: one volunteer on their own phone; remembers their details there.
 //  - kiosk (&kiosk=1): the event iPad. A big QR code for phones and a
 //    rotating banner beside a sign-in form; resets after each check-in and
 //    never remembers anyone.
+// The home page uses the iPad layout on wide screens and the phone layout on
+// phones, and switches events on its own as check-in opens and closes.
 // &preview=1 (the admin modal's preview) shows everything but can't save.
 // A small "Staff" link opens the event's head count, behind its staff code.
 window.CheckIn = { start: function () {
@@ -10,18 +13,20 @@ window.CheckIn = { start: function () {
 
   var params = new URLSearchParams(location.search);
   var code = (params.get('e') || '').trim();
-  var kiosk = params.get('kiosk') === '1';
+  var home = !code;
+  var kiosk = params.get('kiosk') === '1' || (home && window.matchMedia('(min-width: 800px)').matches);
   var preview = params.get('preview') === '1';
   var REMEMBER_KEY = 'habo319.volunteer';
   var KIOSK_DONE_SECONDS = 10;
   var KIOSK_IDLE_MS = 3 * 60 * 1000;
   var STAFF_REFRESH_MS = 20 * 1000;
+  var HOME_RECHECK_MS = 60 * 1000;
 
   var root = document.getElementById('checkin');
   var esc = App.esc;
   var event = null;
   var screen = null;          // 'form' | 'done' | 'status' | 'staff' | 'staff-code'
-  var timers = { idle: null, banner: null, staff: null, done: null };
+  var timers = { idle: null, banner: null, staff: null, done: null, recheck: null };
   var staffCode = null;       // kept in memory only, for refreshing the head count
 
   ['gate', 'survey', 'thanks'].forEach(function (id) { document.getElementById(id).hidden = true; });
@@ -66,6 +71,7 @@ window.CheckIn = { start: function () {
   /* ── Screens ── */
 
   function stopTimers() {
+    clearTimeout(timers.recheck);
     clearInterval(timers.banner);
     clearInterval(timers.staff);
     clearInterval(timers.done);
@@ -415,7 +421,8 @@ window.CheckIn = { start: function () {
       clearTimeout(timers.idle);
       timers.idle = setTimeout(function () {
         staffCode = null;
-        if (event) route();
+        if (home) location.reload();   // picks up whichever event is open now
+        else if (event) route();
       }, KIOSK_IDLE_MS);
     };
     if (!armIdleReset.bound) {
@@ -441,16 +448,37 @@ window.CheckIn = { start: function () {
 
   function route() {
     if (event.status === 'open' || preview) renderForm();
-    else message(STATUS[event.status] || 'Check-in closed', statusText());
+    else {
+      message(STATUS[event.status] || 'Check-in closed', statusText());
+      recheckLater();
+    }
+  }
+
+  // The home page looks again every minute while no check-in is open, so it
+  // switches to the event by itself when check-in opens.
+  function recheckLater() {
+    if (home) timers.recheck = setTimeout(function () { location.reload(); }, HOME_RECHECK_MS);
+  }
+
+  function load(eventCode) {
+    return App.api('getEvent', { code: eventCode, kiosk: kiosk }).then(function (ev) {
+      event = ev;
+      document.title = ev.name + ' · Check-in';
+      route();
+    });
   }
 
   show('loading', '<section class="card"><p class="muted">Loading…</p></section>', false);
   if (!App.isConfigured) { message('Not available', 'Check-in is not set up yet.'); return; }
-  App.api('getEvent', { code: code, kiosk: kiosk })
-    .then(function (ev) {
-      event = ev;
-      document.title = ev.name + ' · Check-in';
-      route();
-    })
-    .catch(function (error) { message('Event not found', error.message); });
+  if (home) {
+    App.api('activeEvent', {})
+      .then(function (res) {
+        if (res.code) return load(res.code);
+        message('No events right now', 'There is no event coming up for check-in. Please check back later.');
+        recheckLater();
+      })
+      .catch(function (error) { message('Not available', error.message); recheckLater(); });
+  } else {
+    load(code).catch(function (error) { message('Event not found', error.message); });
+  }
 } };

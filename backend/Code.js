@@ -156,6 +156,7 @@ var ACTIONS = {
   health: health_,
   previewUnlock: previewUnlock_,
   previewSubmit: previewSubmit_,
+  activeEvent: activeEvent_,
   getEvent: getEvent_,
   checkIn: checkIn_,
   staffHeadcount: staffHeadcount_,
