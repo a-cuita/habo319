@@ -113,6 +113,17 @@
   .public-card .pc-name { font-size: 1.4rem; font-weight: 800; margin-top: 14px; }
   .public-card .pc-title { color: var(--text-dim); margin-top: 2px; }
   .public-card .pc-bio { margin-top: 12px; white-space: pre-wrap; }
+
+  /* Narrow screens (the admin tools on the public site, on a phone): the
+     list and form first, then the preview below. */
+  @media (max-width: 760px) {
+    html, body { height: auto; }
+    .layout { grid-template-columns: 1fr; height: auto; }
+    .left { border-right: 0; border-bottom: 1px solid var(--border); }
+    .scroll { overflow: visible; }
+    .right { min-height: 640px; }
+    .bar { flex-wrap: wrap; }
+  }
 </style>
 <?!= include('QrLib'); ?>
 </head>
@@ -167,7 +178,7 @@
       <div class="field">
         <label for="e-staff-code">Staff access code</label>
         <input id="e-staff-code" inputmode="numeric" maxlength="8" placeholder="4 to 8 digits" autocomplete="off">
-        <p class="muted" style="margin-top:4px">Event staff enter this under "Staff" on the check-in pages to see the live head count.</p>
+        <p class="muted" style="margin-top:4px">For co-hosts and helpers: entered under "Staff" on the check-in pages, it opens this event's live head count while check-in is open. Admins use their own PIN (People tab).</p>
       </div>
       <div class="actions">
         <button class="btn primary" type="submit" id="e-save">Save event</button>
@@ -208,6 +219,12 @@
       <div class="row">
         <div class="field"><label for="p-email">Email</label><input id="p-email" type="email" maxlength="200" placeholder="Not shown publicly"></div>
         <div class="field"><label for="p-phone">Phone</label><input id="p-phone" type="tel" maxlength="40" placeholder="Not shown publicly"></div>
+      </div>
+      <div class="field">
+        <label for="p-pin">Admin PIN</label>
+        <input id="p-pin" type="password" inputmode="numeric" maxlength="8" autocomplete="new-password">
+        <p class="muted" style="margin-top:4px">For admins only. Under "Staff" on the check-in pages, this PIN opens these admin tools at any time, plus the head count during an event. 6 to 8 digits, different for each admin.</p>
+        <label class="check" id="p-pin-remove-row" style="margin-top:6px"><input type="checkbox" id="p-pin-remove"> <span>Remove this person's admin PIN</span></label>
       </div>
       <label class="check"><input type="checkbox" id="p-public"> <span>Show name, photo, title, and bio on public screens</span></label>
       <label class="check"><input type="checkbox" id="p-active"> <span>Active <span class="muted">(uncheck when someone moves on; their past events keep their name)</span></span></label>
@@ -816,6 +833,7 @@
     var text = el('div');
     text.appendChild(el('div', 'name', p.name));
     if (p.title) text.appendChild(el('div', 'meta', p.title));
+    if (p.hasAdminPin) text.appendChild(el('span', 'badge', 'Admin'));
     if (!p.isPublic) text.appendChild(el('span', 'badge warn', 'Not on public screens'));
     if (!p.photoId) text.appendChild(el('span', 'badge', 'No photo'));
     row.appendChild(text);
@@ -847,6 +865,10 @@
     $('p-phone').value = p ? p.phone : '';
     $('p-public').checked = p ? p.isPublic : true;
     $('p-active').checked = p ? p.active : true;
+    $('p-pin').value = '';
+    $('p-pin').placeholder = p && p.hasAdminPin ? 'Set. Type a new PIN to change it' : 'None';
+    $('p-pin-remove').checked = false;
+    $('p-pin-remove-row').hidden = !(p && p.hasAdminPin);
     $('p-error').textContent = '';
     $('p-picker').hidden = true;
     if (p) state.personId = p.id;
@@ -965,6 +987,8 @@
       phone: $('p-phone').value.trim(),
       isPublic: $('p-public').checked,
       active: $('p-active').checked,
+      adminPin: $('p-pin').value.trim(),
+      removeAdminPin: $('p-pin-remove').checked,
       photo: state.photo
     };
     save('adminSavePerson', input, $('p-save'), 'Save person', $('p-error'));

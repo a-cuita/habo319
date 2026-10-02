@@ -8,7 +8,7 @@
 // People tab columns (1-based), matching TABS.people.header in Code.js.
 var PERSON_COL = {
   id: 1, name: 2, title: 3, bio: 4, email: 5, phone: 6, photo: 7,
-  isPublic: 8, active: 9, created: 10, updated: 11
+  isPublic: 8, active: 9, created: 10, updated: 11, adminPin: 12
 };
 
 var SETTING_HEADSHOTS_FOLDER = 'Headshots folder';
@@ -20,10 +20,15 @@ var MAX_SOURCE_IMAGE_BYTES = 20 * 1024 * 1024;
 // Creates a person (input.id empty) or updates one. input.photo says what to
 // do with the headshot: { mode: 'keep' | 'remove' | 'upload' | 'link' }, with
 // `data` (base64 JPEG, already cropped in the browser) for an upload, or
-// `fileId` to use a file from the Headshots folder as it is.
+// `fileId` to use a file from the Headshots folder as it is. input.adminPin
+// sets a new admin PIN (blank keeps the current one); input.removeAdminPin
+// clears it. PINs are never sent back to the browser.
 function adminSavePerson(input) {
   ensureSchema_();
   var p = validatePerson_(input);
+  var pin = clean_(input && input.adminPin, 20);
+  var removePin = !!(input && input.removeAdminPin) && !pin;
+  if (pin && !/^\d{6,8}$/.test(pin)) throw new Error('An admin PIN has to be 6 to 8 digits.');
   var photo = (input && input.photo) || { mode: 'keep' };
   var photoUrl = null;
   if (photo.mode === 'upload') photoUrl = saveHeadshot_(p.name, photo.data);
@@ -31,6 +36,12 @@ function adminSavePerson(input) {
   else if (photo.mode === 'remove') photoUrl = '';
 
   var savedId = withLock_(function () {
+    if (pin) {
+      var others = readAdminPins_().filter(function (a) { return a.id !== p.id; });
+      if (others.some(function (a) { return a.pin === pin; }) || staffCodeInUse_(pin)) {
+        throw new Error('That PIN is already in use. Pick a different one.');
+      }
+    }
     var sheet = getDb_().getSheetByName(TABS.people.name);
     var last = lastRowWith_(sheet, PERSON_COL.id);
     var ids = columnValues_(sheet, PERSON_COL.id, last);
@@ -46,6 +57,7 @@ function adminSavePerson(input) {
       sheet.getRange(row, PERSON_COL.id).setValue(p.id);
       sheet.getRange(row, PERSON_COL.created).setValue(now);
     }
+    if (pin || removePin) sheet.getRange(row, PERSON_COL.adminPin).setNumberFormat('@').setValue(pin);
     sheet.getRange(row, PERSON_COL.name, 1, 5).setValues([[
       safeCell_(p.name), safeCell_(p.title), safeCell_(p.bio), safeCell_(p.email), safeCell_(p.phone)
     ]]);
@@ -95,7 +107,7 @@ function readPeople_() {
   var sheet = getDb_().getSheetByName(TABS.people.name);
   var count = lastRowWith_(sheet, PERSON_COL.id) - 1;
   if (count < 1) return [];
-  var shown = sheet.getRange(2, 1, count, PERSON_COL.active).getDisplayValues();
+  var shown = sheet.getRange(2, 1, count, PERSON_COL.adminPin).getDisplayValues();
   backfillIds_(sheet, shown, PERSON_COL.id, PERSON_COL.name, 'P');
   return shown
     .map(function (r) {
@@ -109,10 +121,30 @@ function readPeople_() {
         phone: r[PERSON_COL.phone - 1].trim(),
         photoId: driveId_(r[PERSON_COL.photo - 1]),
         isPublic: isTrue_(r[PERSON_COL.isPublic - 1]),
-        active: !activeCell || isTrue_(activeCell)
+        active: !activeCell || isTrue_(activeCell),
+        hasAdminPin: !!r[PERSON_COL.adminPin - 1].trim()
       };
     })
     .filter(function (p) { return p.name; });
+}
+
+// Every person with an admin PIN: { id, name, pin, active }. Only for
+// checking PINs on the server; never sent to a browser.
+function readAdminPins_() {
+  var sheet = getDb_().getSheetByName(TABS.people.name);
+  var count = lastRowWith_(sheet, PERSON_COL.id) - 1;
+  if (count < 1) return [];
+  return sheet.getRange(2, 1, count, PERSON_COL.adminPin).getDisplayValues()
+    .map(function (r) {
+      var activeCell = r[PERSON_COL.active - 1].trim();
+      return { id: r[PERSON_COL.id - 1].trim(), name: r[PERSON_COL.name - 1].trim(),
+        pin: r[PERSON_COL.adminPin - 1].trim(), active: !activeCell || isTrue_(activeCell) };
+    })
+    .filter(function (a) { return a.id && a.pin; });
+}
+
+function staffCodeInUse_(code) {
+  return readEvents_([], []).some(function (e) { return e.staffCode === code; });
 }
 
 function validatePerson_(input) {
@@ -136,20 +168,27 @@ function validatePerson_(input) {
 
 // The Headshots folder, created next to the Sheet the first time it's needed.
 function headshotsFolder_() {
-  var link = getSetting_(SETTING_HEADSHOTS_FOLDER);
+  return sheetFolder_(SETTING_HEADSHOTS_FOLDER, 'Headshots');
+}
+
+// A folder next to the Sheet whose link is kept in a setting, created the
+// first time it's needed.
+function sheetFolder_(setting, folderName) {
+  var link = getSetting_(setting);
   if (link) {
     try {
       return DriveApp.getFolderById(driveId_(link));
     } catch (err) {
-      throw new Error('The "Headshots folder" link in Settings can\'t be opened. Fix or clear it, then try again.');
+      throw new Error('The "' + setting + '" link in Settings can\'t be opened. Fix or clear it, then try again.');
     }
   }
   return withLock_(function () {
-    var again = getSetting_(SETTING_HEADSHOTS_FOLDER);
+    settingsMemo_ = null;
+    var again = getSetting_(setting);
     if (again) return DriveApp.getFolderById(driveId_(again));
     var parents = DriveApp.getFileById(getDb_().getId()).getParents();
-    var folder = (parents.hasNext() ? parents.next() : DriveApp.getRootFolder()).createFolder('Headshots');
-    setSetting_(SETTING_HEADSHOTS_FOLDER, folder.getUrl());
+    var folder = (parents.hasNext() ? parents.next() : DriveApp.getRootFolder()).createFolder(folderName);
+    setSetting_(setting, folder.getUrl());
     return folder;
   });
 }

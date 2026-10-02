@@ -43,10 +43,12 @@ var TABS = {
   // listed in PERSON_COL (People.js).
   people: {
     name: 'People',
+    // Admin PIN: lets that person sign in under "Staff" on the public pages
+    // and use the admin tools there. Only active people's PINs work.
     header: ['Person ID', 'Name', 'Title', 'Bio', 'Email', 'Phone', 'Photo', 'Show publicly', 'Active',
-      'Created', 'Updated'],
-    widths: [80, 180, 180, 360, 200, 130, 280, 100, 70, 150, 150],
-    formats: { 10: 'yyyy-mm-dd h:mm', 11: 'yyyy-mm-dd h:mm' }
+      'Created', 'Updated', 'Admin PIN'],
+    widths: [80, 180, 180, 360, 200, 130, 280, 100, 70, 150, 150, 90],
+    formats: { 10: 'yyyy-mm-dd h:mm', 11: 'yyyy-mm-dd h:mm', 12: '@' }
   },
   // Events list the waivers they use as "Title (W001)". Columns are listed in
   // WAIVER_COL (Checkin.js).
@@ -96,12 +98,13 @@ var TABS = {
     formats: { 2: 'yyyy-mm-dd h:mm', 8: '@', 11: '0.00', 12: '0.00', 13: '0.00' }
   },
   // Every waiver decision at check-in, with a fingerprint of the exact text
-  // the volunteer saw (the same text always gives the same fingerprint).
+  // the volunteer saw (the same text always gives the same fingerprint) and
+  // a link to the signature they drew, saved in the Signatures folder.
   signatures: {
     name: 'Waiver Signatures',
     header: ['Signed', 'Check-in ID', 'Event ID', 'Volunteer ID', 'Name', 'Waiver ID', 'Waiver',
-      'Text fingerprint', 'Decision', 'Signed name'],
-    widths: [150, 100, 80, 100, 180, 80, 220, 130, 90, 180],
+      'Text fingerprint', 'Decision', 'Signed name', 'Signature'],
+    widths: [150, 100, 80, 100, 180, 80, 220, 130, 90, 180, 280],
     formats: { 1: 'yyyy-mm-dd h:mm' }
   }
 };
@@ -152,16 +155,24 @@ var SEED_WAIVERS = [
 ];
 
 // Actions the site can call, by name. Each handler gets the parsed request.
-var ACTIONS = {
-  health: health_,
-  previewUnlock: previewUnlock_,
-  previewSubmit: previewSubmit_,
-  activeEvent: activeEvent_,
-  getEvent: getEvent_,
-  checkIn: checkIn_,
-  staffHeadcount: staffHeadcount_,
-  staffRecordCount: staffRecordCount_
-};
+// Built on each request, not when this file loads: the handlers live in
+// files that load after this one.
+function actions_() {
+  return {
+    health: health_,
+    previewUnlock: previewUnlock_,
+    previewSubmit: previewSubmit_,
+    activeEvent: activeEvent_,
+    getEvent: getEvent_,
+    checkIn: checkIn_,
+    staffSignIn: staffSignIn_,
+    staffSignOut: staffSignOut_,
+    staffHeadcount: staffHeadcount_,
+    staffRecordCount: staffRecordCount_,
+    adminPage: adminPage_,
+    admin: adminCall_
+  };
+}
 
 // Opening the web app URL in a browser runs the health check, which confirms
 // the deployment is live and sets up the Sheet's tabs if they're missing.
@@ -177,10 +188,11 @@ function doPost(e) {
     return json_({ success: false, error: 'Request body must be JSON' });
   }
   var action = req && req.action;
-  if (!Object.prototype.hasOwnProperty.call(ACTIONS, action)) {
+  var actions = actions_();
+  if (!Object.prototype.hasOwnProperty.call(actions, action)) {
     return json_({ success: false, error: 'Unknown action: ' + action });
   }
-  return respond_(function () { return ACTIONS[action](req); });
+  return respond_(function () { return actions[action](req); });
 }
 
 function health_() {
@@ -323,6 +335,7 @@ function missingSettings_(ss) {
     [SETTING_PREVIEW_INTRO, SEED_PREVIEW_INTRO],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_HEADSHOTS_FOLDER, ''],
+    [SETTING_SIGNATURES_FOLDER, ''],
     [SETTING_OPENS_BEFORE, '60'],
     [SETTING_CLOSES_AFTER, '60'],
     [SETTING_BANNER_SECONDS, '8']
@@ -384,14 +397,23 @@ function setSetting_(name, value) {
 // guessing a short code impractical.
 var MAX_CODE_FAILURES = 5;
 function checkCode_(scope, entered, expected) {
+  requireNotLocked_(scope);
+  if (String(entered == null ? '' : entered).trim() !== expected) {
+    noteWrongCode_(scope, 'Wrong access code');
+  }
+}
+
+function requireNotLocked_(scope) {
+  var fails = Number(CacheService.getScriptCache().get('code-fails:' + scope) || 0);
+  if (fails >= MAX_CODE_FAILURES) throw new Error('Too many wrong codes. Try again in 15 minutes.');
+}
+
+// Counts a wrong try against `scope`, then throws `message`.
+function noteWrongCode_(scope, message) {
   var cache = CacheService.getScriptCache();
   var key = 'code-fails:' + scope;
-  var fails = Number(cache.get(key) || 0);
-  if (fails >= MAX_CODE_FAILURES) throw new Error('Too many wrong codes. Try again in 15 minutes.');
-  if (String(entered == null ? '' : entered).trim() !== expected) {
-    cache.put(key, String(fails + 1), 15 * 60);
-    throw new Error('Wrong access code');
-  }
+  cache.put(key, String(Number(cache.get(key) || 0) + 1), 15 * 60);
+  throw new Error(message);
 }
 
 // Runs fn while holding the script lock. Safe to nest: an inner call just

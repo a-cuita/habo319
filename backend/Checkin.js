@@ -13,6 +13,9 @@ var VOLUNTEER_COL = { id: 1, first: 2, last: 3, email: 4, phone: 5, firstSeen: 6
 var CHECKIN_COL = { id: 1, at: 2, eventId: 3, eventName: 4, volunteerId: 5, name: 6, email: 7, phone: 8,
   method: 9, signedName: 10, eventHours: 11, adjustedHours: 12 };
 
+var SETTING_SIGNATURES_FOLDER = 'Signatures folder';
+var MAX_SIGNATURE_BYTES = 300 * 1024;
+
 /* ── Called from the site ── */
 
 // For the home page: the event whose check-in is open right now (the one
@@ -78,8 +81,8 @@ function checkIn_(req) {
     if (w.type === 'Required' && d !== 'agree') throw new Error('Please agree to "' + w.title + '" to check in.');
     if (w.type === 'Optional' && d !== 'agree' && d !== 'decline') throw new Error('Please choose yes or no for "' + w.title + '".');
   });
-  var signedName = clean_(req.signedName, 120);
-  if (waivers.length && !signedName) throw new Error('Type your full name to sign.');
+  var signature = waivers.length ? signatureBytes_(req.signature) : null;
+  var signedName = waivers.length ? v.first + ' ' + v.last : '';
   var method = req.method === 'kiosk' ? 'Kiosk' : 'Phone';
 
   return withLock_(function () {
@@ -111,15 +114,34 @@ function checkIn_(req) {
       safeCell_(signedName)
     ]]);
     if (waivers.length) {
+      var signatureUrl = saveSignature_(checkinId, name, signature);
       var sigs = getDb_().getSheetByName(TABS.signatures.name);
-      sigs.getRange(sigs.getLastRow() + 1, 1, waivers.length, 10).setValues(waivers.map(function (w) {
+      sigs.getRange(sigs.getLastRow() + 1, 1, waivers.length, 11).setValues(waivers.map(function (w) {
         return [now, checkinId, ev.id, vol.id, safeCell_(name), w.id, safeCell_(w.title), fingerprint_(w.text),
-          decisions[w.id] === 'agree' ? 'Agreed' : 'Declined', safeCell_(signedName)];
+          decisions[w.id] === 'agree' ? 'Agreed' : 'Declined', safeCell_(signedName), signatureUrl];
       }));
     }
     result.already = false;
     return result;
   });
+}
+
+// The signature a volunteer drew, sent as a PNG data URL.
+function signatureBytes_(dataUrl) {
+  var m = /^data:image\/png;base64,([A-Za-z0-9+\/=]+)$/.exec(String(dataUrl || ''));
+  if (!m) throw new Error('Please sign with your finger in the signature box.');
+  var bytes = Utilities.base64Decode(m[1]);
+  var isPng = bytes.length > 8 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71;
+  if (!isPng || bytes.length > MAX_SIGNATURE_BYTES) throw new Error("That signature couldn't be saved. Clear it and sign again.");
+  return bytes;
+}
+
+// Saves a drawn signature in the Signatures folder next to the Sheet and
+// returns its link.
+function saveSignature_(checkinId, name, bytes) {
+  var fileName = checkinId + ' ' + name.replace(/[\\/:*?"<>|]+/g, ' ').trim() + ' signature.png';
+  return sheetFolder_(SETTING_SIGNATURES_FOLDER, 'Signatures')
+    .createFile(Utilities.newBlob(bytes, 'image/png', fileName)).getUrl();
 }
 
 // A volunteer's hours across their check-in rows: each event's hours, or the
@@ -145,7 +167,7 @@ function hoursNumber_(text) {
 function staffHeadcount_(req) {
   ensureSchema_();
   var ev = findEventByCode_(req.code);
-  requireStaffCode_(ev, req.staffCode);
+  requireStaff_(ev, req);
   return headcount_(ev);
 }
 
@@ -154,7 +176,7 @@ function staffHeadcount_(req) {
 function staffRecordCount_(req) {
   ensureSchema_();
   var ev = findEventByCode_(req.code);
-  requireStaffCode_(ev, req.staffCode);
+  requireStaff_(ev, req);
   var staffName = clean_(req.staffName, 80);
   var counted = Number(req.counted);
   var note = clean_(req.note, 500);
@@ -174,9 +196,16 @@ function staffRecordCount_(req) {
   });
 }
 
-function requireStaffCode_(ev, code) {
+// An admin's sign-in (req.token) works for any event; the event's own staff
+// code works only while its check-in is open.
+function requireStaff_(ev, req) {
+  if (req.token) {
+    requireAdmin_(req.token);
+    return;
+  }
+  if (checkinWindow_(ev).status !== 'open') throw new Error("Check-in isn't open, so the event's staff code doesn't work right now.");
   if (!ev.staffCode) throw new Error("This event doesn't have a staff code yet. Set one in the admin menu.");
-  checkCode_('staff:' + ev.id, code, ev.staffCode);
+  checkCode_(SIGNIN_SCOPE, req.staffCode, ev.staffCode);
 }
 
 // The event's check-ins, newest first, plus the last head count recorded.

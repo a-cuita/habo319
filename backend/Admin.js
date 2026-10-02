@@ -162,6 +162,9 @@ function validateEvent_(input, people, waivers) {
   if (!ev.name) throw new Error('Give the event a name.');
   if (!ev.staffCode) ev.staffCode = newStaffCode_();
   if (!/^\d{4,8}$/.test(ev.staffCode)) throw new Error('The staff code has to be 4 to 8 digits.');
+  if (readAdminPins_().some(function (a) { return a.pin === ev.staffCode; })) {
+    throw new Error('That staff code is already in use. Pick a different one.');
+  }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) throw new Error('Pick a date.');
   if (!/^\d{2}:\d{2}$/.test(ev.start) || !/^\d{2}:\d{2}$/.test(ev.end)) throw new Error('Set a start and end time.');
   if (ev.end <= ev.start) throw new Error('The end time has to be after the start time.');

@@ -7,7 +7,9 @@
 // The home page uses the iPad layout on wide screens and the phone layout on
 // phones, and switches events on its own as check-in opens and closes.
 // &preview=1 (the admin modal's preview) shows everything but can't save.
-// A small "Staff" link opens the event's head count, behind its staff code.
+// A small "Staff" link signs in staff: an admin PIN opens the admin tools
+// (and the head count during an event); an event's staff code opens its
+// head count while check-in is open.
 window.CheckIn = { start: function () {
   'use strict';
 
@@ -27,7 +29,9 @@ window.CheckIn = { start: function () {
   var event = null;
   var screen = null;          // 'form' | 'done' | 'status' | 'staff' | 'staff-code'
   var timers = { idle: null, banner: null, staff: null, done: null, recheck: null };
-  var staffCode = null;       // kept in memory only, for refreshing the head count
+  var staff = null;           // signed-in staff, in memory only: { token, name } (admin) or { code } (event staff)
+  var sig = null;             // the signature pad on the form: { canvas, ink }
+  var adminHtml = null;       // the admin tools page, once loaded
 
   ['gate', 'survey', 'thanks'].forEach(function (id) { document.getElementById(id).hidden = true; });
   root.hidden = false;
@@ -81,26 +85,29 @@ window.CheckIn = { start: function () {
     stopTimers();
     screen = name;
     root.innerHTML = (preview ? '<div class="preview-banner">Preview: check-in is turned off here.</div>' : '') + html +
-      (withStaffLink && event ? '<div class="staff-link"><button type="button" class="link-btn" id="ci-staff">Staff</button></div>' : '');
+      (withStaffLink ? '<div class="staff-link"><button type="button" class="link-btn" id="ci-staff">Staff</button></div>' : '');
     var staff = document.getElementById('ci-staff');
     if (staff) staff.addEventListener('click', openStaffCode);
     window.scrollTo(0, 0);
     if (kiosk) armIdleReset();
   }
 
-  function eventHeader() {
+  // The event's name, time, place, and description. `inside` goes at the
+  // bottom of the same card (the iPad's hosts banner).
+  function eventHeader(inside) {
     var when = event.date ? fmtDate(event.date) + (event.start ? ' · ' + fmtTime(event.start) + ' – ' + fmtTime(event.end) : '') : '';
     return '<section class="card event-card">' +
       '<h2>' + esc(event.name) + '</h2>' +
       (when ? '<p class="muted">' + esc(when) + '</p>' : '') +
       (event.location ? '<p class="muted">' + esc(event.location) + '</p>' : '') +
       (event.description ? '<p class="event-desc">' + esc(event.description) + '</p>' : '') +
+      (inside || '') +
       '</section>';
   }
 
   function message(title, text) {
     show('status', (event ? eventHeader() : '') +
-      '<section class="card"><h2>' + esc(title) + '</h2><p class="muted">' + esc(text) + '</p></section>', !!event);
+      '<section class="card"><h2>' + esc(title) + '</h2><p class="muted">' + esc(text) + '</p></section>', !!event || home);
   }
 
   var STATUS = {
@@ -145,7 +152,10 @@ window.CheckIn = { start: function () {
         '<p class="muted small">Email or phone, at least one, so we can recognize you next time.</p>' +
       '</section>' +
       waivers +
-      (event.waivers.length ? '<section class="card">' + field('ci-sign', 'Type your full name to sign', 'off') + '</section>' : '') +
+      (event.waivers.length ? '<section class="card"><div class="ig"><label>Sign here with your finger</label>' +
+        '<div class="sig-box"><canvas id="ci-sig" class="sig-pad" aria-label="Signature box"></canvas>' +
+        '<button type="button" class="link-btn sig-clear" id="ci-sig-clear">Clear</button></div>' +
+        '<p class="muted small">Your signature applies to the waivers above.</p></div></section>' : '') +
       '<button class="btn btn-accent" type="submit"' + (preview ? ' disabled' : '') + '>Check in</button>' +
       '<p class="err" id="ci-err" role="alert"></p>' +
       '</form>';
@@ -159,9 +169,9 @@ window.CheckIn = { start: function () {
 
   function renderForm() {
     if (kiosk) {
-      var banner = event.banner && event.banner.cards.length ? '<section class="card banner" id="ci-banner"></section>' : '';
+      var banner = event.banner && event.banner.cards.length ? '<div class="banner" id="ci-banner"></div>' : '';
       show('form', '<div class="kiosk-grid">' +
-        '<div class="kiosk-left">' + eventHeader() + banner +
+        '<div class="kiosk-left">' + eventHeader(banner) +
           '<section class="card kiosk-qr"><div id="ci-qr"></div>' +
           '<p class="kiosk-how"><strong>TO CHECK IN:</strong> Scan the QR code or fill in this form →</p></section></div>' +
         '<div class="kiosk-right">' + formHtml() + '</div>' +
@@ -172,6 +182,7 @@ window.CheckIn = { start: function () {
       show('form', eventHeader() + formHtml(), true);
     }
     document.getElementById('ci-form').addEventListener('submit', submit);
+    setupSignature();
     var forget = document.getElementById('ci-forget');
     if (forget) forget.addEventListener('click', function () { remember(null); renderForm(); });
   }
@@ -199,6 +210,56 @@ window.CheckIn = { start: function () {
       });
     }
     return qrLib;
+  }
+
+  /* ── Signature pad ── */
+
+  function setupSignature() {
+    var canvas = document.getElementById('ci-sig');
+    sig = null;
+    if (!canvas) return;
+    var ratio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    var w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = Math.round(w * ratio);
+    canvas.height = Math.round(h * ratio);
+    var ctx = canvas.getContext('2d');
+    ctx.scale(ratio, ratio);
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = ctx.lineJoin = 'round';
+    ctx.strokeStyle = ctx.fillStyle = '#111';
+    sig = { canvas: canvas, ink: 0 };
+    var last = null;
+    // In the canvas's own coordinates, even if the screen has since rotated.
+    var pos = function (e) {
+      var r = canvas.getBoundingClientRect();
+      return { x: (e.clientX - r.left) * w / r.width, y: (e.clientY - r.top) * h / r.height };
+    };
+    canvas.addEventListener('pointerdown', function (e) {
+      e.preventDefault();
+      if (canvas.setPointerCapture) canvas.setPointerCapture(e.pointerId);
+      last = pos(e);
+      ctx.beginPath();
+      ctx.arc(last.x, last.y, 1.2, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    canvas.addEventListener('pointermove', function (e) {
+      if (!last) return;
+      e.preventDefault();
+      var p = pos(e);
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
+      ctx.lineTo(p.x, p.y);
+      ctx.stroke();
+      sig.ink += Math.abs(p.x - last.x) + Math.abs(p.y - last.y);
+      last = p;
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
+      canvas.addEventListener(t, function () { last = null; });
+    });
+    document.getElementById('ci-sig-clear').addEventListener('click', function () {
+      ctx.clearRect(0, 0, w, h);
+      sig.ink = 0;
+    });
   }
 
   /* ── Rotating banner (iPad) ── */
@@ -249,7 +310,6 @@ window.CheckIn = { start: function () {
       lastName: value('ci-last'),
       email: value('ci-email'),
       phone: value('ci-phone'),
-      signedName: value('ci-sign'),
       decisions: decisions,
       method: kiosk ? 'kiosk' : 'phone'
     };
@@ -262,7 +322,9 @@ window.CheckIn = { start: function () {
         : 'Please agree to "' + missing.title + '" to check in.';
       return;
     }
-    if (event.waivers.length && !input.signedName) { err.textContent = 'Type your full name to sign.'; return; }
+    // A dot or two isn't a signature.
+    if (event.waivers.length && !(sig && sig.ink > 40)) { err.textContent = 'Please sign in the signature box.'; return; }
+    if (event.waivers.length) input.signature = sig.canvas.toDataURL('image/png');
 
     var button = e.target.querySelector('button[type=submit]');
     button.disabled = true;
@@ -315,18 +377,22 @@ window.CheckIn = { start: function () {
     }
   }
 
-  /* ── Staff: head count ── */
+  /* ── Staff ── */
+
+  function eventOpen() { return !!event && event.status === 'open'; }
+  function staffAuth() { return staff && staff.token ? { token: staff.token } : { staffCode: staff && staff.code }; }
 
   function openStaffCode() {
-    show('staff-code', eventHeader() +
+    var open = eventOpen();
+    show('staff-code', (event ? eventHeader() : '') +
       '<form class="card" id="st-code-form" novalidate><h2>Staff</h2>' +
-      '<p class="muted">Enter this event\'s staff code to see who has checked in.</p>' +
-      '<div class="ig"><label for="st-code">Staff code</label>' +
+      '<p class="muted">' + (open ? "Enter your admin PIN or this event's staff code." : 'Enter your admin PIN.') + '</p>' +
+      '<div class="ig"><label for="st-code">' + (open ? 'PIN or staff code' : 'Admin PIN') + '</label>' +
       '<input id="st-code" type="password" inputmode="numeric" autocomplete="off"></div>' +
       '<button class="btn btn-primary" type="submit">Open</button>' +
       '<button class="btn btn-secondary" type="button" id="st-back">Back to check-in</button>' +
       '<p class="err" id="st-err" role="alert"></p></form>', false);
-    document.getElementById('st-back').addEventListener('click', backToCheckin);
+    document.getElementById('st-back').addEventListener('click', signOut);
     document.getElementById('st-code').focus();
     document.getElementById('st-code-form').addEventListener('submit', function (e) {
       e.preventDefault();
@@ -334,13 +400,45 @@ window.CheckIn = { start: function () {
       var button = e.target.querySelector('button[type=submit]');
       if (!entered) return;
       button.disabled = true;
-      App.api('staffHeadcount', { code: event.code, staffCode: entered })
-        .then(function (data) { staffCode = entered; renderStaff(data); })
+      App.api('staffSignIn', { code: event ? event.code : '', pin: entered })
+        .then(function (res) {
+          if (res.role === 'admin') {
+            staff = { token: res.token, name: res.name };
+            if (res.headcount) renderStaffMenu(); else openAdmin();
+          } else {
+            staff = { code: entered };
+            renderStaff(res.headcount);
+          }
+        })
         .catch(function (error) {
           document.getElementById('st-err').textContent = error.message;
           button.disabled = false;
         });
     });
+  }
+
+  // For an admin during an event: the head count or the admin tools.
+  function renderStaffMenu() {
+    show('staff-menu', eventHeader() +
+      '<section class="card"><h2>Staff</h2><p class="muted">Signed in as ' + esc(staff.name) + '.</p></section>' +
+      '<button class="btn btn-primary" type="button" id="st-menu-count">Head count</button>' +
+      '<button class="btn btn-secondary" type="button" id="st-menu-admin">Admin tools: events, people, waivers, cards</button>' +
+      '<button class="btn btn-secondary" type="button" id="st-menu-out">Sign out</button>' +
+      '<p class="err" id="st-err" role="alert"></p>', false);
+    document.getElementById('st-menu-count').addEventListener('click', function () {
+      this.disabled = true;
+      App.api('staffHeadcount', Object.assign({ code: event.code }, staffAuth()))
+        .then(function (data) { renderStaff(data); })
+        .catch(staffError);
+    });
+    document.getElementById('st-menu-admin').addEventListener('click', openAdmin);
+    document.getElementById('st-menu-out').addEventListener('click', signOut);
+  }
+
+  function staffError(error) {
+    var err = document.getElementById('st-err');
+    if (err) err.textContent = error.message;
+    Array.prototype.forEach.call(root.querySelectorAll('button'), function (b) { b.disabled = false; });
   }
 
   function renderStaff(data, saved) {
@@ -355,7 +453,8 @@ window.CheckIn = { start: function () {
         }).join('')
       : '<p class="muted">No one has checked in yet.</p>';
     show('staff', '<section class="card staff">' +
-      '<div class="st-head"><h2>' + esc(data.eventName) + '</h2><button type="button" class="btn btn-secondary st-small" id="st-done">Done</button></div>' +
+      '<div class="st-head"><h2>' + esc(data.eventName) + '</h2><button type="button" class="btn btn-secondary st-small" id="st-done">' +
+        (staff && staff.token ? 'Back' : 'Done') + '</button></div>' +
       '<div class="st-count"><span class="st-num">' + esc(data.count) + '</span> checked in</div>' + lastLine +
       (saved ? '<p class="st-saved">Head count saved: ' + esc(saved.counted) + ' counted, ' + esc(saved.system) + ' checked in' +
         (saved.counted === saved.system ? ' ✓' : ' (difference ' + esc(saved.counted - saved.system) + ')') + '.</p>' : '') +
@@ -367,16 +466,20 @@ window.CheckIn = { start: function () {
       '<button class="btn btn-primary" type="submit">Save head count</button>' +
       '<p class="err" id="st-err" role="alert"></p></form>' +
       '<section class="card"><h3>Checked in</h3>' + list + '</section>', false);
-    document.getElementById('st-done').addEventListener('click', backToCheckin);
+    document.getElementById('st-done').addEventListener('click', staff && staff.token ? renderStaffMenu : signOut);
     document.getElementById('st-record').addEventListener('submit', recordCount);
+    if (staff && staff.name) document.getElementById('st-name').value = staff.name;
     timers.staff = setInterval(refreshStaff, STAFF_REFRESH_MS);
   }
 
   function refreshStaff() {
     // Don't redraw while someone is typing a head count.
     var form = document.getElementById('st-record');
-    if (form && Array.prototype.some.call(form.querySelectorAll('input'), function (i) { return i.value; })) return;
-    App.api('staffHeadcount', { code: event.code, staffCode: staffCode })
+    var typed = form && Array.prototype.some.call(form.querySelectorAll('input'), function (i) {
+      return i.value && !(i.id === 'st-name' && staff && i.value === staff.name);
+    });
+    if (typed || !staff) return;
+    App.api('staffHeadcount', Object.assign({ code: event.code }, staffAuth()))
       .then(function (data) {
         if (screen !== 'staff') return;
         var y = window.scrollY;
@@ -390,13 +493,12 @@ window.CheckIn = { start: function () {
     e.preventDefault();
     var err = document.getElementById('st-err');
     var button = e.target.querySelector('button[type=submit]');
-    var input = {
+    var input = Object.assign({
       code: event.code,
-      staffCode: staffCode,
       staffName: document.getElementById('st-name').value.trim(),
       counted: document.getElementById('st-counted').value.trim(),
       note: document.getElementById('st-note').value.trim()
-    };
+    }, staffAuth());
     err.textContent = '';
     if (!input.staffName) { err.textContent = 'Enter your name.'; return; }
     if (input.counted === '') { err.textContent = 'Enter the number of people you counted.'; return; }
@@ -406,9 +508,72 @@ window.CheckIn = { start: function () {
       .catch(function (error) { err.textContent = error.message; button.disabled = false; });
   }
 
-  function backToCheckin() {
-    staffCode = null;
+  /* ── Admin tools ── */
+
+  // The Sheet's admin modal, full screen in a frame. Its server calls
+  // (google.script.run in the Sheet) go to the backend under this sign-in.
+  var ADMIN_SHIM = '(' + function () {
+    function runner(ok, fail) {
+      return new Proxy({}, {
+        get: function (_, name) {
+          if (name === 'withSuccessHandler') return function (f) { return runner(f, fail); };
+          if (name === 'withFailureHandler') return function (f) { return runner(ok, f); };
+          return function (arg) {
+            var bridge = parent.StaffAdmin;
+            var call = bridge ? bridge.call(String(name), arg) : Promise.reject(new Error('Signed out.'));
+            call.then(function (r) { if (ok) ok(r); }, function (e) { if (fail) fail(e); });
+          };
+        }
+      });
+    }
+    window.google = { script: { run: runner(null, null) } };
+    // Work in the admin tools counts as activity for the iPad's idle reset.
+    ['input', 'click', 'touchstart', 'keydown'].forEach(function (t) {
+      document.addEventListener(t, function () { parent.dispatchEvent(new Event('staff-activity')); }, true);
+    });
+  } + ')();';
+
+  function openAdmin() {
+    var duringEvent = eventOpen();
+    show('admin', '<div class="admin-wrap"><div class="admin-bar">' +
+      '<div><strong>HABO 319 Admin</strong> <span class="muted">· ' + esc(staff.name) + '</span></div>' +
+      '<button type="button" class="btn btn-secondary st-small" id="ad-back">' + (duringEvent ? 'Back' : 'Sign out') + '</button></div>' +
+      '<div class="admin-body" id="ad-body"><p class="muted center admin-loading">Loading admin tools…</p></div></div>', false);
+    document.getElementById('ad-back').addEventListener('click', duringEvent ? renderStaffMenu : signOut);
+    var token = staff.token;
+    window.StaffAdmin = {
+      call: function (fn, arg) {
+        if (!staff || staff.token !== token) return Promise.reject(new Error('Signed out.'));
+        return App.api('admin', { token: token, fn: fn, arg: arg });
+      }
+    };
+    (adminHtml ? Promise.resolve(adminHtml) : App.api('adminPage', { token: token }).then(function (r) { return (adminHtml = r.html); }))
+      .then(function (html) {
+        var body = document.getElementById('ad-body');
+        if (!body || screen !== 'admin') return;
+        var frame = document.createElement('iframe');
+        frame.className = 'admin-frame';
+        frame.title = 'Admin tools';
+        frame.srcdoc = html.replace(/<head>/i, function () { return '<head><script>' + ADMIN_SHIM + '<\/script>'; });
+        body.textContent = '';
+        body.appendChild(frame);
+      })
+      .catch(function (error) {
+        var body = document.getElementById('ad-body');
+        if (body) body.innerHTML = '<p class="err admin-loading">' + esc(error.message) + '</p>';
+      });
+  }
+
+  // Ends any staff sign-in and goes back to check-in.
+  function signOut() {
+    endStaff();
     route();
+  }
+
+  function endStaff() {
+    if (staff && staff.token) App.api('staffSignOut', { token: staff.token }).catch(function () {});
+    staff = null;
+    window.StaffAdmin = null;
   }
 
   /* ── Kiosk idle reset ── */
@@ -420,13 +585,14 @@ window.CheckIn = { start: function () {
     var reset = function () {
       clearTimeout(timers.idle);
       timers.idle = setTimeout(function () {
-        staffCode = null;
+        endStaff();
         if (home) location.reload();   // picks up whichever event is open now
         else if (event) route();
       }, KIOSK_IDLE_MS);
     };
     if (!armIdleReset.bound) {
       ['input', 'click', 'touchstart', 'keydown'].forEach(function (t) { document.addEventListener(t, reset, true); });
+      window.addEventListener('staff-activity', reset);
       armIdleReset.bound = true;
     }
     reset();
@@ -447,6 +613,11 @@ window.CheckIn = { start: function () {
   /* ── Start ── */
 
   function route() {
+    if (!event) {
+      message('No events right now', 'There is no event coming up for check-in. Please check back later.');
+      recheckLater();
+      return;
+    }
     if (event.status === 'open' || preview) renderForm();
     else {
       message(STATUS[event.status] || 'Check-in closed', statusText());
@@ -474,8 +645,7 @@ window.CheckIn = { start: function () {
     App.api('activeEvent', {})
       .then(function (res) {
         if (res.code) return load(res.code);
-        message('No events right now', 'There is no event coming up for check-in. Please check back later.');
-        recheckLater();
+        route();
       })
       .catch(function (error) { message('Not available', error.message); recheckLater(); });
   } else {
