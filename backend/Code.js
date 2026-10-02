@@ -33,8 +33,8 @@ var TABS = {
     name: 'Events',
     header: ['Event ID', 'Name', 'Date', 'Start', 'End',
       '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
-      'Location', 'Check-in code', 'Created', 'Updated'],
-    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150],
+      'Location', 'Check-in code', 'Created', 'Updated', 'Description'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400],
     formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
       9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
   }
@@ -169,8 +169,11 @@ function getDb_() {
 function ensureSchema_() {
   var ss = getDb_();
   var tabsMissing = Object.keys(TABS).some(function (k) { return !ss.getSheetByName(TABS[k].name); });
+  var colsMissing = !tabsMissing && Object.keys(TABS).some(function (k) {
+    return ss.getSheetByName(TABS[k].name).getLastColumn() < TABS[k].header.length;
+  });
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
-  if (!tabsMissing && !tzWrong && !missingSettings_(ss).length) return;
+  if (!tabsMissing && !colsMissing && !tzWrong && !missingSettings_(ss).length) return;
   withLock_(function () {
     if (ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) {
       ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
@@ -181,6 +184,7 @@ function ensureSchema_() {
     });
     ensureTab_(ss, TABS.responses);
     ensureTab_(ss, TABS.events);
+    Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
     var missing = missingSettings_(ss);
     if (missing.length) {
       var sheet = ss.getSheetByName(TABS.settings.name);
@@ -212,6 +216,22 @@ function ensureTab_(ss, tab, seed) {
     sheet.getRange(2, Number(col), sheet.getMaxRows() - 1, 1).setNumberFormat(tab.formats[col]);
   });
   if (seed) seed(sheet);
+}
+
+// Adds columns that were added to a tab's layout after the tab was created,
+// at the end so existing columns stay where they are.
+function ensureColumns_(ss, tab) {
+  var sheet = ss.getSheetByName(tab.name);
+  var have = sheet.getLastColumn();
+  if (have >= tab.header.length) return;
+  var extra = tab.header.slice(have);
+  sheet.getRange(1, have + 1, 1, extra.length).setValues([extra]).setFontWeight('bold');
+  for (var col = have + 1; col <= tab.header.length; col++) {
+    sheet.setColumnWidth(col, tab.widths[col - 1]);
+    if (tab.formats && tab.formats[col]) {
+      sheet.getRange(2, col, sheet.getMaxRows() - 1, 1).setNumberFormat(tab.formats[col]);
+    }
+  }
 }
 
 function getSetting_(name) {

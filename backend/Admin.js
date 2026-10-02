@@ -9,7 +9,7 @@
  */
 
 // Events tab columns (1-based), matching TABS.events.header in Code.js.
-var EVENT_COL = { id: 1, name: 2, date: 3, start: 4, end: 5, hours: 6, location: 7, code: 8, created: 9, updated: 10 };
+var EVENT_COL = { id: 1, name: 2, date: 3, start: 4, end: 5, hours: 6, location: 7, code: 8, created: 9, updated: 10, description: 11 };
 
 // Unambiguous characters for check-in codes (no 0/O, 1/I/L).
 var CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
@@ -63,6 +63,7 @@ function adminSaveEvent(input) {
     sheet.getRange(row, EVENT_COL.name, 1, 4)
       .setValues([[safeCell_(ev.name), dateSerial_(ev.date), timeSerial_(ev.start), timeSerial_(ev.end)]]);
     sheet.getRange(row, EVENT_COL.location).setValue(safeCell_(ev.location));
+    sheet.getRange(row, EVENT_COL.description).setValue(safeCell_(ev.description)).setWrap(true);
     sheet.getRange(row, EVENT_COL.updated).setValue(now);
     return ev.id;
   });
@@ -79,7 +80,7 @@ function readEvents_() {
   var sheet = getDb_().getSheetByName(TABS.events.name);
   var count = lastEventRow_(sheet) - 1;
   if (count < 1) return [];
-  var range = sheet.getRange(2, 1, count, EVENT_COL.updated);
+  var range = sheet.getRange(2, 1, count, EVENT_COL.description);
   var values = range.getValues();
   var shown = range.getDisplayValues();
 
@@ -113,11 +114,12 @@ function readEvents_() {
         id: r[EVENT_COL.id - 1].trim(),
         name: r[EVENT_COL.name - 1].trim(),
         date: toYmd_(values[i][EVENT_COL.date - 1], tz),
-        start: toHm_(r[EVENT_COL.start - 1]),
-        end: toHm_(r[EVENT_COL.end - 1]),
+        start: toHm_(r[EVENT_COL.start - 1], values[i][EVENT_COL.start - 1]),
+        end: toHm_(r[EVENT_COL.end - 1], values[i][EVENT_COL.end - 1]),
         hours: r[EVENT_COL.hours - 1].trim(),
         location: r[EVENT_COL.location - 1].trim(),
-        code: r[EVENT_COL.code - 1].trim()
+        code: r[EVENT_COL.code - 1].trim(),
+        description: r[EVENT_COL.description - 1].trim()
       };
     })
     .filter(function (e) { return e.name; });
@@ -131,7 +133,8 @@ function validateEvent_(input) {
     date: clean_(input.date, 10),
     start: clean_(input.start, 5),
     end: clean_(input.end, 5),
-    location: clean_(input.location, 200)
+    location: clean_(input.location, 200),
+    description: clean_(input.description, 2000)
   };
   if (!ev.name) throw new Error('Give the event a name.');
   if (!/^\d{4}-\d{2}-\d{2}$/.test(ev.date)) throw new Error('Pick a date.');
@@ -204,9 +207,14 @@ function toYmd_(value, tz) {
 
 // A time as HH:MM, parsed from how the Sheet displays it ("9:00 AM", "14:30").
 // Reading the displayed text sidesteps the time zone quirks of the 1899 dates
-// that Sheets returns for time-only cells.
-function toHm_(shown) {
+// that Sheets returns for time-only cells. If the cell has lost its time
+// format and shows a plain number, the number is read as a fraction of a day.
+function toHm_(shown, raw) {
   var m = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*([ap])?\.?\s*m?\.?$/i.exec(String(shown).trim());
+  if (!m && typeof raw === 'number') {
+    var mins = Math.round((raw % 1) * 1440);
+    return ('0' + Math.floor(mins / 60)).slice(-2) + ':' + ('0' + (mins % 60)).slice(-2);
+  }
   if (!m) return '';
   var h = Number(m[1]);
   if (m[3]) h = (h % 12) + (m[3].toLowerCase() === 'p' ? 12 : 0);

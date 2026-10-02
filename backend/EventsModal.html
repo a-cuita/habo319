@@ -33,14 +33,16 @@
   .event.on { border-color: var(--primary); background: var(--primary-dim); }
   .event .name { font-weight: 700; padding-right: 50px; }
   .event .meta { color: var(--text-dim); font-size: 0.85rem; }
+  .event .desc { color: var(--text); font-size: 0.85rem; margin-top: 2px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   .event .code { font-family: ui-monospace, Menlo, monospace; font-size: 0.78rem; color: var(--primary); font-weight: 700; letter-spacing: 1px; }
   .event .edit { position: absolute; top: 8px; right: 8px; padding: 3px 9px; font-size: 0.8rem; }
   .empty { color: var(--text-dim); text-align: center; padding: 30px 10px; }
 
   .field { margin-bottom: 12px; }
   .field label { display: block; font-size: 0.72rem; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-dim); margin-bottom: 4px; }
-  .field input { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
-  .field input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
+  .field input, .field textarea { width: 100%; padding: 9px 11px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  .field textarea { min-height: 84px; resize: vertical; }
+  .field input:focus, .field textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); }
   .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .hint { color: var(--text-dim); font-size: 0.85rem; margin: -4px 0 12px; }
   .actions { display: flex; gap: 8px; }
@@ -91,6 +93,7 @@
       </div>
       <p class="hint" id="f-hours"></p>
       <div class="field"><label for="f-location">Location</label><input id="f-location" maxlength="200" placeholder="Optional"></div>
+      <div class="field"><label for="f-description">Description</label><textarea id="f-description" maxlength="2000" placeholder="Optional: what volunteers should know, what to bring"></textarea></div>
       <div class="actions">
         <button class="btn primary" type="submit" id="save-btn">Save event</button>
         <button class="btn" type="button" id="cancel-btn">Cancel</button>
@@ -255,6 +258,12 @@
       loc.textContent = ev.location;
       card.appendChild(loc);
     }
+    if (ev.description) {
+      var desc = document.createElement('div');
+      desc.className = 'desc';
+      desc.textContent = ev.description;
+      card.appendChild(desc);
+    }
     var code = document.createElement('div');
     code.className = 'code';
     code.textContent = ev.code;
@@ -287,6 +296,7 @@
     $('f-start').value = ev ? ev.start : '';
     $('f-end').value = ev ? ev.end : '';
     $('f-location').value = ev ? ev.location : '';
+    $('f-description').value = ev ? ev.description : '';
     $('form-error').textContent = '';
     updateHoursHint();
     $('list-view').hidden = true;
@@ -322,7 +332,8 @@
       date: $('f-date').value,
       start: $('f-start').value,
       end: $('f-end').value,
-      location: $('f-location').value.trim()
+      location: $('f-location').value.trim(),
+      description: $('f-description').value.trim()
     };
     var btn = $('save-btn');
     btn.disabled = true;
