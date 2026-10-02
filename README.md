@@ -15,6 +15,14 @@ A simple site where volunteers in the 319 grant program check in, record attenda
 
 Admin tools (planned) will live in the Sheet itself: a custom menu that opens a modal dialog.
 
+### Sheet tabs
+
+The backend creates these on first use; all of them can be edited by hand.
+
+- **Settings**: `Preview access code` (the code that unlocks the preview questions; clear it to turn preview access off) and `Preview intro`.
+- **Preview Questions**: one question per row; answer choices separated by `|`, or blank for a written answer.
+- **Preview Responses**: one row per answered question, with who answered and when.
+
 ## Deploying
 
 **Site:** merge to `main`; GitHub Pages republishes within a couple of minutes.
