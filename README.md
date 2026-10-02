@@ -22,11 +22,14 @@ Admin tools (planned) will live in the Sheet itself: a custom menu that opens a 
 **Backend:** run from the repo root. `.clasp.json` points clasp at the Sheet's script, with `backend/` as its source folder.
 
 ```sh
-clasp push                      # upload backend/ to the script
-clasp redeploy <deploymentId>   # move the live web app to the new code
+clasp push        # upload backend/ to the script
+clasp redeploy AKfycbwQa-dTjs1ZBjkP4-bTE9Ktsxrp7j45A55sIg_nt0EWIjENT3C7kLvXKyo6qDM-Dg4V
+                  # move the live web app to the new code
 ```
 
-Updating the existing deployment, rather than creating a new one, keeps the web app URL the same, so `config.js` doesn't change.
+Updating that existing deployment, rather than creating a new one, keeps the web app URL the same, so `config.js` doesn't change.
+
+The script is bound to the program's Sheet (its ID is `parentId` in `.clasp.json`), and its web app runs as the Sheet's owner, open to anyone. Opening the web app URL in a browser runs a health check.
 
 ## History
 
