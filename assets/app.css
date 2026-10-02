@@ -64,17 +64,31 @@ body { max-width: 480px; margin: 0 auto; padding: 24px 18px 40px; }
 .done-hours { font-weight: 700; color: var(--accent); }
 .done .btn { max-width: 280px; margin: 10px auto 0; }
 
-/* The event iPad: QR code on the left, sign-in form on the right. */
+/* The event iPad: the event and banner cards on the left; a big QR code on
+   the right, with the sign-in form opening below it. Both columns fit the
+   screen; the right one scrolls when the form is open. */
 body.kiosk { max-width: 1180px; padding: 20px 24px; }
 body.kiosk .brand { margin-bottom: 14px; }
-.kiosk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+.kiosk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; height: calc(100vh - 150px); min-height: 560px; }
+.kiosk-left { display: flex; flex-direction: column; min-height: 0; }
+.kiosk-left .event-card { flex-shrink: 0; }
+.kiosk-banner { flex: 1; min-height: 220px; padding: 0; overflow: hidden; position: relative; margin-bottom: 0; }
+.kiosk-banner .rot-slide { position: absolute; inset: 0; }
+.kiosk-banner .bn-dots { position: absolute; left: 0; right: 0; bottom: 10px; margin: 0; }
+.kiosk-banner .bn-dots span { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.8); }
+.kiosk-right { min-height: 0; overflow-y: auto; padding-right: 4px; }
 .kiosk-qr { text-align: center; }
-.kiosk-qr #ci-qr { width: min(100%, 240px); margin: 0 auto 10px; }
+.kiosk-qr #ci-qr { width: min(100%, 52vh, 440px); margin: 4px auto 12px; }
 .kiosk-qr #ci-qr svg { display: block; width: 100%; height: auto; }
-.kiosk-how { font-size: 1.1rem; }
-.kiosk-how strong { color: var(--accent); letter-spacing: 0.5px; }
-.kiosk-right { max-height: calc(100vh - 110px); overflow-y: auto; padding-right: 4px; }
-@media (max-width: 800px) { .kiosk-grid { grid-template-columns: 1fr; } .kiosk-right { max-height: none; } }
+.kiosk-scan { font-size: 1.35rem; font-weight: 800; color: var(--accent); }
+.kiosk-or { margin: 6px 0 10px; font-weight: 800; color: var(--text-dim); letter-spacing: 1px; }
+.kiosk-toggle { font-size: 1.1rem; }
+.kiosk-toggle[aria-expanded="true"] { background: var(--primary-dim); color: var(--primary); }
+.kiosk-manual { padding-top: 2px; }
+@media (max-width: 800px) {
+  .kiosk-grid { grid-template-columns: 1fr; height: auto; min-height: 0; }
+  .kiosk-banner { flex: none; height: 360px; }
+}
 
 /* Small "Staff" link at the bottom of event pages. */
 .staff-link { text-align: center; margin-top: 18px; }
@@ -89,16 +103,13 @@ body.kiosk .brand { margin-bottom: 14px; }
 .host-photo { width: 56px; height: 56px; border-radius: 50%; object-fit: cover; flex-shrink: 0; font-size: 1rem; }
 .host-name { font-weight: 700; }
 
-/* Rotating banner on the event iPad, inside the event's card. */
-.banner { min-height: 150px; display: flex; flex-direction: column; justify-content: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--surface-2); }
+/* Hosts rotating inside the event's card on the iPad. */
+.kiosk-hosts { min-height: 150px; display: flex; flex-direction: column; justify-content: center; margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--surface-2); }
 .bn-host { display: flex; gap: 16px; align-items: center; text-align: left; }
 .bn-photo { width: 110px; height: 110px; border-radius: 50%; object-fit: cover; flex-shrink: 0; font-size: 2rem; }
 .bn-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); }
 .bn-name { font-size: 1.3rem; font-weight: 800; }
 .bn-bio { margin-top: 6px; font-size: 0.92rem; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.bn-card { text-align: center; }
-.bn-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 6px; }
-.bn-text { font-size: 1.02rem; white-space: pre-wrap; }
 .bn-dots { text-align: center; margin-top: 12px; }
 .bn-dots span { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--border); margin: 0 3px; }
 .bn-dots span.on { background: var(--primary); }

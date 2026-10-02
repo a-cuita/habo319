@@ -48,7 +48,7 @@ function include(name) {
 /* ── Called from the modal ── */
 
 // Everything the modal shows: events, people (with headshots), waivers,
-// banner cards, and settings.
+// banner cards (with their images), and settings.
 function adminLoad() {
   ensureSchema_(true);
   var people = readPeople_();
@@ -61,7 +61,10 @@ function adminLoad() {
       return { id: w.id, title: w.title, text: w.text, type: w.type, active: w.active,
         placeholder: /^\[Replace/.test(w.text) };
     }),
-    cards: readCards_(),
+    cards: readCards_().map(function (c) {
+      c.imageData = c.imageId ? imageData_(c.imageId, MAX_BANNER_IMAGE_BYTES) : null;
+      return c;
+    }),
     bannerSeconds: bannerSeconds_(),
     publicUrl: getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL,
     headshotsFolderUrl: getSetting_(SETTING_HEADSHOTS_FOLDER)

@@ -74,7 +74,13 @@ function adminSavePerson(input) {
 
 // Images in the Headshots folder, newest first, with small thumbnails.
 function adminListHeadshots() {
-  var folder = headshotsFolder_();
+  return adminListImages('headshots');
+}
+
+// Images in the Headshots folder (kind 'headshots') or the Banner Images
+// folder ('banners'), newest first, with small thumbnails.
+function adminListImages(kind) {
+  var folder = kind === 'banners' ? bannerImagesFolder_() : headshotsFolder_();
   var files = [];
   var it = folder.getFiles();
   while (it.hasNext()) {
@@ -213,19 +219,39 @@ function imageFile_(fileId) {
 }
 
 // A person's headshot as a data URL. Photos up to 300 KB are sent as they
-// are (cached for six hours when they fit the cache's 100 KB limit); larger
-// images linked by hand fall back to Drive's smaller thumbnail.
+// are; larger images linked by hand fall back to Drive's smaller thumbnail.
 function headshotData_(fileId) {
+  return imageData_(fileId, 300 * 1024);
+}
+
+// An image file as a data URL: the whole file up to maxBytes, otherwise
+// Drive's thumbnail. Cached for six hours, split into pieces that fit the
+// cache's 100 KB limit, so event pages don't read Drive every time.
+var IMAGE_CACHE_PIECE = 90000;
+function imageData_(fileId, maxBytes) {
   if (!fileId) return null;
   var cache = CacheService.getScriptCache();
-  var cached = cache.get('headshot:' + fileId);
-  if (cached) return cached;
+  var key = 'image:' + fileId;
+  var pieces = Number(cache.get(key + ':n') || 0);
+  if (pieces) {
+    var keys = [];
+    for (var i = 0; i < pieces; i++) keys.push(key + ':' + i);
+    var found = cache.getAll(keys);
+    var parts = keys.map(function (k) { return found[k]; });
+    if (parts.every(Boolean)) return parts.join('');
+  }
   try {
     var file = DriveApp.getFileById(fileId);
-    var data = file.getSize() <= 300 * 1024
+    var data = file.getSize() <= maxBytes
       ? 'data:' + file.getMimeType() + ';base64,' + Utilities.base64Encode(file.getBlob().getBytes())
       : thumbnailData_(file);
-    if (data && data.length < 100000) cache.put('headshot:' + fileId, data, 6 * 60 * 60);
+    if (data) {
+      var put = {};
+      var n = Math.ceil(data.length / IMAGE_CACHE_PIECE);
+      for (var j = 0; j < n; j++) put[key + ':' + j] = data.substr(j * IMAGE_CACHE_PIECE, IMAGE_CACHE_PIECE);
+      put[key + ':n'] = String(n);
+      cache.putAll(put, 6 * 60 * 60);
+    }
     return data;
   } catch (err) {
     return null;

@@ -61,6 +61,7 @@ function adminCall_(req) {
     adminSaveWaiver: adminSaveWaiver,
     adminSaveCard: adminSaveCard,
     adminListHeadshots: adminListHeadshots,
+    adminListImages: adminListImages,
     adminGetImage: adminGetImage
   };
   if (!Object.prototype.hasOwnProperty.call(fns, req.fn)) throw new Error('Unknown admin function: ' + req.fn);

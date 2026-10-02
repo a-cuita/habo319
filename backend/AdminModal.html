@@ -104,9 +104,47 @@
   .waiver-preview .wp-choice { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
   .event-list-check label { display: flex; gap: 8px; align-items: flex-start; padding: 4px 0; cursor: pointer; }
   .event-list-check label input { margin-top: 3px; }
-  .banner-card { width: min(460px, 100%); min-height: 220px; background: var(--surface); border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); padding: 28px 24px; text-align: center; display: flex; flex-direction: column; justify-content: center; }
-  .banner-card .bc-title { font-size: 1.3rem; font-weight: 800; margin-bottom: 8px; }
-  .banner-card .bc-text { white-space: pre-wrap; font-size: 1.05rem; }
+
+  /* Banner card editor. */
+  .layouts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .layout-opt { border: 1.5px solid var(--border); border-radius: 8px; background: var(--surface); padding: 6px 4px; cursor: pointer; font-size: 0.75rem; color: var(--text-dim); display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .layout-opt.on { border-color: var(--primary); background: var(--primary-dim); color: var(--text); font-weight: 700; }
+  .lo { width: 64px; height: 40px; border: 1px solid var(--border); border-radius: 4px; background: #fff; display: flex; overflow: hidden; position: relative; }
+  .lo-img { background: #a7b4c2; flex-shrink: 0; }
+  .lo-lines { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 3px; padding: 4px 5px; position: relative; }
+  .lo-lines i { display: block; height: 3px; background: #8e8e93; border-radius: 2px; }
+  .lo-lines i:nth-child(1) { width: 70%; height: 4px; background: #48484a; }
+  .lo-lines i:nth-child(3) { width: 80%; }
+  .lo-left .lo-img, .lo-right .lo-img { width: 40%; }
+  .lo-right { flex-direction: row-reverse; }
+  .lo-top { flex-direction: column; }
+  .lo-top .lo-img { height: 45%; }
+  .lo-background .lo-img { position: absolute; inset: 0; background: #6b7a8a; }
+  .lo-background .lo-lines i { background: #fff; }
+  .lo-image .lo-img { flex: 1; }
+  .card-thumb .thumb { width: 96px; height: 64px; border-radius: 8px; object-fit: cover; display: block; background: var(--surface-2); }
+  .card-thumb .thumb.none { display: flex; align-items: center; justify-content: center; color: var(--text-dim); font-size: 0.75rem; }
+  .rt-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px; padding: 5px; border: 1px solid var(--border); border-bottom: 0; border-radius: 8px 8px 0 0; background: var(--bg); }
+  .rt-toolbar button { min-width: 30px; height: 30px; border: 1px solid transparent; border-radius: 6px; background: none; cursor: pointer; color: var(--text); display: inline-flex; align-items: center; justify-content: center; padding: 0 6px; }
+  .rt-toolbar button:hover { background: var(--surface); border-color: var(--border); }
+  .rt-toolbar button.on { background: var(--primary-dim); border-color: var(--primary); }
+  .rt-toolbar button svg { width: 16px; height: 16px; }
+  .field .rt-toolbar select { width: auto; height: 30px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface); padding: 0 4px; }
+  .rt-sep { width: 1px; height: 20px; background: var(--border); margin: 0 3px; }
+  .rt-colors { display: inline-flex; gap: 3px; }
+  .rt-colors button { min-width: 20px; width: 20px; height: 20px; padding: 0; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.25); }
+  .rt { border: 1px solid var(--border); background: var(--surface); padding: 9px 11px; outline: none; overflow-wrap: anywhere; }
+  .rt:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15); position: relative; }
+  .rt-title { font-size: 1.15rem; font-weight: 800; border-bottom: 0; }
+  .rt-text { min-height: 120px; border-radius: 0 0 8px 8px; }
+  .rt:empty::before { content: attr(data-placeholder); color: var(--text-dim); font-weight: 400; }
+  .rt ul, .rt ol { padding-left: 1.4em; }
+  .swatches { display: flex; flex-wrap: wrap; gap: 5px; }
+  .swatches button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(0, 0, 0, 0.25); cursor: pointer; }
+  .swatches button.on { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--primary); }
+  .bc-stage { width: 100%; display: flex; justify-content: center; }
+  .bc-box { position: relative; }
+  .bc-frame { position: absolute; top: 0; left: 0; width: 556px; height: 380px; transform-origin: 0 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--border); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); background: #fff; }
   .public-card-stage { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
   .public-card { width: min(420px, 100%); background: var(--surface); border-radius: 20px; box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12); padding: 28px 24px; text-align: center; }
   .public-card .pc-label { font-size: 0.72rem; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; color: var(--accent); margin-bottom: 14px; }
@@ -126,6 +164,7 @@
   }
 </style>
 <?!= include('QrLib'); ?>
+<?!= include('BannerView'); ?>
 </head>
 <body>
 <div class="layout">
@@ -172,7 +211,7 @@
       <div class="field">
         <label>Show hosts to volunteers</label>
         <label class="check"><input type="checkbox" id="e-hosts-confirm"> <span>On the check-in confirmation screen</span></label>
-        <label class="check"><input type="checkbox" id="e-hosts-banner"> <span>In the iPad's rotating banner</span></label>
+        <label class="check"><input type="checkbox" id="e-hosts-banner"> <span>On the iPad screen, rotating in the event's card</span></label>
         <p class="muted">Only people marked "Show on public screens" are shown.</p>
       </div>
       <div class="field">
@@ -266,14 +305,78 @@
 
     <!-- Banner cards -->
     <div class="scroll" id="cards-list-view" hidden>
-      <p class="muted" style="margin-bottom:10px">Cards rotate in the banner on each event's iPad screen, along with the event's hosts. Set the seconds per card in the Settings tab.</p>
+      <p class="muted" style="margin-bottom:10px">Cards rotate in the banner beside the QR code on each event's iPad screen. Set the seconds per card in the Settings tab.</p>
       <div id="cards-list"></div>
     </div>
 
     <form class="scroll" id="card-form" hidden novalidate>
       <input type="hidden" id="c-id">
-      <div class="field"><label for="c-title">Title</label><input id="c-title" maxlength="80" placeholder="e.g. Thank you for volunteering!"></div>
-      <div class="field"><label for="c-text">Text</label><textarea id="c-text" maxlength="400" placeholder="A short message, tip, or fact"></textarea></div>
+      <div class="field">
+        <label>Layout</label>
+        <div class="layouts" id="c-layouts"></div>
+      </div>
+      <div class="field" id="c-image-field">
+        <label>Image</label>
+        <div class="photo-block">
+          <span class="card-thumb" id="c-thumb"></span>
+          <div>
+            <div class="photo-buttons">
+              <button class="btn small" type="button" id="c-upload-btn">Upload image</button>
+              <button class="btn small" type="button" id="c-pick-btn">Choose from folder</button>
+              <button class="btn small" type="button" id="c-remove-btn">Remove</button>
+            </div>
+            <p class="muted" id="c-image-note" style="margin-top:6px"></p>
+            <input type="file" id="c-file" accept="image/*" hidden>
+          </div>
+        </div>
+        <div class="picker" id="c-picker" hidden>
+          <div class="picker-head">
+            <strong>Banner Images folder</strong>
+            <span><a id="c-folder-link" target="_blank" rel="noopener">Open in Drive</a> · <a href="#" id="c-picker-close">Close</a></span>
+          </div>
+          <div class="picker-grid" id="c-picker-grid"></div>
+        </div>
+      </div>
+      <div class="field" id="c-words">
+        <label>Title and text</label>
+        <div class="rt-toolbar" id="c-toolbar">
+          <button type="button" data-cmd="bold" title="Bold"><b>B</b></button>
+          <button type="button" data-cmd="italic" title="Italic"><i>I</i></button>
+          <button type="button" data-cmd="underline" title="Underline"><u>U</u></button>
+          <button type="button" data-cmd="strikeThrough" title="Strikethrough"><s>S</s></button>
+          <select id="c-size" title="Text size">
+            <option value="">Size</option>
+            <option value="2">Small</option>
+            <option value="3">Normal</option>
+            <option value="5">Large</option>
+            <option value="6">Huge</option>
+          </select>
+          <span class="rt-colors" id="c-colors" title="Text color"></span>
+          <span class="rt-sep"></span>
+          <button type="button" data-cmd="justifyLeft" title="Align left"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12M2 6.5h8M2 10h12M2 13.5h8"/></svg></button>
+          <button type="button" data-cmd="justifyCenter" title="Center"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12M4 6.5h8M2 10h12M4 13.5h8"/></svg></button>
+          <button type="button" data-cmd="justifyRight" title="Align right"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12M6 6.5h8M2 10h12M6 13.5h8"/></svg></button>
+          <button type="button" data-cmd="justifyFull" title="Justify"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M2 3h12M2 6.5h12M2 10h12M2 13.5h12"/></svg></button>
+          <span class="rt-sep"></span>
+          <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">• List</button>
+          <button type="button" data-cmd="insertOrderedList" title="Numbered list">1. List</button>
+          <button type="button" data-cmd="removeFormat" title="Clear formatting">Clear</button>
+        </div>
+        <div class="rt rt-title" id="c-title" contenteditable="true" data-placeholder="Title (optional)"></div>
+        <div class="rt rt-text" id="c-text" contenteditable="true" data-placeholder="Text: a short message, tip, or fact"></div>
+      </div>
+      <div class="field" id="c-position-field">
+        <label>Text position</label>
+        <div class="seg" id="c-position">
+          <button type="button" data-pos="top">Top</button>
+          <button type="button" data-pos="middle">Middle</button>
+          <button type="button" data-pos="bottom">Bottom</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Background</label>
+        <div class="swatches" id="c-bg"></div>
+      </div>
       <label class="check"><input type="checkbox" id="c-active"> <span>Active <span class="muted">(shown in the banner)</span></span></label>
       <div class="actions" style="margin-top:14px">
         <button class="btn primary" type="submit" id="c-save">Save card</button>
@@ -330,13 +433,10 @@
       <div id="wp-badges"></div>
     </div>
 
-    <!-- Cards: how a card appears in the iPad banner -->
+    <!-- Cards: the card as the iPad banner shows it, at its real size -->
     <div class="public-card-stage" id="card-right" hidden>
       <div class="muted" id="bc-caption"></div>
-      <div class="banner-card">
-        <div class="bc-title" id="bc-title"></div>
-        <div class="bc-text" id="bc-text"></div>
-      </div>
+      <div class="bc-stage" id="bc-stage"><div class="bc-box" id="bc-box"><div class="bc-frame" id="bc-frame"></div></div></div>
       <div id="bc-badges"></div>
     </div>
 
@@ -364,6 +464,16 @@
   var DEVICES = { phone: { w: 390, h: 844 }, ipad: { w: 1180, h: 820 } };
   var HEADSHOT_PX = 400;
   var MODES = ['events', 'people', 'waivers', 'cards'];
+  // Banner cards: layouts, colors, and the size of the banner on the iPad.
+  var LAYOUT_NAMES = { text: 'Text only', left: 'Image left', right: 'Image right', top: 'Image top',
+    background: 'Image background', image: 'Image only' };
+  var BACKGROUNDS = [['#ffffff', 'White'], ['#f0f0f5', 'Light gray'], ['#fef3c7', 'Light yellow'], ['#d4f1dc', 'Light green'],
+    ['#dbeafe', 'Light blue'], ['#2c8a3d', 'Green'], ['#2563eb', 'Blue'], ['#1c1c1e', 'Dark']];
+  var TEXT_COLORS = [['#1c1c1e', 'Black'], ['#6e6e73', 'Gray'], ['#ffffff', 'White'], ['#2c8a3d', 'Green'],
+    ['#2563eb', 'Blue'], ['#dc2626', 'Red'], ['#b45309', 'Orange'], ['#7c3aed', 'Purple']];
+  var BANNER_W = 556, BANNER_H = 380;
+  var BANNER_IMAGE_PX = 1200;
+  var BANNER_IMAGE_BYTES = 450 * 1024;
 
   var state = {
     mode: MODES.indexOf(START_VIEW) !== -1 ? START_VIEW : 'events',
@@ -373,7 +483,8 @@
     view: 'preview', device: 'phone',
     cohosts: [],              // co-host IDs in the open event form
     photo: { mode: 'keep' },  // pending headshot change in the open person form
-    photoSrc: null            // what the person form's avatar shows
+    photoSrc: null,           // what the person form's avatar shows
+    cardForm: null            // the open card form's layout, position, background, and image
   };
 
   function $(id) { return document.getElementById(id); }
@@ -521,6 +632,7 @@
     state.editing = null;
     state.photo = { mode: 'keep' };
     $('p-picker').hidden = true;
+    $('c-picker').hidden = true;
     render();
   }
 
@@ -935,13 +1047,14 @@
 
   $('p-remove-btn').addEventListener('click', function () { setPhoto({ mode: 'remove' }, null); });
 
-  $('p-pick-btn').addEventListener('click', function () {
-    var picker = $('p-picker'), grid = $('p-picker-grid');
+  // Shows the images in a Drive folder ('headshots' or 'banners') to pick from.
+  function openPicker(kind, prefix, onPick) {
+    var picker = $(prefix + '-picker'), grid = $(prefix + '-picker-grid');
     picker.hidden = false;
-    grid.innerHTML = '<p class="muted">Loading the Headshots folder…</p>';
-    call('adminListHeadshots').then(function (data) {
-      state.headshotsFolderUrl = data.folderUrl;
-      $('p-folder-link').href = data.folderUrl;
+    grid.innerHTML = '<p class="muted">Loading the folder…</p>';
+    call('adminListImages', kind).then(function (data) {
+      if (kind === 'headshots') state.headshotsFolderUrl = data.folderUrl;
+      $(prefix + '-folder-link').href = data.folderUrl;
       grid.textContent = '';
       if (!data.files.length) {
         grid.innerHTML = '<p class="muted" style="grid-column: 1 / -1">No images in the folder yet. Use <b>Open in Drive</b> to drop some in, then try again.</p>';
@@ -954,11 +1067,13 @@
         if (f.thumb) { var img = el('img'); img.src = f.thumb; img.alt = ''; b.appendChild(img); }
         else b.appendChild(el('div', 'noimg'));
         b.appendChild(el('span', null, f.name));
-        b.addEventListener('click', function () { pickFromFolder(f); });
+        b.addEventListener('click', function () { onPick(f); });
         grid.appendChild(b);
       });
     }).catch(function (err) { grid.innerHTML = ''; grid.appendChild(el('p', 'error', message(err))); });
-  });
+  }
+
+  $('p-pick-btn').addEventListener('click', function () { openPicker('headshots', 'p', pickFromFolder); });
   $('p-picker-close').addEventListener('click', function (e) { e.preventDefault(); $('p-picker').hidden = true; });
 
   // A file that is already a square JPEG headshot is used as is; anything
@@ -1156,8 +1271,10 @@
     state.cards.forEach(function (c) {
       var item = el('div', 'item' + (c.id === state.cardId ? ' on' : ''));
       item.dataset.id = c.id;
-      item.appendChild(el('div', 'name', c.title || '(no title)'));
-      if (c.text) item.appendChild(el('div', 'desc', c.text));
+      var title = BannerView.plain(c.title), text = BannerView.plain(c.text);
+      item.appendChild(el('div', 'name', title || text.split('\n')[0] || '(image only)'));
+      if (title && text) item.appendChild(el('div', 'desc', text));
+      item.appendChild(el('span', 'badge', LAYOUT_NAMES[c.layout] || LAYOUT_NAMES.text));
       if (!c.active) item.appendChild(el('span', 'badge', 'Inactive'));
       var edit = el('button', 'btn edit', 'Edit');
       edit.type = 'button';
@@ -1174,45 +1291,277 @@
 
   function openCardForm(c) {
     state.editing = 'card';
+    state.cardForm = {
+      layout: c ? c.layout : 'text',
+      position: c ? c.position : 'middle',
+      background: c && c.background ? c.background : '#ffffff',
+      image: { mode: 'keep' },
+      imageSrc: c ? c.imageData : null
+    };
     $('form-title').textContent = c ? 'Edit card' : 'New card';
     $('c-id').value = c ? c.id : '';
-    $('c-title').value = c ? c.title : '';
-    $('c-text').value = c ? c.text : '';
+    $('c-title').innerHTML = c ? BannerView.html(c.title) : '';
+    $('c-text').innerHTML = c ? BannerView.html(c.text) : '';
     $('c-active').checked = c ? c.active : true;
     $('c-error').textContent = '';
+    $('c-picker').hidden = true;
     if (c) state.cardId = c.id;
     render();
+    renderCardControls();
     $('c-title').focus();
   }
 
-  ['c-title', 'c-text'].forEach(function (id) { $(id).addEventListener('input', renderCardRight); });
+  // The form's layout, image, position, and background controls, and the preview.
+  function renderCardControls() {
+    var f = state.cardForm;
+    document.querySelectorAll('#c-layouts .layout-opt').forEach(function (b) { b.classList.toggle('on', b.dataset.layout === f.layout); });
+    $('c-image-field').hidden = f.layout === 'text' && !f.imageSrc;
+    $('c-words').hidden = f.layout === 'image';
+    $('c-position-field').hidden = f.layout === 'image';
+    document.querySelectorAll('#c-position button').forEach(function (b) { b.classList.toggle('on', b.dataset.pos === f.position); });
+    document.querySelectorAll('#c-bg button').forEach(function (b) { b.classList.toggle('on', b.dataset.color === f.background); });
+    var thumb = $('c-thumb');
+    thumb.textContent = '';
+    if (f.imageSrc) { var img = el('img', 'thumb'); img.src = f.imageSrc; img.alt = ''; thumb.appendChild(img); }
+    else thumb.appendChild(el('span', 'thumb none', 'No image'));
+    $('c-remove-btn').hidden = !f.imageSrc;
+    $('c-image-note').textContent = {
+      upload: 'New image, saved when you save this card.',
+      link: 'Using this image from the folder.',
+      remove: 'Image will be removed when you save.'
+    }[f.image.mode] || (f.layout === 'text' ? '' : 'Upload an image or choose one from the Banner Images folder.');
+    renderCardRight();
+  }
+
+  Object.keys(LAYOUT_NAMES).forEach(function (key) {
+    var b = el('button', 'layout-opt');
+    b.type = 'button';
+    b.dataset.layout = key;
+    var d = el('span', 'lo lo-' + key);
+    if (key !== 'text') d.appendChild(el('span', 'lo-img'));
+    if (key !== 'image') {
+      var lines = el('span', 'lo-lines');
+      for (var i = 0; i < 3; i++) lines.appendChild(el('i'));
+      d.appendChild(lines);
+    }
+    b.appendChild(d);
+    b.appendChild(el('span', null, LAYOUT_NAMES[key]));
+    b.addEventListener('click', function () { state.cardForm.layout = key; renderCardControls(); });
+    $('c-layouts').appendChild(b);
+  });
+  BACKGROUNDS.forEach(function (c) {
+    var b = el('button');
+    b.type = 'button';
+    b.title = c[1];
+    b.dataset.color = c[0];
+    b.style.background = c[0];
+    b.addEventListener('click', function () { state.cardForm.background = c[0]; renderCardControls(); });
+    $('c-bg').appendChild(b);
+  });
+  document.querySelectorAll('#c-position button').forEach(function (b) {
+    b.addEventListener('click', function () { state.cardForm.position = b.dataset.pos; renderCardControls(); });
+  });
+
+  /* Formatting the title and text. The toolbar works on whichever of the two
+     was last selected, and keeps that selection while its buttons are used. */
+
+  try { document.execCommand('styleWithCSS', false, true); } catch (e) {}
+  var editors = [$('c-title'), $('c-text')];
+  var lastEditor = $('c-text'), savedRange = null;
+  function editorOf(node) {
+    for (var n = node; n; n = n.parentNode) if (editors.indexOf(n) !== -1) return n;
+    return null;
+  }
+  document.addEventListener('selectionchange', function () {
+    var sel = window.getSelection();
+    var ed = sel.rangeCount ? editorOf(sel.anchorNode) : null;
+    if (!ed) return;
+    lastEditor = ed;
+    savedRange = sel.getRangeAt(0).cloneRange();
+    updateToolbar();
+  });
+  function format(cmd, value) {
+    lastEditor.focus();
+    if (savedRange && editorOf(savedRange.startContainer) === lastEditor) {
+      var sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(savedRange);
+    }
+    document.execCommand(cmd, false, value === undefined ? null : value);
+    tidyEditor(lastEditor);
+    updateToolbar();
+    renderCardRight();
+  }
+  function updateToolbar() {
+    document.querySelectorAll('#c-toolbar button[data-cmd]').forEach(function (b) {
+      var on = false;
+      try { on = b.dataset.cmd !== 'removeFormat' && document.queryCommandState(b.dataset.cmd); } catch (e) {}
+      b.classList.toggle('on', !!on);
+    });
+  }
+  // An editor with nothing in it is truly empty, so its placeholder shows.
+  function tidyEditor(ed) {
+    if (!BannerView.plain(ed.innerHTML) && !ed.querySelector('li')) ed.innerHTML = '';
+  }
+  function editorHtml(ed) {
+    return BannerView.plain(ed.innerHTML) ? BannerView.sanitize(ed.innerHTML) : '';
+  }
+
+  document.querySelectorAll('#c-toolbar button[data-cmd]').forEach(function (b) {
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () { format(b.dataset.cmd); });
+  });
+  TEXT_COLORS.forEach(function (c) {
+    var b = el('button');
+    b.type = 'button';
+    b.title = c[1];
+    b.style.background = c[0];
+    b.addEventListener('mousedown', function (e) { e.preventDefault(); });
+    b.addEventListener('click', function () { format('foreColor', c[0]); });
+    $('c-colors').appendChild(b);
+  });
+  $('c-size').addEventListener('change', function () {
+    if (this.value) format('fontSize', this.value);
+    this.value = '';
+  });
+  editors.forEach(function (ed) {
+    ed.addEventListener('input', function () { tidyEditor(ed); renderCardRight(); });
+    // Pasted text comes in plain, without another page's styling.
+    ed.addEventListener('paste', function (e) {
+      e.preventDefault();
+      document.execCommand('insertText', false, (e.clipboardData || window.clipboardData).getData('text/plain'));
+    });
+  });
+  $('c-title').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('c-text').focus(); }
+  });
+
+  /* The card's image. */
+
+  function loadImage(src) {
+    return new Promise(function (resolve, reject) {
+      var img = new Image();
+      img.onload = function () { resolve(img); };
+      img.onerror = function () { reject(new Error("That image couldn't be read here. Try a JPG or PNG.")); };
+      img.src = src;
+    });
+  }
+
+  // Shrinks an image to at most 1200px on its long side, as a JPEG small
+  // enough to send quickly to the event iPad.
+  function toBannerImage(src) {
+    return loadImage(src).then(function (img) {
+      var w = img.naturalWidth, h = img.naturalHeight;
+      var scale = Math.min(1, BANNER_IMAGE_PX / Math.max(w, h));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      var url;
+      [0.85, 0.72, 0.6, 0.5].some(function (q) {
+        url = canvas.toDataURL('image/jpeg', q);
+        return url.length * 0.75 <= BANNER_IMAGE_BYTES;
+      });
+      return url;
+    });
+  }
+
+  function setCardImage(image, src) {
+    var f = state.cardForm;
+    f.image = image;
+    f.imageSrc = src;
+    if (src && f.layout === 'text') f.layout = 'left';
+    if (!src && f.layout !== 'text') f.layout = 'text';
+    $('c-error').textContent = '';
+    renderCardControls();
+  }
+
+  $('c-upload-btn').addEventListener('click', function () { $('c-file').click(); });
+  $('c-file').addEventListener('change', function () {
+    var file = this.files[0];
+    this.value = '';
+    if (!file) return;
+    var url = URL.createObjectURL(file);
+    $('c-image-note').textContent = 'Preparing ' + file.name + '…';
+    toBannerImage(url)
+      .then(function (dataUrl) { setCardImage({ mode: 'upload', data: dataUrl.split(',')[1] }, dataUrl); })
+      .catch(function (err) { $('c-error').textContent = message(err); renderCardControls(); })
+      .then(function () { URL.revokeObjectURL(url); });
+  });
+  $('c-remove-btn').addEventListener('click', function () { setCardImage({ mode: 'remove' }, null); });
+  $('c-pick-btn').addEventListener('click', function () { openPicker('banners', 'c', pickBannerFromFolder); });
+  $('c-picker-close').addEventListener('click', function (e) { e.preventDefault(); $('c-picker').hidden = true; });
+
+  // An image that is already a reasonable size is used as is; anything larger
+  // is shrunk and saved as a new image, leaving the original alone.
+  function pickBannerFromFolder(f) {
+    $('c-image-note').textContent = 'Loading ' + f.name + '…';
+    call('adminGetImage', f.id).then(function (data) {
+      var src = 'data:' + data.mimeType + ';base64,' + data.data;
+      return loadImage(src).then(function (img) {
+        var ready = /^image\/(jpeg|png)$/.test(data.mimeType) && data.data.length * 0.75 <= BANNER_IMAGE_BYTES &&
+          Math.max(img.naturalWidth, img.naturalHeight) <= 1600;
+        if (ready) return setCardImage({ mode: 'link', fileId: f.id }, src);
+        return toBannerImage(src).then(function (dataUrl) {
+          setCardImage({ mode: 'upload', data: dataUrl.split(',')[1] }, dataUrl);
+        });
+      });
+    }).then(function () { $('c-picker').hidden = true; })
+      .catch(function (err) { $('c-error').textContent = message(err); renderCardControls(); });
+  }
 
   $('card-form').addEventListener('submit', function (e) {
     e.preventDefault();
+    var f = state.cardForm;
     save('adminSaveCard', {
       id: $('c-id').value,
-      title: $('c-title').value.trim(),
-      text: $('c-text').value.trim(),
-      active: $('c-active').checked
+      title: editorHtml($('c-title')),
+      text: editorHtml($('c-text')),
+      layout: f.layout,
+      position: f.position,
+      background: f.background === '#ffffff' ? '' : f.background,
+      active: $('c-active').checked,
+      image: f.image
     }, $('c-save'), 'Save card', $('c-error'));
   });
 
-  // How the card looks in the iPad banner. Follows the form while editing.
+  /* Card preview: drawn by the same code as the event iPad, at the banner's
+     size there, scaled down to fit. Follows the form while editing. */
+
   function renderCardRight() {
     var editing = state.editing === 'card';
-    var c = editing ? { title: $('c-title').value.trim(), text: $('c-text').value.trim(), active: true } : card(state.cardId);
+    var saved = editing ? null : card(state.cardId);
+    var c = editing ? {
+      title: $('c-title').innerHTML, text: $('c-text').innerHTML, layout: state.cardForm.layout,
+      position: state.cardForm.position, background: state.cardForm.background, image: state.cardForm.imageSrc, active: true
+    } : saved && {
+      title: saved.title, text: saved.text, layout: saved.layout, position: saved.position,
+      background: saved.background, image: saved.imageData, active: saved.active
+    };
     $('bc-badges').textContent = '';
     if (!c) {
-      $('bc-caption').textContent = 'Add a card to see how it looks in the iPad banner.';
-      $('bc-title').textContent = '';
-      $('bc-text').textContent = '';
+      $('bc-caption').textContent = 'Add a card to see how it looks on the event iPad.';
+      $('bc-frame').innerHTML = '';
+      fitCard();
       return;
     }
-    $('bc-caption').textContent = 'How this card looks in the iPad banner';
-    $('bc-title').textContent = c.title;
-    $('bc-text').textContent = c.text;
+    $('bc-caption').textContent = 'How this card looks on the event iPad';
+    $('bc-frame').innerHTML = BannerView.render(c);
     if (!editing && !c.active) $('bc-badges').appendChild(el('span', 'badge', 'Inactive: not shown'));
+    fitCard();
   }
+
+  function fitCard() {
+    var width = $('bc-stage').clientWidth || BANNER_W;
+    var scale = Math.min(1, width / BANNER_W);
+    $('bc-frame').style.transform = 'scale(' + scale + ')';
+    $('bc-box').style.width = Math.round(BANNER_W * scale) + 'px';
+    $('bc-box').style.height = Math.round(BANNER_H * scale) + 'px';
+  }
+  window.addEventListener('resize', function () { if (state.mode === 'cards') fitCard(); });
 
   render();
   load();

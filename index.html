@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Volunteer Check-in</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
-<link rel="stylesheet" href="assets/app.css">
+<link rel="stylesheet" href="assets/app.css?v=8">
+<link rel="stylesheet" href="assets/banner.css?v=8">
 </head>
 <body>
 
@@ -55,10 +56,12 @@
   <div id="checkin" hidden></div>
 </main>
 
-<script src="config.js"></script>
-<script src="assets/app.js"></script>
-<script src="assets/preview.js"></script>
-<script src="assets/checkin.js"></script>
+<!-- ?v= makes browsers fetch these again after each update; bump it when they change. -->
+<script src="config.js?v=8"></script>
+<script src="assets/app.js?v=8"></script>
+<script src="assets/preview.js?v=8"></script>
+<script src="assets/banner.js?v=8"></script>
+<script src="assets/checkin.js?v=8"></script>
 <script>
   // The home page is the check-in for whichever event is open right now;
   // ?e=CODE is one event's check-in (add &kiosk=1 for the event iPad).

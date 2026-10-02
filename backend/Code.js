@@ -58,13 +58,14 @@ var TABS = {
     widths: [80, 220, 600, 90, 70, 150],
     formats: { 6: 'yyyy-mm-dd h:mm' }
   },
-  // Cards that rotate in the event iPad's banner, with the event's hosts.
-  // Columns are listed in CARD_COL (Banner.js).
+  // Cards that rotate in the event iPad's banner. Title and Text hold
+  // formatted text from the admin modal (simple HTML), or plain text typed
+  // in by hand. Columns are listed in CARD_COL (Banner.js).
   cards: {
     name: 'Banner Cards',
-    header: ['Card ID', 'Title', 'Text', 'Active', 'Updated'],
-    widths: [80, 240, 520, 70, 150],
-    formats: { 5: 'yyyy-mm-dd h:mm' }
+    header: ['Card ID', 'Title', 'Text', 'Active', 'Updated', 'Layout', 'Image', 'Text position', 'Background'],
+    widths: [80, 240, 520, 70, 150, 120, 280, 100, 100],
+    formats: { 5: 'yyyy-mm-dd h:mm', 9: '@' }
   },
   // Head counts that staff record on site, beside the system's count.
   headcounts: {
@@ -336,6 +337,7 @@ function missingSettings_(ss) {
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_HEADSHOTS_FOLDER, ''],
     [SETTING_SIGNATURES_FOLDER, ''],
+    [SETTING_BANNER_IMAGES_FOLDER, ''],
     [SETTING_OPENS_BEFORE, '60'],
     [SETTING_CLOSES_AFTER, '60'],
     [SETTING_BANNER_SECONDS, '8']

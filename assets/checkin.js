@@ -1,9 +1,10 @@
 // Event check-in, for an event's page (?e=CODE), or on the home page for
 // whichever event's check-in is open right now. Two layouts:
 //  - phone: one volunteer on their own phone; remembers their details there.
-//  - kiosk (&kiosk=1): the event iPad. A big QR code for phones and a
-//    rotating banner beside a sign-in form; resets after each check-in and
-//    never remembers anyone.
+//  - kiosk (&kiosk=1): the event iPad. The event (with its hosts rotating)
+//    and rotating banner cards on the left; a big QR code for phones on the
+//    right, with a button that opens a sign-in form below it. Resets after
+//    each check-in and never remembers anyone.
 // The home page uses the iPad layout on wide screens and the phone layout on
 // phones, and switches events on its own as check-in opens and closes.
 // &preview=1 (the admin modal's preview) shows everything but can't save.
@@ -28,7 +29,7 @@ window.CheckIn = { start: function () {
   var esc = App.esc;
   var event = null;
   var screen = null;          // 'form' | 'done' | 'status' | 'staff' | 'staff-code'
-  var timers = { idle: null, banner: null, staff: null, done: null, recheck: null };
+  var timers = { idle: null, banner: null, hosts: null, staff: null, done: null, recheck: null };
   var staff = null;           // signed-in staff, in memory only: { token, name } (admin) or { code } (event staff)
   var sig = null;             // the signature pad on the form: { canvas, ink }
   var adminHtml = null;       // the admin tools page, once loaded
@@ -77,6 +78,7 @@ window.CheckIn = { start: function () {
   function stopTimers() {
     clearTimeout(timers.recheck);
     clearInterval(timers.banner);
+    clearInterval(timers.hosts);
     clearInterval(timers.staff);
     clearInterval(timers.done);
   }
@@ -169,20 +171,29 @@ window.CheckIn = { start: function () {
 
   function renderForm() {
     if (kiosk) {
-      var banner = event.banner && event.banner.cards.length ? '<div class="banner" id="ci-banner"></div>' : '';
+      var hosts = event.kioskHosts && event.kioskHosts.length ? '<div class="kiosk-hosts" id="ci-hosts"></div>' : '';
+      var cards = event.banner && event.banner.cards.length ? '<section class="card kiosk-banner" id="ci-banner"></section>' : '';
       show('form', '<div class="kiosk-grid">' +
-        '<div class="kiosk-left">' + eventHeader(banner) +
+        '<div class="kiosk-left">' + eventHeader(hosts) + cards + '</div>' +
+        '<div class="kiosk-right" id="ci-right">' +
           '<section class="card kiosk-qr"><div id="ci-qr"></div>' +
-          '<p class="kiosk-how"><strong>TO CHECK IN:</strong> Scan the QR code or fill in this form →</p></section></div>' +
-        '<div class="kiosk-right">' + formHtml() + '</div>' +
+            '<p class="kiosk-scan">Scan QR code to check in</p>' +
+            '<p class="kiosk-or">-OR-</p>' +
+            '<button type="button" class="btn btn-primary kiosk-toggle" id="ci-manual-toggle" aria-expanded="false" aria-controls="ci-manual">' +
+              'Tap here to sign-in on this device</button>' +
+          '</section>' +
+          '<div class="kiosk-manual" id="ci-manual" hidden>' + formHtml() + '</div>' +
+        '</div>' +
         '</div>', true);
       drawQr();
-      if (banner) startBanner();
+      if (hosts) rotate('ci-hosts', event.kioskHosts, hostSlide, 'hosts');
+      if (cards) rotate('ci-banner', event.banner.cards, BannerView.render, 'banner');
+      document.getElementById('ci-manual-toggle').addEventListener('click', toggleManual);
     } else {
       show('form', eventHeader() + formHtml(), true);
+      setupSignature();
     }
     document.getElementById('ci-form').addEventListener('submit', submit);
-    setupSignature();
     var forget = document.getElementById('ci-forget');
     if (forget) forget.addEventListener('click', function () { remember(null); renderForm(); });
   }
@@ -262,32 +273,45 @@ window.CheckIn = { start: function () {
     });
   }
 
-  /* ── Rotating banner (iPad) ── */
+  /* ── iPad: sign-in form below the QR code ── */
 
-  function startBanner() {
-    var cards = event.banner.cards;
+  function toggleManual() {
+    var panel = document.getElementById('ci-manual');
+    var button = document.getElementById('ci-manual-toggle');
+    panel.hidden = !panel.hidden;
+    button.setAttribute('aria-expanded', String(!panel.hidden));
+    if (panel.hidden) return;
+    if (!sig) setupSignature();   // the signature box can only be measured once it's showing
+    panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('ci-first').focus({ preventScroll: true });
+  }
+
+  /* ── iPad: rotating hosts and banner cards ── */
+
+  // Shows items one at a time in the box with this id, a few seconds each,
+  // with a dot for each when there's more than one.
+  function rotate(boxId, items, draw, timer) {
     var i = 0;
-    var draw = function () {
-      var box = document.getElementById('ci-banner');
+    var paint = function () {
+      var box = document.getElementById(boxId);
       if (!box) return;
-      var c = cards[i];
-      var body = c.kind === 'host'
-        ? '<div class="bn-host">' + photo(c, 'bn-photo') +
-            '<div><div class="bn-label">' + (c.role === 'Host' ? 'Your host' : 'Co-host') + '</div>' +
-            '<div class="bn-name">' + esc(c.name) + '</div>' +
-            (c.title ? '<div class="muted">' + esc(c.title) + '</div>' : '') +
-            (c.bio ? '<p class="bn-bio">' + esc(c.bio) + '</p>' : '') + '</div></div>'
-        : '<div class="bn-card">' + (c.title ? '<div class="bn-title">' + esc(c.title) + '</div>' : '') +
-            (c.text ? '<p class="bn-text">' + esc(c.text) + '</p>' : '') + '</div>';
-      var dots = cards.length > 1 ? '<div class="bn-dots">' + cards.map(function (_, k) {
+      var dots = items.length > 1 ? '<div class="bn-dots">' + items.map(function (_, k) {
         return '<span class="' + (k === i ? 'on' : '') + '"></span>';
       }).join('') + '</div>' : '';
-      box.innerHTML = body + dots;
+      box.innerHTML = '<div class="rot-slide">' + draw(items[i]) + '</div>' + dots;
     };
-    draw();
-    if (cards.length > 1) {
-      timers.banner = setInterval(function () { i = (i + 1) % cards.length; draw(); }, event.banner.seconds * 1000);
+    paint();
+    if (items.length > 1) {
+      timers[timer] = setInterval(function () { i = (i + 1) % items.length; paint(); }, event.banner.seconds * 1000);
     }
+  }
+
+  function hostSlide(h) {
+    return '<div class="bn-host">' + photo(h, 'bn-photo') +
+      '<div><div class="bn-label">' + (h.role === 'Host' ? 'Your host' : 'Co-host') + '</div>' +
+      '<div class="bn-name">' + esc(h.name) + '</div>' +
+      (h.title ? '<div class="muted">' + esc(h.title) + '</div>' : '') +
+      (h.bio ? '<p class="bn-bio">' + esc(h.bio) + '</p>' : '') + '</div></div>';
   }
 
   /* ── Check-in ── */

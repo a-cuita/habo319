@@ -35,7 +35,8 @@ function activeEvent_() {
 }
 
 // What a check-in page needs for one event. Nothing about other volunteers,
-// and never the staff code. The iPad (req.kiosk) also gets its banner.
+// and never the staff code. The iPad (req.kiosk) also gets the hosts for its
+// event card and the banner cards.
 function getEvent_(req) {
   ensureSchema_();
   var people = readPeople_();
@@ -60,7 +61,8 @@ function getEvent_(req) {
     }),
     hostsOnConfirmation: ev.hostsOnConfirmation,
     hosts: ev.hostsOnConfirmation ? hosts : [],
-    banner: kiosk ? eventBanner_(ev, hosts) : null
+    kioskHosts: kiosk && ev.hostsInBanner ? hosts : [],
+    banner: kiosk ? eventBanner_() : null
   };
 }
 
