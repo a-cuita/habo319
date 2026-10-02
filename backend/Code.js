@@ -378,10 +378,10 @@ function setSetting_(name, value) {
 
 /* ── Helpers ── */
 
-// Compares an entered access code with the expected one. After 20 wrong
+// Compares an entered access code with the expected one. After 5 wrong
 // tries within 15 minutes, that code is locked for 15 minutes, which makes
 // guessing a short code impractical.
-var MAX_CODE_FAILURES = 20;
+var MAX_CODE_FAILURES = 5;
 function checkCode_(scope, entered, expected) {
   var cache = CacheService.getScriptCache();
   var key = 'code-fails:' + scope;

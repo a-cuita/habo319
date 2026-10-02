@@ -155,9 +155,9 @@ window.CheckIn = { start: function () {
     if (kiosk) {
       var banner = event.banner && event.banner.cards.length ? '<section class="card banner" id="ci-banner"></section>' : '';
       show('form', '<div class="kiosk-grid">' +
-        '<div class="kiosk-left">' + eventHeader() +
-          '<section class="card kiosk-qr' + (banner ? ' with-banner' : '') + '"><div id="ci-qr"></div><h2>Scan to check in with your phone</h2>' +
-          '<p class="muted">Or sign in here →</p></section>' + banner + '</div>' +
+        '<div class="kiosk-left">' + eventHeader() + banner +
+          '<section class="card kiosk-qr"><div id="ci-qr"></div>' +
+          '<p class="kiosk-how"><strong>TO CHECK IN:</strong> Scan the QR code or fill in this form →</p></section></div>' +
         '<div class="kiosk-right">' + formHtml() + '</div>' +
         '</div>', true);
       drawQr();
