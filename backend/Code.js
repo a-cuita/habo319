@@ -34,8 +34,8 @@ var TABS = {
     header: ['Event ID', 'Name', 'Date', 'Start', 'End',
       '={"Hours"; ARRAYFORMULA(IF((D2:D="")+(E2:E=""), "", ROUND((E2:E-D2:D)*24, 2)))}',
       'Location', 'Check-in code', 'Created', 'Updated', 'Description', 'Host', 'Co-hosts', 'Waivers',
-      'Staff code', 'Hosts on confirmation', 'Hosts in banner'],
-    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300, 300, 90, 110, 110],
+      'Staff code', 'Hosts on confirmation', 'Hosts in banner', 'QR code on iPad'],
+    widths: [80, 260, 150, 90, 90, 60, 240, 110, 150, 150, 400, 200, 300, 300, 90, 110, 110, 110],
     formats: { 3: 'ddd, mmm d, yyyy', 4: 'h:mm am/pm', 5: 'h:mm am/pm', 6: '0.00', 8: '@',
       9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm', 15: '@' }
   },

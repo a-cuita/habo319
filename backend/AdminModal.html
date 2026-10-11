@@ -215,6 +215,11 @@
         <p class="muted">Only people marked "Show on public screens" are shown.</p>
       </div>
       <div class="field">
+        <label>iPad screen</label>
+        <label class="check"><input type="checkbox" id="e-qr-ipad"> <span>Show the QR code for phones</span></label>
+        <p class="muted">Unticked, the iPad shows just the sign-in form, beside the event and its slideshow.</p>
+      </div>
+      <div class="field">
         <label for="e-staff-code">Staff access code</label>
         <input id="e-staff-code" inputmode="numeric" maxlength="8" placeholder="4 to 8 digits" autocomplete="off">
         <p class="muted" style="margin-top:4px">For co-hosts and helpers: entered under "Staff" on the check-in pages, it opens this event's live head count while check-in is open. Admins use their own PIN (People tab).</p>
@@ -305,7 +310,7 @@
 
     <!-- Banner cards -->
     <div class="scroll" id="cards-list-view" hidden>
-      <p class="muted" style="margin-bottom:10px">Cards rotate in the banner beside the QR code on each event's iPad screen. Set the seconds per card in the Settings tab.</p>
+      <p class="muted" style="margin-bottom:10px">Cards rotate in the banner on each event's iPad screen, beside the QR code or the sign-in form. Set the seconds per card in the Settings tab.</p>
       <div id="cards-list"></div>
     </div>
 
@@ -419,7 +424,7 @@
         <input id="kiosk-url" readonly aria-label="iPad check-in screen link">
         <a class="btn" id="kiosk-link" target="_blank" rel="noopener">Open iPad screen</a>
       </div>
-      <p class="muted">Open this link on the event iPad: it shows this QR code big, with a sign-in form beside it.</p>
+      <p class="muted">Open this link on the event iPad: it shows this QR code big, with a sign-in form beside it (or just the sign-in form, if the event's iPad QR code is turned off).</p>
     </div>
 
     <!-- Waivers: how a waiver appears at check-in -->
@@ -714,6 +719,7 @@
     renderWaiverChoices(ev ? ev.waiverIds : state.waivers.filter(function (w) { return w.active; }).map(function (w) { return w.id; }));
     $('e-hosts-confirm').checked = ev ? ev.hostsOnConfirmation : true;
     $('e-hosts-banner').checked = ev ? ev.hostsInBanner : true;
+    $('e-qr-ipad').checked = ev ? ev.qrOnIpad !== false : true;
     $('e-staff-code').value = ev ? ev.staffCode : String(1000 + Math.floor(Math.random() * 9000));
     fillHostSelect(ev ? ev.hostId : '');
     renderCohosts();
@@ -823,6 +829,7 @@
       waiverIds: Array.prototype.map.call(document.querySelectorAll('#e-waivers input:checked'), function (c) { return c.value; }),
       hostsOnConfirmation: $('e-hosts-confirm').checked,
       hostsInBanner: $('e-hosts-banner').checked,
+      qrOnIpad: $('e-qr-ipad').checked,
       staffCode: $('e-staff-code').value.trim()
     };
     save('adminSaveEvent', input, $('e-save'), 'Save event', $('e-error'));

@@ -62,6 +62,7 @@ function getEvent_(req) {
     hostsOnConfirmation: ev.hostsOnConfirmation,
     hosts: ev.hostsOnConfirmation ? hosts : [],
     kioskHosts: kiosk && ev.hostsInBanner ? hosts : [],
+    qrOnIpad: ev.qrOnIpad,
     banner: kiosk ? eventBanner_() : null
   };
 }

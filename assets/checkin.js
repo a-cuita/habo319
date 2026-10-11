@@ -3,8 +3,9 @@
 //  - phone: one volunteer on their own phone; remembers their details there.
 //  - kiosk (&kiosk=1): the event iPad. The event (with its hosts rotating)
 //    and rotating banner cards on the left; a big QR code for phones on the
-//    right, with a button that opens a sign-in form below it. Resets after
-//    each check-in and never remembers anyone.
+//    right, with a button that opens a sign-in form below it, or, for an
+//    event with its iPad QR code turned off, just the sign-in form there.
+//    Resets after each check-in and never remembers anyone.
 // The home page uses the iPad layout on wide screens and the phone layout on
 // phones, and switches events on its own as check-in opens and closes.
 // &preview=1 (the admin modal's preview) shows everything but can't save.
@@ -173,22 +174,30 @@ window.CheckIn = { start: function () {
     if (kiosk) {
       var hosts = event.kioskHosts && event.kioskHosts.length ? '<div class="kiosk-hosts" id="ci-hosts"></div>' : '';
       var cards = event.banner && event.banner.cards.length ? '<section class="card kiosk-banner" id="ci-banner"></section>' : '';
-      show('form', '<div class="kiosk-grid">' +
-        '<div class="kiosk-left">' + eventHeader(hosts) + cards + '</div>' +
-        '<div class="kiosk-right" id="ci-right">' +
-          '<section class="card kiosk-qr"><div id="ci-qr"></div>' +
+      // The event's iPad QR code turned off (admin tools, the event): the
+      // sign-in form takes the right side, open from the start.
+      var qrOn = event.qrOnIpad !== false;
+      var right = qrOn
+        ? '<section class="card kiosk-qr"><div id="ci-qr"></div>' +
             '<p class="kiosk-scan">Scan QR code to check in</p>' +
             '<p class="kiosk-or">-OR-</p>' +
             '<button type="button" class="btn btn-primary kiosk-toggle" id="ci-manual-toggle" aria-expanded="false" aria-controls="ci-manual">' +
               'Tap here to sign-in on this device</button>' +
           '</section>' +
-          '<div class="kiosk-manual" id="ci-manual" hidden>' + formHtml() + '</div>' +
-        '</div>' +
+          '<div class="kiosk-manual" id="ci-manual" hidden>' + formHtml() + '</div>'
+        : '<div class="kiosk-manual kiosk-form-only" id="ci-manual">' + formHtml() + '</div>';
+      show('form', '<div class="kiosk-grid">' +
+        '<div class="kiosk-left">' + eventHeader(hosts) + cards + '</div>' +
+        '<div class="kiosk-right" id="ci-right">' + right + '</div>' +
         '</div>', true);
-      drawQr();
       if (hosts) rotate('ci-hosts', event.kioskHosts, hostSlide, 'hosts');
       if (cards) rotate('ci-banner', event.banner.cards, BannerView.render, 'banner');
-      document.getElementById('ci-manual-toggle').addEventListener('click', toggleManual);
+      if (qrOn) {
+        drawQr();
+        document.getElementById('ci-manual-toggle').addEventListener('click', toggleManual);
+      } else {
+        setupSignature();
+      }
     } else {
       show('form', eventHeader() + formHtml(), true);
       setupSignature();

@@ -12,7 +12,7 @@
 var EVENT_COL = {
   id: 1, name: 2, date: 3, start: 4, end: 5, hours: 6, location: 7, code: 8,
   created: 9, updated: 10, description: 11, host: 12, cohosts: 13, waivers: 14,
-  staffCode: 15, hostsOnConfirmation: 16, hostsInBanner: 17
+  staffCode: 15, hostsOnConfirmation: 16, hostsInBanner: 17, qrOnIpad: 18
 };
 
 // Unambiguous characters for check-in codes (no 0/O, 1/I/L).
@@ -99,8 +99,8 @@ function adminSaveEvent(input) {
     sheet.getRange(row, EVENT_COL.description).setValue(safeCell_(ev.description)).setWrap(true);
     sheet.getRange(row, EVENT_COL.host, 1, 4)
       .setValues([[safeCell_(ev.hostText), safeCell_(ev.cohostText), safeCell_(ev.waiverText), ev.staffCode]]);
-    sheet.getRange(row, EVENT_COL.hostsOnConfirmation, 1, 2).insertCheckboxes()
-      .setValues([[ev.hostsOnConfirmation, ev.hostsInBanner]]);
+    sheet.getRange(row, EVENT_COL.hostsOnConfirmation, 1, 3).insertCheckboxes()
+      .setValues([[ev.hostsOnConfirmation, ev.hostsInBanner, ev.qrOnIpad]]);
     sheet.getRange(row, EVENT_COL.updated).setValue(now);
     return ev.id;
   });
@@ -118,7 +118,7 @@ function readEvents_(people, waivers) {
   var sheet = getDb_().getSheetByName(TABS.events.name);
   var count = lastRowWith_(sheet, EVENT_COL.id) - 1;
   if (count < 1) return [];
-  var range = sheet.getRange(2, 1, count, EVENT_COL.hostsInBanner);
+  var range = sheet.getRange(2, 1, count, EVENT_COL.qrOnIpad);
   var values = range.getValues();
   var shown = range.getDisplayValues();
   backfillIds_(sheet, shown, EVENT_COL.id, EVENT_COL.name, 'E', EVENT_COL.code);
@@ -142,7 +142,10 @@ function readEvents_(people, waivers) {
         staffCode: r[EVENT_COL.staffCode - 1].trim(),
         // Blank means yes, so events typed in by hand show their hosts.
         hostsOnConfirmation: !r[EVENT_COL.hostsOnConfirmation - 1].trim() || isTrue_(r[EVENT_COL.hostsOnConfirmation - 1]),
-        hostsInBanner: !r[EVENT_COL.hostsInBanner - 1].trim() || isTrue_(r[EVENT_COL.hostsInBanner - 1])
+        hostsInBanner: !r[EVENT_COL.hostsInBanner - 1].trim() || isTrue_(r[EVENT_COL.hostsInBanner - 1]),
+        // The iPad's QR code for phones; unticked, the iPad shows only the
+        // sign-in form beside the event and its slideshow.
+        qrOnIpad: !r[EVENT_COL.qrOnIpad - 1].trim() || isTrue_(r[EVENT_COL.qrOnIpad - 1])
       };
     })
     .filter(function (e) { return e.name; });
@@ -160,7 +163,8 @@ function validateEvent_(input, people, waivers) {
     description: clean_(input.description, 2000),
     staffCode: clean_(input.staffCode, 12),
     hostsOnConfirmation: input.hostsOnConfirmation !== false,
-    hostsInBanner: input.hostsInBanner !== false
+    hostsInBanner: input.hostsInBanner !== false,
+    qrOnIpad: input.qrOnIpad !== false
   };
   if (!ev.name) throw new Error('Give the event a name.');
   if (!ev.staffCode) ev.staffCode = newStaffCode_();
