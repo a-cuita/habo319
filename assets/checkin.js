@@ -298,21 +298,52 @@ window.CheckIn = { start: function () {
   /* ── iPad: rotating hosts and banner cards ── */
 
   // Shows items one at a time in the box with this id, a few seconds each,
-  // with a dot for each when there's more than one.
+  // with a dot for each when there's more than one. A Video card stays up
+  // longer (Oct 20, 2026): a Drive video for the seconds on its card, and a
+  // YouTube video until it ends, or 15 minutes if YouTube never says.
   function rotate(boxId, items, draw, timer) {
     var i = 0;
+    var next = function () { i = (i + 1) % items.length; paint(); };
     var paint = function () {
+      clearTimeout(timers[timer]);
       var box = document.getElementById(boxId);
       if (!box) return;
       var dots = items.length > 1 ? '<div class="bn-dots">' + items.map(function (_, k) {
         return '<span class="' + (k === i ? 'on' : '') + '"></span>';
       }).join('') + '</div>' : '';
       box.innerHTML = '<div class="rot-slide">' + draw(items[i]) + '</div>' + dots;
+      var video = items[i].layout === 'video' && items[i].video;
+      if (items.length > 1) {
+        timers[timer] = setTimeout(next, video ? (video.kind === 'drive' ? video.seconds : 15 * 60) * 1000 : event.banner.seconds * 1000);
+      }
+      if (video && video.kind === 'youtube') onVideoEnd(box, items.length > 1 ? next : null);
     };
     paint();
-    if (items.length > 1) {
-      timers[timer] = setInterval(function () { i = (i + 1) % items.length; paint(); }, event.banner.seconds * 1000);
+  }
+
+  // When the YouTube video in this box ends: the next card, or, when it's the
+  // only card, the video again. YouTube's player script loads only for this.
+  var youtubeApi = null;
+  function onVideoEnd(box, then) {
+    var frame = box.querySelector('iframe.bv-yt');
+    if (!frame) return;
+    if (!youtubeApi) {
+      youtubeApi = new Promise(function (resolve) {
+        if (window.YT && window.YT.Player) { resolve(window.YT); return; }
+        var before = window.onYouTubeIframeAPIReady;
+        window.onYouTubeIframeAPIReady = function () { if (before) before(); resolve(window.YT); };
+        var s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        document.head.appendChild(s);
+      });
     }
+    youtubeApi.then(function (YT) {
+      if (!frame.isConnected) return;
+      new YT.Player(frame, { events: { onStateChange: function (e) {
+        if (e.data !== YT.PlayerState.ENDED || !frame.isConnected) return;
+        if (then) then(); else e.target.playVideo();
+      } } });
+    });
   }
 
   function hostSlide(h) {

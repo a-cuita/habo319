@@ -63,8 +63,8 @@ var TABS = {
   // in by hand. Columns are listed in CARD_COL (Banner.js).
   cards: {
     name: 'Banner Cards',
-    header: ['Card ID', 'Title', 'Text', 'Active', 'Updated', 'Layout', 'Image', 'Text position', 'Background'],
-    widths: [80, 240, 520, 70, 150, 120, 280, 100, 100],
+    header: ['Card ID', 'Title', 'Text', 'Active', 'Updated', 'Layout', 'Image', 'Text position', 'Background', 'Video', 'Video seconds'],
+    widths: [80, 240, 520, 70, 150, 120, 280, 100, 100, 280, 100],
     formats: { 5: 'yyyy-mm-dd h:mm', 9: '@' }
   },
   // Head counts that staff record on site, beside the system's count.

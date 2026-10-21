@@ -27,6 +27,10 @@
 .bv-shade { position: absolute; inset: 0; background: linear-gradient(180deg, rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.6)); }
 .bv-l-image { align-items: center; justify-content: center; }
 .bv-full { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* A Video card: the player fills the card (Oct 20, 2026). */
+.bv-l-video { background: #000; }
+.bv-video { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 </style>
 <script>
 // Draws a banner card (Banner Cards tab) the same way on the event iPad and
@@ -34,13 +38,15 @@
 // into the backend for the modal. A card's title and text are formatted text
 // from the modal's editor, or plain text typed into the Sheet. Formatted text
 // is cleaned down to a short list of formatting tags and styles before it is
-// shown, so nothing else in it can run or load.
+// shown, so nothing else in it can run or load. A Video card (Oct 20, 2026)
+// is a YouTube or Google Drive player, built here from the video's id alone.
 window.BannerView = (function () {
   'use strict';
 
   var LAYOUTS = ['text', 'left', 'right', 'top', 'background', 'image'];
   var POSITIONS = ['top', 'middle', 'bottom'];
   var IMAGE = /^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/;
+  var VIDEO_ID = { youtube: /^[\w-]{11}$/, drive: /^[\w-]{20,}$/ };
   var COLOR = /^(#[0-9a-f]{3,8}|rgba?\(\s*[\d.]+%?\s*,\s*[\d.]+%?\s*,\s*[\d.]+%?\s*(,\s*[\d.]+\s*)?\)|[a-z]{3,20})$/i;
 
   // Tags kept as they are; anything else not in DROP is replaced by its text.
@@ -149,10 +155,37 @@ window.BannerView = (function () {
     return lum < 0.55;
   }
 
-  // card: { title, text, layout, position, background, image (data URL) }.
-  // A layout that needs an image falls back to text only without one.
+  // A video from a link, as the backend reads it (Banner.js videoOf_):
+  // { kind: 'youtube' | 'drive', id }, or null.
+  function videoOf(link) {
+    var s = String(link || '').trim();
+    var yt = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{11})(?![\w-])/.exec(s);
+    if (yt) return { kind: 'youtube', id: yt[1] };
+    var d = /^https?:\/\/(drive|docs)\.google\.com\//.test(s) &&
+      (/\/d\/([\w-]{20,})/.exec(s) || /[?&]id=([\w-]{20,})/.exec(s));
+    return d ? { kind: 'drive', id: d[1] } : null;
+  }
+
+  // The player for a video: YouTube's starts by itself with the sound off
+  // (the only way an iPad lets a video start alone); Drive's waits for a tap.
+  function videoFrame(v) {
+    if (!v || !VIDEO_ID[v.kind] || !VIDEO_ID[v.kind].test(v.id || '')) return '';
+    if (v.kind === 'youtube') {
+      return '<iframe class="bv-video bv-yt" src="https://www.youtube.com/embed/' + v.id +
+        '?autoplay=1&mute=1&playsinline=1&rel=0&enablejsapi=1" title="Video" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+    }
+    return '<iframe class="bv-video" src="https://drive.google.com/file/d/' + v.id + '/preview" title="Video" allow="autoplay" allowfullscreen></iframe>';
+  }
+
+  // card: { title, text, layout, position, background, image (data URL),
+  // video ({ kind, id })}. A layout that needs an image falls back to text
+  // only without one, and so does a Video card without its video.
   function render(card) {
     card = card || {};
+    if (card.layout === 'video') {
+      var frame = videoFrame(card.video);
+      if (frame) return '<div class="bv bv-l-video">' + frame + '</div>';
+    }
     var image = IMAGE.test(card.image || '') ? card.image : '';
     var layout = LAYOUTS.indexOf(card.layout) !== -1 && image ? card.layout : 'text';
     var position = POSITIONS.indexOf(card.position) !== -1 ? card.position : 'middle';
@@ -171,6 +204,6 @@ window.BannerView = (function () {
       img + (layout === 'background' ? '<div class="bv-shade"></div>' : '') + body + '</div>';
   }
 
-  return { render: render, sanitize: sanitize, plain: plain, html: html, LAYOUTS: LAYOUTS };
+  return { render: render, sanitize: sanitize, plain: plain, html: html, videoOf: videoOf, LAYOUTS: LAYOUTS };
 })();
 </script>

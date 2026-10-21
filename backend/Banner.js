@@ -2,13 +2,18 @@
  * Banner cards for the event iPad: short messages that rotate in their own
  * card beside the check-in QR code, a few seconds each ("Banner seconds per
  * card" in Settings). Each card has formatted title and text, a layout, and
- * optionally an image from the Banner Images folder next to the Sheet. The
- * site's assets/banner.js draws them; the modal previews them with a copy.
+ * optionally an image from the Banner Images folder next to the Sheet. A
+ * Video card is a video instead (Oct 20, 2026): a YouTube link, which plays by
+ * itself with the sound off until it ends, or a Google Drive link to a video
+ * file shared "Anyone with the link", which someone taps to play and which
+ * stays up for the seconds typed on the card. The site's assets/banner.js
+ * draws them; the modal previews them with a copy.
  * The event's hosts rotate separately, inside the event's own card.
  */
 
 // Banner Cards tab columns (1-based), matching TABS.cards.header in Code.js.
-var CARD_COL = { id: 1, title: 2, text: 3, active: 4, updated: 5, layout: 6, image: 7, position: 8, background: 9 };
+var CARD_COL = { id: 1, title: 2, text: 3, active: 4, updated: 5, layout: 6, image: 7, position: 8, background: 9,
+  video: 10, videoSeconds: 11 };
 
 var SETTING_BANNER_IMAGES_FOLDER = 'Banner images folder';
 var MAX_BANNER_IMAGE_BYTES = 600 * 1024;   // uploads are resized in the browser well below this
@@ -16,7 +21,8 @@ var MAX_BANNER_IMAGE_BYTES = 600 * 1024;   // uploads are resized in the browser
 // How layouts and text positions are written in the Sheet, by the key the
 // site and modal use.
 var CARD_LAYOUTS = { text: 'Text only', left: 'Image left', right: 'Image right', top: 'Image top',
-  background: 'Image background', image: 'Image only' };
+  background: 'Image background', image: 'Image only', video: 'Video' };
+var VIDEO_SECONDS = { min: 5, max: 600 };
 var CARD_POSITIONS = { top: 'Top', middle: 'Middle', bottom: 'Bottom' };
 
 /* ── Called from the modal ── */
@@ -24,7 +30,8 @@ var CARD_POSITIONS = { top: 'Top', middle: 'Middle', bottom: 'Bottom' };
 // Creates a card (input.id empty) or updates one. input.image says what to do
 // with the card's image: { mode: 'keep' | 'remove' | 'upload' | 'link' },
 // with `data` (base64 JPEG, already sized in the browser) for an upload or
-// `fileId` for an image already in the Banner Images folder.
+// `fileId` for an image already in the Banner Images folder. A Video card has
+// input.video (the link) and, for a Drive video, input.videoSeconds.
 function adminSaveCard(input) {
   ensureSchema_();
   input = input || {};
@@ -39,13 +46,15 @@ function adminSaveCard(input) {
   };
   var image = input.image || { mode: 'keep' };
   var hasText = !!(plainText_(c.title) || plainText_(c.text));
+  var needsImage = c.layout !== 'text' && c.layout !== 'video';
+  var video = c.layout === 'video' ? checkVideo_(input.video, input.videoSeconds) : null;
   if (c.layout === 'text' && !hasText) throw new Error('Give the card a title or some text.');
-  if (c.layout !== 'text' && image.mode === 'remove') throw new Error('Add an image, or pick the Text only layout.');
-  if (c.layout !== 'text' && c.layout !== 'image' && !hasText) {
+  if (needsImage && image.mode === 'remove') throw new Error('Add an image, or pick the Text only layout.');
+  if (needsImage && c.layout !== 'image' && !hasText) {
     throw new Error('Add some text, or pick the Image only layout.');
   }
   // Checked before saving anything when the card can't have an image yet.
-  if (c.layout !== 'text' && image.mode === 'keep' && !c.id) throw new Error('Add an image, or pick the Text only layout.');
+  if (needsImage && image.mode === 'keep' && !c.id) throw new Error('Add an image, or pick the Text only layout.');
 
   var imageUrl = null;  // null: leave the Image cell as it is
   if (image.mode === 'upload') imageUrl = saveBannerImage_(plainText_(c.title) || 'Banner card', image.data);
@@ -62,7 +71,7 @@ function adminSaveCard(input) {
       if (i < 0) throw new Error('That card is no longer in the Sheet. Close this window and reopen it.');
       row = i + 2;
       var current = sheet.getRange(row, CARD_COL.image).getDisplayValue().trim();
-      if (c.layout !== 'text' && !(imageUrl === null ? current : imageUrl)) {
+      if (needsImage && !(imageUrl === null ? current : imageUrl)) {
         throw new Error('Add an image, or pick the Text only layout.');
       }
     } else {
@@ -76,6 +85,7 @@ function adminSaveCard(input) {
     sheet.getRange(row, CARD_COL.layout).setValue(CARD_LAYOUTS[c.layout]);
     if (imageUrl !== null) sheet.getRange(row, CARD_COL.image).setValue(imageUrl);
     sheet.getRange(row, CARD_COL.position, 1, 2).setValues([[CARD_POSITIONS[c.position], c.background]]);
+    sheet.getRange(row, CARD_COL.video, 1, 2).setValues([[video ? video.link : '', video && video.kind === 'drive' ? video.seconds : '']]);
     return c.id;
   });
   var result = adminLoad();
@@ -91,7 +101,7 @@ function readCards_() {
   var sheet = getDb_().getSheetByName(TABS.cards.name);
   var count = lastRowWith_(sheet, CARD_COL.id) - 1;
   if (count < 1) return [];
-  var shown = sheet.getRange(2, 1, count, CARD_COL.background).getDisplayValues();
+  var shown = sheet.getRange(2, 1, count, CARD_COL.videoSeconds).getDisplayValues();
   backfillIds_(sheet, shown, CARD_COL.id, CARD_COL.title, 'B');
   return shown
     .map(function (r) {
@@ -105,10 +115,12 @@ function readCards_() {
         layout: keyFor_(CARD_LAYOUTS, r[CARD_COL.layout - 1], 'text'),
         imageId: driveId_(r[CARD_COL.image - 1]),
         position: keyFor_(CARD_POSITIONS, r[CARD_COL.position - 1], 'middle'),
-        background: /^#[0-9a-f]{6}$/i.test(background) ? background.toLowerCase() : ''
+        background: /^#[0-9a-f]{6}$/i.test(background) ? background.toLowerCase() : '',
+        videoLink: r[CARD_COL.video - 1].trim(),
+        video: videoOf_(r[CARD_COL.video - 1], r[CARD_COL.videoSeconds - 1])
       };
     })
-    .filter(function (c) { return c.title || c.text || c.imageId; });
+    .filter(function (c) { return c.title || c.text || c.imageId || c.video; });
 }
 
 // The key for a name as written in the Sheet ("Image left" → 'left'),
@@ -119,6 +131,42 @@ function keyFor_(names, cell, fallback) {
     if (names.hasOwnProperty(key) && (key === s || names[key].toLowerCase() === s)) return key;
   }
   return fallback;
+}
+
+// A video from its link: { kind: 'youtube' | 'drive', id, seconds, link },
+// or null. seconds is for a Drive video, whose end the iPad can't see.
+function videoOf_(link, seconds) {
+  var s = String(link || '').trim();
+  var n = Math.round(Number(seconds));
+  var yt = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{11})(?![\w-])/.exec(s);
+  if (yt) return { kind: 'youtube', id: yt[1], seconds: 0, link: s };
+  var id = /^https?:\/\/(drive|docs)\.google\.com\//.test(s) ? driveId_(s) : '';
+  if (id) return { kind: 'drive', id: id, seconds: n >= VIDEO_SECONDS.min && n <= VIDEO_SECONDS.max ? n : 0, link: s };
+  return null;
+}
+
+// A Video card's link and seconds, checked before anything is saved.
+function checkVideo_(link, seconds) {
+  var v = videoOf_(link, seconds);
+  if (!v) throw new Error('Paste a YouTube link, or a Google Drive link to the video.');
+  if (v.kind === 'youtube') return v;
+  if (!v.seconds) {
+    throw new Error('Type how many seconds the video stays on the screen, from ' + VIDEO_SECONDS.min + ' to ' + VIDEO_SECONDS.max + ': its length, say.');
+  }
+  var file;
+  try { file = DriveApp.getFileById(v.id); } catch (e) {
+    throw new Error('Drive won\'t open that link for this account. Check the link, and that the video is shared.');
+  }
+  var mime = String(file.getMimeType() || '');
+  if (mime === 'application/vnd.google-apps.vid') {
+    throw new Error('That\'s the Google Vids file itself, which a page can\'t play. In Vids press File, then Export to Drive, and paste the link to the MP4 it makes.');
+  }
+  if (!/^video\//.test(mime)) throw new Error('That Drive file isn\'t a video.');
+  var access = file.getSharingAccess();
+  if (access !== DriveApp.Access.ANYONE && access !== DriveApp.Access.ANYONE_WITH_LINK) {
+    throw new Error('Share the video in Drive as "Anyone with the link" first, so the event iPad can play it.');
+  }
+  return v;
 }
 
 // Text without its formatting tags, to check that a card says something.
@@ -168,7 +216,8 @@ function eventBanner_() {
     .filter(function (c) { return c.active; })
     .map(function (c) {
       return { title: c.title, text: c.text, layout: c.layout, position: c.position, background: c.background,
-        image: c.imageId ? imageData_(c.imageId, MAX_BANNER_IMAGE_BYTES) : null };
+        image: c.imageId && c.layout !== 'video' ? imageData_(c.imageId, MAX_BANNER_IMAGE_BYTES) : null,
+        video: c.layout === 'video' && c.video ? { kind: c.video.kind, id: c.video.id, seconds: c.video.seconds } : null };
     });
   return { seconds: bannerSeconds_(), cards: cards };
 }
