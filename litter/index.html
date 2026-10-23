@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HABO Litter Collection</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+<link rel="stylesheet" href="../assets/app.css?v=9">
+<link rel="stylesheet" href="litter.css?v=1">
+</head>
+<body>
+
+<header class="brand">
+  <h1><span aria-hidden="true">🌱</span> HABO Litter Collection</h1>
+</header>
+
+<main>
+  <p class="lt-notice" id="notice" role="status" hidden></p>
+
+  <section class="card" id="v-loading">
+    <p class="muted">Opening…</p>
+  </section>
+
+  <section class="card" id="v-soon" hidden>
+    <h2>Coming soon</h2>
+    <p class="muted">HABO's litter page is being set up. Please check back soon.</p>
+  </section>
+
+  <section class="card" id="v-trouble" hidden>
+    <h2>The page couldn't open</h2>
+    <p class="muted" id="trouble-msg"></p>
+    <button class="btn btn-secondary" id="trouble-retry" type="button">Try again</button>
+  </section>
+
+  <!-- First time here, or signed out. -->
+  <div id="v-welcome" hidden>
+    <section class="card">
+      <h2>Collect litter with HABO</h2>
+      <p>Pick up litter where you live, on your own time, and see what you've collected add up. Set up your account once; after that, you just press Start.</p>
+    </section>
+    <button class="btn btn-primary" id="go-setup" type="button">Set up my account</button>
+    <button class="btn btn-secondary" id="go-signin" type="button">I already have an account</button>
+  </div>
+
+  <!-- Setting up an account, with the waiver (S3-P20, items 2 and 3). -->
+  <form id="v-setup" novalidate hidden>
+    <section class="card">
+      <h2>Set up your account</h2>
+      <p class="muted">You do this once.</p>
+      <div class="row2">
+        <div class="ig">
+          <label for="su-first">First name</label>
+          <input id="su-first" autocomplete="given-name" maxlength="60">
+        </div>
+        <div class="ig">
+          <label for="su-last">Last name</label>
+          <input id="su-last" autocomplete="family-name" maxlength="60">
+        </div>
+      </div>
+      <div class="ig">
+        <label for="su-email">Email</label>
+        <input id="su-email" type="email" autocomplete="email" inputmode="email" maxlength="200" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="ig">
+        <label for="su-phone">Phone</label>
+        <input id="su-phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="40">
+      </div>
+      <p class="muted small lt-note">Your email, your phone, or both. They match your account to your HABO volunteer record, so all your hours are in one place. On a new phone, an account with an email gets a code by email to show it's you.</p>
+      <div class="ig">
+        <label for="su-handle">Handle</label>
+        <input id="su-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <p class="small lt-handle" id="su-handle-msg" aria-live="polite"></p>
+      </div>
+      <p class="muted small lt-note">The name you pick for yourself, for the map and the game. No one else can have it.</p>
+    </section>
+
+    <section class="card">
+      <h2>On the public map, show</h2>
+      <div id="su-shows"></div>
+      <p class="muted small">You can change this later.</p>
+    </section>
+
+    <section class="card">
+      <label class="choice-row"><input type="checkbox" id="su-adult"> I'm 18 or older</label>
+      <p class="muted small">Accounts are for people 18 and over. A family collects under a parent's account.</p>
+    </section>
+
+    <section class="card waiver">
+      <h3 id="su-waiver-title"></h3>
+      <div class="waiver-text lt-waiver" id="su-waiver-text" tabindex="0"></div>
+      <label class="choice-row"><input type="checkbox" id="su-agree"> I've read this, and I agree</label>
+      <div class="ig">
+        <label for="su-sig">Sign with your finger</label>
+        <div class="sig-box">
+          <canvas class="sig-pad" id="su-sig" aria-label="Signature box"></canvas>
+          <button class="link-btn sig-clear" id="su-sig-clear" type="button">Clear</button>
+        </div>
+        <p class="muted small" id="su-signed-as"></p>
+      </div>
+    </section>
+
+    <button class="btn btn-accent" id="su-submit" type="submit">Set up my account</button>
+    <p class="err" id="su-err" role="alert"></p>
+    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+  </form>
+
+  <!-- On a new phone (item 5). -->
+  <form id="v-signin" novalidate hidden>
+    <section class="card">
+      <h2>Sign in on this phone</h2>
+      <div class="ig">
+        <label for="si-contact">Your email or phone</label>
+        <input id="si-contact" autocomplete="username" maxlength="200" autocapitalize="off" spellcheck="false">
+      </div>
+      <div id="si-code-box" hidden>
+        <p id="si-sent"></p>
+        <div class="ig">
+          <label for="si-code">Code</label>
+          <input id="si-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6">
+        </div>
+      </div>
+    </section>
+    <button class="btn btn-primary" id="si-submit" type="submit">Continue</button>
+    <p class="err" id="si-err" role="alert"></p>
+    <div class="center" id="si-resend-row" hidden><button class="link-btn" id="si-resend" type="button">Send a new code</button></div>
+    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+  </form>
+
+  <!-- The account page, for now (item 6). -->
+  <div id="v-account" hidden>
+    <section class="card lt-me">
+      <p class="lt-handle-big" id="me-handle"></p>
+      <p class="lt-name" id="me-name"></p>
+      <dl class="lt-facts">
+        <dt>On the map</dt><dd id="me-shows"></dd>
+        <dt>Email</dt><dd id="me-email"></dd>
+        <dt>Phone</dt><dd id="me-phone"></dd>
+        <dt>Waiver</dt><dd id="me-waiver"></dd>
+        <dt>Volunteer record</dt><dd id="me-match"></dd>
+      </dl>
+      <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
+    </section>
+
+    <form class="card" id="me-form" novalidate hidden>
+      <h2>Change my details</h2>
+      <div class="row2">
+        <div class="ig">
+          <label for="ed-first">First name</label>
+          <input id="ed-first" autocomplete="given-name" maxlength="60">
+        </div>
+        <div class="ig">
+          <label for="ed-last">Last name</label>
+          <input id="ed-last" autocomplete="family-name" maxlength="60">
+        </div>
+      </div>
+      <div class="ig">
+        <label for="ed-handle">Handle</label>
+        <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+        <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
+      </div>
+      <p class="lt-label">On the public map, show</p>
+      <div id="ed-shows"></div>
+      <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
+      <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
+      <p class="err" id="ed-err" role="alert"></p>
+    </form>
+
+    <section class="card">
+      <h2>Collecting</h2>
+      <p class="muted">Start, litter pulses and End come next. Your collections will show here.</p>
+    </section>
+
+    <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
+  </div>
+</main>
+
+<script src="config.js?v=1"></script>
+<script src="litter.js?v=1"></script>
+</body>
+</html>

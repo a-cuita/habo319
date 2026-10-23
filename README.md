@@ -72,6 +72,16 @@ Updating that existing deployment, rather than creating a new one, keeps the web
 
 The script is bound to the program's Sheet (its ID is `parentId` in `.clasp.json`), and its web app runs as the Sheet's owner, open to anyone. Opening the web app URL in a browser runs a health check.
 
+## Litter page
+
+HABO's litter page (the litter class, built in steps; step 1 is the page and accounts) is separate from the check-in: its own page in `litter/`, its own Apps Script backend in `litter-backend/`, bound to its own Sheet. The check-in's Sheet is only read, to match an account to its volunteer record by email or phone.
+
+- **Page** `litter/` (https://a-cuita.github.io/habo319/litter/ once published): set up an account once (name, email or phone, a handle no one else has, what the public map shows, 18 or older), signing the litter waiver with a finger; sign in on a new phone (an account with an email gets a 6-digit code by email, from HABO's address; one with only a phone is signed in right away); the account page. `litter/config.js` holds the backend's web app URL; while it's empty the page says "Coming soon".
+- **Backend** `litter-backend/`: its tabs are Settings (the waiver's title and words, the address codes come from, the check-in's Sheet, the signatures folder), Accounts, Devices (each signed-in phone, with only a fingerprint of its secret) and Changes. Opening the web app's own link serves the same page, which is how it's tried on its dev link; `?health=1` runs a health check.
+- **Staff screen**: the invoicing app's Litter screen, under Public Engagement, lists the accounts with their check-in match and edits the waiver's words.
+
+Before `clasp push` of the backend, run `python3 tools/build-litter-page.py`, which copies the page into `litter-backend/Page.html`.
+
 ## History
 
 Until October 2026 this repo held the CMRA litter-tracking app (volunteers, team leaders, GPS-tracked legs, maps). Its backend lived in an account this project no longer controls, so it was removed. The last version is commit `611e626`, kept for the planned litter-tracking rebuild.

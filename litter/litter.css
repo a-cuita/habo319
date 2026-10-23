@@ -1,0 +1,21 @@
+/* The litter page, on top of the site's shared look (assets/app.css). */
+.lt-notice { background: var(--primary-dim); color: var(--primary); font-weight: 700; font-size: 0.9rem; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; }
+.lt-note { margin: -4px 0 14px; }
+.lt-handle { min-height: 1.2em; margin-top: 6px; font-weight: 600; }
+.lt-handle.ok { color: var(--accent); }
+.lt-handle.no { color: var(--danger); }
+.lt-waiver { max-height: 300px; }
+.lt-back { margin-top: 10px; }
+.lt-label { font-size: 0.76rem; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 6px; }
+#me-form .btn-primary { margin-top: 6px; }
+
+.lt-me { text-align: center; }
+.lt-handle-big { font-size: 1.6rem; font-weight: 800; word-break: break-word; }
+.lt-name { color: var(--text-dim); margin-bottom: 12px; }
+.lt-facts { display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; text-align: left; margin-bottom: 14px; font-size: 0.95rem; }
+.lt-facts dt { color: var(--text-label); font-weight: 700; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.4px; padding-top: 2px; }
+.lt-facts dd { overflow-wrap: anywhere; }
+@media (max-width: 420px) {
+  .lt-facts { grid-template-columns: 1fr; gap: 0; }
+  .lt-facts dd { margin-bottom: 8px; }
+}
