@@ -60,7 +60,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -116,7 +116,12 @@
     return api('start', { token: myToken() }).then(function (d) {
       state.waiver = d.waiver;
       state.mapShows = d.mapShows || state.mapShows;
-      if (d.account) return showAccount(d.account);
+      if (d.account) {
+        state.account = d.account;
+        // A collection still going on this phone opens where it was (Q282).
+        if (d.account.waiverCurrent && collect.resume()) return;
+        return showAccount(d.account);
+      }
       if (d.signedOut) return signedOut();
       show('v-welcome');
     });
@@ -403,6 +408,7 @@
     $('me-form').hidden = true;
     $('me-edit').hidden = false;
     show('v-account');
+    collect.onAccount();
   }
 
   function startEdit() {
@@ -432,6 +438,8 @@
   }
 
   function signOut() {
+    if (collect.busyHere() && !window.confirm('A collection is going on this phone. Signing out ends it here, and litter pulses not yet sent are lost. Sign out anyway?')) return;
+    collect.forget();
     var t = myToken();
     keepToken('');
     state.account = null;
@@ -439,6 +447,13 @@
     show('v-welcome');
     notice('You\'re signed out on this phone.');
   }
+
+  /* ── Collecting (S3-P21, collect.js) ── */
+
+  var collect = window.LitterCollect({
+    $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
+    showAccount: function () { showAccount(state.account); }
+  });
 
   /* ── Wiring ── */
 

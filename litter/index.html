@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HABO Litter Collection</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=1">
+<link rel="stylesheet" href="litter.css?v=2">
 </head>
 <body>
 
@@ -140,6 +141,103 @@
     <div class="center"><button class="link-btn" id="rs-signout" type="button">Sign out on this phone</button></div>
   </form>
 
+  <!-- Collecting (S3-P21): the collection so far, the map, and the litter pulse. -->
+  <div id="v-collect" hidden>
+    <p class="lt-sun" id="cl-sun" role="alert" hidden></p>
+    <section class="card lt-status">
+      <p class="lt-since" id="cl-since"></p>
+      <p class="lt-totals" id="cl-totals"></p>
+      <p class="muted small" id="cl-queue" hidden></p>
+      <p class="err" id="cl-error"></p>
+    </section>
+    <p class="lt-pick" id="cl-pick" role="status" hidden></p>
+    <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
+    <p class="muted small" id="cl-map-note"></p>
+    <div id="cl-actions">
+      <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
+      <div class="row2 lt-row">
+        <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
+        <button class="btn btn-secondary" id="cl-end" type="button">End</button>
+      </div>
+      <p class="err" id="cl-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
+    </div>
+    <form class="card" id="cl-pulse" novalidate hidden>
+      <h2 id="pf-title">Litter pulse</h2>
+      <p id="pf-stretch"></p>
+      <div class="center"><button class="link-btn" id="pf-suggested" type="button">Use the suggested stretch</button></div>
+      <div class="ig">
+        <label for="pf-scale">What the scale shows (lb)</label>
+        <input id="pf-scale" inputmode="decimal" autocomplete="off">
+        <p class="muted small" id="pf-bag-hint"></p>
+      </div>
+      <label class="choice-row"><input type="checkbox" id="pf-newbag"> New bag: this one is full, and I'm starting another</label>
+      <p class="lt-label">Litter types here (optional)</p>
+      <div class="lt-types" id="pf-types"></div>
+      <div class="lt-addtype">
+        <input id="pf-newtype" maxlength="60" placeholder="Another type" aria-label="Another litter type">
+        <button class="btn btn-secondary" id="pf-addtype" type="button">Add</button>
+      </div>
+      <div class="ig">
+        <label for="pf-rating">Visual rating (optional)</label>
+        <select id="pf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+        <p class="muted small">0 is spotless; 10 is the worst you've seen.</p>
+      </div>
+      <div class="ig">
+        <label for="pf-break">A break in this stretch, in minutes (optional)</label>
+        <input id="pf-break" inputmode="numeric" autocomplete="off">
+        <div class="lt-where">
+          <button class="link-btn" id="pf-where-tap" type="button">Where were you? Tap the cell</button>
+          <button class="link-btn" id="pf-where-unsure" type="button">Not sure</button>
+        </div>
+        <p class="muted small" id="pf-where-shown"></p>
+      </div>
+      <div class="ig" id="pf-end-row" hidden>
+        <label for="pf-end">Stop the clock at</label>
+        <input id="pf-end" type="time">
+        <p class="muted small">If you pressed End late, set the time you stopped.</p>
+      </div>
+      <button class="btn btn-accent" id="pf-save" type="submit">Save litter pulse</button>
+      <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
+      <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
+      <p class="err" id="pf-err" role="alert"></p>
+    </form>
+  </div>
+
+  <!-- After End: the summary, its fixes, and a recorder's GPX file. -->
+  <div id="v-summary" hidden>
+    <section class="card">
+      <h2>Your collection</h2>
+      <p id="sm-totals"></p>
+      <p class="muted" id="sm-wait" hidden></p>
+    </section>
+    <div id="sm-list"></div>
+    <section class="card">
+      <label class="lt-label" for="sm-gpx">A recorder's GPX file (optional)</label>
+      <input type="file" id="sm-gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml">
+    </section>
+    <form class="card" id="sm-fix" novalidate hidden>
+      <h2 id="sf-title"></h2>
+      <div class="ig">
+        <label for="sf-pounds">Pounds</label>
+        <input id="sf-pounds" inputmode="decimal" autocomplete="off">
+      </div>
+      <p class="lt-label">Litter types</p>
+      <div class="lt-types" id="sf-types"></div>
+      <div class="ig">
+        <label for="sf-rating">Visual rating</label>
+        <select id="sf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+      </div>
+      <p class="muted small" id="sf-cells-note"></p>
+      <button class="btn btn-secondary" id="sf-cells" type="button">Change its cells</button>
+      <div class="lt-map-box" id="sm-map-box" hidden></div>
+      <button class="btn btn-accent" id="sf-save" type="submit">Save the fix</button>
+      <button class="btn btn-secondary" id="sf-cancel" type="button">Cancel</button>
+      <p class="err" id="sf-err" role="alert"></p>
+    </form>
+    <button class="btn btn-primary" id="sm-done" type="button">Done</button>
+  </div>
+
   <!-- On a new phone (item 5). -->
   <form id="v-signin" novalidate hidden>
     <section class="card">
@@ -200,16 +298,22 @@
       <p class="err" id="ed-err" role="alert"></p>
     </form>
 
-    <section class="card">
+    <section class="card" id="cl-account">
       <h2>Collecting</h2>
-      <p class="muted">Start, litter pulses and End come next. Your collections will show here.</p>
+      <p class="lt-sun" id="cl-account-sun" hidden></p>
+      <p id="cl-hours"></p>
+      <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
+      <p class="err" id="cl-start-err" role="alert"></p>
     </section>
 
     <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
   </div>
 </main>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=1"></script>
-<script src="litter.js?v=1"></script>
+<script src="geo.js?v=1"></script>
+<script src="collect.js?v=1"></script>
+<script src="litter.js?v=2"></script>
 </body>
 </html>

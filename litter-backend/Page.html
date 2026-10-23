@@ -5,6 +5,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>HABO Litter Collection</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <style>
 /* Shared look for the site's pages, carried over from the original volunteer app. */
 :root {
@@ -166,6 +167,31 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
   .lt-facts { grid-template-columns: 1fr; gap: 0; }
   .lt-facts dd { margin-bottom: 8px; }
 }
+
+/* Collecting (S3-P21). */
+.lt-sun { background: #fef3c7; color: #92400e; border: 2px solid #f59e0b; font-weight: 800; padding: 12px 14px; border-radius: var(--radius-sm); margin-bottom: 14px; }
+.lt-status { padding: 14px 18px; }
+.lt-since { font-weight: 700; }
+.lt-totals { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
+.lt-pick { background: var(--primary-dim); color: var(--primary); font-weight: 700; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 10px; }
+.lt-map-box { margin-bottom: 10px; }
+.lt-map { height: 55vh; min-height: 280px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); }
+.lt-row { margin-top: 10px; }
+.lt-row .btn + .btn { margin-top: 0; }
+.lt-types { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 10px; font-size: 0.92rem; }
+.lt-type { display: flex; gap: 6px; align-items: flex-start; }
+.lt-type input { margin-top: 4px; }
+.lt-addtype { display: flex; gap: 8px; margin-bottom: 14px; }
+.lt-addtype input { flex: 1; min-width: 0; padding: 10px 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; }
+.lt-addtype .btn { width: auto; min-height: 0; padding: 10px 16px; }
+.lt-select { width: 100%; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); }
+.lt-where { display: flex; gap: 12px; flex-wrap: wrap; }
+.lt-where .link-btn { padding: 6px 0; }
+.lt-stretch h3 { font-size: 1rem; font-weight: 800; margin-bottom: 4px; }
+.lt-stretch-facts { font-weight: 600; }
+.lt-fix { margin-top: 10px; }
+.lt-track { margin-top: 10px; padding: 10px; border-radius: var(--radius-sm); background: var(--primary-dim); }
+@media (max-width: 380px) { .lt-types { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -300,6 +326,103 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
     <div class="center"><button class="link-btn" id="rs-signout" type="button">Sign out on this phone</button></div>
   </form>
 
+  <!-- Collecting (S3-P21): the collection so far, the map, and the litter pulse. -->
+  <div id="v-collect" hidden>
+    <p class="lt-sun" id="cl-sun" role="alert" hidden></p>
+    <section class="card lt-status">
+      <p class="lt-since" id="cl-since"></p>
+      <p class="lt-totals" id="cl-totals"></p>
+      <p class="muted small" id="cl-queue" hidden></p>
+      <p class="err" id="cl-error"></p>
+    </section>
+    <p class="lt-pick" id="cl-pick" role="status" hidden></p>
+    <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
+    <p class="muted small" id="cl-map-note"></p>
+    <div id="cl-actions">
+      <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
+      <div class="row2 lt-row">
+        <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
+        <button class="btn btn-secondary" id="cl-end" type="button">End</button>
+      </div>
+      <p class="err" id="cl-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
+    </div>
+    <form class="card" id="cl-pulse" novalidate hidden>
+      <h2 id="pf-title">Litter pulse</h2>
+      <p id="pf-stretch"></p>
+      <div class="center"><button class="link-btn" id="pf-suggested" type="button">Use the suggested stretch</button></div>
+      <div class="ig">
+        <label for="pf-scale">What the scale shows (lb)</label>
+        <input id="pf-scale" inputmode="decimal" autocomplete="off">
+        <p class="muted small" id="pf-bag-hint"></p>
+      </div>
+      <label class="choice-row"><input type="checkbox" id="pf-newbag"> New bag: this one is full, and I'm starting another</label>
+      <p class="lt-label">Litter types here (optional)</p>
+      <div class="lt-types" id="pf-types"></div>
+      <div class="lt-addtype">
+        <input id="pf-newtype" maxlength="60" placeholder="Another type" aria-label="Another litter type">
+        <button class="btn btn-secondary" id="pf-addtype" type="button">Add</button>
+      </div>
+      <div class="ig">
+        <label for="pf-rating">Visual rating (optional)</label>
+        <select id="pf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+        <p class="muted small">0 is spotless; 10 is the worst you've seen.</p>
+      </div>
+      <div class="ig">
+        <label for="pf-break">A break in this stretch, in minutes (optional)</label>
+        <input id="pf-break" inputmode="numeric" autocomplete="off">
+        <div class="lt-where">
+          <button class="link-btn" id="pf-where-tap" type="button">Where were you? Tap the cell</button>
+          <button class="link-btn" id="pf-where-unsure" type="button">Not sure</button>
+        </div>
+        <p class="muted small" id="pf-where-shown"></p>
+      </div>
+      <div class="ig" id="pf-end-row" hidden>
+        <label for="pf-end">Stop the clock at</label>
+        <input id="pf-end" type="time">
+        <p class="muted small">If you pressed End late, set the time you stopped.</p>
+      </div>
+      <button class="btn btn-accent" id="pf-save" type="submit">Save litter pulse</button>
+      <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
+      <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
+      <p class="err" id="pf-err" role="alert"></p>
+    </form>
+  </div>
+
+  <!-- After End: the summary, its fixes, and a recorder's GPX file. -->
+  <div id="v-summary" hidden>
+    <section class="card">
+      <h2>Your collection</h2>
+      <p id="sm-totals"></p>
+      <p class="muted" id="sm-wait" hidden></p>
+    </section>
+    <div id="sm-list"></div>
+    <section class="card">
+      <label class="lt-label" for="sm-gpx">A recorder's GPX file (optional)</label>
+      <input type="file" id="sm-gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml">
+    </section>
+    <form class="card" id="sm-fix" novalidate hidden>
+      <h2 id="sf-title"></h2>
+      <div class="ig">
+        <label for="sf-pounds">Pounds</label>
+        <input id="sf-pounds" inputmode="decimal" autocomplete="off">
+      </div>
+      <p class="lt-label">Litter types</p>
+      <div class="lt-types" id="sf-types"></div>
+      <div class="ig">
+        <label for="sf-rating">Visual rating</label>
+        <select id="sf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+      </div>
+      <p class="muted small" id="sf-cells-note"></p>
+      <button class="btn btn-secondary" id="sf-cells" type="button">Change its cells</button>
+      <div class="lt-map-box" id="sm-map-box" hidden></div>
+      <button class="btn btn-accent" id="sf-save" type="submit">Save the fix</button>
+      <button class="btn btn-secondary" id="sf-cancel" type="button">Cancel</button>
+      <p class="err" id="sf-err" role="alert"></p>
+    </form>
+    <button class="btn btn-primary" id="sm-done" type="button">Done</button>
+  </div>
+
   <!-- On a new phone (item 5). -->
   <form id="v-signin" novalidate hidden>
     <section class="card">
@@ -360,15 +483,995 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
       <p class="err" id="ed-err" role="alert"></p>
     </form>
 
-    <section class="card">
+    <section class="card" id="cl-account">
       <h2>Collecting</h2>
-      <p class="muted">Start, litter pulses and End come next. Your collections will show here.</p>
+      <p class="lt-sun" id="cl-account-sun" hidden></p>
+      <p id="cl-hours"></p>
+      <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
+      <p class="err" id="cl-start-err" role="alert"></p>
     </section>
 
     <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
   </div>
 </main>
 
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script>
+// The litter class's geometry (S3-P7, items 4, 8 and 20), the same on the
+// phone and in the backend (tools/build-litter-page.py copies it to
+// litter-backend/Geo.js):
+// - cells: one square of a fixed grid, a tenth of a mile on each side, that
+//   never moves (item 1's words);
+// - streets: OpenStreetMap's, as fetched at Start (Q385), turned into a
+//   network to measure along;
+// - each cell's snapped point, the suggested stretch between two litter
+//   pulses, and a stretch's street equivalent and off-street lengths;
+// - the reading, CPUE and Litter Index (item 8);
+// - sunrise and sunset for a place and a day, with no outside service.
+var LitterGeo = (function () {
+  'use strict';
+
+  var DEG = Math.PI / 180;
+  var MILE_M = 1609.344;
+  var CELL_M = MILE_M / 10;
+  // The grid is laid flat at Montgomery's latitude, so its cells are true
+  // tenth-mile squares there and across HABO's area, and never move.
+  var REF_LAT = 32.3668;
+  var M_PER_DEG_LAT = 6371008.8 * DEG;
+  var M_PER_DEG_LON = M_PER_DEG_LAT * Math.cos(REF_LAT * DEG);
+
+  /* ── Places and cells ── */
+
+  function xy(lat, lon) { return { x: lon * M_PER_DEG_LON, y: lat * M_PER_DEG_LAT }; }
+  function toLatLon(p) { return { lat: p.y / M_PER_DEG_LAT, lon: p.x / M_PER_DEG_LON }; }
+  function dist(a, b) { return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)); }
+
+  // A cell's id is its row and column, like "24871_-128210".
+  function cellAt(lat, lon) {
+    var p = xy(lat, lon);
+    return Math.floor(p.y / CELL_M) + '_' + Math.floor(p.x / CELL_M);
+  }
+  function cellOfXY(p) { return Math.floor(p.y / CELL_M) + '_' + Math.floor(p.x / CELL_M); }
+  function rowCol(id) {
+    var m = /^(-?\d+)_(-?\d+)$/.exec(String(id));
+    if (!m) throw new Error('Not a cell: ' + id);
+    return { i: Number(m[1]), j: Number(m[2]) };
+  }
+  function centerXY(id) { var c = rowCol(id); return { x: (c.j + 0.5) * CELL_M, y: (c.i + 0.5) * CELL_M }; }
+  function cellCenter(id) { return toLatLon(centerXY(id)); }
+  // [[south, west], [north, east]]
+  function cellBounds(id) {
+    var c = rowCol(id), sw = toLatLon({ x: c.j * CELL_M, y: c.i * CELL_M }), ne = toLatLon({ x: (c.j + 1) * CELL_M, y: (c.i + 1) * CELL_M });
+    return [[sw.lat, sw.lon], [ne.lat, ne.lon]];
+  }
+  function inCell(p, id) {
+    var c = rowCol(id);
+    return p.x >= c.j * CELL_M && p.x <= (c.j + 1) * CELL_M && p.y >= c.i * CELL_M && p.y <= (c.i + 1) * CELL_M;
+  }
+
+  // The cells a straight line passes through, in order.
+  function lineCells(a, b) {
+    var out = [], n = Math.max(1, Math.ceil(dist(a, b) / 10));
+    for (var k = 0; k <= n; k++) {
+      var c = cellOfXY({ x: a.x + (b.x - a.x) * k / n, y: a.y + (b.y - a.y) * k / n });
+      if (out[out.length - 1] !== c) out.push(c);
+    }
+    return out;
+  }
+
+  /* ── Streets ── */
+
+  // The OpenStreetMap ways that count as streets (Q385): an Overpass query
+  // for the box around a place. Interstates and their ramps are left out.
+  var NOT_STREETS = 'motorway|motorway_link|construction|proposed|abandoned|razed|raceway|bus_guideway|elevator|platform|corridor|bridleway';
+  function overpassQuery(south, west, north, east) {
+    return '[out:json][timeout:25];way["highway"]["highway"!~"^(' + NOT_STREETS + ')$"]["area"!="yes"](' +
+      [south, west, north, east].map(function (v) { return v.toFixed(5); }).join(',') + ');out geom;';
+  }
+  // The box a mile around a place, for the query.
+  function boxAround(lat, lon, miles) {
+    var p = xy(lat, lon), r = (miles || 1) * MILE_M;
+    var sw = toLatLon({ x: p.x - r, y: p.y - r }), ne = toLatLon({ x: p.x + r, y: p.y + r });
+    return { south: sw.lat, west: sw.lon, north: ne.lat, east: ne.lon };
+  }
+  // Overpass's answer, kept small for the phone: [[name, lat, lon, lat, lon, ...], ...].
+  function compactWays(json) {
+    return ((json && json.elements) || []).filter(function (e) { return e.type === 'way' && e.geometry && e.geometry.length > 1; })
+      .map(function (e) {
+        var w = [String((e.tags && (e.tags.name || e.tags.ref)) || '')];
+        e.geometry.forEach(function (g) { w.push(Math.round(g.lat * 1e7) / 1e7, Math.round(g.lon * 1e7) / 1e7); });
+        return w;
+      });
+  }
+
+  // The network to measure along: nodes where ways meet share a place.
+  function Streets(ways) {
+    var nodes = {}, segs = [], byCell = {};
+    var key = function (lat, lon) { return lat.toFixed(7) + ',' + lon.toFixed(7); };
+    (ways || []).forEach(function (w, wi) {
+      var prev = null;
+      for (var k = 1; k + 1 < w.length; k += 2) {
+        var id = key(w[k], w[k + 1]);
+        if (!nodes[id]) nodes[id] = { id: id, p: xy(w[k], w[k + 1]), edges: [] };
+        if (prev && prev !== id) {
+          var a = nodes[prev], b = nodes[id], s = { i: segs.length, a: prev, b: id, way: wi, name: w[0], len: dist(a.p, b.p) };
+          segs.push(s);
+          a.edges.push(s); b.edges.push(s);
+          lineCells(a.p, b.p).forEach(function (c) { (byCell[c] = byCell[c] || []).push(s.i); });
+        }
+        prev = id;
+      }
+    });
+    this.nodes = nodes;
+    this.segs = segs;
+    this.byCell = byCell;
+  }
+
+  Streets.prototype.hasStreet = function (cell) { return !!(this.byCell[cell] && this.byCell[cell].length); };
+
+  // The point on the street closest to the cell's center, inside the cell
+  // (Q212, Q213). In a cell with two streets, the one `way` names, when the
+  // stretch follows it (Q214).
+  Streets.prototype.snap = function (cell, way) {
+    var list = this.byCell[cell];
+    if (!list || !list.length) return null;
+    var self = this, c = centerXY(cell);
+    var pick = function (want) {
+      var best = null;
+      list.forEach(function (si) {
+        var s = self.segs[si];
+        if (want != null && s.way !== want) return;
+        var a = self.nodes[s.a].p, b = self.nodes[s.b].p, n = Math.max(1, Math.ceil(s.len / 4));
+        for (var k = 0; k <= n; k++) {
+          var t = k / n, p = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          if (!inCell(p, cell)) continue;
+          var d = dist(p, c);
+          if (!best || d < best.d) best = { seg: s.i, t: t, p: p, d: d, way: s.way, name: s.name };
+        }
+      });
+      return best;
+    };
+    return (way != null && pick(way)) || pick(null);
+  };
+
+  // The shortest way along the streets from one snapped point to another:
+  // { len, points: [xy...], way } (the last way followed), or null.
+  Streets.prototype.route = function (from, to) {
+    var self = this, sf = this.segs[from.seg], st = this.segs[to.seg];
+    if (from.seg === to.seg) return { len: Math.abs(to.t - from.t) * sf.len, points: [from.p, to.p], way: sf.way };
+    var best = {}, prev = {}, heap = [];
+    var push = function (id, d, via) {
+      if (best[id] != null && best[id] <= d) return;
+      best[id] = d; prev[id] = via;
+      heap.push([d, id]);
+      for (var k = heap.length - 1; k > 0;) {
+        var up = (k - 1) >> 1;
+        if (heap[up][0] <= heap[k][0]) break;
+        var tmp = heap[up]; heap[up] = heap[k]; heap[k] = tmp; k = up;
+      }
+    };
+    var pop = function () {
+      var top = heap[0], last = heap.pop();
+      if (heap.length) {
+        heap[0] = last;
+        for (var k = 0; ;) {
+          var l = 2 * k + 1, r = l + 1, m = k;
+          if (l < heap.length && heap[l][0] < heap[m][0]) m = l;
+          if (r < heap.length && heap[r][0] < heap[m][0]) m = r;
+          if (m === k) break;
+          var tmp = heap[m]; heap[m] = heap[k]; heap[k] = tmp; k = m;
+        }
+      }
+      return top;
+    };
+    push(sf.a, from.t * sf.len, { start: true });
+    push(sf.b, (1 - from.t) * sf.len, { start: true });
+    var goalA = st.a, goalB = st.b, done = {}, limit = 30 * MILE_M;
+    while (heap.length) {
+      var top = pop(), d = top[0], id = top[1];
+      if (done[id] || d > limit) continue;
+      done[id] = true;
+      if (done[goalA] && done[goalB]) break;
+      this.nodes[id].edges.forEach(function (s) {
+        var other = s.a === id ? s.b : s.a;
+        if (!done[other]) push(other, d + s.len, { from: id, seg: s.i });
+      });
+    }
+    var viaA = best[goalA] != null ? best[goalA] + to.t * st.len : Infinity;
+    var viaB = best[goalB] != null ? best[goalB] + (1 - to.t) * st.len : Infinity;
+    if (!isFinite(viaA) && !isFinite(viaB)) return null;
+    var end = viaA <= viaB ? goalA : goalB, pts = [to.p], way = st.way;
+    for (var id2 = end; id2 != null;) {
+      pts.push(self.nodes[id2].p);
+      var v = prev[id2];
+      if (!v || v.start) break;
+      id2 = v.from;
+    }
+    pts.push(from.p);
+    pts.reverse();
+    return { len: Math.min(viaA, viaB), points: pts, way: way };
+  };
+
+  /* ── Stretches ── */
+
+  // The stretch the app suggests from the last litter pulse's cell to this
+  // one, following the streets and turning where they turn (Q286); straight
+  // across where either end has no street.
+  Streets.prototype.suggest = function (fromCell, toCell, way) {
+    if (fromCell === toCell) return [fromCell];
+    var a = this.snap(fromCell, way), b = this.snap(toCell, way);
+    var r = a && b ? this.route(a, b) : null;
+    var straight = dist(centerXY(fromCell), centerXY(toCell));
+    if (!r || r.len > 4 * straight + 2 * CELL_M) return lineCells(centerXY(fromCell), centerXY(toCell));
+    var out = [];
+    for (var k = 1; k < r.points.length; k++) {
+      lineCells(r.points[k - 1], r.points[k]).forEach(function (c) { if (out[out.length - 1] !== c) out.push(c); });
+    }
+    if (out[0] !== fromCell) out.unshift(fromCell);
+    if (out[out.length - 1] !== toCell) out.push(toCell);
+    return out;
+  };
+
+  // A stretch's lengths, in meters, from its cells in order (item 4): along
+  // the streets from snapped point to snapped point, plus half a cell at
+  // each end so a stretch inside one cell isn't zero (Q213 to Q216); cells
+  // with no street straight from center to center (Q287, Q288, Q307). Going
+  // back over a cell adds nothing (Q172).
+  Streets.prototype.measure = function (cells) {
+    var seen = [], has = {};
+    (cells || []).forEach(function (c) { if (!has[c]) { has[c] = true; seen.push(c); } });
+    var out = { street: 0, off: 0 };
+    if (!seen.length) return out;
+    var way = null;
+    for (var k = 1; k < seen.length; k++) {
+      var p = seen[k - 1], q = seen[k];
+      var a = this.snap(p, way), b = this.snap(q, way);
+      if (a && b) {
+        var r = this.route(a, b);
+        if (r && r.len <= 4 * dist(a.p, b.p) + 2 * CELL_M) { out.street += r.len; way = r.way; }
+        else out.street += dist(a.p, b.p);
+      } else {
+        out.off += dist(centerXY(p), centerXY(q));
+        way = null;
+      }
+    }
+    var ends = [seen[0], seen[seen.length - 1]];
+    ends.forEach(function (c) { if (this.hasStreet(c)) out.street += CELL_M / 2; else out.off += CELL_M / 2; }, this);
+    return out;
+  };
+
+  /* ── The reading (item 8) ── */
+
+  // CPUE = pounds ÷ (miles ÷ active hours); Litter Index = √CPUE.
+  function reading(pounds, meters, activeMinutes) {
+    var miles = meters / MILE_M, hours = activeMinutes / 60;
+    if (!(miles > 0) || !(hours > 0) || !(pounds >= 0)) return { cpue: null, index: null };
+    var cpue = pounds / (miles / hours);
+    return { cpue: cpue, index: Math.sqrt(cpue) };
+  }
+
+  /* ── Sunrise and sunset (item 20) ── */
+
+  // When the sun rises and sets on the day `noon` falls in, at a place, as
+  // times in ms: the usual astronomical formulas, to about a minute.
+  function sunTimes(noon, lat, lon) {
+    var J1970 = 2440588, J2000 = 2451545, dayMs = 86400000, e = DEG * 23.4397, J0 = 0.0009;
+    var toDays = function (ms) { return ms / dayMs - 0.5 + J1970 - J2000; };
+    var fromJulian = function (j) { return (j + 0.5 - J1970) * dayMs; };
+    var lw = DEG * -lon, phi = DEG * lat, d = toDays(noon);
+    var n = Math.round(d - J0 - lw / (2 * Math.PI));
+    var ds = J0 + lw / (2 * Math.PI) + n;
+    var M = DEG * (357.5291 + 0.98560028 * ds);
+    var C = DEG * (1.9148 * Math.sin(M) + 0.02 * Math.sin(2 * M) + 0.0003 * Math.sin(3 * M));
+    var L = M + C + DEG * 102.9372 + Math.PI;
+    var dec = Math.asin(Math.sin(e) * Math.sin(L));
+    var transit = function (a) { return J2000 + a + 0.0053 * Math.sin(M) - 0.0069 * Math.sin(2 * L); };
+    var jnoon = transit(ds);
+    var h0 = DEG * -0.833;
+    var w = Math.acos((Math.sin(h0) - Math.sin(phi) * Math.sin(dec)) / (Math.cos(phi) * Math.cos(dec)));
+    var jset = transit(J0 + (w + lw) / (2 * Math.PI) + n);
+    return { sunrise: fromJulian(jnoon - (jset - jnoon)), sunset: fromJulian(jset) };
+  }
+
+  return {
+    MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
+    cellBounds: cellBounds, lineCells: lineCells, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    Streets: Streets, reading: reading, sunTimes: sunTimes
+  };
+})();
+</script>
+<script>
+// Collecting on the litter page (S3-P21, the litter class's step 2): Start,
+// litter pulses, Pause and Resume, Discard this stretch, End, and the summary
+// with its fixes and a recorder's GPX file. The phone keeps the collection as
+// it goes, so a litter pulse works with no signal; each stretch waits in a
+// queue until it reaches HABO (Q242, Q255), and closing the page doesn't end
+// a collection (Q282). Load geo.js and Leaflet first; litter.js calls
+// LitterCollect(app) with its helpers.
+window.LitterCollect = function (app) {
+  'use strict';
+
+  var G = window.LitterGeo;
+  var $ = app.$;
+  var KEY = 'habo-litter-collect';
+  var STREETS_KEY = 'habo-litter-streets';
+  var OVERPASS = 'https://overpass-api.de/api/interpreter';
+  var ROUGH_M = G.CELL_M / 2;   // a location rougher than half a cell is asked to be tapped (Q313)
+
+  var c = load(KEY);            // the collection on this phone, or null
+  var streets = null, streetsBox = null;
+  var map = null, layers = null;
+  var pulse = null;             // the litter pulse being filled in
+  var summary = null;           // the summary after End
+  var types = [];
+  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48 };
+  var sending = false;
+
+  /* ── Kept on the phone ── */
+
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
+  function save() { keep(KEY, c); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
+
+  function loadStreets() {
+    var s = load(STREETS_KEY);
+    if (s && s.ways) { streets = new G.Streets(s.ways); streetsBox = s.box; }
+  }
+
+  // The streets a mile around a place, from OpenStreetMap (Q385), kept for
+  // the collection. Outside the box, more are fetched when there's signal.
+  function fetchStreets(cell) {
+    var p = G.cellCenter(cell);
+    if (streetsBox && p.lat > streetsBox.south + 0.004 && p.lat < streetsBox.north - 0.004 && p.lon > streetsBox.west + 0.005 && p.lon < streetsBox.east - 0.005) {
+      return Promise.resolve();
+    }
+    var box = G.boxAround(p.lat, p.lon, 1);
+    return fetch(OVERPASS, { method: 'POST', body: 'data=' + encodeURIComponent(G.overpassQuery(box.south, box.west, box.north, box.east)),
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' } })
+      .then(function (res) { if (!res.ok) throw new Error('streets ' + res.status); return res.json(); })
+      .then(function (json) {
+        var old = load(STREETS_KEY);
+        var ways = G.compactWays(json);
+        if (old && old.ways) ways = old.ways.concat(ways);
+        if (streetsBox) box = { south: Math.min(box.south, streetsBox.south), west: Math.min(box.west, streetsBox.west), north: Math.max(box.north, streetsBox.north), east: Math.max(box.east, streetsBox.east) };
+        keep(STREETS_KEY, { ways: ways, box: box });
+        streets = new G.Streets(ways);
+        streetsBox = box;
+        drawStreets();
+      });
+  }
+
+  /* ── Sending what the phone kept ── */
+
+  // Sends the queue in order; what doesn't go waits for the next try.
+  function flush() {
+    if (sending || !c || !c.queue.length) { showQueue(); return Promise.resolve(); }
+    sending = true;
+    var item = c.queue[0];
+    var call = item.type === 'stretch'
+      ? app.api('collectStretch', { token: app.myToken(), collectionId: c.id, stretch: item.stretch })
+      : app.api('collectEnd', { token: app.myToken(), collectionId: c.id, endedAt: item.endedAt });
+    return call.then(function (d) {
+      sending = false;
+      c.queue.shift();
+      if (d.collection) c.server = d.collection;
+      save();
+      if (item.type === 'end') return finish(d);
+      return flush();
+    }, function (err) {
+      sending = false;
+      if (err.code === 'signed-out') return app.signedOut();
+      // A refusal that isn't about signal is kept, and shown.
+      if (!/couldn't reach HABO/.test(err.message)) c.lastError = err.message;
+      save();
+      showQueue();
+    });
+  }
+
+  function showQueue() {
+    var n = c ? c.queue.filter(function (q) { return q.type === 'stretch'; }).length : 0;
+    $('cl-queue').textContent = n ? (n === 1 ? '1 litter pulse is' : n + ' litter pulses are') + ' kept on this phone, waiting for signal.' : '';
+    $('cl-queue').hidden = !n;
+    $('cl-error').textContent = c && c.lastError ? 'HABO couldn\'t take a litter pulse: ' + c.lastError : '';
+  }
+
+  window.addEventListener('online', function () { flush(); });
+
+  /* ── The account page ── */
+
+  // Under the account: hours collecting, and Start (or Back to my collection).
+  function onAccount() {
+    $('cl-account').hidden = false;
+    $('cl-hours').textContent = '';
+    $('cl-start').textContent = c && !c.ended ? 'Back to my collection' : 'Start collecting';
+    return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
+      settings = d.settings || settings;
+      types = d.types || [];
+      var h = d.hours || { collections: 0, hours: 0 };
+      $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
+      // A collection open here but ended there (left alone 12 hours): forget it.
+      if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id)) { c = null; save(); keep(STREETS_KEY, null); }
+      $('cl-start').textContent = c && !c.ended ? 'Back to my collection' : 'Start collecting';
+      showSun($('cl-account-sun'), null);
+    }, function () { /* the account page shows without it */ });
+  }
+
+  /* ── Sunset (item 20) ── */
+
+  function sunAt(cell) {
+    var p = G.cellCenter(cell), d = new Date();
+    var noon = new Date(d.getFullYear(), d.getMonth(), d.getDate(), 12).getTime();
+    return G.sunTimes(noon, p.lat, p.lon);
+  }
+  function clock(ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+
+  // From an hour before sunset, loudly, whenever the page is open (Q375, Q377).
+  function showSun(box, cell) {
+    var where = cell || (c && c.lastCell) || null;
+    if (!where) { box.hidden = true; return; }
+    var s = sunAt(where), now = Date.now();
+    box.hidden = !(now >= s.sunset - settings.sunsetWarnMin * 60000 || now < s.sunrise);
+    box.textContent = now >= s.sunset ? 'The sun has set (' + clock(s.sunset) + '). No XP is earned after sunset, and a stretch that goes past it earns no volunteer hours.'
+      : 'Sunset is at ' + clock(s.sunset) + '. After it, no XP is earned, and a stretch that goes past it earns no volunteer hours.';
+  }
+  setInterval(function () { if (!$('v-collect').hidden) showSun($('cl-sun'), null); }, 60000);
+
+  /* ── Where the phone is ── */
+
+  // The phone's location, once (the page doesn't track you, Q168): its cell,
+  // or null when it's rough or turned off, so the cell is tapped (Q313, Q314).
+  function locate() {
+    return new Promise(function (resolve) {
+      if (!navigator.geolocation) return resolve({ cell: null, why: 'off' });
+      navigator.geolocation.getCurrentPosition(function (p) {
+        var cell = G.cellAt(p.coords.latitude, p.coords.longitude);
+        resolve(p.coords.accuracy > ROUGH_M ? { cell: null, near: cell, why: 'rough' } : { cell: cell });
+      }, function () { resolve({ cell: null, why: 'off' }); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+    });
+  }
+
+  /* ── Start ── */
+
+  function start(button) {
+    if (c && !c.ended) return openCollect();
+    app.busy(button, 'cl-start-err', function () {
+      return locate().then(function (loc) {
+        if (!loc.cell) {
+          // No location: pick the cell on the map, then Start.
+          openCollect();
+          beginPick(loc.near, loc.why, function (cell) { return startAt(cell); });
+          return;
+        }
+        return startAt(loc.cell);
+      });
+    });
+  }
+
+  function startAt(cell) {
+    var s = sunAt(cell), now = Date.now();
+    if (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise) {
+      return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
+    }
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid() }).then(function (d) {
+      settings = d.settings || settings;
+      var col = d.collection;
+      c = { id: col.id, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, way: null, queue: [], scalePrev: 0, bagReset: false,
+        current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false };
+      if (d.already && col.started) c.current.startedAt = col.started;
+      save();
+      return fetchStreets(cell).catch(function () {
+        app.notice('The streets around you couldn\'t load just now; your stretches are measured straight until they do.');
+      }).then(function () { openCollect(); });
+    });
+  }
+
+  /* ── The collecting screen ── */
+
+  function openCollect() {
+    $('cl-map-box').appendChild($('cl-map'));
+    loadStreets();
+    app.show('v-collect');
+    ensureMap();
+    showStatus();
+    showSun($('cl-sun'), null);
+    flush();
+  }
+
+  function showStatus() {
+    if (!c) return;
+    var t = c.totals;
+    $('cl-since').textContent = 'Collecting since ' + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
+    $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
+    $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
+    $('cl-pulse-btn').disabled = !!c.current.pausedAt;
+    showQueue();
+  }
+
+  function round(n, p) { var f = Math.pow(10, p); return Math.round(n * f) / f; }
+
+  /* ── The map (Q386) ── */
+
+  function ensureMap() {
+    if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
+    map = L.map('cl-map', { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    layers = { streets: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
+    map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
+    var p = G.cellCenter((c && c.lastCell) || '22371_-50369');
+    map.setView([p.lat, p.lon], 17);
+    drawStreets();
+  }
+
+  function drawStreets() {
+    if (!map || !streets) return;
+    layers.streets.clearLayers();
+    var s = load(STREETS_KEY);
+    (s && s.ways || []).forEach(function (w) {
+      var pts = [];
+      for (var k = 1; k + 1 < w.length; k += 2) pts.push([w[k], w[k + 1]]);
+      L.polyline(pts, { color: '#555', weight: 3, opacity: 0.7, interactive: false }).addTo(layers.streets);
+    });
+  }
+
+  // Draws the cells: the stretch (orange), the cell you're in (outlined).
+  function drawCells(list, here, center) {
+    if (!map) return;
+    layers.cells.clearLayers();
+    (list || []).forEach(function (cell) {
+      L.rectangle(G.cellBounds(cell), { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.35, interactive: false }).addTo(layers.cells);
+    });
+    if (here) L.rectangle(G.cellBounds(here), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
+    if (center) { var p = G.cellCenter(center); map.setView([p.lat, p.lon], map.getZoom()); }
+    setTimeout(function () { map.invalidateSize(); }, 0);
+  }
+
+  var picking = null;   // { done(cell) } while a cell is being picked
+  function beginPick(near, why, done) {
+    picking = { done: done };
+    $('cl-pick').hidden = false;
+    $('cl-pick').textContent = why === 'rough' ? 'Your phone\'s location is rough just now. Tap the cell you\'re in on the map.'
+      : 'Your phone\'s location is off. Tap the cell you\'re in on the map.';
+    if (near) drawCells([], near, near);
+  }
+
+  function tapCell(cell) {
+    if (picking) {
+      var p = picking;
+      picking = null;
+      $('cl-pick').hidden = true;
+      Promise.resolve(p.done(cell)).catch(function (err) { app.notice(err.message); });
+      return;
+    }
+    if (pulse && pulse.whereMode) {
+      pulse.breakWhere = cell;
+      pulse.whereMode = false;
+      $('pf-where-shown').textContent = 'Where you were: the cell you tapped.';
+      return;
+    }
+    if (summary && summary.editing) return summaryTap(cell);
+    if (!pulse) return;
+    // Tapping a cell adds it to the stretch, or takes it out (Q286).
+    var i = pulse.cells.indexOf(cell);
+    if (i === -1) pulse.cells.push(cell); else if (pulse.cells.length > 1) pulse.cells.splice(i, 1);
+    showStretch();
+  }
+
+  /* ── The litter pulse (item 2) ── */
+
+  // kind: 'pulse', 'end', or 'pause' (the stretch that ended where you paused).
+  function beginPulse(kind, button) {
+    if (!c) return;
+    var pressedAt = Date.now();
+    var go = function (cell) {
+      var from = c.lastCell || c.current.startCell;
+      return fetchStreets(cell).catch(function () { /* measured straight until the streets load */ }).then(function () {
+        var suggested = streets ? streets.suggest(from, cell, c.way) : G.lineCells(G.centerXY(from), G.centerXY(cell));
+        pulse = { kind: kind, pressedAt: kind === 'pause' || (kind === 'end' && c.current.pausedAt) ? c.current.pausedAt : pressedAt, cell: cell,
+          cells: suggested.slice(), suggested: suggested, breakWhere: '' };
+        openPulse();
+      });
+    };
+    if (kind === 'pause' || (kind === 'end' && c.current.pausedAt)) return go(c.current.pauseCell);
+    app.busy(button, 'cl-err', function () {
+      return locate().then(function (loc) {
+        if (loc.cell) return go(loc.cell);
+        beginPick(loc.near, loc.why, go);
+      });
+    });
+  }
+
+  function openPulse() {
+    $('cl-actions').hidden = true;
+    $('cl-pulse').hidden = false;
+    $('pf-title').textContent = pulse.kind === 'end' ? 'End: your last litter pulse' : pulse.kind === 'pause' ? 'Weigh the stretch that ended where you paused' : 'Litter pulse';
+    $('pf-scale').value = '';
+    $('pf-newbag').checked = false;
+    $('pf-rating').value = '';
+    $('pf-break').value = '';
+    $('pf-where-shown').textContent = '';
+    $('pf-err').textContent = '';
+    $('pf-bag-hint').textContent = c.bagReset ? 'You started a new bag after the stretch you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
+    $('pf-end-row').hidden = pulse.kind !== 'end';
+    if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
+    $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
+    showTypes();
+    showStretch();
+    $('cl-pulse').scrollIntoView({ block: 'start' });
+  }
+
+  function showStretch() {
+    var m = streets ? streets.measure(pulse.cells) : { street: 0, off: G.CELL_M * pulse.cells.length };
+    pulse.m = m;
+    $('pf-stretch').textContent = 'Your stretch: ' + pulse.cells.length + ' cell' + (pulse.cells.length === 1 ? '' : 's') + ', ' +
+      round((m.street + m.off) / G.MILE_M, 2) + ' mi. Tap cells on the map to add or take them out.';
+    drawCells(pulse.cells, pulse.cell, pulse.cell);
+  }
+
+  function showTypes() {
+    var box = $('pf-types');
+    box.textContent = '';
+    types.forEach(function (t) {
+      var l = document.createElement('label');
+      l.className = 'lt-type';
+      var i = document.createElement('input');
+      i.type = 'checkbox';
+      i.value = t;
+      l.appendChild(i);
+      l.appendChild(document.createTextNode(' ' + t));
+      box.appendChild(l);
+    });
+  }
+
+  function addType(button) {
+    var name = $('pf-newtype').value.trim();
+    if (!name) return;
+    app.busy(button, 'pf-err', function () {
+      return app.api('addLitterType', { token: app.myToken(), type: name }).then(function (d) {
+        var ticked = picked();
+        types = d.types;
+        showTypes();
+        ticked.concat([d.added]).forEach(function (t) {
+          var i = document.querySelector('#pf-types input[value="' + t.replace(/"/g, '\\"') + '"]');
+          if (i) i.checked = true;
+        });
+        $('pf-newtype').value = '';
+      });
+    });
+  }
+
+  function picked() {
+    return Array.prototype.map.call(document.querySelectorAll('#pf-types input:checked'), function (i) { return i.value; });
+  }
+
+  function toTimeInput(ms) { var d = new Date(ms); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
+  function fromTimeInput(v, near) {
+    var m = /^(\d{2}):(\d{2})$/.exec(v || '');
+    if (!m) return near;
+    var d = new Date(near);
+    d.setHours(Number(m[1]), Number(m[2]), 0, 0);
+    if (d.getTime() > near + 60000) d.setDate(d.getDate() - 1);
+    return d.getTime();
+  }
+
+  // Saves the litter pulse on the phone, then sends it. `discard`: Discard
+  // this stretch (item 6, Q284, Q301).
+  function savePulse(discard) {
+    var err = $('pf-err');
+    var endedAt = pulse.kind === 'end' ? fromTimeInput($('pf-end').value, pulse.pressedAt) : pulse.pressedAt;
+    var lastEnd = c.current.startedAt;
+    if (endedAt < lastEnd) { err.textContent = 'The clock can\'t stop before your last litter pulse (' + clock(lastEnd) + ').'; return; }
+    var scale = $('pf-scale').value.trim();
+    var lbs = Number(scale.replace(/[^\d.]/g, ''));
+    if (!discard) {
+      if (scale === '' || !(lbs >= 0)) { err.textContent = 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this stretch.'; return; }
+      var before = c.bagReset ? 0 : c.scalePrev;
+      if (lbs < before) { err.textContent = 'The scale shows less than at your last litter pulse (' + before + ' lb). If you started a new bag then, the app needed to know: tick New bag at a pulse when you start one.'; return; }
+    }
+    var breakMin = Number($('pf-break').value) || 0;
+    var cur = c.current;
+    var pausedMin = cur.pausedMin || 0;
+    var stretch = {
+      key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
+      streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
+      breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
+      scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
+      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value
+    };
+    c.queue.push({ type: 'stretch', stretch: stretch });
+    // What the collection so far shows (Q260).
+    var minutes = Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin);
+    c.totals.minutes += minutes;
+    if (!discard) {
+      c.totals.pounds += lbs - (c.bagReset ? 0 : c.scalePrev);
+      c.totals.miles += (pulse.m.street + pulse.m.off) / G.MILE_M;
+      c.scalePrev = stretch.newBag ? 0 : lbs;
+      c.bagReset = false;
+    } else {
+      // Discard starts a new bag (until your answer on the card says otherwise).
+      c.scalePrev = 0;
+      c.bagReset = true;
+    }
+    c.n += 1;
+    c.lastCell = pulse.cell;
+    c.way = null;
+    var kind = pulse.kind;
+    if (kind === 'end') {
+      c.queue.push({ type: 'end', endedAt: endedAt });
+      c.ended = true;
+    } else if (kind === 'pause') {
+      // The new stretch starts where and when you resumed.
+      c.current = { startedAt: c.resumeAt, startCell: c.resumeCell, pausedMin: 0 };
+      c.lastCell = c.resumeCell;
+    } else {
+      c.current = { startedAt: endedAt, startCell: pulse.cell, pausedMin: 0 };
+    }
+    save();
+    pulse = null;
+    $('cl-pulse').hidden = true;
+    $('cl-actions').hidden = false;
+    drawCells([], c.lastCell, c.lastCell);
+    showStatus();
+    if (discard) app.notice('Stretch discarded. Start a new bag now, so your next weighing has only the next stretch\'s litter.');
+    else if (kind !== 'end') app.notice('Litter pulse saved.');
+    if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
+    flush();
+  }
+
+  /* ── Pause and Resume (item 6) ── */
+
+  function pauseOrResume(button) {
+    if (!c) return;
+    if (!c.current.pausedAt) {
+      // Pause asks you to weigh, strongly, but doesn't require it (Q283).
+      app.busy(button, 'cl-err', function () {
+        return locate().then(function (loc) {
+          c.current.pausedAt = Date.now();
+          c.current.pauseCell = loc.cell || loc.near || c.lastCell;
+          save();
+          showStatus();
+          app.notice('Paused. If you can, weigh your bag now: press Resume, then it asks for the weight.');
+        });
+      });
+      return;
+    }
+    app.busy(button, 'cl-err', function () {
+      return locate().then(function (loc) {
+        var cell = loc.cell || loc.near || c.current.pauseCell;
+        var cur = c.current;
+        if (cell === cur.pauseCell) {
+          // In the same cell, the stretch goes on, less the pause.
+          cur.pausedMin = (cur.pausedMin || 0) + (Date.now() - cur.pausedAt) / 60000;
+          delete cur.pausedAt; delete cur.pauseCell;
+          save();
+          showStatus();
+          return;
+        }
+        // In a different cell: weigh the stretch that ended where you paused first.
+        c.resumeAt = Date.now();
+        c.resumeCell = cell;
+        save();
+        return beginPulse('pause');
+      });
+    });
+  }
+
+  /* ── After End: the summary ── */
+
+  function showWaitingSummary() {
+    app.show('v-summary');
+    $('sm-list').textContent = '';
+    $('sm-wait').hidden = false;
+    $('sm-wait').textContent = 'Saving your collection…';
+    if (c && c.queue.length) $('sm-wait').textContent = 'Your collection is kept on this phone and saves when there\'s signal.' + (c.lastError ? ' HABO couldn\'t take it: ' + c.lastError : '');
+  }
+
+  function finish(d) {
+    var id = c.id;
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [] };
+    c = null;
+    save();
+    keep(STREETS_KEY, null);
+    showSummary();
+  }
+
+  function showSummary() {
+    app.show('v-summary');
+    $('sm-wait').hidden = true;
+    var col = summary.collection;
+    $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
+      (col.hoursNote ? ' (' + col.hoursNote + ')' : '');
+    var list = $('sm-list');
+    list.textContent = '';
+    summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
+  }
+
+  function stretchCard(s) {
+    var box = document.createElement('div');
+    box.className = 'card lt-stretch';
+    box.id = 'sm-' + s.id;
+    var h = document.createElement('h3');
+    h.textContent = 'Stretch ' + s.n + ' · ' + clock(s.started) + ' to ' + clock(s.ended);
+    box.appendChild(h);
+    var p = document.createElement('p');
+    p.className = 'lt-stretch-facts';
+    p.textContent = s.discarded ? 'Discarded: no reading. Its time still counts.' :
+      round(s.streetMi + s.offMi, 2) + ' mi · ' + Math.round(s.activeMin) + ' min · ' + (s.pounds == null ? '?' : s.pounds) + ' lb · ' +
+      (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
+    box.appendChild(p);
+    if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
+    if (s.track) { var tr = document.createElement('p'); tr.className = 'muted small'; tr.textContent = 'Its cells are from your GPX track.'; box.appendChild(tr); }
+    if (summary.gpx && summary.gpx[s.id]) box.appendChild(trackChoice(s, summary.gpx[s.id]));
+    if (!s.discarded) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary lt-fix';
+      b.textContent = 'Fix this stretch';
+      b.addEventListener('click', function () { openFix(s); });
+      box.appendChild(b);
+    }
+    return box;
+  }
+
+  // The summary's fixes (Q252, Q253): weight, litter types, visual rating, cells.
+  function openFix(s) {
+    summary.fixing = s;
+    $('sm-fix').hidden = false;
+    $('sf-title').textContent = 'Fix stretch ' + s.n;
+    $('sf-pounds').value = s.pounds == null ? '' : s.pounds;
+    $('sf-rating').value = s.rating == null ? '' : String(s.rating);
+    var box = $('sf-types');
+    box.textContent = '';
+    types.forEach(function (t) {
+      var l = document.createElement('label');
+      l.className = 'lt-type';
+      var i = document.createElement('input');
+      i.type = 'checkbox';
+      i.value = t;
+      i.checked = s.types.indexOf(t) !== -1;
+      l.appendChild(i);
+      l.appendChild(document.createTextNode(' ' + t));
+      box.appendChild(l);
+    });
+    summary.cells = s.cells.slice();
+    summary.editing = false;
+    $('sf-cells-note').textContent = s.cells.length + ' cells. To change them, press Change its cells, then tap cells on the map.';
+    $('sf-err').textContent = '';
+    $('sm-fix').scrollIntoView({ block: 'start' });
+  }
+
+  function editCells() {
+    summary.editing = true;
+    $('sm-map-box').hidden = false;
+    $('sm-map-box').appendChild($('cl-map'));
+    ensureMap();
+    loadStreets();
+    drawCells(summary.cells, null, summary.cells[0]);
+    $('sf-cells-note').textContent = summary.cells.length + ' cells. Tap a cell to add it or take it out.';
+  }
+
+  function summaryTap(cell) {
+    var i = summary.cells.indexOf(cell);
+    if (i === -1) summary.cells.push(cell); else if (summary.cells.length > 1) summary.cells.splice(i, 1);
+    drawCells(summary.cells, null, null);
+    $('sf-cells-note').textContent = summary.cells.length + ' cells. Tap a cell to add it or take it out.';
+  }
+
+  function saveFix(button) {
+    var s = summary.fixing;
+    var fix = { pounds: $('sf-pounds').value, rating: $('sf-rating').value,
+      types: Array.prototype.map.call(document.querySelectorAll('#sf-types input:checked'), function (i) { return i.value; }) };
+    if (summary.editing) {
+      var m = streets ? streets.measure(summary.cells) : { street: 0, off: G.CELL_M * summary.cells.length };
+      fix.cells = summary.cells; fix.streetMi = m.street / G.MILE_M; fix.offMi = m.off / G.MILE_M;
+    }
+    sendFix(button, s, fix);
+  }
+
+  function sendFix(button, s, fix) {
+    app.busy(button, 'sf-err', function () {
+      return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }).then(function (d) {
+        summary.collection = d.collection;
+        summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
+        if (summary.gpx) delete summary.gpx[s.id];
+        summary.editing = false;
+        $('sm-fix').hidden = true;
+        $('sm-map-box').hidden = true;
+        showSummary();
+        app.notice('Stretch ' + s.n + ' fixed.');
+      });
+    });
+  }
+
+  // A recorder's GPX file (Q227): each stretch's cells from the track points
+  // in its time; when they differ from the stretch you confirmed, both show
+  // and you choose. It never changes a stretch by itself (Q228).
+  function readGpx(file) {
+    var reader = new FileReader();
+    reader.onload = function () {
+      var doc = new DOMParser().parseFromString(String(reader.result), 'application/xml');
+      var pts = Array.prototype.map.call(doc.getElementsByTagName('trkpt'), function (p) {
+        var t = p.getElementsByTagName('time')[0];
+        return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
+      }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
+      if (!pts.length) { app.notice('That file has no track points with times.'); return; }
+      summary.gpx = {};
+      var n = 0;
+      summary.stretches.forEach(function (s) {
+        if (s.discarded) return;
+        var cells = [];
+        pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; }).forEach(function (p) {
+          var cell = G.cellAt(p.lat, p.lon);
+          if (cells[cells.length - 1] !== cell) cells.push(cell);
+        });
+        if (!cells.length) return;
+        var same = cells.length === s.cells.length && cells.every(function (x, i) { return x === s.cells[i]; });
+        if (!same) { summary.gpx[s.id] = cells; n++; }
+      });
+      showSummary();
+      app.notice(n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.');
+    };
+    reader.readAsText(file);
+  }
+
+  function trackChoice(s, cells) {
+    var box = document.createElement('div');
+    box.className = 'lt-track';
+    var m = streets ? streets.measure(cells) : { street: 0, off: G.CELL_M * cells.length };
+    var p = document.createElement('p');
+    p.textContent = 'Your track shows ' + cells.length + ' cells, ' + round((m.street + m.off) / G.MILE_M, 2) + ' mi; you confirmed ' + s.cells.length + ' cells, ' + round(s.streetMi + s.offMi, 2) + ' mi.';
+    box.appendChild(p);
+    var use = document.createElement('button');
+    use.type = 'button'; use.className = 'btn btn-primary lt-use-track'; use.textContent = 'Use the track\'s';
+    use.addEventListener('click', function () { sendFix(use, s, { cells: cells, streetMi: m.street / G.MILE_M, offMi: m.off / G.MILE_M, fromTrack: true }); });
+    var keepMine = document.createElement('button');
+    keepMine.type = 'button'; keepMine.className = 'btn btn-secondary lt-keep-mine'; keepMine.textContent = 'Keep mine';
+    keepMine.addEventListener('click', function () { delete summary.gpx[s.id]; showSummary(); });
+    box.appendChild(use);
+    box.appendChild(keepMine);
+    return box;
+  }
+
+  /* ── Wiring ── */
+
+  $('cl-start').addEventListener('click', function () { start($('cl-start')); });
+  $('cl-pulse-btn').addEventListener('click', function () { beginPulse('pulse', $('cl-pulse-btn')); });
+  $('cl-pause').addEventListener('click', function () { pauseOrResume($('cl-pause')); });
+  $('cl-end').addEventListener('click', function () { beginPulse('end', $('cl-end')); });
+  $('cl-back').addEventListener('click', function () { app.showAccount(); });
+  $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
+  $('pf-discard').addEventListener('click', function () { savePulse(true); });
+  $('pf-cancel').addEventListener('click', function () {
+    if (pulse && pulse.kind === 'pause') { app.notice('Weigh it, or press Discard this stretch.'); return; }
+    pulse = null; $('cl-pulse').hidden = true; $('cl-actions').hidden = false; drawCells([], c && c.lastCell, null);
+  });
+  $('pf-suggested').addEventListener('click', function () { if (pulse) { pulse.cells = pulse.suggested.slice(); showStretch(); } });
+  $('pf-addtype').addEventListener('click', function () { addType($('pf-addtype')); });
+  $('pf-where-tap').addEventListener('click', function () { if (pulse) { pulse.whereMode = true; $('pf-where-shown').textContent = 'Tap the cell on the map.'; } });
+  $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; } });
+  $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
+  $('sf-cells').addEventListener('click', editCells);
+  $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
+  $('sf-cancel').addEventListener('click', function () { summary.editing = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; });
+  $('sm-done').addEventListener('click', function () { summary = null; app.showAccount(); });
+
+  return {
+    onAccount: onAccount,
+    // Opening the page with a collection still going: back to it (Q282). One
+    // left alone past its hours is ended where its last stretch did (Q303).
+    resume: function () {
+      if (!c) return false;
+      if (c.ended) { showWaitingSummary(); flush(); return true; }
+      var last = c.queue.length ? c.queue[c.queue.length - 1].stretch.endedAt : c.current.startedAt;
+      if (Date.now() - last > settings.autoEndHours * 3600000 && !c.queue.length) return false;
+      openCollect();
+      return true;
+    },
+    busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
+    forget: function () { c = null; save(); keep(STREETS_KEY, null); }
+  };
+};
+</script>
 <script>
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
 // waiver, signing in on a new phone, and the account page. An account is
@@ -432,7 +1535,7 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -488,7 +1591,12 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
     return api('start', { token: myToken() }).then(function (d) {
       state.waiver = d.waiver;
       state.mapShows = d.mapShows || state.mapShows;
-      if (d.account) return showAccount(d.account);
+      if (d.account) {
+        state.account = d.account;
+        // A collection still going on this phone opens where it was (Q282).
+        if (d.account.waiverCurrent && collect.resume()) return;
+        return showAccount(d.account);
+      }
       if (d.signedOut) return signedOut();
       show('v-welcome');
     });
@@ -775,6 +1883,7 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
     $('me-form').hidden = true;
     $('me-edit').hidden = false;
     show('v-account');
+    collect.onAccount();
   }
 
   function startEdit() {
@@ -804,6 +1913,8 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
   }
 
   function signOut() {
+    if (collect.busyHere() && !window.confirm('A collection is going on this phone. Signing out ends it here, and litter pulses not yet sent are lost. Sign out anyway?')) return;
+    collect.forget();
     var t = myToken();
     keepToken('');
     state.account = null;
@@ -811,6 +1922,13 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
     show('v-welcome');
     notice('You\'re signed out on this phone.');
   }
+
+  /* ── Collecting (S3-P21, collect.js) ── */
+
+  var collect = window.LitterCollect({
+    $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
+    showAccount: function () { showAccount(state.account); }
+  });
 
   /* ── Wiring ── */
 
