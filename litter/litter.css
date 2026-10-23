@@ -6,6 +6,7 @@
 .lt-handle.no { color: var(--danger); }
 .lt-waiver { max-height: 300px; }
 .lt-back { margin-top: 10px; }
+.lt-sent { margin-bottom: 12px; }
 .lt-label { font-size: 0.76rem; color: var(--text-label); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; margin-bottom: 6px; }
 #me-form .btn-primary { margin-top: 6px; }
 

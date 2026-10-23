@@ -1,9 +1,10 @@
 /**
- * The litter page's own waiver (S3-P20, Q383 (b)): signed once, while
- * setting up an account, before the first collection (Q280). Its words are
- * the Settings tab's "Waiver title" and "Waiver text", changed from the
- * invoicing app's Litter screen (Q163) or by hand. Each signature is kept
- * with a fingerprint of the exact words shown, as at the check-in.
+ * The litter page's own waiver (S3-P20, Q383 (b)): signed while setting up
+ * an account, before the first collection (Q280), and again whenever its
+ * words change (Oct 23, in chat). Its words are the Settings tab's "Waiver
+ * title" and "Waiver text", changed from the invoicing app's Litter screen
+ * (Q163) or by hand. Each signature is kept with a fingerprint of the exact
+ * words shown, as at the check-in, and the person is emailed a copy.
  *
  * The words below are only where it starts: the draft on S3-P20, under
  * Q383, for Jeremy to change, and for an Alabama attorney or HABO's insurer
@@ -13,7 +14,7 @@
 var SEED_WAIVER_TITLE = 'HABO Litter Collection: Waiver and Release';
 
 var SEED_WAIVER_TEXT = [
-  'Read this before you set up your account. You sign it once, and it covers every collection you make with HABO\'s litter page.',
+  'Read this before you set up your account. It covers every collection you make with HABO\'s litter page. If its words change, you\'ll be asked to sign the new ones, and you\'re emailed a copy each time you sign.',
   '',
   '1. What this covers. I choose to collect litter on my own, or with people I bring, using HABO\'s litter page, at times and places I pick. When I collect this way, no one from Help A Brother Out Foundation ("HABO") is there to supervise me.',
   '',
@@ -39,7 +40,7 @@ var SEED_WAIVER_TEXT = [
   '',
   '8. Age. I\'m 18 or older.',
   '',
-  '9. My signature. I\'ve read this, I understand it, and I\'m signing it freely. My signature, with my typed name and the date, is my agreement, and it covers every collection I make.'
+  '9. My signature. I\'ve read this, I understand it, and I\'m signing it freely. My signature, with my typed name and the date, is my agreement, and it covers every collection I make until I sign newer words.'
 ].join('\n');
 
 var MAX_SIGNATURE_BYTES = 200 * 1024;
@@ -61,11 +62,57 @@ function signatureBytes_(dataUrl) {
   return bytes;
 }
 
+// Records one signing, setting up or signing new words: the drawn
+// signature saved in Drive, a row on Waiver Signatures, and the account's
+// latest signing. Call while holding the lock.
+function recordSignature_(account, w, bytes, now) {
+  var name = account.first + ' ' + account.last;
+  var link = saveSignature_(account.id, name, bytes, now);
+  var sheet = getDb_().getSheetByName(TABS.signatures.name);
+  var row = lastRowWith_(sheet, 2) + 1;
+  sheet.getRange(row, 1, 1, 9).setValues([[now, account.id, safeCell_(name), safeCell_(account.email), safeCell_(w.title), w.fingerprint,
+    safeCell_(name), link, '']]);
+  var accounts = getDb_().getSheetByName(TABS.accounts.name);
+  accounts.getRange(account.row, ACCOUNT_COL.signed, 1, 5).setValues([[now, safeCell_(w.title), w.fingerprint, safeCell_(name), link]]);
+  accounts.getRange(account.row, ACCOUNT_COL.updated).setValue(now);
+  logChange_(name, 'Signed', account.id + ' ' + account.handle, 'Waiver', account.waiverPrint, w.fingerprint);
+  return { row: row, at: now, title: w.title, text: w.text, fingerprint: w.fingerprint, name: name, bytes: bytes };
+}
+
 // Saves a signature in the Signatures folder beside the Sheet, made the
 // first time it's needed, and returns its link.
-function saveSignature_(accountId, name, bytes) {
-  var fileName = accountId + ' ' + name.replace(/[\\/:*?"<>|]+/g, ' ').trim() + ' waiver signature.png';
+function saveSignature_(accountId, name, bytes, now) {
+  var day = Utilities.formatDate(now, Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm');
+  var fileName = accountId + ' ' + name.replace(/[\\/:*?"<>|]+/g, ' ').trim() + ' waiver signature ' + day + '.png';
   return signaturesFolder_().createFile(Utilities.newBlob(bytes, 'image/png', fileName)).getUrl();
+}
+
+// Emails the person a copy of what they signed (Oct 23, in chat): the
+// waiver's title and words, their name, the time, and their signature.
+// Whether it went is kept on the signing's row; a failure doesn't undo it.
+function emailWaiverCopy_(account, s) {
+  var tz = Session.getScriptTimeZone();
+  var when = Utilities.formatDate(s.at, tz, "MMM d, yyyy 'at' h:mm a");
+  var plain = 'Hi ' + account.first + ',\n\n' +
+    'Here is a copy of the waiver you signed on HABO\'s litter page. Keep it for your records.\n\n' +
+    s.title + '\n\n' + s.text + '\n\n' +
+    'Signed by ' + s.name + ' on ' + when + ', Central time. Your signature is in the formatted version of this email.\n' +
+    'Waiver fingerprint: ' + s.fingerprint + '\n\n' +
+    'Help A Brother Out Foundation';
+  var html = '<p>Hi ' + htmlEscape_(account.first) + ',</p>' +
+    '<p>Here is a copy of the waiver you signed on HABO\'s litter page. Keep it for your records.</p>' +
+    '<div style="border:1px solid #d1d1d6;border-radius:10px;padding:14px 16px;margin:14px 0">' +
+    '<h2 style="font-size:18px;margin:0 0 10px">' + htmlEscape_(s.title) + '</h2>' +
+    '<div style="white-space:pre-wrap;font-size:14px;line-height:1.5">' + htmlEscape_(s.text) + '</div>' +
+    '<p style="margin:16px 0 4px">Signed by <b>' + htmlEscape_(s.name) + '</b> on ' + htmlEscape_(when) + ', Central time.</p>' +
+    '<img src="cid:signature" alt="Signature of ' + htmlEscape_(s.name) + '" style="display:block;max-width:320px;width:100%;border-bottom:1px solid #8e8e93">' +
+    '<p style="color:#6e6e73;font-size:12px;margin:8px 0 0">Waiver fingerprint: ' + s.fingerprint + '</p>' +
+    '</div>' +
+    '<p>Help A Brother Out Foundation</p>';
+  var sent = sendMail_(account.email, 'Your signed waiver: ' + s.title, plain, html,
+    { cid: 'signature', name: 'signature.png', type: 'image/png', bytes: s.bytes });
+  getDb_().getSheetByName(TABS.signatures.name).getRange(s.row, 9).setValue(sent.ok ? 'Sent ' + when : safeCell_('Not sent: ' + sent.why));
+  return sent;
 }
 
 function signaturesFolder_() {

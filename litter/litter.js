@@ -1,8 +1,11 @@
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
-// waiver, signing in on a new phone, and the account page. Load config.js
-// first. Opened on the litter web app's own link (its dev link, while it's
-// tried), the page calls the backend through google.script.run; on the
-// public site, it POSTs to config.js's API_URL.
+// waiver, signing in on a new phone, and the account page. An account is
+// an email: setting up and each new phone get a code there, and each
+// signed waiver is emailed as a copy. When the waiver's words change,
+// they're signed again before anything else (Oct 23, in chat).
+// Load config.js first. Opened on the litter web app's own link (its dev
+// link, while it's tried), the page calls the backend through
+// google.script.run; on the public site, it POSTs to config.js's API_URL.
 (function () {
   'use strict';
 
@@ -11,8 +14,8 @@
   var TOKEN_KEY = 'habo-litter-token';
   var SHOWS_WORDS = { Handle: 'My handle', Name: 'My name', Neither: 'Neither' };
 
-  var state = { waiver: null, mapShows: ['Handle', 'Name', 'Neither'], account: null, contact: '' };
-  var sig = null;
+  var state = { waiver: null, mapShows: ['Handle', 'Name', 'Neither'], account: null, email: '', setup: null };
+  var sigs = {};
 
   /* ── Backend ── */
 
@@ -41,29 +44,32 @@
     });
   }
 
-  function token() {
-    try { return localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; }
+  // The secret that keeps this phone signed in. In a private window, where
+  // it can't be kept, it lasts until the page closes.
+  var memoryToken = '';
+  function myToken() {
+    try { return localStorage.getItem(TOKEN_KEY) || memoryToken; } catch (e) { return memoryToken; }
   }
   function keepToken(t) {
+    memoryToken = t || '';
     try {
       if (t) localStorage.setItem(TOKEN_KEY, t);
       else localStorage.removeItem(TOKEN_KEY);
-    } catch (e) { /* private window: signed in until the page closes */ }
-    memoryToken = t || '';
+    } catch (e) { /* kept in memory only */ }
   }
-  var memoryToken = '';
-  function myToken() { return token() || memoryToken; }
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-signin', 'v-account'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account'];
 
   function $(id) { return document.getElementById(id); }
 
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     window.scrollTo(0, 0);
-    if (id === 'v-setup' && !sig) setupSignature();   // the signature box can only be measured once it's showing
+    // A signature box can only be measured once it's showing.
+    if (id === 'v-setup' && !sigs['su-sig']) setupSignature('su-sig', 'su-sig-clear');
+    if (id === 'v-resign' && !sigs['rs-sig']) setupSignature('rs-sig', 'rs-sig-clear');
   }
 
   function notice(text) {
@@ -79,6 +85,7 @@
     $(errBox).textContent = '';
     return work().catch(function (err) {
       if (err.code === 'signed-out') return signedOut();
+      if (err.code === 'waiver-new') return reopen();
       $(errBox).textContent = err.message;
     }).then(function () {
       button.disabled = false;
@@ -90,8 +97,8 @@
   function signedOut() {
     keepToken('');
     state.account = null;
-    notice('This phone isn\'t signed in anymore. Sign in again with your email or phone.');
     show('v-welcome');
+    notice('This phone isn\'t signed in anymore. Sign in again with your email.');
   }
 
   /* ── Opening the page ── */
@@ -99,18 +106,19 @@
   function open() {
     if (!inAppsScript && !config.API_URL) return show('v-soon');
     show('v-loading');
-    api('start', { token: myToken() }).then(function (d) {
+    return reopen().catch(function (err) {
+      $('trouble-msg').textContent = err.message;
+      show('v-trouble');
+    });
+  }
+
+  function reopen() {
+    return api('start', { token: myToken() }).then(function (d) {
       state.waiver = d.waiver;
       state.mapShows = d.mapShows || state.mapShows;
       if (d.account) return showAccount(d.account);
-      if (d.signedOut) {
-        keepToken('');
-        notice('This phone isn\'t signed in anymore. Sign in again with your email or phone.');
-      }
+      if (d.signedOut) return signedOut();
       show('v-welcome');
-    }, function (err) {
-      $('trouble-msg').textContent = err.message;
-      show('v-trouble');
     });
   }
 
@@ -159,64 +167,128 @@
     });
   }
 
+  function showWaiver(prefix) {
+    var w = state.waiver || {};
+    $(prefix + '-waiver-title').textContent = w.title || 'Waiver';
+    $(prefix + '-waiver-text').textContent = w.text || 'The waiver isn\'t ready yet, so it can\'t be signed. Please try again later.';
+  }
+
+  function signedAs(boxId, name) {
+    var today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    $(boxId).textContent = name ? 'Signed as ' + name + ', ' + today + '.' : 'Your name and today\'s date go with your signature.';
+  }
+
   /* ── Setting up ── */
 
   function startSetup() {
     notice('');
-    var w = state.waiver || {};
-    $('su-waiver-title').textContent = w.title || 'Waiver';
-    $('su-waiver-text').textContent = w.text || 'The waiver isn\'t ready yet, so accounts can\'t be set up. Please try again later.';
+    showWaiver('su');
     if (!$('su-shows').childNodes.length) showsChoices('su-shows', 'su-shows', 'Handle');
-    signedAs();
+    setupSignedAs();
     show('v-setup');
   }
 
-  function signedAs() {
-    var name = ($('su-first').value.trim() + ' ' + $('su-last').value.trim()).trim();
-    var today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    $('su-signed-as').textContent = name ? 'Signed as ' + name + ', ' + today + '.' : 'Your name and today\'s date go with your signature.';
+  function setupSignedAs() {
+    signedAs('su-signed-as', ($('su-first').value.trim() + ' ' + $('su-last').value.trim()).trim());
   }
 
+  // The form, checked here first; the backend checks it all again.
   function submitSetup(e) {
     e.preventDefault();
     var err = $('su-err');
     var ask = {
-      firstName: $('su-first').value, lastName: $('su-last').value, email: $('su-email').value, phone: $('su-phone').value,
+      firstName: $('su-first').value, lastName: $('su-last').value, email: $('su-email').value,
       handle: $('su-handle').value, mapShows: picked('su-shows') || 'Handle', adult: $('su-adult').checked,
       agree: $('su-agree').checked, waiverPrint: (state.waiver || {}).fingerprint || ''
     };
     if (!ask.firstName.trim() || !ask.lastName.trim()) { err.textContent = 'Please enter your first and last name.'; return; }
-    if (!ask.email.trim() && !ask.phone.trim()) { err.textContent = 'Please enter your email or phone number.'; return; }
+    if (!ask.email.trim()) { err.textContent = 'Please enter your email. Your codes and your copy of the waiver come there.'; return; }
     if (!ask.handle.trim()) { err.textContent = 'Please pick a handle.'; return; }
     if (!ask.adult) { err.textContent = 'Accounts are for people 18 or older. A family collects under a parent\'s account.'; return; }
     if (!ask.agree) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
+    var sig = sigs['su-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
     ask.signature = sig.canvas.toDataURL('image/png');
     busy($('su-submit'), 'su-err', function () {
       return api('setUp', ask).then(function (d) {
+        state.setup = ask;
+        codeSent('sc-sent', d);
+        $('sc-code').value = '';
+        $('sc-err').textContent = '';
+        show('v-setup-code');
+        $('sc-code').focus();
+      }, function (er) { return waiverChanged(er, 'su'); });
+    });
+  }
+
+  function codeSent(boxId, d) {
+    $(boxId).textContent = 'We sent a 6-digit code to ' + d.sentTo + '. It works for ' + d.minutes + ' minutes.';
+  }
+
+  function submitSetupCode(e) {
+    e.preventDefault();
+    busy($('sc-submit'), 'sc-err', function () {
+      return api('setUp', Object.assign({}, state.setup, { code: $('sc-code').value })).then(function (d) {
         keepToken(d.token);
+        state.setup = null;
         $('v-setup').reset();
-        clearSignature();
+        clearSignature('su-sig');
         showAccount(d.account);
-        notice('Your account is set up.');
+        notice(d.copySent ? 'Your account is set up. A copy of the waiver you signed is on its way to your email.'
+          : 'Your account is set up. Your copy of the waiver couldn\'t be emailed just now; HABO keeps it.');
       }, function (er) {
         if (er.code !== 'waiver-changed') throw er;
-        // Shows the new words, to be read and signed again.
-        return api('start', {}).then(function (d) {
-          state.waiver = d.waiver;
-          $('su-agree').checked = false;
-          clearSignature();
-          startSetup();
-          notice(er.message);
-        });
+        // The words changed while the code was on its way: back to the form.
+        return waiverChanged(er, 'su').then(function () { startSetup(); notice(er.message); });
       });
     });
   }
 
-  /* ── Signature pad (as at the check-in) ── */
+  // The waiver's words changed while they read: shows the new ones, to be
+  // read and signed again from the top.
+  function waiverChanged(er, prefix) {
+    if (er.code !== 'waiver-changed') throw er;
+    return api('start', {}).then(function (d) {
+      state.waiver = d.waiver;
+      $(prefix + '-agree').checked = false;
+      clearSignature(prefix + '-sig');
+      showWaiver(prefix);
+      window.scrollTo(0, 0);
+      notice(er.message);
+    });
+  }
 
-  function setupSignature() {
-    var canvas = $('su-sig');
+  /* ── Signing the waiver's new words ── */
+
+  function startResign() {
+    showWaiver('rs');
+    $('rs-agree').checked = false;
+    $('rs-err').textContent = '';
+    show('v-resign');
+    clearSignature('rs-sig');
+    var a = state.account;
+    signedAs('rs-signed-as', a.firstName + ' ' + a.lastName);
+  }
+
+  function submitResign(e) {
+    e.preventDefault();
+    var err = $('rs-err');
+    if (!$('rs-agree').checked) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
+    var sig = sigs['rs-sig'];
+    if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
+    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png') };
+    busy($('rs-submit'), 'rs-err', function () {
+      return api('signWaiver', ask).then(function (d) {
+        showAccount(d.account);
+        notice(d.copySent ? 'Signed. A copy is on its way to your email.' : 'Signed. Your copy couldn\'t be emailed just now; HABO keeps it.');
+      }, function (er) { return waiverChanged(er, 'rs'); });
+    });
+  }
+
+  /* ── Signature pads (as at the check-in) ── */
+
+  function setupSignature(canvasId, clearId) {
+    var canvas = $(canvasId);
     var ratio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
     var w = canvas.clientWidth, h = canvas.clientHeight;
     canvas.width = Math.round(w * ratio);
@@ -226,7 +298,7 @@
     ctx.lineWidth = 2.5;
     ctx.lineCap = ctx.lineJoin = 'round';
     ctx.strokeStyle = ctx.fillStyle = '#111';
-    sig = { canvas: canvas, ctx: ctx, w: w, h: h, ink: 0 };
+    var sig = sigs[canvasId] = { canvas: canvas, ctx: ctx, w: w, h: h, ink: 0 };
     var last = null;
     // In the canvas's own coordinates, even if the screen has since rotated.
     var pos = function (e) {
@@ -255,10 +327,11 @@
     ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (t) {
       canvas.addEventListener(t, function () { last = null; });
     });
-    $('su-sig-clear').addEventListener('click', clearSignature);
+    $(clearId).addEventListener('click', function () { clearSignature(canvasId); });
   }
 
-  function clearSignature() {
+  function clearSignature(canvasId) {
+    var sig = sigs[canvasId];
     if (!sig) return;
     sig.ctx.clearRect(0, 0, sig.w, sig.h);
     sig.ink = 0;
@@ -270,28 +343,21 @@
     notice('');
     $('si-code-box').hidden = true;
     $('si-resend-row').hidden = true;
-    $('si-contact').disabled = false;
+    $('si-email').disabled = false;
     $('si-code').value = '';
     $('si-err').textContent = '';
     $('si-submit').textContent = 'Continue';
     show('v-signin');
-    $('si-contact').focus();
-  }
-
-  function signedIn(d) {
-    keepToken(d.token);
-    showAccount(d.account);
-    notice('You\'re signed in on this phone.');
+    $('si-email').focus();
   }
 
   function askForCode(button) {
-    state.contact = $('si-contact').value;
-    return api('signInStart', { contact: state.contact }).then(function (d) {
-      if (!d.needsCode) return signedIn(d);
-      $('si-sent').textContent = 'We sent a 6-digit code to ' + d.sentTo + '. It works for ' + d.minutes + ' minutes.';
+    state.email = $('si-email').value;
+    return api('signInStart', { email: state.email }).then(function (d) {
+      codeSent('si-sent', d);
       $('si-code-box').hidden = false;
       $('si-resend-row').hidden = false;
-      $('si-contact').disabled = true;
+      $('si-email').disabled = true;
       $('si-code').value = '';
       $('si-code').focus();
       button.dataset.after = 'Sign in';
@@ -306,7 +372,11 @@
       return;
     }
     busy(button, 'si-err', function () {
-      return api('signInCode', { contact: state.contact, code: $('si-code').value }).then(signedIn);
+      return api('signInCode', { email: state.email, code: $('si-code').value }).then(function (d) {
+        keepToken(d.token);
+        showAccount(d.account);
+        notice('You\'re signed in on this phone.');
+      });
     });
   }
 
@@ -320,15 +390,16 @@
 
   function showAccount(a) {
     state.account = a;
+    notice('');
+    if (!a.waiverCurrent) return startResign();
     $('me-handle').textContent = a.handle;
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
     $('me-shows').textContent = { Handle: 'Your handle', Name: 'Your name', Neither: 'Neither your name nor your handle' }[a.mapShows] || a.mapShows;
-    $('me-email').textContent = a.email || 'None';
-    $('me-phone').textContent = a.phone || 'None';
+    $('me-email').textContent = a.email;
     $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
     $('me-match').textContent = a.matched
       ? 'Matched to your HABO volunteer record.'
-      : 'Not matched yet. It will be when you check in at a HABO event with the same email or phone.';
+      : 'Not matched yet. It will be when you check in at a HABO event with the same email.';
     $('me-form').hidden = true;
     $('me-edit').hidden = false;
     show('v-account');
@@ -365,8 +436,8 @@
     keepToken('');
     state.account = null;
     api('signOut', { token: t }).catch(function () { /* this phone forgets it either way */ });
-    notice('You\'re signed out on this phone.');
     show('v-welcome');
+    notice('You\'re signed out on this phone.');
   }
 
   /* ── Wiring ── */
@@ -378,9 +449,18 @@
     b.addEventListener('click', function () { notice(''); show('v-welcome'); });
   });
   $('v-setup').addEventListener('submit', submitSetup);
-  $('su-first').addEventListener('input', signedAs);
-  $('su-last').addEventListener('input', signedAs);
+  $('su-first').addEventListener('input', setupSignedAs);
+  $('su-last').addEventListener('input', setupSignedAs);
   watchHandle('su-handle', 'su-handle-msg', false);
+  $('v-setup-code').addEventListener('submit', submitSetupCode);
+  $('sc-resend').addEventListener('click', function () {
+    busy($('sc-submit'), 'sc-err', function () {
+      return api('setUp', state.setup).then(function (d) { codeSent('sc-sent', d); $('sc-code').value = ''; $('sc-code').focus(); });
+    });
+  });
+  $('sc-back').addEventListener('click', function () { notice(''); show('v-setup'); });
+  $('v-resign').addEventListener('submit', submitResign);
+  $('rs-signout').addEventListener('click', signOut);
   $('v-signin').addEventListener('submit', submitSignin);
   $('si-resend').addEventListener('click', function () {
     var button = $('si-submit');

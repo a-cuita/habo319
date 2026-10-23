@@ -22,13 +22,22 @@ var TABS = {
     widths: [220, 640]
   },
   // One row per litter tracking account (Q257, Q262): set up once, on the
-  // litter page, the first time someone opens it (Q263).
+  // litter page, the first time someone opens it (Q263), with an email and
+  // no phone (Oct 23, in chat). The waiver columns are the latest signing.
   accounts: {
     name: 'Accounts',
-    header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Phone', 'Handle', 'Map shows', '18 or older',
+    header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
       'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Signed name', 'Signature', 'Check-in volunteer', 'Updated', 'Status'],
-    widths: [90, 150, 130, 130, 220, 130, 150, 100, 90, 150, 280, 130, 180, 280, 130, 150, 80],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 7: '@', 10: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm' }
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 180, 280, 130, 150, 80],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm' }
+  },
+  // Every time someone signs the waiver: setting up, and again each time its
+  // words change (Oct 23, in chat), with whether their emailed copy went.
+  signatures: {
+    name: 'Waiver Signatures',
+    header: ['Signed', 'Account ID', 'Name', 'Email', 'Waiver', 'Waiver fingerprint', 'Signed name', 'Signature', 'Copy emailed'],
+    widths: [150, 90, 180, 220, 280, 130, 180, 280, 220],
+    formats: { 1: 'yyyy-mm-dd h:mm' }
   },
   // One row per phone or browser an account is signed in on. Only a
   // fingerprint of each sign-in's secret is kept, never the secret itself.
@@ -49,12 +58,12 @@ var TABS = {
 
 var SETTING_WAIVER_TITLE = 'Waiver title';
 var SETTING_WAIVER_TEXT = 'Waiver text';
-var SETTING_CODE_FROM = 'Code email from';
+var SETTING_EMAILS_FROM = 'Emails from';
 var SETTING_CHECKIN_SHEET = 'Check-in Sheet';
 var SETTING_SIGNATURES_FOLDER = 'Signatures folder';
 var SETTING_PUBLIC_URL = 'Public page URL';
 var DEFAULT_PUBLIC_URL = 'https://a-cuita.github.io/habo319/litter/';
-var DEFAULT_CODE_FROM = 'helpabrotherout.319@gmail.com';   // Q384 (a)
+var DEFAULT_EMAILS_FROM = 'helpabrotherout.319@gmail.com';   // Q384 (a): codes and waiver copies
 var DEFAULT_CHECKIN_SHEET = 'https://docs.google.com/spreadsheets/d/1aWB5Foa0fZ6qTAGdW8yU6SmKLHeiC7OabZv_zrKnNhY/edit';
 
 // Actions the page can call, by name. Each handler gets the parsed request.
@@ -65,6 +74,7 @@ function actions_() {
     start: start_,
     handleFree: handleFree_,
     setUp: setUp_,
+    signWaiver: signWaiver_,
     signInStart: signInStart_,
     signInCode: signInCode_,
     updateMe: updateMe_,
@@ -183,7 +193,7 @@ function missingSettings_(ss) {
   return [
     [SETTING_WAIVER_TITLE, SEED_WAIVER_TITLE],
     [SETTING_WAIVER_TEXT, SEED_WAIVER_TEXT],
-    [SETTING_CODE_FROM, DEFAULT_CODE_FROM],
+    [SETTING_EMAILS_FROM, DEFAULT_EMAILS_FROM],
     [SETTING_CHECKIN_SHEET, DEFAULT_CHECKIN_SHEET],
     [SETTING_SIGNATURES_FOLDER, ''],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL]
