@@ -47,6 +47,29 @@ var TABS = {
     widths: [90, 90, 420, 150, 150, 160, 150],
     formats: { 4: 'yyyy-mm-dd h:mm', 5: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm' }
   },
+  // Collecting (S3-P21): one row per collection, one per stretch, and the
+  // litter types (Collect.js).
+  collections: {
+    name: 'Collections',
+    header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
+      'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@' }
+  },
+  stretches: {
+    name: 'Stretches',
+    header: ['Stretch ID', 'Collection ID', 'Account ID', 'Number', 'Started', 'Ended', 'Cells', 'Street miles', 'Off-street miles',
+      'Active minutes', 'Paused minutes', 'Break minutes', 'Break where', 'Scale (lb)', 'New bag', 'Pounds', 'CPUE', 'Litter Index',
+      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key'],
+    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120],
+    formats: { 5: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 7: '@', 13: '@', 24: 'yyyy-mm-dd h:mm', 25: '@' }
+  },
+  types: {
+    name: 'Litter Types',
+    header: ['Litter type', 'Added by', 'Status', 'Added'],
+    widths: [260, 90, 160, 150],
+    formats: { 4: 'yyyy-mm-dd h:mm' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -78,7 +101,13 @@ function actions_() {
     signInStart: signInStart_,
     signInCode: signInCode_,
     updateMe: updateMe_,
-    signOut: signOut_
+    signOut: signOut_,
+    collectStart: collectStart_,
+    collectStretch: collectStretch_,
+    collectEnd: collectEnd_,
+    collectFix: collectFix_,
+    collectLoad: collectLoad_,
+    addLitterType: addLitterType_
   };
 }
 
@@ -163,6 +192,11 @@ function ensureSchema_(force) {
     if (ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone()) ss.setSpreadsheetTimeZone(Session.getScriptTimeZone());
     Object.keys(TABS).forEach(function (k) { ensureTab_(ss, TABS[k]); });
     Object.keys(TABS).forEach(function (k) { ensureColumns_(ss, TABS[k]); });
+    // MoCiSN's 15 litter types, the first time (Q346).
+    var types = ss.getSheetByName(TABS.types.name);
+    if (types.getLastRow() < 2) {
+      types.getRange(2, 1, SEED_LITTER_TYPES.length, 4).setValues(SEED_LITTER_TYPES.map(function (t) { return [t, '', TYPE_SHARED, '']; }));
+    }
     // A new bound Sheet starts with an empty "Sheet1".
     var first = ss.getSheetByName('Sheet1');
     if (first && ss.getSheets().length > 1 && first.getLastRow() === 0) ss.deleteSheet(first);
@@ -196,7 +230,11 @@ function missingSettings_(ss) {
     [SETTING_EMAILS_FROM, DEFAULT_EMAILS_FROM],
     [SETTING_CHECKIN_SHEET, DEFAULT_CHECKIN_SHEET],
     [SETTING_SIGNATURES_FOLDER, ''],
-    [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL]
+    [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
+    [SETTING_SUNSET_WARN, '60'],
+    [SETTING_NO_START, '15'],
+    [SETTING_AUTO_END, '12'],
+    [SETTING_EDIT_HOURS, '48']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
