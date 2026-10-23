@@ -14,6 +14,7 @@ window.LitterCollect = function (app) {
   var STREETS_KEY = 'habo-litter-streets';
   var OVERPASS = 'https://overpass-api.de/api/interpreter';
   var ROUGH_M = G.CELL_M / 2;   // a location rougher than half a cell is asked to be tapped (Q313)
+  var HOME_CELL = '22371_-50369';   // downtown Montgomery: where sunset is reckoned with no collection going
 
   var c = load(KEY);            // the collection on this phone, or null
   var streets = null, streetsBox = null;
@@ -125,8 +126,7 @@ window.LitterCollect = function (app) {
 
   // From an hour before sunset, loudly, whenever the page is open (Q375, Q377).
   function showSun(box, cell) {
-    var where = cell || (c && c.lastCell) || null;
-    if (!where) { box.hidden = true; return; }
+    var where = cell || (c && c.lastCell) || HOME_CELL;
     var s = sunAt(where), now = Date.now();
     box.hidden = !(now >= s.sunset - settings.sunsetWarnMin * 60000 || now < s.sunrise);
     box.textContent = now >= s.sunset ? 'The sun has set (' + clock(s.sunset) + '). No XP is earned after sunset, and a stretch that goes past it earns no volunteer hours.'
@@ -215,7 +215,7 @@ window.LitterCollect = function (app) {
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     layers = { streets: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
     map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
-    var p = G.cellCenter((c && c.lastCell) || '22371_-50369');
+    var p = G.cellCenter((c && c.lastCell) || HOME_CELL);
     map.setView([p.lat, p.lon], 16);
     drawStreets();
   }
