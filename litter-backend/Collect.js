@@ -236,7 +236,7 @@ function checkStretch_(s, col, account) {
 
 // The stretch's pounds: what the scale shows now, less what it showed at the
 // last weighing of the same bag (item 5). A new bag, or a discarded stretch
-// just before (Discard starts a new bag), starts again from nothing.
+// just before (Discard starts a new bag, Q389), starts again from nothing.
 function poundsOf_(x, prev) {
   var before = 0;
   for (var k = prev.length - 1; k >= 0; k--) {

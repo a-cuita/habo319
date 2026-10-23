@@ -406,7 +406,7 @@ window.LitterCollect = function (app) {
       c.scalePrev = stretch.newBag ? 0 : lbs;
       c.bagReset = false;
     } else {
-      // Discard starts a new bag (until your answer on the card says otherwise).
+      // Discard starts a new bag, so the next weighing has only the next stretch's litter (Q389).
       c.scalePrev = 0;
       c.bagReset = true;
     }

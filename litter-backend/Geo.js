@@ -64,7 +64,8 @@ var LitterGeo = (function () {
   /* ── Streets ── */
 
   // The OpenStreetMap ways that count as streets (Q385): an Overpass query
-  // for the box around a place. Interstates and their ramps are left out.
+  // for the box around a place. Every road and path people can walk, but not
+  // interstates and their ramps (Q388).
   var NOT_STREETS = 'motorway|motorway_link|construction|proposed|abandoned|razed|raceway|bus_guideway|elevator|platform|corridor|bridleway';
   function overpassQuery(south, west, north, east) {
     return '[out:json][timeout:25];way["highway"]["highway"!~"^(' + NOT_STREETS + ')$"]["area"!="yes"](' +
