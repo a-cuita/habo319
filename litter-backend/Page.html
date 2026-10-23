@@ -999,7 +999,7 @@ window.LitterCollect = function (app) {
     layers = { streets: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
     map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
     var p = G.cellCenter((c && c.lastCell) || '22371_-50369');
-    map.setView([p.lat, p.lon], 17);
+    map.setView([p.lat, p.lon], 16);
     drawStreets();
   }
 
@@ -1097,7 +1097,8 @@ window.LitterCollect = function (app) {
     $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
     showTypes();
     showStretch();
-    $('cl-pulse').scrollIntoView({ block: 'start' });
+    // The map stays in view: the stretch is changed by tapping it.
+    $('cl-map-box').scrollIntoView({ block: 'start' });
   }
 
   function showStretch() {
@@ -1230,6 +1231,7 @@ window.LitterCollect = function (app) {
           c.current.pauseCell = loc.cell || loc.near || c.lastCell;
           save();
           showStatus();
+          button.dataset.after = 'Resume';
           app.notice('Paused. If you can, weigh your bag now: press Resume, then it asks for the weight.');
         });
       });
@@ -1245,6 +1247,7 @@ window.LitterCollect = function (app) {
           delete cur.pausedAt; delete cur.pauseCell;
           save();
           showStatus();
+          button.dataset.after = 'Pause';
           return;
         }
         // In a different cell: weigh the stretch that ended where you paused first.
@@ -1259,6 +1262,7 @@ window.LitterCollect = function (app) {
   /* ── After End: the summary ── */
 
   function showWaitingSummary() {
+    app.notice('');
     app.show('v-summary');
     $('sm-list').textContent = '';
     $('sm-wait').hidden = false;
