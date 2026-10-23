@@ -17,10 +17,10 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
-  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25 };
+  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26 };
 var TYPE_COL = { type: 1, addedBy: 2, status: 3, added: 4 };
 
 // MoCiSN's 15 litter types (Q346).
@@ -53,7 +53,7 @@ function collectStart_(req) {
   return withLock_(function () {
     endLeftAlone_(account);
     var open = openCollection_(account.id);
-    if (open) return { collection: collectionView_(open), settings: collectSettings_(), already: true };
+    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true };
     var sheet = getDb_().getSheetByName(TABS.collections.name);
     var rows = readRows_(TABS.collections);
     var id = nextId_('L', rows.map(function (r) { return r.values[0]; }));
@@ -69,7 +69,7 @@ function collectStart_(req) {
     row[COLLECTION_COL.updated - 1] = now;
     row[COLLECTION_COL.key - 1] = clean_(req.key, 80);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), already: false };
+    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false };
   });
 }
 
@@ -103,7 +103,7 @@ function collectStretch_(req) {
     put('scale', x.scale === '' ? '' : x.scale); put('newBag', x.newBag ? 'Yes' : ''); put('pounds', x.pounds === '' ? '' : round_(x.pounds, 2));
     put('cpue', r.cpue == null ? '' : round_(r.cpue, 3)); put('index', r.index == null ? '' : round_(r.index, 3));
     put('types', safeCell_(x.types.join('; '))); put('rating', x.rating); put('discarded', x.discarded ? 'Yes' : '');
-    put('pastSunset', x.pastSunset ? 'Yes' : ''); put('track', ''); put('received', new Date()); put('key', key);
+    put('pastSunset', x.pastSunset ? 'Yes' : ''); put('track', ''); put('received', new Date()); put('key', key); put('asked', x.asked ? 'Asked' : '');
     var sheet = getDb_().getSheetByName(TABS.stretches.name);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     var cs = getDb_().getSheetByName(TABS.collections.name);
@@ -169,6 +169,17 @@ function collectFix_(req) {
       set('offMi', 'Off-street miles', round_(milesValue_(f.offMi), 3));
       if (f.fromTrack) set('track', 'From the track', 'Yes');
     }
+    // A break entered afterward comes off the stretch's time (item 6), once
+    // the break question has asked about it (item 7, S3-P22).
+    if (f.breakMin != null && r.get('discarded') !== 'Yes') {
+      var brk = nonNegative_(f.breakMin);
+      var whole = (new Date(r.get('ended')).getTime() - new Date(r.get('started')).getTime()) / 60000 - (Number(r.get('pausedMin')) || 0);
+      if (brk > whole) throw new Error('The break is longer than the stretch (' + Math.round(whole) + ' minutes).');
+      set('breakMin', 'Break minutes', round_(brk, 1));
+      set('breakWhere', 'Break where', brk ? (f.breakWhere === 'Not sure' || !f.breakWhere ? 'Not sure' : cleanCell_(f.breakWhere)) : '');
+      set('activeMin', 'Active minutes', round_(Math.max(0, whole - brk), 1));
+    }
+    if (f.breakAsked) set('asked', 'Break question', 'Asked');
     // The reading again, from what it has now.
     var now = readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0];
     var lbs = now.get('pounds') === '' ? null : Number(now.get('pounds'));
@@ -190,7 +201,7 @@ function collectLoad_(req) {
   if (col && col.account !== account.id) col = null;
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
-    settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id)
+    settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id)
   };
 }
 
@@ -229,7 +240,7 @@ function checkStretch_(s, col, account) {
   return {
     n: n, started: started, ended: ended, cells: cells, streetMi: milesValue_(s.streetMi), offMi: milesValue_(s.offMi),
     pausedMin: pausedMin, breakMin: breakMin, breakWhere: s.breakWhere === 'Not sure' ? 'Not sure' : s.breakWhere ? cleanCell_(s.breakWhere) : '',
-    activeMin: activeMin, scale: scale, newBag: s.newBag === true, discarded: discarded,
+    activeMin: activeMin, scale: scale, newBag: s.newBag === true, discarded: discarded, asked: s.breakAsked === true,
     types: discarded ? [] : cleanTypes_(s.types || [], account), rating: discarded ? '' : cleanRating_(s.rating)
   };
 }
@@ -302,11 +313,16 @@ function blankRow_(tab) { return tab.header.map(function () { return ''; }); }
 
 function readCollection_(id) {
   var r = readRows_(TABS.collections).filter(function (q) { return q.get('id') === id; })[0];
-  if (!r) return null;
+  return r ? collectionOf_(r) : null;
+}
+
+// A Collections row as a collection, its times in milliseconds.
+function collectionOf_(r) {
   var t = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : v; };
   return { row: r.row, id: t('id'), account: t('account'), handle: t('handle'), started: t('started'), startCell: t('startCell'),
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
-    miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed') };
+    miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
+    hidden: !!t('hidden') };
 }
 
 function openCollection_(accountId) {
@@ -317,15 +333,19 @@ function openCollection_(accountId) {
 function stretchesOf_(collectionId) {
   return readRows_(TABS.stretches).filter(function (q) { return q.get('collection') === collectionId; })
     .sort(function (a, b) { return Number(a.get('n')) - Number(b.get('n')); })
-    .map(function (q) {
-      var ms = function (k) { var v = q.get(k); return v instanceof Date ? v.getTime() : Number(v) || 0; };
-      return { row: q.row, id: q.get('id'), n: Number(q.get('n')), started: ms('started'), ended: ms('ended'), cells: String(q.get('cells')).split(/\s+/).filter(String),
-        streetMi: Number(q.get('streetMi')) || 0, offMi: Number(q.get('offMi')) || 0, activeMin: Number(q.get('activeMin')) || 0,
-        pounds: q.get('pounds') === '' ? null : Number(q.get('pounds')), cpue: q.get('cpue') === '' ? null : Number(q.get('cpue')),
-        index: q.get('index') === '' ? null : Number(q.get('index')), types: String(q.get('types')).split('; ').filter(String),
-        rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
-        newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key') };
-    });
+    .map(stretchOf_);
+}
+
+// A Stretches row as a stretch, its times in milliseconds.
+function stretchOf_(q) {
+  var ms = function (k) { var v = q.get(k); return v instanceof Date ? v.getTime() : Number(v) || 0; };
+  return { row: q.row, id: q.get('id'), n: Number(q.get('n')), started: ms('started'), ended: ms('ended'), cells: String(q.get('cells')).split(/\s+/).filter(String),
+    streetMi: Number(q.get('streetMi')) || 0, offMi: Number(q.get('offMi')) || 0, activeMin: Number(q.get('activeMin')) || 0,
+    pounds: q.get('pounds') === '' ? null : Number(q.get('pounds')), cpue: q.get('cpue') === '' ? null : Number(q.get('cpue')),
+    index: q.get('index') === '' ? null : Number(q.get('index')), types: String(q.get('types')).split('; ').filter(String),
+    rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
+    newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'),
+    pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked' };
 }
 
 function stretchView_(q) { return stretchViewOf_(stretchesOf_(q.get('collection')).filter(function (s) { return s.id === q.get('id'); })[0]); }
@@ -454,7 +474,8 @@ function minutesSetting_(name, fallback) {
 
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
-    autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48) };
+    autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), colours: mapColours_() };
 }
 
 function round_(n, places) { var f = Math.pow(10, places); return Math.round(Number(n) * f) / f; }

@@ -3,8 +3,9 @@
 // with its fixes and a recorder's GPX file. The phone keeps the collection as
 // it goes, so a litter pulse works with no signal; each stretch waits in a
 // queue until it reaches HABO (Q242, Q255), and closing the page doesn't end
-// a collection (Q282). Load geo.js and Leaflet first; litter.js calls
-// LitterCollect(app) with its helpers.
+// a collection (Q282). Step 3 (S3-P22): the summary's map of its readings,
+// and the break question after 10 collections (item 7). Load geo.js and
+// Leaflet first; litter.js calls LitterCollect(app) with its helpers.
 window.LitterCollect = function (app) {
   'use strict';
 
@@ -22,7 +23,8 @@ window.LitterCollect = function (app) {
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
   var types = [];
-  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48 };
+  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
+  var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
 
   /* ── Kept on the phone ── */
@@ -106,6 +108,7 @@ window.LitterCollect = function (app) {
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
       types = d.types || [];
+      pace = d.pace || null;
       var h = d.hours || { collections: 0, hours: 0 };
       $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
       // A collection open here but ended there (left alone 12 hours): forget it.
@@ -172,6 +175,7 @@ window.LitterCollect = function (app) {
     }
     return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid() }).then(function (d) {
       settings = d.settings || settings;
+      pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, way: null, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false };
@@ -266,6 +270,12 @@ window.LitterCollect = function (app) {
       $('pf-where-shown').textContent = 'Where you were: the cell you tapped.';
       return;
     }
+    if (summary && summary.whereMode) {
+      summary.breakWhere = cell;
+      summary.whereMode = false;
+      $('sf-where-shown').textContent = 'Where you were: the cell you tapped.';
+      return;
+    }
     if (summary && summary.editing) return summaryTap(cell);
     if (!pulse) return;
     // Tapping a cell adds it to the stretch, or takes it out (Q286).
@@ -308,6 +318,7 @@ window.LitterCollect = function (app) {
     $('pf-break').value = '';
     $('pf-where-shown').textContent = '';
     $('pf-err').textContent = '';
+    $('pf-odd').hidden = true;
     $('pf-bag-hint').textContent = c.bagReset ? 'You started a new bag after the stretch you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
     $('pf-end-row').hidden = pulse.kind !== 'end';
     if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
@@ -389,12 +400,24 @@ window.LitterCollect = function (app) {
     var breakMin = Number($('pf-break').value) || 0;
     var cur = c.current;
     var pausedMin = cur.pausedMin || 0;
+    // The break question (item 7): once you have enough collections, a
+    // stretch much slower than your usual pace asks; it never takes time off.
+    if (!discard && !pulse.askedBreak) {
+      var odd = oddTime(Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin), (pulse.m.street + pulse.m.off) / G.MILE_M);
+      if (odd) {
+        pulse.askedBreak = true;
+        $('pf-odd-why').textContent = oddWords(odd);
+        $('pf-odd').hidden = false;
+        $('pf-odd').scrollIntoView({ block: 'center' });
+        return;
+      }
+    }
     var stretch = {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
       scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
-      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value
+      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak
     };
     c.queue.push({ type: 'stretch', stretch: stretch });
     // What the collection so far shows (Q260).
@@ -434,6 +457,18 @@ window.LitterCollect = function (app) {
     else if (kind !== 'end') app.notice('Litter pulse saved.');
     if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
     flush();
+  }
+
+  // A stretch's time much longer than your usual pace says (item 7): more
+  // than twice it, and at least 10 minutes more. Only once you have as many
+  // collections as the setting says (10 to start, Q392 (a)).
+  function oddTime(minutes, miles) {
+    if (!pace || pace.minPerMile == null || pace.collections < (settings.breakAfter || pace.after || 10) || !(miles > 0)) return null;
+    var usual = pace.minPerMile * miles;
+    return minutes > Math.max(2 * usual, usual + 10) ? { minutes: minutes, usual: usual } : null;
+  }
+  function oddWords(odd) {
+    return 'This stretch took ' + Math.round(odd.minutes) + ' minutes. At your usual pace, it would take about ' + Math.max(1, Math.round(odd.usual)) + '.';
   }
 
   /* ── Pause and Resume (item 6) ── */
@@ -505,6 +540,51 @@ window.LitterCollect = function (app) {
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
+    drawReadings();
+  }
+
+  // After you save, your stretches on the map with their readings (Q245),
+  // in the map's colours; a cell the track points to is outlined (item 7).
+  function drawReadings() {
+    $('sm-view-box').hidden = false;
+    $('sm-view-box').appendChild($('cl-map'));
+    ensureMap();
+    if (!map) return;
+    layers.cells.clearLayers();
+    var b = L.latLngBounds([]);
+    summary.stretches.forEach(function (s) {
+      if (s.discarded) return;
+      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, settings.colours);
+      s.cells.forEach(function (cell) {
+        var r = L.rectangle(G.cellBounds(cell), { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.7 });
+        r.bindPopup('Stretch ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
+        r.addTo(layers.cells);
+        b.extend(G.cellBounds(cell));
+      });
+    });
+    Object.keys(summary.stops || {}).forEach(function (id) {
+      L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
+    });
+    setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
+  }
+
+  function allCells() {
+    var out = [];
+    summary.stretches.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (out.indexOf(x) === -1) out.push(x); }); });
+    return out;
+  }
+
+  // A saved collection's summary, from the account page, for its fixes.
+  function openPast(id, button) {
+    app.busy(button, 'cl-start-err', function () {
+      return app.api('collectLoad', { token: app.myToken(), collectionId: id }).then(function (d) {
+        settings = d.settings || settings;
+        types = d.types || types;
+        pace = d.pace || pace;
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [] };
+        showSummary();
+      });
+    });
   }
 
   function stretchCard(s) {
@@ -523,6 +603,8 @@ window.LitterCollect = function (app) {
     if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
     if (s.track) { var tr = document.createElement('p'); tr.className = 'muted small'; tr.textContent = 'Its cells are from your GPX track.'; box.appendChild(tr); }
     if (summary.gpx && summary.gpx[s.id]) box.appendChild(trackChoice(s, summary.gpx[s.id]));
+    var odd = !s.discarded && !s.asked ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
+    if (odd) box.appendChild(oddQuestion(s, odd));
     if (!s.discarded) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -534,10 +616,43 @@ window.LitterCollect = function (app) {
     return box;
   }
 
-  // The summary's fixes (Q252, Q253): weight, litter types, visual rating, cells.
-  function openFix(s) {
+  // The break question on the summary (item 7), for a stretch saved without
+  // it: Yes opens the fix with a break; No keeps the stretch as it is. With
+  // a recorder's track, it points to the cell where the track stopped longest.
+  function oddQuestion(s, odd) {
+    var box = document.createElement('div');
+    box.className = 'lt-odd';
+    var q = document.createElement('p');
+    q.className = 'lt-odd-q';
+    q.textContent = 'Did you take a break, or get distracted?';
+    box.appendChild(q);
+    var p = document.createElement('p');
+    var stop = summary.stops && summary.stops[s.id];
+    p.textContent = oddWords(odd) + (stop ? ' Your track stayed about ' + Math.round(stop.minutes) + ' minutes in one cell, outlined on the map.' : '');
+    box.appendChild(p);
+    var yes = document.createElement('button');
+    yes.type = 'button'; yes.className = 'btn btn-primary lt-odd-yes'; yes.textContent = 'Yes: add a break';
+    yes.addEventListener('click', function () { openFix(s, true); });
+    var no = document.createElement('button');
+    no.type = 'button'; no.className = 'btn btn-secondary lt-odd-no'; no.textContent = 'No: it\'s right as it is';
+    no.addEventListener('click', function () { sendFix(no, s, { breakAsked: true }); });
+    box.appendChild(yes);
+    box.appendChild(no);
+    return box;
+  }
+
+  // The summary's fixes (Q252, Q253): weight, litter types, visual rating,
+  // cells; and a break, when the break question asked (item 7).
+  function openFix(s, withBreak) {
     summary.fixing = s;
+    summary.withBreak = !!withBreak;
     $('sm-fix').hidden = false;
+    $('sf-break-row').hidden = !withBreak;
+    $('sf-break').value = s.breakMin ? String(s.breakMin) : '';
+    var stop = summary.stops && summary.stops[s.id];
+    summary.breakWhere = stop ? stop.cell : '';
+    summary.whereMode = false;
+    $('sf-where-shown').textContent = stop ? 'Where you were: the cell your track points to.' : '';
     $('sf-title').textContent = 'Fix stretch ' + s.n;
     $('sf-pounds').value = s.pounds == null ? '' : s.pounds;
     $('sf-rating').value = s.rating == null ? '' : String(s.rating);
@@ -563,6 +678,7 @@ window.LitterCollect = function (app) {
 
   function editCells() {
     summary.editing = true;
+    $('sm-view-box').hidden = true;
     $('sm-map-box').hidden = false;
     $('sm-map-box').appendChild($('cl-map'));
     ensureMap();
@@ -586,6 +702,11 @@ window.LitterCollect = function (app) {
       var m = streets ? streets.measure(summary.cells) : { street: 0, off: G.CELL_M * summary.cells.length };
       fix.cells = summary.cells; fix.streetMi = m.street / G.MILE_M; fix.offMi = m.off / G.MILE_M;
     }
+    if (summary.withBreak) {
+      fix.breakMin = Number($('sf-break').value) || 0;
+      fix.breakWhere = fix.breakMin ? (summary.breakWhere || 'Not sure') : '';
+      fix.breakAsked = true;
+    }
     sendFix(button, s, fix);
   }
 
@@ -596,10 +717,12 @@ window.LitterCollect = function (app) {
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.gpx) delete summary.gpx[s.id];
         summary.editing = false;
+        summary.withBreak = false;
+        summary.whereMode = false;
         $('sm-fix').hidden = true;
         $('sm-map-box').hidden = true;
         showSummary();
-        app.notice('Stretch ' + s.n + ' fixed.');
+        app.notice(fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Stretch ' + s.n + ' fixed.');
       });
     });
   }
@@ -616,10 +739,14 @@ window.LitterCollect = function (app) {
         return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
       if (!pts.length) { app.notice('That file has no track points with times.'); return; }
+      pts.sort(function (a, b) { return a.t - b.t; });
       summary.gpx = {};
+      summary.stops = {};
       var n = 0;
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
+        var stop = longestStop(pts, s);
+        if (stop && !s.asked && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
         var cells = [];
         pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; }).forEach(function (p) {
           var cell = G.cellAt(p.lat, p.lon);
@@ -633,6 +760,19 @@ window.LitterCollect = function (app) {
       app.notice(n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.');
     };
     reader.readAsText(file);
+  }
+
+  // Where the track stayed longest in one cell during a stretch (item 7):
+  // { cell, minutes }, or null for under 5 minutes.
+  function longestStop(pts, s) {
+    var best = null, run = null;
+    pts.forEach(function (p) {
+      if (p.t < s.started || p.t > s.ended) return;
+      var cell = G.cellAt(p.lat, p.lon);
+      if (run && run.cell === cell) run.last = p.t; else run = { cell: cell, first: p.t, last: p.t };
+      if (!best || run.last - run.first > best.last - best.first) best = { cell: run.cell, first: run.first, last: run.last };
+    });
+    return best && best.last - best.first >= 5 * 60000 ? { cell: best.cell, minutes: (best.last - best.first) / 60000 } : null;
   }
 
   function trackChoice(s, cells) {
@@ -673,11 +813,17 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
-  $('sf-cancel').addEventListener('click', function () { summary.editing = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; });
+  $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });
+  $('sf-where-tap').addEventListener('click', function () { if (summary) { summary.whereMode = true; $('sf-where-shown').textContent = 'Tap the cell on the map.'; $('sm-view-box').scrollIntoView({ block: 'start' }); } });
+  $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
   $('sm-done').addEventListener('click', function () { summary = null; app.showAccount(); });
+  $('sm-map-open').addEventListener('click', function () { app.openMap(allCells(), function () { app.show('v-summary'); drawReadings(); }); });
+  $('pf-odd-yes').addEventListener('click', function () { $('pf-odd').hidden = true; $('pf-break').focus(); $('pf-break').scrollIntoView({ block: 'center' }); });
+  $('pf-odd-no').addEventListener('click', function () { $('pf-odd').hidden = true; savePulse(false); });
 
   return {
     onAccount: onAccount,
+    openPast: openPast,
     // Opening the page with a collection still going: back to it (Q282). One
     // left alone past its hours is ended where its last stretch did (Q303).
     resume: function () {

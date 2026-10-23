@@ -192,6 +192,27 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
 .lt-fix { margin-top: 10px; }
 .lt-track { margin-top: 10px; padding: 10px; border-radius: var(--radius-sm); background: var(--primary-dim); }
 @media (max-width: 380px) { .lt-types { grid-template-columns: 1fr; } }
+
+/* The map and your collections (S3-P22). */
+.lt-legend { margin-top: 10px; }
+.lt-legend-bar { height: 14px; border-radius: 7px; border: 1px solid var(--border); }
+.lt-legend-marks { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; gap: 8px; }
+.lt-pop strong { display: block; font-size: 1rem; }
+.lt-col { border-top: 1px solid var(--border); padding: 12px 0; }
+.lt-col:first-child { border-top: 0; padding-top: 0; }
+.lt-col-head { font-weight: 800; }
+.lt-col-facts { font-weight: 600; color: var(--accent); }
+.lt-col-stretches { list-style: none; padding: 0; margin: 6px 0 0; font-size: 0.92rem; }
+.lt-col-stretches li { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+.lt-swatch { flex: none; width: 14px; height: 14px; border-radius: 3px; border: 1px solid rgba(0, 0, 0, 0.25); }
+.lt-swatch.none { background: repeating-linear-gradient(45deg, #e5e7eb, #e5e7eb 3px, #fff 3px, #fff 6px); }
+.lt-col-hidden { margin-top: 6px; font-size: 0.88rem; font-weight: 600; color: #92400e; background: #fef3c7; padding: 6px 10px; border-radius: var(--radius-sm); }
+.lt-col-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.lt-col-row .btn { width: auto; min-height: 0; padding: 8px 14px; margin-top: 0; }
+.lt-odd { margin: 10px 0; padding: 12px; border-radius: var(--radius-sm); background: #fef3c7; border: 2px solid #f59e0b; }
+.lt-odd-q { font-weight: 800; color: #92400e; margin-bottom: 4px; }
+.lt-odd .btn { margin-top: 8px; }
+#sm-map-open { margin-bottom: 12px; }
 </style>
 </head>
 <body>
@@ -226,6 +247,7 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
     </section>
     <button class="btn btn-primary" id="go-setup" type="button">Set up my account</button>
     <button class="btn btn-secondary" id="go-signin" type="button">I already have an account</button>
+    <button class="btn btn-secondary" id="go-map" type="button">See the map</button>
   </div>
 
   <!-- Setting up an account, with the waiver (S3-P20, items 2 and 3). -->
@@ -382,6 +404,12 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
         <input id="pf-end" type="time">
         <p class="muted small">If you pressed End late, set the time you stopped.</p>
       </div>
+      <div class="lt-odd" id="pf-odd" hidden>
+        <p class="lt-odd-q">Did you take a break, or get distracted?</p>
+        <p id="pf-odd-why"></p>
+        <button class="btn btn-primary" id="pf-odd-yes" type="button">Yes: add a break</button>
+        <button class="btn btn-secondary" id="pf-odd-no" type="button">No: save it as it is</button>
+      </div>
       <button class="btn btn-accent" id="pf-save" type="submit">Save litter pulse</button>
       <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
       <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
@@ -396,6 +424,8 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
       <p id="sm-totals"></p>
       <p class="muted" id="sm-wait" hidden></p>
     </section>
+    <div class="lt-map-box" id="sm-view-box" hidden></div>
+    <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
     <section class="card">
       <label class="lt-label" for="sm-gpx">A recorder's GPX file (optional)</label>
@@ -413,6 +443,17 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
         <label for="sf-rating">Visual rating</label>
         <select id="sf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
       </div>
+      <div id="sf-break-row" hidden>
+        <div class="ig">
+          <label for="sf-break">A break in this stretch, in minutes</label>
+          <input id="sf-break" inputmode="numeric" autocomplete="off">
+          <div class="lt-where">
+            <button class="link-btn" id="sf-where-tap" type="button">Where were you? Tap the cell</button>
+            <button class="link-btn" id="sf-where-unsure" type="button">Not sure</button>
+          </div>
+          <p class="muted small" id="sf-where-shown"></p>
+        </div>
+      </div>
       <p class="muted small" id="sf-cells-note"></p>
       <button class="btn btn-secondary" id="sf-cells" type="button">Change its cells</button>
       <div class="lt-map-box" id="sm-map-box" hidden></div>
@@ -421,6 +462,18 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
       <p class="err" id="sf-err" role="alert"></p>
     </form>
     <button class="btn btn-primary" id="sm-done" type="button">Done</button>
+  </div>
+
+  <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
+  <div id="v-map" hidden>
+    <section class="card">
+      <h2>The litter map</h2>
+      <p class="muted small">Each square is a tenth of a mile on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <div class="lt-legend" id="mp-legend"></div>
+    </section>
+    <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
+    <p class="muted small" id="mp-note"></p>
+    <button class="btn btn-secondary" id="mp-back" type="button">Back</button>
   </div>
 
   <!-- On a new phone (item 5). -->
@@ -488,7 +541,15 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
       <p class="lt-sun" id="cl-account-sun" hidden></p>
       <p id="cl-hours"></p>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
+      <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
+    </section>
+
+    <!-- Your collections (S3-P22, item 15): each with its stretches; no means. -->
+    <section class="card" id="my-collections" hidden>
+      <h2>Your collections</h2>
+      <div id="my-list"></div>
+      <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
     </section>
 
     <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -751,6 +812,19 @@ var LitterGeo = (function () {
     return { cpue: cpue, index: Math.sqrt(cpue) };
   }
 
+  /* ── The colour of a reading (S3-P22, items 12 and 16) ── */
+
+  // A Litter Index's colour on a fixed scale from 0 to 10, blended from the
+  // colours at 0, 5 and 10 (["#rrggbb", ...]); past 10 it stays the colour at
+  // 10. The same reading is the same colour on every screen.
+  function indexColour(index, colours) {
+    var v = Math.max(0, Math.min(10, Number(index) || 0));
+    var a = v <= 5 ? colours[0] : colours[1], b = v <= 5 ? colours[1] : colours[2], t = v <= 5 ? v / 5 : (v - 5) / 5;
+    var rgb = function (h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); };
+    var x = rgb(a), y = rgb(b);
+    return '#' + x.map(function (c, i) { return ('0' + Math.round(c + (y[i] - c) * t).toString(16)).slice(-2); }).join('');
+  }
+
   /* ── Sunrise and sunset (item 20) ── */
 
   // When the sun rises and sets on the day `noon` falls in, at a place, as
@@ -777,7 +851,7 @@ var LitterGeo = (function () {
   return {
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, lineCells: lineCells, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
-    Streets: Streets, reading: reading, sunTimes: sunTimes
+    Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();
 </script>
@@ -787,8 +861,9 @@ var LitterGeo = (function () {
 // with its fixes and a recorder's GPX file. The phone keeps the collection as
 // it goes, so a litter pulse works with no signal; each stretch waits in a
 // queue until it reaches HABO (Q242, Q255), and closing the page doesn't end
-// a collection (Q282). Load geo.js and Leaflet first; litter.js calls
-// LitterCollect(app) with its helpers.
+// a collection (Q282). Step 3 (S3-P22): the summary's map of its readings,
+// and the break question after 10 collections (item 7). Load geo.js and
+// Leaflet first; litter.js calls LitterCollect(app) with its helpers.
 window.LitterCollect = function (app) {
   'use strict';
 
@@ -806,7 +881,8 @@ window.LitterCollect = function (app) {
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
   var types = [];
-  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48 };
+  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
+  var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
 
   /* ── Kept on the phone ── */
@@ -890,6 +966,7 @@ window.LitterCollect = function (app) {
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
       types = d.types || [];
+      pace = d.pace || null;
       var h = d.hours || { collections: 0, hours: 0 };
       $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
       // A collection open here but ended there (left alone 12 hours): forget it.
@@ -956,6 +1033,7 @@ window.LitterCollect = function (app) {
     }
     return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid() }).then(function (d) {
       settings = d.settings || settings;
+      pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, way: null, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false };
@@ -1050,6 +1128,12 @@ window.LitterCollect = function (app) {
       $('pf-where-shown').textContent = 'Where you were: the cell you tapped.';
       return;
     }
+    if (summary && summary.whereMode) {
+      summary.breakWhere = cell;
+      summary.whereMode = false;
+      $('sf-where-shown').textContent = 'Where you were: the cell you tapped.';
+      return;
+    }
     if (summary && summary.editing) return summaryTap(cell);
     if (!pulse) return;
     // Tapping a cell adds it to the stretch, or takes it out (Q286).
@@ -1092,6 +1176,7 @@ window.LitterCollect = function (app) {
     $('pf-break').value = '';
     $('pf-where-shown').textContent = '';
     $('pf-err').textContent = '';
+    $('pf-odd').hidden = true;
     $('pf-bag-hint').textContent = c.bagReset ? 'You started a new bag after the stretch you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
     $('pf-end-row').hidden = pulse.kind !== 'end';
     if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
@@ -1173,12 +1258,24 @@ window.LitterCollect = function (app) {
     var breakMin = Number($('pf-break').value) || 0;
     var cur = c.current;
     var pausedMin = cur.pausedMin || 0;
+    // The break question (item 7): once you have enough collections, a
+    // stretch much slower than your usual pace asks; it never takes time off.
+    if (!discard && !pulse.askedBreak) {
+      var odd = oddTime(Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin), (pulse.m.street + pulse.m.off) / G.MILE_M);
+      if (odd) {
+        pulse.askedBreak = true;
+        $('pf-odd-why').textContent = oddWords(odd);
+        $('pf-odd').hidden = false;
+        $('pf-odd').scrollIntoView({ block: 'center' });
+        return;
+      }
+    }
     var stretch = {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
       scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
-      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value
+      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak
     };
     c.queue.push({ type: 'stretch', stretch: stretch });
     // What the collection so far shows (Q260).
@@ -1218,6 +1315,18 @@ window.LitterCollect = function (app) {
     else if (kind !== 'end') app.notice('Litter pulse saved.');
     if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
     flush();
+  }
+
+  // A stretch's time much longer than your usual pace says (item 7): more
+  // than twice it, and at least 10 minutes more. Only once you have as many
+  // collections as the setting says (10 to start, Q392 (a)).
+  function oddTime(minutes, miles) {
+    if (!pace || pace.minPerMile == null || pace.collections < (settings.breakAfter || pace.after || 10) || !(miles > 0)) return null;
+    var usual = pace.minPerMile * miles;
+    return minutes > Math.max(2 * usual, usual + 10) ? { minutes: minutes, usual: usual } : null;
+  }
+  function oddWords(odd) {
+    return 'This stretch took ' + Math.round(odd.minutes) + ' minutes. At your usual pace, it would take about ' + Math.max(1, Math.round(odd.usual)) + '.';
   }
 
   /* ── Pause and Resume (item 6) ── */
@@ -1289,6 +1398,51 @@ window.LitterCollect = function (app) {
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
+    drawReadings();
+  }
+
+  // After you save, your stretches on the map with their readings (Q245),
+  // in the map's colours; a cell the track points to is outlined (item 7).
+  function drawReadings() {
+    $('sm-view-box').hidden = false;
+    $('sm-view-box').appendChild($('cl-map'));
+    ensureMap();
+    if (!map) return;
+    layers.cells.clearLayers();
+    var b = L.latLngBounds([]);
+    summary.stretches.forEach(function (s) {
+      if (s.discarded) return;
+      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, settings.colours);
+      s.cells.forEach(function (cell) {
+        var r = L.rectangle(G.cellBounds(cell), { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.7 });
+        r.bindPopup('Stretch ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
+        r.addTo(layers.cells);
+        b.extend(G.cellBounds(cell));
+      });
+    });
+    Object.keys(summary.stops || {}).forEach(function (id) {
+      L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
+    });
+    setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
+  }
+
+  function allCells() {
+    var out = [];
+    summary.stretches.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (out.indexOf(x) === -1) out.push(x); }); });
+    return out;
+  }
+
+  // A saved collection's summary, from the account page, for its fixes.
+  function openPast(id, button) {
+    app.busy(button, 'cl-start-err', function () {
+      return app.api('collectLoad', { token: app.myToken(), collectionId: id }).then(function (d) {
+        settings = d.settings || settings;
+        types = d.types || types;
+        pace = d.pace || pace;
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [] };
+        showSummary();
+      });
+    });
   }
 
   function stretchCard(s) {
@@ -1307,6 +1461,8 @@ window.LitterCollect = function (app) {
     if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
     if (s.track) { var tr = document.createElement('p'); tr.className = 'muted small'; tr.textContent = 'Its cells are from your GPX track.'; box.appendChild(tr); }
     if (summary.gpx && summary.gpx[s.id]) box.appendChild(trackChoice(s, summary.gpx[s.id]));
+    var odd = !s.discarded && !s.asked ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
+    if (odd) box.appendChild(oddQuestion(s, odd));
     if (!s.discarded) {
       var b = document.createElement('button');
       b.type = 'button';
@@ -1318,10 +1474,43 @@ window.LitterCollect = function (app) {
     return box;
   }
 
-  // The summary's fixes (Q252, Q253): weight, litter types, visual rating, cells.
-  function openFix(s) {
+  // The break question on the summary (item 7), for a stretch saved without
+  // it: Yes opens the fix with a break; No keeps the stretch as it is. With
+  // a recorder's track, it points to the cell where the track stopped longest.
+  function oddQuestion(s, odd) {
+    var box = document.createElement('div');
+    box.className = 'lt-odd';
+    var q = document.createElement('p');
+    q.className = 'lt-odd-q';
+    q.textContent = 'Did you take a break, or get distracted?';
+    box.appendChild(q);
+    var p = document.createElement('p');
+    var stop = summary.stops && summary.stops[s.id];
+    p.textContent = oddWords(odd) + (stop ? ' Your track stayed about ' + Math.round(stop.minutes) + ' minutes in one cell, outlined on the map.' : '');
+    box.appendChild(p);
+    var yes = document.createElement('button');
+    yes.type = 'button'; yes.className = 'btn btn-primary lt-odd-yes'; yes.textContent = 'Yes: add a break';
+    yes.addEventListener('click', function () { openFix(s, true); });
+    var no = document.createElement('button');
+    no.type = 'button'; no.className = 'btn btn-secondary lt-odd-no'; no.textContent = 'No: it\'s right as it is';
+    no.addEventListener('click', function () { sendFix(no, s, { breakAsked: true }); });
+    box.appendChild(yes);
+    box.appendChild(no);
+    return box;
+  }
+
+  // The summary's fixes (Q252, Q253): weight, litter types, visual rating,
+  // cells; and a break, when the break question asked (item 7).
+  function openFix(s, withBreak) {
     summary.fixing = s;
+    summary.withBreak = !!withBreak;
     $('sm-fix').hidden = false;
+    $('sf-break-row').hidden = !withBreak;
+    $('sf-break').value = s.breakMin ? String(s.breakMin) : '';
+    var stop = summary.stops && summary.stops[s.id];
+    summary.breakWhere = stop ? stop.cell : '';
+    summary.whereMode = false;
+    $('sf-where-shown').textContent = stop ? 'Where you were: the cell your track points to.' : '';
     $('sf-title').textContent = 'Fix stretch ' + s.n;
     $('sf-pounds').value = s.pounds == null ? '' : s.pounds;
     $('sf-rating').value = s.rating == null ? '' : String(s.rating);
@@ -1347,6 +1536,7 @@ window.LitterCollect = function (app) {
 
   function editCells() {
     summary.editing = true;
+    $('sm-view-box').hidden = true;
     $('sm-map-box').hidden = false;
     $('sm-map-box').appendChild($('cl-map'));
     ensureMap();
@@ -1370,6 +1560,11 @@ window.LitterCollect = function (app) {
       var m = streets ? streets.measure(summary.cells) : { street: 0, off: G.CELL_M * summary.cells.length };
       fix.cells = summary.cells; fix.streetMi = m.street / G.MILE_M; fix.offMi = m.off / G.MILE_M;
     }
+    if (summary.withBreak) {
+      fix.breakMin = Number($('sf-break').value) || 0;
+      fix.breakWhere = fix.breakMin ? (summary.breakWhere || 'Not sure') : '';
+      fix.breakAsked = true;
+    }
     sendFix(button, s, fix);
   }
 
@@ -1380,10 +1575,12 @@ window.LitterCollect = function (app) {
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.gpx) delete summary.gpx[s.id];
         summary.editing = false;
+        summary.withBreak = false;
+        summary.whereMode = false;
         $('sm-fix').hidden = true;
         $('sm-map-box').hidden = true;
         showSummary();
-        app.notice('Stretch ' + s.n + ' fixed.');
+        app.notice(fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Stretch ' + s.n + ' fixed.');
       });
     });
   }
@@ -1400,10 +1597,14 @@ window.LitterCollect = function (app) {
         return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
       if (!pts.length) { app.notice('That file has no track points with times.'); return; }
+      pts.sort(function (a, b) { return a.t - b.t; });
       summary.gpx = {};
+      summary.stops = {};
       var n = 0;
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
+        var stop = longestStop(pts, s);
+        if (stop && !s.asked && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
         var cells = [];
         pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; }).forEach(function (p) {
           var cell = G.cellAt(p.lat, p.lon);
@@ -1417,6 +1618,19 @@ window.LitterCollect = function (app) {
       app.notice(n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.');
     };
     reader.readAsText(file);
+  }
+
+  // Where the track stayed longest in one cell during a stretch (item 7):
+  // { cell, minutes }, or null for under 5 minutes.
+  function longestStop(pts, s) {
+    var best = null, run = null;
+    pts.forEach(function (p) {
+      if (p.t < s.started || p.t > s.ended) return;
+      var cell = G.cellAt(p.lat, p.lon);
+      if (run && run.cell === cell) run.last = p.t; else run = { cell: cell, first: p.t, last: p.t };
+      if (!best || run.last - run.first > best.last - best.first) best = { cell: run.cell, first: run.first, last: run.last };
+    });
+    return best && best.last - best.first >= 5 * 60000 ? { cell: best.cell, minutes: (best.last - best.first) / 60000 } : null;
   }
 
   function trackChoice(s, cells) {
@@ -1457,11 +1671,17 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
-  $('sf-cancel').addEventListener('click', function () { summary.editing = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; });
+  $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });
+  $('sf-where-tap').addEventListener('click', function () { if (summary) { summary.whereMode = true; $('sf-where-shown').textContent = 'Tap the cell on the map.'; $('sm-view-box').scrollIntoView({ block: 'start' }); } });
+  $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
   $('sm-done').addEventListener('click', function () { summary = null; app.showAccount(); });
+  $('sm-map-open').addEventListener('click', function () { app.openMap(allCells(), function () { app.show('v-summary'); drawReadings(); }); });
+  $('pf-odd-yes').addEventListener('click', function () { $('pf-odd').hidden = true; $('pf-break').focus(); $('pf-break').scrollIntoView({ block: 'center' }); });
+  $('pf-odd-no').addEventListener('click', function () { $('pf-odd').hidden = true; savePulse(false); });
 
   return {
     onAccount: onAccount,
+    openPast: openPast,
     // Opening the page with a collection still going: back to it (Q282). One
     // left alone past its hours is ended where its last stretch did (Q303).
     resume: function () {
@@ -1478,8 +1698,176 @@ window.LitterCollect = function (app) {
 };
 </script>
 <script>
+// The map and your collections on the litter page (S3-P22, the litter
+// class's step 3). The public map: every cell a saved collection covered,
+// coloured by its latest Litter Index on a fixed scale (items 10, 12, 16);
+// tap one for its reading, the day and who collected it, as they chose
+// (Q317). Anyone can open it, with no account (Q391 (a)). Your collections:
+// on the account page, each with its stretches' readings and visual
+// ratings, and no means (item 15). Load geo.js and Leaflet first; litter.js
+// calls LitterMap(app) with its helpers.
+window.LitterMap = function (app) {
+  'use strict';
+
+  var G = window.LitterGeo;
+  var $ = app.$;
+  var HOME_CELL = '22371_-50369';   // downtown Montgomery
+  var SHOW_FIRST = 10;              // collections listed before "Show all"
+  var map = null, layer = null, back = null;
+  var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'];
+  var mine = null, showAll = false;
+
+  function round(n, p) { var f = Math.pow(10, p); return Math.round(n * f) / f; }
+  function day(ymd) {
+    var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(ymd || '');
+    return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '';
+  }
+  function when(ms) {
+    return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + ', ' +
+      new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  }
+  function clock(ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); }
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+
+  /* ── The legend: the fixed scale, 0 to 10 ── */
+
+  function legend(box) {
+    box.textContent = '';
+    var bar = el('div', 'lt-legend-bar');
+    bar.style.background = 'linear-gradient(to right, ' + colours.join(', ') + ')';
+    box.appendChild(bar);
+    var marks = el('div', 'lt-legend-marks');
+    ['0 · clean', '5', '10 or more · heavy'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
+    box.appendChild(marks);
+  }
+
+  /* ── The public map ── */
+
+  // opts: { focus: [cells] to show first, back: what Back does }.
+  function open(opts) {
+    opts = opts || {};
+    back = opts.back || null;
+    app.notice('');
+    app.show('v-map');
+    $('mp-note').textContent = 'Loading the map…';
+    if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
+    if (!map) {
+      map = L.map('mp-map', { zoomControl: true, attributionControl: true, preferCanvas: true });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+      layer = L.layerGroup().addTo(map);
+      var h = G.cellCenter(HOME_CELL);
+      map.setView([h.lat, h.lon], 13);
+    }
+    setTimeout(function () { map.invalidateSize(); }, 0);
+    return app.api('mapLoad', {}).then(function (d) {
+      colours = d.colours || colours;
+      legend($('mp-legend'));
+      draw(d.cells || []);
+      var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
+      fit(focus);
+      $('mp-note').textContent = d.cells.length ? (d.cells.length === 1 ? '1 cell has' : d.cells.length.toLocaleString('en-US') + ' cells have') + ' a reading.'
+        : 'No collections on the map yet. Cells show here once someone saves a collection.';
+    }, function (err) { $('mp-note').textContent = err.message; });
+  }
+
+  function draw(cells) {
+    layer.clearLayers();
+    cells.forEach(function (x) {
+      var c = G.indexColour(x[1], colours);
+      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7 });
+      r.bindPopup(function () {
+        var box = el('div', 'lt-pop');
+        box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
+        box.appendChild(el('div', null, 'Collected ' + day(x[2])));
+        if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
+        return box;
+      });
+      r.cellId = x[0];
+      r.addTo(layer);
+    });
+  }
+
+  function fit(cells) {
+    if (!cells.length) return;
+    var b = L.latLngBounds([]);
+    cells.forEach(function (c) { b.extend(G.cellBounds(c)); });
+    map.fitBounds(b, { maxZoom: 16, padding: [16, 16] });
+  }
+
+  /* ── Your collections (item 15) ── */
+
+  function showMine() {
+    var box = $('my-collections');
+    return app.api('myCollections', { token: app.myToken() }).then(function (d) {
+      mine = d;
+      colours = d.colours || colours;
+      box.hidden = !d.collections.length;
+      drawMine();
+    }, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      box.hidden = true;
+    });
+  }
+
+  function drawMine() {
+    var list = $('my-list');
+    list.textContent = '';
+    var cols = mine.collections;
+    (showAll ? cols : cols.slice(0, SHOW_FIRST)).forEach(function (c) { list.appendChild(collectionItem(c)); });
+    $('my-more').hidden = showAll || cols.length <= SHOW_FIRST;
+    $('my-more').textContent = 'Show all ' + cols.length;
+  }
+
+  function collectionItem(c) {
+    var box = el('div', 'lt-col');
+    box.id = 'my-' + c.id;
+    box.appendChild(el('p', 'lt-col-head', when(c.started) + (c.ended ? ' to ' + clock(c.ended) : '')));
+    box.appendChild(el('p', 'lt-col-facts', round(c.pounds, 2) + ' lb · ' + round(c.miles, 2) + ' mi · ' + Math.round(c.active) + ' min active · ' +
+      c.hours + ' volunteer hour' + (c.hours === 1 ? '' : 's')));
+    if (c.hoursNote) box.appendChild(el('p', 'muted small', c.hoursNote));
+    var ul = el('ul', 'lt-col-stretches');
+    c.stretchList.forEach(function (s) {
+      var li = el('li');
+      var sw = el('span', 'lt-swatch' + (s.index == null ? ' none' : ''));
+      if (s.index != null) sw.style.background = G.indexColour(s.index, colours);
+      li.appendChild(sw);
+      li.appendChild(document.createTextNode('Stretch ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
+        (s.rating == null ? '' : ' · Visual rating ' + s.rating)));
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
+    if (c.hidden) box.appendChild(el('p', 'lt-col-hidden', 'HABO\'s staff have taken this collection off the public map. It\'s still kept, with your hours.'));
+    var row = el('div', 'lt-col-row');
+    var cells = [];
+    c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (cells.indexOf(x) === -1) cells.push(x); }); });
+    if (cells.length && !c.hidden) {
+      var m = el('button', 'btn btn-secondary lt-col-map', 'See it on the map');
+      m.type = 'button';
+      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount }); });
+      row.appendChild(m);
+    }
+    if (c.editable) {
+      var f = el('button', 'btn btn-secondary lt-col-fix', 'Fix it (until ' + when(c.editableUntil) + ')');
+      f.type = 'button';
+      f.addEventListener('click', function () { app.openSummary(c.id, f); });
+      row.appendChild(f);
+    }
+    if (row.childNodes.length) box.appendChild(row);
+    return box;
+  }
+
+  /* ── Wiring ── */
+
+  $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
+  $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
+
+  return { open: open, showMine: showMine };
+};
+</script>
+<script>
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
-// waiver, signing in on a new phone, and the account page. An account is
+// waiver, signing in on a new phone, and the account page. Collecting
+// (S3-P21) is in collect.js; the map and your collections (S3-P22) in map.js. An account is
 // an email: setting up and each new phone get a code there, and each
 // signed waiver is emailed as a copy. When the waiver's words change,
 // they're signed again before anything else (Oct 23, in chat).
@@ -1540,7 +1928,7 @@ window.LitterCollect = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -1889,6 +2277,7 @@ window.LitterCollect = function (app) {
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount();
+    mapper.showMine();
   }
 
   function startEdit() {
@@ -1932,13 +2321,26 @@ window.LitterCollect = function (app) {
 
   var collect = window.LitterCollect({
     $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
-    showAccount: function () { showAccount(state.account); }
+    showAccount: function () { showAccount(state.account); },
+    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
+  });
+
+  /* ── The map and your collections (S3-P22, map.js) ── */
+
+  var mapper = window.LitterMap({
+    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut,
+    showAccount: function () { showAccount(state.account); },
+    // Back from the map with no account: the welcome screen.
+    showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
+    openSummary: function (id, button) { collect.openPast(id, button); }
   });
 
   /* ── Wiring ── */
 
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
+  $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
+  $('cl-map-open').addEventListener('click', function () { mapper.open({ back: function () { showAccount(state.account); } }); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
     b.addEventListener('click', function () { notice(''); show('v-welcome'); });

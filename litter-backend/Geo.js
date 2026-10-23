@@ -253,6 +253,19 @@ var LitterGeo = (function () {
     return { cpue: cpue, index: Math.sqrt(cpue) };
   }
 
+  /* ── The colour of a reading (S3-P22, items 12 and 16) ── */
+
+  // A Litter Index's colour on a fixed scale from 0 to 10, blended from the
+  // colours at 0, 5 and 10 (["#rrggbb", ...]); past 10 it stays the colour at
+  // 10. The same reading is the same colour on every screen.
+  function indexColour(index, colours) {
+    var v = Math.max(0, Math.min(10, Number(index) || 0));
+    var a = v <= 5 ? colours[0] : colours[1], b = v <= 5 ? colours[1] : colours[2], t = v <= 5 ? v / 5 : (v - 5) / 5;
+    var rgb = function (h) { return [1, 3, 5].map(function (i) { return parseInt(h.substr(i, 2), 16); }); };
+    var x = rgb(a), y = rgb(b);
+    return '#' + x.map(function (c, i) { return ('0' + Math.round(c + (y[i] - c) * t).toString(16)).slice(-2); }).join('');
+  }
+
   /* ── Sunrise and sunset (item 20) ── */
 
   // When the sun rises and sets on the day `noon` falls in, at a place, as
@@ -279,6 +292,6 @@ var LitterGeo = (function () {
   return {
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, lineCells: lineCells, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
-    Streets: Streets, reading: reading, sunTimes: sunTimes
+    Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

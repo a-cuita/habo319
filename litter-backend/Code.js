@@ -48,20 +48,21 @@ var TABS = {
     formats: { 4: 'yyyy-mm-dd h:mm', 5: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm' }
   },
   // Collecting (S3-P21): one row per collection, one per stretch, and the
-  // litter types (Collect.js).
+  // litter types (Collect.js). Hidden from the map (S3-P22, Q319): when, and
+  // by whom, HABO's staff took a collection off the public map.
   collections: {
     name: 'Collections',
     header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
-      'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key'],
-    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120],
-    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@' }
+      'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm' }
   },
   stretches: {
     name: 'Stretches',
     header: ['Stretch ID', 'Collection ID', 'Account ID', 'Number', 'Started', 'Ended', 'Cells', 'Street miles', 'Off-street miles',
       'Active minutes', 'Paused minutes', 'Break minutes', 'Break where', 'Scale (lb)', 'New bag', 'Pounds', 'CPUE', 'Litter Index',
-      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key'],
-    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120],
+      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key', 'Break question'],
+    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120, 110],
     formats: { 5: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 7: '@', 13: '@', 24: 'yyyy-mm-dd h:mm', 25: '@' }
   },
   types: {
@@ -107,7 +108,9 @@ function actions_() {
     collectEnd: collectEnd_,
     collectFix: collectFix_,
     collectLoad: collectLoad_,
-    addLitterType: addLitterType_
+    addLitterType: addLitterType_,
+    mapLoad: mapLoad_,
+    myCollections: myCollections_
   };
 }
 
@@ -234,7 +237,11 @@ function missingSettings_(ss) {
     [SETTING_SUNSET_WARN, '60'],
     [SETTING_NO_START, '15'],
     [SETTING_AUTO_END, '12'],
-    [SETTING_EDIT_HOURS, '48']
+    [SETTING_EDIT_HOURS, '48'],
+    [SETTING_COLOUR_0, MOCISN_COLOURS[0]],
+    [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
+    [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
+    [SETTING_BREAK_AFTER, '10']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 

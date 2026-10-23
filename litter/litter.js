@@ -1,5 +1,6 @@
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
-// waiver, signing in on a new phone, and the account page. An account is
+// waiver, signing in on a new phone, and the account page. Collecting
+// (S3-P21) is in collect.js; the map and your collections (S3-P22) in map.js. An account is
 // an email: setting up and each new phone get a code there, and each
 // signed waiver is emailed as a copy. When the waiver's words change,
 // they're signed again before anything else (Oct 23, in chat).
@@ -60,7 +61,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -409,6 +410,7 @@
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount();
+    mapper.showMine();
   }
 
   function startEdit() {
@@ -452,13 +454,26 @@
 
   var collect = window.LitterCollect({
     $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
-    showAccount: function () { showAccount(state.account); }
+    showAccount: function () { showAccount(state.account); },
+    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
+  });
+
+  /* ── The map and your collections (S3-P22, map.js) ── */
+
+  var mapper = window.LitterMap({
+    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut,
+    showAccount: function () { showAccount(state.account); },
+    // Back from the map with no account: the welcome screen.
+    showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
+    openSummary: function (id, button) { collect.openPast(id, button); }
   });
 
   /* ── Wiring ── */
 
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
+  $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
+  $('cl-map-open').addEventListener('click', function () { mapper.open({ back: function () { showAccount(state.account); } }); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
     b.addEventListener('click', function () { notice(''); show('v-welcome'); });
