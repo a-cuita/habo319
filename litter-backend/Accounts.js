@@ -255,7 +255,7 @@ function requireWaiverSigned_(req) {
 
 // Nothing else on the page until the waiver's new words are signed.
 function requireCurrentWaiver_(account) {
-  if (!accountView_(account).waiverCurrent) throw coded_('waiver-new', 'The waiver has new words. Sign them first.');
+  if (!accountView_(account).waiverCurrent) throw coded_('waiver-new', 'The waiver has been updated. You must acknowledge and sign the new version.');
 }
 
 /* ── The check-in's volunteer record (item 4), read only ── */
