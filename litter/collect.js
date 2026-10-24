@@ -4,8 +4,11 @@
 // it goes, so a litter pulse works with no signal; each stretch waits in a
 // queue until it reaches HABO (Q242, Q255), and closing the page doesn't end
 // a collection (Q282). Step 3 (S3-P22): the summary's map of its readings,
-// and the break question after 10 collections (item 7). Load geo.js and
-// Leaflet first; litter.js calls LitterCollect(app) with its helpers.
+// and the break question after 10 collections (item 7). Oct 24, in chat:
+// planning a collection before you start (needed until you have as many
+// collections as the break question waits for), XP for a planned one, Mark
+// turnaround, and Discard this collection. Load geo.js and Leaflet first;
+// litter.js calls LitterCollect(app) with its helpers.
 window.LitterCollect = function (app) {
   'use strict';
 
@@ -22,8 +25,10 @@ window.LitterCollect = function (app) {
   var map = null, layers = null;
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
+  var planning = null;          // the plan being made, before a collection
+  var account = null;           // what the account page last loaded: plan, planNeeded, xp
   var types = [];
-  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
+  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
 
@@ -100,23 +105,46 @@ window.LitterCollect = function (app) {
 
   /* ── The account page ── */
 
-  // Under the account: hours collecting, and Start (or Back to my collection).
+  // Under the account: hours collecting, XP, the plan, and Start (or Back to
+  // my collection). Start waits for a plan until you have as many
+  // collections as the break question waits for.
   function onAccount() {
     $('cl-account').hidden = false;
     $('cl-hours').textContent = '';
-    $('cl-start').textContent = c && !c.ended ? 'Back to my collection' : 'Start collecting';
+    showPlanLine();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
       types = d.types || [];
       pace = d.pace || null;
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0 };
       var h = d.hours || { collections: 0, hours: 0 };
       $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
       // A collection open here but ended there (left alone 12 hours): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id)) { c = null; save(); keep(STREETS_KEY, null); }
-      $('cl-start').textContent = c && !c.ended ? 'Back to my collection' : 'Start collecting';
+      showPlanLine();
       showSun($('cl-account-sun'), null);
     }, function () { /* the account page shows without it */ });
   }
+
+  function showPlanLine() {
+    var going = !!(c && !c.ended);
+    var a = account || { plan: null, planNeeded: false, xp: 0 };
+    $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
+    $('cl-plan-btn').hidden = going;
+    $('cl-xp').hidden = !account;
+    $('cl-xp').textContent = 'Your XP: ' + a.xp + '. A collection you plan earns ' + plural(settings.planXp, 'XP', 'XP') + ' when it ends with a weighed stretch.';
+    var line = $('cl-plan');
+    line.className = 'lt-plan-line';
+    if (going) line.textContent = '';
+    else if (a.plan) line.textContent = 'Your plan: ' + plural(a.plan.stretches.length, 'stretch', 'stretches') + ', ' + round(a.plan.miles, 2) + ' mi. Start collecting uses it.';
+    else if (a.planNeeded) {
+      line.className = 'lt-plan-line need';
+      line.textContent = 'Plan your collection first. Until you have ' + settings.breakAfter + ' collections, each one starts from a plan, so the app learns your usual pace.';
+    } else line.textContent = account ? 'A plan is up to you now; a planned collection still earns XP.' : '';
+    $('cl-start').disabled = !going && !!account && a.planNeeded && !a.plan;
+  }
+
+  function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
 
   /* ── Sunset (item 20) ── */
 
@@ -178,7 +206,9 @@ window.LitterCollect = function (app) {
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, way: null, queue: [], scalePrev: 0, bagReset: false,
-        current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false };
+        current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
+        turns: [], plan: d.plan || null };
+      if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
       save();
       return fetchStreets(cell).catch(function () {
@@ -193,7 +223,11 @@ window.LitterCollect = function (app) {
     $('cl-map-box').appendChild($('cl-map'));
     loadStreets();
     app.show('v-collect');
+    $('cl-discard-box').hidden = true;
+    $('cl-actions').hidden = !!pulse;
     ensureMap();
+    drawPlan(c && c.plan);
+    drawCells([], c && c.lastCell, null, c && c.turns);
     showStatus();
     showSun($('cl-sun'), null);
     flush();
@@ -206,6 +240,10 @@ window.LitterCollect = function (app) {
     $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
     $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
     $('cl-pulse-btn').disabled = !!c.current.pausedAt;
+    $('cl-turn').disabled = !!c.current.pausedAt;
+    var n = (c.turns || []).length;
+    $('cl-turns').hidden = !n;
+    $('cl-turns').textContent = n ? (n === 1 ? '1 turnaround' : n + ' turnarounds') + ' marked in this stretch.' : '';
     showQueue();
   }
 
@@ -217,7 +255,7 @@ window.LitterCollect = function (app) {
     if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    layers = { streets: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
     map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
     var p = G.cellCenter((c && c.lastCell) || HOME_CELL);
     map.setView([p.lat, p.lon], 16);
@@ -235,16 +273,36 @@ window.LitterCollect = function (app) {
     });
   }
 
-  // Draws the cells: the stretch (orange), the cell you're in (outlined).
-  function drawCells(list, here, center) {
+  // Draws the cells: the stretch (orange), the cell you're in (outlined),
+  // and the stretch's turnarounds (dots).
+  function drawCells(list, here, center, turns) {
     if (!map) return;
     layers.cells.clearLayers();
     (list || []).forEach(function (cell) {
       L.rectangle(G.cellBounds(cell), { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.35, interactive: false }).addTo(layers.cells);
     });
     if (here) L.rectangle(G.cellBounds(here), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
+    (turns || []).forEach(function (cell) { turnDot(cell, '#1d4ed8').addTo(layers.cells); });
     if (center) { var p = G.cellCenter(center); map.setView([p.lat, p.lon], map.getZoom()); }
     setTimeout(function () { map.invalidateSize(); }, 0);
+  }
+
+  function turnDot(cell, colour) {
+    var p = G.cellCenter(cell);
+    return L.circleMarker([p.lat, p.lon], { radius: 7, color: '#fff', weight: 2, fillColor: colour, fillOpacity: 1, interactive: false });
+  }
+
+  // Your plan, as a guide while you collect: dashed outlines, its
+  // turnarounds as dots. It never changes a stretch (Q228).
+  function drawPlan(plan) {
+    if (!map) return;
+    layers.plan.clearLayers();
+    (plan && plan.stretches || []).forEach(function (s) {
+      s.cells.forEach(function (cell) {
+        L.rectangle(G.cellBounds(cell), { color: '#7c3aed', weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
+      });
+      (s.turns || []).forEach(function (cell) { turnDot(cell, '#7c3aed').addTo(layers.plan); });
+    });
   }
 
   var picking = null;   // { done(cell) } while a cell is being picked
@@ -257,6 +315,7 @@ window.LitterCollect = function (app) {
   }
 
   function tapCell(cell) {
+    if (planning && !$('v-plan').hidden) return planTap(cell);
     if (picking) {
       var p = picking;
       picking = null;
@@ -293,7 +352,8 @@ window.LitterCollect = function (app) {
     var go = function (cell) {
       var from = c.lastCell || c.current.startCell;
       return fetchStreets(cell).catch(function () { /* measured straight until the streets load */ }).then(function () {
-        var suggested = streets ? streets.suggest(from, cell, c.way) : G.lineCells(G.centerXY(from), G.centerXY(cell));
+        var turns = c.turns || [];
+        var suggested = streets ? streets.suggestVia(from, turns, cell, c.way) : G.lineVia(from, turns, cell);
         pulse = { kind: kind, pressedAt: kind === 'pause' || (kind === 'end' && c.current.pausedAt) ? c.current.pausedAt : pressedAt, cell: cell,
           cells: suggested.slice(), suggested: suggested, breakWhere: '' };
         openPulse();
@@ -334,7 +394,7 @@ window.LitterCollect = function (app) {
     pulse.m = m;
     $('pf-stretch').textContent = 'Your stretch: ' + pulse.cells.length + ' cell' + (pulse.cells.length === 1 ? '' : 's') + ', ' +
       round((m.street + m.off) / G.MILE_M, 2) + ' mi. Tap cells on the map to add or take them out.';
-    drawCells(pulse.cells, pulse.cell, pulse.cell);
+    drawCells(pulse.cells, pulse.cell, pulse.cell, c.turns);
   }
 
   function showTypes() {
@@ -417,7 +477,8 @@ window.LitterCollect = function (app) {
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
       scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
-      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak
+      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak,
+      turns: (c.turns || []).filter(function (t) { return pulse.cells.indexOf(t) !== -1; })
     };
     c.queue.push({ type: 'stretch', stretch: stretch });
     // What the collection so far shows (Q260).
@@ -436,6 +497,7 @@ window.LitterCollect = function (app) {
     c.n += 1;
     c.lastCell = pulse.cell;
     c.way = null;
+    c.turns = [];
     var kind = pulse.kind;
     if (kind === 'end') {
       c.queue.push({ type: 'end', endedAt: endedAt });
@@ -536,7 +598,7 @@ window.LitterCollect = function (app) {
     $('sm-wait').hidden = true;
     var col = summary.collection;
     $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
-      (col.hoursNote ? ' (' + col.hoursNote + ')' : '');
+      (col.hoursNote ? ' (' + col.hoursNote + ')' : '') + (col.xp ? ' · ' + col.xp + ' XP for planning it' : '');
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
@@ -551,6 +613,7 @@ window.LitterCollect = function (app) {
     ensureMap();
     if (!map) return;
     layers.cells.clearLayers();
+    layers.plan.clearLayers();
     var b = L.latLngBounds([]);
     summary.stretches.forEach(function (s) {
       if (s.discarded) return;
@@ -561,6 +624,7 @@ window.LitterCollect = function (app) {
         r.addTo(layers.cells);
         b.extend(G.cellBounds(cell));
       });
+      (s.turns || []).forEach(function (cell) { turnDot(cell, '#1d4ed8').addTo(layers.cells); });
     });
     Object.keys(summary.stops || {}).forEach(function (id) {
       L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
@@ -685,6 +749,7 @@ window.LitterCollect = function (app) {
     $('sm-map-box').appendChild($('cl-map'));
     ensureMap();
     loadStreets();
+    if (layers) layers.plan.clearLayers();
     drawCells(summary.cells, null, summary.cells[0]);
     $('sf-cells-note').textContent = summary.cells.length + ' cells. Tap a cell to add it or take it out.';
   }
@@ -796,9 +861,203 @@ window.LitterCollect = function (app) {
     return box;
   }
 
+  /* ── Mark turnaround (Oct 24, in chat) ── */
+
+  // Where you turn back, with no weighing and no new stretch: the next
+  // litter pulse suggests the stretch out to it and back, each cell once.
+  function markTurn(button) {
+    if (!c || c.current.pausedAt) return;
+    var mark = function (cell) {
+      c.turns = c.turns || [];
+      if (c.turns[c.turns.length - 1] !== cell) c.turns.push(cell);
+      save();
+      showStatus();
+      drawCells([], cell, cell, c.turns);
+      app.notice('Turnaround marked. Your stretch goes on; press Litter pulse when you weigh.');
+    };
+    app.busy(button, 'cl-err', function () {
+      return locate().then(function (loc) {
+        if (loc.cell) return mark(loc.cell);
+        beginPick(loc.near, loc.why, mark);
+      });
+    });
+  }
+
+  /* ── Discard this collection (Oct 24, in chat) ── */
+
+  // Asked twice, and each time its button waits a moment before it can be
+  // pressed, so a quick tap can't discard it by accident.
+  var discardStep = 0;
+  function askDiscard(step) {
+    discardStep = step;
+    $('cl-actions').hidden = true;
+    $('cl-discard-box').hidden = false;
+    $('cd-err').textContent = '';
+    $('cd-title').textContent = step === 1 ? 'Discard this collection?' : 'Are you sure?';
+    $('cd-text').textContent = step === 1
+      ? 'It stays on HABO\'s record, but it gets no volunteer hours and no XP, and nothing from it goes on the map.'
+      : 'Once it\'s discarded, you can\'t go back to it. To keep collecting, press Keep collecting.';
+    var yes = $('cd-yes');
+    yes.textContent = step === 1 ? 'Continue' : 'Confirm discard';
+    yes.disabled = true;
+    setTimeout(function () { if (discardStep === step) yes.disabled = false; }, 1500);
+    $('cl-discard-box').scrollIntoView({ block: 'center' });
+  }
+  function closeDiscard() {
+    discardStep = 0;
+    $('cl-discard-box').hidden = true;
+    $('cl-actions').hidden = false;
+  }
+  function discardCollection(button) {
+    if (!c) return;
+    app.busy(button, 'cd-err', function () {
+      // What the phone kept goes first, so HABO has the whole record.
+      return flush().then(function () {
+        if (c.queue.length) throw new Error('Discarding needs signal, so the litter pulses kept on this phone reach HABO first. Try again when you have signal.');
+        return app.api('collectDiscard', { token: app.myToken(), collectionId: c.id });
+      }).then(function () {
+        discardStep = 0;
+        c = null;
+        save();
+        keep(STREETS_KEY, null);
+        $('cl-discard-box').hidden = true;
+        $('cl-actions').hidden = false;
+        app.showAccount();
+        app.notice('Your collection is discarded: no volunteer hours, no XP, and nothing on the map.');
+      });
+    });
+  }
+
+  /* ── Planning a collection (Oct 24, in chat) ── */
+
+  // Each stretch: its cells in order, its turnarounds, and the cell last
+  // tapped, which the next tap fills in from along the street. Undo takes
+  // back the last tap, turnaround or new stretch.
+  function openPlan() {
+    planning = { stretches: [{ cells: [], turns: [], from: null }], turnMode: false, history: [] };
+    app.notice('');
+    app.show('v-plan');
+    $('pl-err').textContent = '';
+    $('pl-map-box').appendChild($('cl-map'));
+    loadStreets();
+    ensureMap();
+    if (layers) layers.plan.clearLayers();
+    drawPlanning(true);
+    $('pl-pick').hidden = false;
+    $('pl-pick').textContent = 'Finding where you are…';
+    locate().then(function (loc) {
+      var cell = loc.cell || loc.near;
+      $('pl-pick').hidden = true;
+      if (!cell) return;
+      if (map) { var p = G.cellCenter(cell); map.setView([p.lat, p.lon], 16); }
+      return fetchStreets(cell).catch(function () {
+        app.notice('The streets around you couldn\'t load just now; the plan fills in straight between your taps until they do.');
+      });
+    }).then(function () { drawPlanning(false); });
+  }
+
+  function planTap(cell) {
+    var k = planning.stretches.length - 1, st = planning.stretches[k];
+    var turn = planning.turnMode;
+    planning.turnMode = false;
+    $('pl-turn').classList.remove('on');
+    if (!turn && st.cells.indexOf(cell) !== -1) {
+      app.notice('That cell is already in this stretch. To take cells out, press Undo.');
+      return;
+    }
+    var path = !st.from ? [cell] : streets ? streets.suggest(st.from, cell, null) : G.lineCells(G.centerXY(st.from), G.centerXY(cell));
+    var added = path.filter(function (x, i) { return st.cells.indexOf(x) === -1 && path.indexOf(x) === i; });
+    var step = { stretch: k, added: added, from: st.from, turn: turn && st.turns.indexOf(cell) === -1 ? cell : null };
+    st.cells = st.cells.concat(added);
+    if (step.turn) st.turns.push(cell);
+    st.from = cell;
+    planning.history.push(step);
+    app.notice('');
+    drawPlanning(false);
+  }
+
+  function planUndo() {
+    var step = planning.history.pop();
+    if (!step) return;
+    if (step.newStretch) { planning.stretches.pop(); drawPlanning(false); return; }
+    var st = planning.stretches[step.stretch];
+    st.cells = st.cells.filter(function (x) { return step.added.indexOf(x) === -1; });
+    if (step.turn) st.turns = st.turns.filter(function (x) { return x !== step.turn; });
+    st.from = step.from;
+    drawPlanning(false);
+  }
+
+  function planNewStretch() {
+    var st = planning.stretches[planning.stretches.length - 1];
+    if (!st.cells.length) { app.notice('Tap this stretch\'s cells first.'); return; }
+    planning.stretches.push({ cells: [], turns: [], from: null });
+    planning.history.push({ newStretch: true });
+    drawPlanning(false);
+  }
+
+  function planMiles(st) {
+    var m = streets ? streets.measure(st.cells) : { street: 0, off: G.CELL_M * st.cells.length };
+    return (m.street + m.off) / G.MILE_M;
+  }
+
+  // The plan on the map: this stretch orange, the others purple, with
+  // their turnarounds as dots; and each stretch's cells and miles.
+  function drawPlanning(center) {
+    var last = planning.stretches.length - 1;
+    if (map) {
+      layers.cells.clearLayers();
+      planning.stretches.forEach(function (st, k) {
+        var mine = k === last;
+        st.cells.forEach(function (cell) {
+          L.rectangle(G.cellBounds(cell), mine ? { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.4, interactive: false }
+            : { color: '#6d28d9', weight: 1, fillColor: '#a78bfa', fillOpacity: 0.35, interactive: false }).addTo(layers.cells);
+        });
+        st.turns.forEach(function (cell) { turnDot(cell, mine ? '#1d4ed8' : '#6d28d9').addTo(layers.cells); });
+      });
+      setTimeout(function () { map.invalidateSize(); }, 0);
+    }
+    var lines = planning.stretches.map(function (st, k) {
+      if (!st.cells.length) return 'Stretch ' + (k + 1) + ': tap its first cell.';
+      return 'Stretch ' + (k + 1) + ': ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi' +
+        (st.turns.length ? ', ' + plural(st.turns.length, 'turnaround', 'turnarounds') : '') + '.';
+    });
+    $('pl-status').textContent = planning.turnMode ? 'Tap the cell where you\'ll turn back.' : lines.join(' ');
+    $('pl-undo').disabled = !planning.history.length;
+  }
+
+  function savePlan(button) {
+    var list = planning.stretches.filter(function (st) { return st.cells.length; }).map(function (st) {
+      return { cells: st.cells.slice(), turns: st.turns.slice(), miles: planMiles(st) };
+    });
+    if (!list.length) { $('pl-err').textContent = 'Tap the cells of the stretch you mean to collect first.'; return; }
+    app.busy(button, 'pl-err', function () {
+      return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }).then(function (d) {
+        planning = null;
+        account = account || { plan: null, planNeeded: false, xp: 0 };
+        account.plan = d.plan;
+        app.showAccount();
+        app.notice('Your plan is saved. Start collecting uses it.');
+      });
+    });
+  }
+
   /* ── Wiring ── */
 
   $('cl-start').addEventListener('click', function () { start($('cl-start')); });
+  $('cl-plan-btn').addEventListener('click', openPlan);
+  $('cl-turn').addEventListener('click', function () { markTurn($('cl-turn')); });
+  $('cl-discard').addEventListener('click', function () { askDiscard(1); });
+  $('cd-no').addEventListener('click', closeDiscard);
+  $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
+  $('pl-turn').addEventListener('click', function () {
+    planning.turnMode = !planning.turnMode;
+    $('pl-turn').classList.toggle('on', planning.turnMode);
+    drawPlanning(false);
+  });
+  $('pl-new').addEventListener('click', planNewStretch);
+  $('pl-undo').addEventListener('click', planUndo);
+  $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
+  $('pl-cancel').addEventListener('click', function () { planning = null; app.showAccount(); });
   $('cl-pulse-btn').addEventListener('click', function () { beginPulse('pulse', $('cl-pulse-btn')); });
   $('cl-pause').addEventListener('click', function () { pauseOrResume($('cl-pause')); });
   $('cl-end').addEventListener('click', function () { beginPulse('end', $('cl-end')); });
@@ -807,7 +1066,7 @@ window.LitterCollect = function (app) {
   $('pf-discard').addEventListener('click', function () { savePulse(true); });
   $('pf-cancel').addEventListener('click', function () {
     if (pulse && pulse.kind === 'pause') { app.notice('Weigh it, or press Discard this stretch.'); return; }
-    pulse = null; $('cl-pulse').hidden = true; $('cl-actions').hidden = false; drawCells([], c && c.lastCell, null);
+    pulse = null; $('cl-pulse').hidden = true; $('cl-actions').hidden = false; drawCells([], c && c.lastCell, null, c && c.turns);
   });
   $('pf-suggested').addEventListener('click', function () { if (pulse) { pulse.cells = pulse.suggested.slice(); showStretch(); } });
   $('pf-addtype').addEventListener('click', function () { addType($('pf-addtype')); });

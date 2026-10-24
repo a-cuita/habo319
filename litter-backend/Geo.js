@@ -215,33 +215,120 @@ var LitterGeo = (function () {
     return out;
   };
 
-  // A stretch's lengths, in meters, from its cells in order (item 4): along
-  // the streets from snapped point to snapped point, plus half a cell at
-  // each end so a stretch inside one cell isn't zero (Q213 to Q216); cells
-  // with no street straight from center to center (Q287, Q288, Q307). Going
-  // back over a cell adds nothing (Q172).
+  // The same, out to each turnaround in turn and back to `toCell` (Oct 24,
+  // in chat): an out-and-back without a litter pulse at the far end. Each
+  // cell once, in the order first reached.
+  Streets.prototype.suggestVia = function (fromCell, turns, toCell, way) {
+    var stops = [fromCell].concat(turns || []).concat([toCell]);
+    var out = [], self = this;
+    for (var k = 1; k < stops.length; k++) {
+      self.suggest(stops[k - 1], stops[k], way).forEach(function (c) { if (out.indexOf(c) === -1) out.push(c); });
+    }
+    return out.length ? out : [fromCell];
+  };
+
+  // A stretch's lengths, in meters, from its cells (item 4): along the
+  // streets from snapped point to snapped point, plus half a cell at each
+  // end so a stretch inside one cell isn't zero (Q213 to Q216); cells with no
+  // street straight from center to center (Q287, Q288, Q307). Going back over
+  // a cell adds nothing (Q172). Cells in a chain, each next to the one before,
+  // are measured in order, as they always were; any other set, like an
+  // out-and-back both ways from a corner, is measured as the shortest network
+  // joining its cells, so each piece of street counts once and each dead end
+  // gets its half cell (Oct 24, in chat).
   Streets.prototype.measure = function (cells) {
     var seen = [], has = {};
     (cells || []).forEach(function (c) { if (!has[c]) { has[c] = true; seen.push(c); } });
     var out = { street: 0, off: 0 };
     if (!seen.length) return out;
+    var chain = true;
+    for (var i = 1; i < seen.length && chain; i++) chain = neighbours(seen[i - 1], seen[i]);
+    if (!chain) return this.measureNetwork_(seen);
     var way = null;
     for (var k = 1; k < seen.length; k++) {
-      var p = seen[k - 1], q = seen[k];
-      var a = this.snap(p, way), b = this.snap(q, way);
-      if (a && b) {
-        var r = this.route(a, b);
-        if (r && r.len <= 4 * dist(a.p, b.p) + 2 * CELL_M) { out.street += r.len; way = r.way; }
-        else out.street += dist(a.p, b.p);
-      } else {
-        out.off += dist(centerXY(p), centerXY(q));
-        way = null;
-      }
+      var j = this.join_(seen[k - 1], seen[k], way);
+      if (j.street) out.street += j.len; else out.off += j.len;
+      way = j.way;
     }
     var ends = [seen[0], seen[seen.length - 1]];
     ends.forEach(function (c) { if (this.hasStreet(c)) out.street += CELL_M / 2; else out.off += CELL_M / 2; }, this);
     return out;
   };
+
+  // From one cell to the next: along a street they share, each cell's point
+  // on that street (Q214), so a corner cell doesn't jump to the cross
+  // street; else along the streets from point to point, keeping to `way`,
+  // the street the stretch was following; else, where either has no street,
+  // straight from center to center. { len, street, way }.
+  Streets.prototype.join_ = function (p, q, way) {
+    if (!this.hasStreet(p) || !this.hasStreet(q)) return { len: dist(centerXY(p), centerXY(q)), street: false, way: null };
+    var self = this, best = null, wq = this.waysIn_(q);
+    this.waysIn_(p).forEach(function (w) {
+      if (wq.indexOf(w) === -1) return;
+      var x = self.along_(p, q, w);
+      if (!best || x.len < best.len) best = x;
+    });
+    return best || this.along_(p, q, way);
+  };
+  Streets.prototype.along_ = function (p, q, way) {
+    var a = this.snap(p, way), b = this.snap(q, way);
+    var r = this.route(a, b);
+    return r && r.len <= 4 * dist(a.p, b.p) + 2 * CELL_M ? { len: r.len, street: true, way: r.way } : { len: dist(a.p, b.p), street: true, way: way };
+  };
+  Streets.prototype.waysIn_ = function (cell) {
+    var self = this, out = [];
+    (this.byCell[cell] || []).forEach(function (si) { if (out.indexOf(self.segs[si].way) === -1) out.push(self.segs[si].way); });
+    return out;
+  };
+
+  // The shortest network joining the cells: each pair next to each other,
+  // and each pair in a row in the list, measured as above; the shortest
+  // joins kept (Kruskal), with half a cell at each cell joined only once.
+  Streets.prototype.measureNetwork_ = function (seen) {
+    var self = this, joins = [];
+    for (var i = 0; i < seen.length; i++) {
+      for (var j = i + 1; j < seen.length; j++) {
+        if (j === i + 1 || neighbours(seen[i], seen[j])) {
+          var x = self.join_(seen[i], seen[j], null);
+          joins.push({ i: i, j: j, len: x.len, street: x.street });
+        }
+      }
+    }
+    joins.sort(function (x, y) { return x.len - y.len; });
+    var up = seen.map(function (c, k) { return k; });
+    var top = function (k) { while (up[k] !== k) { up[k] = up[up[k]]; k = up[k]; } return k; };
+    var degree = seen.map(function () { return 0; });
+    var out = { street: 0, off: 0 };
+    joins.forEach(function (e) {
+      var a = top(e.i), b = top(e.j);
+      if (a === b) return;
+      up[a] = b;
+      degree[e.i]++; degree[e.j]++;
+      if (e.street) out.street += e.len; else out.off += e.len;
+    });
+    seen.forEach(function (c, k) {
+      if (degree[k] > 1) return;
+      if (self.hasStreet(c)) out.street += CELL_M / 2; else out.off += CELL_M / 2;
+    });
+    return out;
+  };
+
+  // Two cells side by side, or corner to corner.
+  function neighbours(a, b) {
+    var p = rowCol(a), q = rowCol(b);
+    return Math.abs(p.i - q.i) <= 1 && Math.abs(p.j - q.j) <= 1;
+  }
+
+  // With no streets loaded: straight from cell to cell, through each
+  // turnaround, each cell once.
+  function lineVia(fromCell, turns, toCell) {
+    var stops = [fromCell].concat(turns || []).concat([toCell]), out = [];
+    for (var k = 1; k < stops.length; k++) {
+      lineCells(centerXY(stops[k - 1]), centerXY(stops[k])).forEach(function (c) { if (out.indexOf(c) === -1) out.push(c); });
+    }
+    if (out.indexOf(fromCell) === -1) out.unshift(fromCell);
+    return out;
+  }
 
   /* ── The reading (item 8) ── */
 
@@ -291,7 +378,7 @@ var LitterGeo = (function () {
 
   return {
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
-    cellBounds: cellBounds, lineCells: lineCells, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    cellBounds: cellBounds, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

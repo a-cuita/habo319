@@ -17,10 +17,10 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
-  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26 };
+  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27 };
 var TYPE_COL = { type: 1, addedBy: 2, status: 3, added: 4 };
 
 // MoCiSN's 15 litter types (Q346).
@@ -34,6 +34,9 @@ var SETTING_SUNSET_WARN = 'Sunset warning (minutes before)';
 var SETTING_NO_START = 'No new collection (minutes before sunset)';
 var SETTING_AUTO_END = 'A collection left alone ends after (hours)';
 var SETTING_EDIT_HOURS = 'A collection can be changed for (hours)';
+// Discard this collection (Oct 24, in chat): kept on the record, with no
+// hours, no XP and nothing on the map, and not counted.
+var COLLECTION_DISCARDED = 'Discarded';
 
 /* ── Called from the page ── */
 
@@ -53,7 +56,10 @@ function collectStart_(req) {
   return withLock_(function () {
     endLeftAlone_(account);
     var open = openCollection_(account.id);
-    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true };
+    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: planView_(planById_(open.plan)) };
+    // A plan first, until there are enough collections to know the usual pace (Plan.js).
+    var plan = openPlan_(account.id);
+    if (!plan && planNeeded_(account.id)) throw coded_('plan-first', 'Plan your collection first: press Plan a collection.');
     var sheet = getDb_().getSheetByName(TABS.collections.name);
     var rows = readRows_(TABS.collections);
     var id = nextId_('L', rows.map(function (r) { return r.values[0]; }));
@@ -68,8 +74,10 @@ function collectStart_(req) {
     row[COLLECTION_COL.lastPressed - 1] = now;
     row[COLLECTION_COL.updated - 1] = now;
     row[COLLECTION_COL.key - 1] = clean_(req.key, 80);
+    row[COLLECTION_COL.plan - 1] = plan ? plan.id : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false };
+    if (plan) markPlan_(plan.id, id);
+    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: planView_(plan) };
   });
 }
 
@@ -104,6 +112,7 @@ function collectStretch_(req) {
     put('cpue', r.cpue == null ? '' : round_(r.cpue, 3)); put('index', r.index == null ? '' : round_(r.index, 3));
     put('types', safeCell_(x.types.join('; '))); put('rating', x.rating); put('discarded', x.discarded ? 'Yes' : '');
     put('pastSunset', x.pastSunset ? 'Yes' : ''); put('track', ''); put('received', new Date()); put('key', key); put('asked', x.asked ? 'Asked' : '');
+    put('turns', x.turns.join(' '));
     var sheet = getDb_().getSheetByName(TABS.stretches.name);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     var cs = getDb_().getSheetByName(TABS.collections.name);
@@ -131,7 +140,33 @@ function collectEnd_(req) {
     cs.getRange(col.row, COLLECTION_COL.endCell).setValue(last ? last.cells[last.cells.length - 1] : col.startCell);
     cs.getRange(col.row, COLLECTION_COL.status).setValue('Ended');
     retotal_(col.id);
+    setPlanXp_(col.id);
     return { collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
+  });
+}
+
+// Discard this collection (Oct 24, in chat), while it's going: it ends here,
+// marked Discarded, and stays on the record with its stretches, but has no
+// hours, no XP and nothing on the map, and doesn't count toward the plans'
+// and break question's number. Its plan can start the next collection.
+function collectDiscard_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return withLock_(function () {
+    var col = readCollection_(clean_(req.collectionId, 20));
+    if (!col || col.account !== account.id) throw new Error('That collection isn\'t yours, or isn\'t here any more.');
+    if (col.status !== 'Collecting') throw new Error('That collection has already ended, so it can\'t be discarded.');
+    var stretches = stretchesOf_(col.id);
+    var last = stretches[stretches.length - 1];
+    var cs = getDb_().getSheetByName(TABS.collections.name);
+    cs.getRange(col.row, COLLECTION_COL.ended).setValue(new Date());
+    cs.getRange(col.row, COLLECTION_COL.endCell).setValue(last ? last.cells[last.cells.length - 1] : col.startCell);
+    cs.getRange(col.row, COLLECTION_COL.status).setValue(COLLECTION_DISCARDED);
+    retotal_(col.id);
+    if (col.plan) markPlan_(col.plan, '');
+    logChange_(account.first + ' ' + account.last, 'Discarded', col.id, 'Status', 'Collecting', COLLECTION_DISCARDED);
+    return { collection: collectionView_(readCollection_(col.id)), hours: hoursOf_(account.id), plan: planView_(openPlan_(account.id)),
+      planNeeded: planNeeded_(account.id), xp: xpOf_(account.id) };
   });
 }
 
@@ -201,7 +236,8 @@ function collectLoad_(req) {
   if (col && col.account !== account.id) col = null;
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
-    settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id)
+    settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
+    plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id)
   };
 }
 
@@ -241,6 +277,7 @@ function checkStretch_(s, col, account) {
     n: n, started: started, ended: ended, cells: cells, streetMi: milesValue_(s.streetMi), offMi: milesValue_(s.offMi),
     pausedMin: pausedMin, breakMin: breakMin, breakWhere: s.breakWhere === 'Not sure' ? 'Not sure' : s.breakWhere ? cleanCell_(s.breakWhere) : '',
     activeMin: activeMin, scale: scale, newBag: s.newBag === true, discarded: discarded, asked: s.breakAsked === true,
+    turns: cleanCells_(s.turns).filter(function (t) { return cells.indexOf(t) !== -1; }).slice(0, 50),
     types: discarded ? [] : cleanTypes_(s.types || [], account), rating: discarded ? '' : cleanRating_(s.rating)
   };
 }
@@ -303,7 +340,7 @@ function readRows_(tab) {
   var sheet = getDb_().getSheetByName(tab.name);
   var last = lastRowWith_(sheet, 1);
   if (last < 2) return [];
-  var cols = tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : TYPE_COL;
+  var cols = tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL : TYPE_COL;
   return sheet.getRange(2, 1, last - 1, tab.header.length).getValues().map(function (values, i) {
     return { row: i + 2, values: values, get: function (k) { var v = values[cols[k] - 1]; return v instanceof Date ? v : String(v == null ? '' : v).trim(); } };
   }).filter(function (r) { return String(r.values[0]).trim(); });
@@ -322,7 +359,7 @@ function collectionOf_(r) {
   return { row: r.row, id: t('id'), account: t('account'), handle: t('handle'), started: t('started'), startCell: t('startCell'),
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
-    hidden: !!t('hidden') };
+    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0 };
 }
 
 function openCollection_(accountId) {
@@ -345,7 +382,8 @@ function stretchOf_(q) {
     index: q.get('index') === '' ? null : Number(q.get('index')), types: String(q.get('types')).split('; ').filter(String),
     rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
     newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'),
-    pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked' };
+    pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked',
+    turns: String(q.get('turns')).split(/\s+/).filter(String) };
 }
 
 function stretchView_(q) { return stretchViewOf_(stretchesOf_(q.get('collection')).filter(function (s) { return s.id === q.get('id'); })[0]); }
@@ -373,8 +411,9 @@ function retotal_(collectionId) {
     if (!s.pastSunset) counted += s.activeMin;
   });
   var note = list.some(function (s) { return s.pastSunset; }) ? 'No hours for stretches past sunset' : '';
-  var event = col.status === 'Collecting' ? null : eventDuring_(col);
+  var event = col.status === 'Collecting' || col.status === COLLECTION_DISCARDED ? null : eventDuring_(col);
   if (event) { counted = 0; note = 'During ' + event + ', checked in: its hours count'; }
+  if (col.status === COLLECTION_DISCARDED) { counted = 0; note = 'Discarded: no hours'; }
   var sheet = getDb_().getSheetByName(TABS.collections.name);
   sheet.getRange(col.row, COLLECTION_COL.stretches, 1, 6).setValues([[list.length, round_(pounds, 2), round_(miles, 3), round_(active, 1), round_(counted / 60, 2), note]]);
   sheet.getRange(col.row, COLLECTION_COL.updated).setValue(new Date());
@@ -382,7 +421,7 @@ function retotal_(collectionId) {
 
 // The account's volunteer hours collecting litter (Q387 (a)).
 function hoursOf_(accountId) {
-  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && q.get('status') !== 'Collecting'; });
+  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; });
   return { collections: cols.length, hours: round_(cols.reduce(function (t, q) { return t + (Number(q.get('hours')) || 0); }, 0), 2) };
 }
 
@@ -400,6 +439,7 @@ function endLeftAlone_(account) {
     sheet.getRange(q.row, COLLECTION_COL.endCell).setValue(list.length ? list[list.length - 1].cells.slice(-1)[0] : q.get('startCell'));
     sheet.getRange(q.row, COLLECTION_COL.status).setValue('Ended by itself');
     retotal_(q.get('id'));
+    setPlanXp_(q.get('id'));
   });
 }
 
@@ -475,7 +515,7 @@ function minutesSetting_(name, fallback) {
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
-    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), colours: mapColours_() };
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_() };
 }
 
 function round_(n, places) { var f = Math.pow(10, places); return Math.round(Number(n) * f) / f; }

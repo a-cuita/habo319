@@ -36,7 +36,7 @@ function mapLoad_() {
   });
   var open = {};
   readRows_(TABS.collections).forEach(function (q) {
-    if (q.get('status') !== 'Collecting' && !q.get('hidden')) open[q.get('id')] = true;
+    if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && !q.get('hidden')) open[q.get('id')] = true;
   });
   // Each cell's latest reading: the stretch that ended last.
   var latest = {};
@@ -66,7 +66,7 @@ function myCollections_(req) {
   readRows_(TABS.stretches).forEach(function (q) {
     if (q.get('account') === account.id) (byCollection[q.get('collection')] = byCollection[q.get('collection')] || []).push(q);
   });
-  var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting'; })
+  var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; })
     .map(function (q) {
       var col = collectionOf_(q);
       var ended = col.ended || col.lastPressed || col.started;
@@ -100,7 +100,7 @@ function paceOf_(accountId) {
   var ended = {};
   var n = 0;
   readRows_(TABS.collections).forEach(function (q) {
-    if (q.get('account') === accountId && q.get('status') !== 'Collecting') { ended[q.get('id')] = true; n++; }
+    if (q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED) { ended[q.get('id')] = true; n++; }
   });
   var paces = [];
   readRows_(TABS.stretches).forEach(function (q) {

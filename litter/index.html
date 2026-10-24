@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=3">
+<link rel="stylesheet" href="litter.css?v=4">
 </head>
 <body>
 
@@ -149,6 +149,7 @@
       <p class="lt-since" id="cl-since"></p>
       <p class="lt-totals" id="cl-totals"></p>
       <p class="muted small" id="cl-queue" hidden></p>
+      <p class="muted small" id="cl-turns" hidden></p>
       <p class="err" id="cl-error"></p>
     </section>
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
@@ -156,13 +157,23 @@
     <p class="muted small" id="cl-map-note"></p>
     <div id="cl-actions">
       <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
+      <button class="btn btn-secondary lt-turn-btn" id="cl-turn" type="button">Mark turnaround</button>
       <div class="row2 lt-row">
         <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
         <button class="btn btn-secondary" id="cl-end" type="button">End</button>
       </div>
       <p class="err" id="cl-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
+      <div class="lt-discard-row"><button class="link-btn lt-danger-link" id="cl-discard" type="button">Discard this collection</button></div>
     </div>
+    <!-- Discard this collection (Oct 24, in chat): asked twice, each button waiting a moment before it can be pressed. -->
+    <section class="card lt-confirm" id="cl-discard-box" hidden>
+      <h2 id="cd-title">Discard this collection?</h2>
+      <p id="cd-text"></p>
+      <button class="btn btn-secondary" id="cd-no" type="button">Keep collecting</button>
+      <button class="btn lt-danger" id="cd-yes" type="button">Continue</button>
+      <p class="err" id="cd-err" role="alert"></p>
+    </section>
     <form class="card" id="cl-pulse" novalidate hidden>
       <h2 id="pf-title">Litter pulse</h2>
       <p id="pf-stretch"></p>
@@ -209,6 +220,25 @@
       <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
       <p class="err" id="pf-err" role="alert"></p>
     </form>
+  </div>
+
+  <!-- Planning a collection (Oct 24, in chat): the stretches you mean to collect, before you start. -->
+  <div id="v-plan" hidden>
+    <section class="card">
+      <h2>Plan a collection</h2>
+      <p class="muted small">Tap the cells of the stretch you mean to collect, in order: the app fills in along the street between your taps. Where you'll turn back, press Mark turnaround, then tap that cell. For another stretch, press New stretch.</p>
+      <p class="lt-plan-status" id="pl-status"></p>
+    </section>
+    <p class="lt-pick" id="pl-pick" role="status" hidden></p>
+    <div class="lt-map-box" id="pl-map-box"></div>
+    <div class="row2 lt-row">
+      <button class="btn btn-secondary" id="pl-turn" type="button">Mark turnaround</button>
+      <button class="btn btn-secondary" id="pl-new" type="button">New stretch</button>
+    </div>
+    <button class="btn btn-secondary" id="pl-undo" type="button">Undo</button>
+    <button class="btn btn-accent" id="pl-save" type="button">Save the plan</button>
+    <button class="btn btn-secondary" id="pl-cancel" type="button">Cancel</button>
+    <p class="err" id="pl-err" role="alert"></p>
   </div>
 
   <!-- After End: the summary, its fixes, and a recorder's GPX file. -->
@@ -334,6 +364,9 @@
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
       <p id="cl-hours"></p>
+      <p class="lt-xp" id="cl-xp" hidden></p>
+      <p class="lt-plan-line" id="cl-plan"></p>
+      <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
       <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
@@ -352,9 +385,9 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
-<script src="geo.js?v=2"></script>
-<script src="collect.js?v=2"></script>
+<script src="geo.js?v=3"></script>
+<script src="collect.js?v=3"></script>
 <script src="map.js?v=1"></script>
-<script src="litter.js?v=3"></script>
+<script src="litter.js?v=4"></script>
 </body>
 </html>

@@ -49,21 +49,34 @@ var TABS = {
   },
   // Collecting (S3-P21): one row per collection, one per stretch, and the
   // litter types (Collect.js). Hidden from the map (S3-P22, Q319): when, and
-  // by whom, HABO's staff took a collection off the public map.
+  // by whom, HABO's staff took a collection off the public map. Plan and XP
+  // (Oct 24, in chat): the plan it started from, and the XP it earned.
   collections: {
     name: 'Collections',
     header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
-      'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by'],
-    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220],
-    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm' }
+      'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by',
+      'Plan', 'XP'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@' }
   },
+  // Turnarounds (Oct 24, in chat): where the stretch turned back, with no
+  // weighing and no new stretch.
   stretches: {
     name: 'Stretches',
     header: ['Stretch ID', 'Collection ID', 'Account ID', 'Number', 'Started', 'Ended', 'Cells', 'Street miles', 'Off-street miles',
       'Active minutes', 'Paused minutes', 'Break minutes', 'Break where', 'Scale (lb)', 'New bag', 'Pounds', 'CPUE', 'Litter Index',
-      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key', 'Break question'],
-    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120, 110],
-    formats: { 5: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 7: '@', 13: '@', 24: 'yyyy-mm-dd h:mm', 25: '@' }
+      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key', 'Break question', 'Turnarounds'],
+    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120, 110, 200],
+    formats: { 5: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 7: '@', 13: '@', 24: 'yyyy-mm-dd h:mm', 25: '@', 27: '@' }
+  },
+  // Plans (Oct 24, in chat): the stretches someone means to collect, made
+  // before they start (Plan.js). Each stretch's cells and turnarounds are
+  // split by " / ". Collection: the one it started, or Replaced.
+  plans: {
+    name: 'Plans',
+    header: ['Plan ID', 'Account ID', 'Created', 'Stretches', 'Cells', 'Turnarounds', 'Miles', 'Collection', 'Updated'],
+    widths: [90, 90, 150, 80, 420, 220, 80, 110, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm' }
   },
   types: {
     name: 'Litter Types',
@@ -108,6 +121,8 @@ function actions_() {
     collectEnd: collectEnd_,
     collectFix: collectFix_,
     collectLoad: collectLoad_,
+    collectDiscard: collectDiscard_,
+    planSave: planSave_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_
@@ -241,7 +256,8 @@ function missingSettings_(ss) {
     [SETTING_COLOUR_0, MOCISN_COLOURS[0]],
     [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
-    [SETTING_BREAK_AFTER, '10']
+    [SETTING_BREAK_AFTER, '10'],
+    [SETTING_PLAN_XP, '1']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 

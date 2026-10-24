@@ -66,3 +66,16 @@
 .lt-odd-q { font-weight: 800; color: #92400e; margin-bottom: 4px; }
 .lt-odd .btn { margin-top: 8px; }
 #sm-map-open { margin-bottom: 12px; }
+
+/* Planning, turnarounds and Discard this collection (Oct 24, in chat). */
+.lt-turn-btn { margin-top: 10px; }
+.lt-xp { font-weight: 800; color: var(--primary); }
+.lt-plan-line { margin-bottom: 10px; }
+.lt-plan-line.need { font-weight: 700; color: #92400e; background: #fef3c7; padding: 8px 10px; border-radius: var(--radius-sm); }
+.lt-plan-status { font-weight: 600; margin-top: 8px; }
+.btn.on { outline: 3px solid #7c3aed; outline-offset: 1px; }
+.lt-discard-row { margin-top: 28px; text-align: center; }
+.lt-danger-link { color: var(--danger); font-size: 0.82rem; }
+.lt-confirm { border: 2px solid var(--danger); }
+.lt-danger { background: var(--danger); color: #fff; border: 1px solid var(--danger); margin-top: 10px; }
+.lt-danger:disabled { opacity: 0.45; }
