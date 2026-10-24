@@ -4,5 +4,5 @@
 // the web app's own link, the page calls the backend directly and this isn't
 // used.
 window.LITTER_CONFIG = {
-  API_URL: ''
+  API_URL: 'https://script.google.com/macros/s/AKfycbzUx_VQfnYf1VWLEUfCw1IFLTzSvrK6SHABNvD988gO2-XC29Mn53BZwsjojv5fEdIo/exec'
 };
