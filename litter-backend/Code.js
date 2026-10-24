@@ -257,7 +257,8 @@ function missingSettings_(ss) {
     [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
     [SETTING_BREAK_AFTER, '10'],
-    [SETTING_PLAN_XP, '1']
+    [SETTING_PLAN_XP, '1'],
+    [SETTING_START_SAYINGS, '']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 

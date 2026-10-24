@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=4">
+<link rel="stylesheet" href="litter.css?v=5">
 </head>
 <body>
 
@@ -241,6 +241,15 @@
     <p class="err" id="pl-err" role="alert"></p>
   </div>
 
+  <!-- While a collection starts (Oct 24, on C477): over the whole page, so nothing can be pressed twice. -->
+  <div class="lt-scrim" id="cl-starting" role="status" aria-live="polite" hidden>
+    <div class="lt-scrim-box">
+      <div class="lt-spinner" aria-hidden="true"></div>
+      <p class="lt-scrim-title">Starting your collection, please wait...</p>
+      <p class="lt-scrim-saying" id="cl-saying"></p>
+    </div>
+  </div>
+
   <!-- After End: the summary, its fixes, and a recorder's GPX file. -->
   <div id="v-summary" hidden>
     <section class="card">
@@ -386,7 +395,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=3"></script>
-<script src="collect.js?v=3"></script>
+<script src="collect.js?v=4"></script>
 <script src="map.js?v=1"></script>
 <script src="litter.js?v=4"></script>
 </body>

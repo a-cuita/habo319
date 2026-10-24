@@ -34,6 +34,10 @@ var SETTING_SUNSET_WARN = 'Sunset warning (minutes before)';
 var SETTING_NO_START = 'No new collection (minutes before sunset)';
 var SETTING_AUTO_END = 'A collection left alone ends after (hours)';
 var SETTING_EDIT_HOURS = 'A collection can be changed for (hours)';
+// The screen while a collection starts (Jeremy, Oct 24, on |C477): sayings
+// staff add in the invoicing app, one per line, shown in turn under "Starting
+// your collection, please wait...".
+var SETTING_START_SAYINGS = 'Sayings while a collection starts';
 // Discard this collection (Oct 24, in chat): kept on the record, with no
 // hours, no XP and nothing on the map, and not counted.
 var COLLECTION_DISCARDED = 'Discarded';
@@ -515,7 +519,8 @@ function minutesSetting_(name, fallback) {
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
-    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_() };
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_(),
+    sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
 }
 
 function round_(n, places) { var f = Math.pow(10, places); return Math.round(Number(n) * f) / f; }

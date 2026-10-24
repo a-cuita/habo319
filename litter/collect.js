@@ -181,22 +181,47 @@ window.LitterCollect = function (app) {
 
   /* ── Start ── */
 
+  // While a collection starts (Jeremy, on C477): a screen over the page, so
+  // nothing can be pressed twice, with staff's sayings shown in turn.
+  var sayingTimer = null;
+  function showStarting() {
+    $('cl-starting').hidden = false;
+    var list = (settings.sayings || []).slice();
+    var k = list.length ? Math.floor(Math.random() * list.length) : 0;
+    var next = function () { $('cl-saying').textContent = list.length ? list[k++ % list.length] : ''; };
+    next();
+    clearInterval(sayingTimer);
+    if (list.length > 1) sayingTimer = setInterval(next, 4000);
+  }
+  function hideStarting() {
+    clearInterval(sayingTimer);
+    sayingTimer = null;
+    $('cl-starting').hidden = true;
+  }
+
   function start(button) {
     if (c && !c.ended) return openCollect();
+    showStarting();
     app.busy(button, 'cl-start-err', function () {
       return locate().then(function (loc) {
         if (!loc.cell) {
           // No location: pick the cell on the map, then Start.
+          hideStarting();
           openCollect();
           beginPick(loc.near, loc.why, function (cell) { return startAt(cell); });
           return;
         }
         return startAt(loc.cell);
       });
-    });
+    }).then(hideStarting);
   }
 
   function startAt(cell) {
+    showStarting();
+    return startHere(cell).then(hideStarting, function (err) { hideStarting(); throw err; });
+  }
+
+  function startHere(cell) {
     var s = sunAt(cell), now = Date.now();
     if (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
