@@ -603,7 +603,8 @@ window.LitterCollect = function (app) {
     if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
     if (s.track) { var tr = document.createElement('p'); tr.className = 'muted small'; tr.textContent = 'Its cells are from your GPX track.'; box.appendChild(tr); }
     if (summary.gpx && summary.gpx[s.id]) box.appendChild(trackChoice(s, summary.gpx[s.id]));
-    var odd = !s.discarded && !s.asked ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
+    // Asked once; a track that shows a long stop is new, so it asks again.
+    var odd = !s.discarded && !s.breakMin && (!s.asked || (summary.stops && summary.stops[s.id])) ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
     if (odd) box.appendChild(oddQuestion(s, odd));
     if (!s.discarded) {
       var b = document.createElement('button');
@@ -618,7 +619,8 @@ window.LitterCollect = function (app) {
 
   // The break question on the summary (item 7), for a stretch saved without
   // it: Yes opens the fix with a break; No keeps the stretch as it is. With
-  // a recorder's track, it points to the cell where the track stopped longest.
+  // a recorder's track, it points to the cell where the track stopped
+  // longest, and asks even if the litter pulse asked.
   function oddQuestion(s, odd) {
     var box = document.createElement('div');
     box.className = 'lt-odd';
@@ -716,6 +718,7 @@ window.LitterCollect = function (app) {
         summary.collection = d.collection;
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.gpx) delete summary.gpx[s.id];
+        if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
         summary.withBreak = false;
         summary.whereMode = false;
@@ -746,7 +749,7 @@ window.LitterCollect = function (app) {
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
         var stop = longestStop(pts, s);
-        if (stop && !s.asked && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
+        if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
         var cells = [];
         pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; }).forEach(function (p) {
           var cell = G.cellAt(p.lat, p.lon);

@@ -52,7 +52,7 @@ window.LitterMap = function (app) {
     $('mp-note').textContent = 'Loading the map…';
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     if (!map) {
-      map = L.map('mp-map', { zoomControl: true, attributionControl: true, preferCanvas: true });
+      map = L.map('mp-map', { zoomControl: true, attributionControl: true });
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
       layer = L.layerGroup().addTo(map);
       var h = G.cellCenter(HOME_CELL);
