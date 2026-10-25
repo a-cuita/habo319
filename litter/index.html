@@ -182,27 +182,41 @@
     </section>
     <form class="card" id="cl-pulse" novalidate hidden>
       <h2 id="pf-title">Litter pulse</h2>
+      <p class="muted small" id="pf-step-n"></p>
+      <!-- One thing per screen (S3-P27, Q397), with Next and Back. -->
+      <div class="pf-step" data-step="stretch">
+      <p class="lt-label">Your stretch: confirm it, or tap cells on the map to change it.</p>
       <p id="pf-stretch"></p>
       <div class="center"><button class="link-btn" id="pf-suggested" type="button">Use the suggested stretch</button></div>
+      <div class="center"><button class="btn btn-secondary" id="pf-plan-stretch" type="button" hidden>Use my plan's stretch</button></div>
+      </div>
+      <div class="pf-step" data-step="scale" hidden>
       <div class="ig">
         <label for="pf-scale">What the scale shows (lb)</label>
         <input id="pf-scale" inputmode="decimal" autocomplete="off">
         <p class="muted small" id="pf-bag-hint"></p>
       </div>
       <label class="choice-row"><input type="checkbox" id="pf-newbag"> New bag: this one is full, and I'm starting another</label>
-      <p class="lt-label">Litter types here (optional)</p>
+      <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
+      </div>
+      <div class="pf-step" data-step="types" hidden>
+      <p class="lt-label">Litter types here (you can skip this)</p>
       <div class="lt-types" id="pf-types"></div>
       <div class="lt-addtype">
         <input id="pf-newtype" maxlength="60" placeholder="Another type" aria-label="Another litter type">
         <button class="btn btn-secondary" id="pf-addtype" type="button">Add</button>
       </div>
+      </div>
+      <div class="pf-step" data-step="rating" hidden>
       <div class="ig">
-        <label for="pf-rating">Visual rating (optional)</label>
-        <select id="pf-rating" class="lt-select"><option value="">No rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+        <label for="pf-rating">Visual rating: how littered did it look?</label>
+        <select id="pf-rating" class="lt-select"><option value="">Pick a rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
         <p class="muted small">0 is spotless; 10 is the worst you've seen.</p>
       </div>
+      </div>
+      <div class="pf-step" data-step="break" hidden>
       <div class="ig">
-        <label for="pf-break">A break in this stretch, in minutes (optional)</label>
+        <label for="pf-break">A break in this stretch, in minutes (you can skip this)</label>
         <input id="pf-break" inputmode="numeric" autocomplete="off">
         <div class="lt-where">
           <button class="link-btn" id="pf-where-tap" type="button">Where were you? Tap the cell</button>
@@ -221,8 +235,12 @@
         <button class="btn btn-primary" id="pf-odd-yes" type="button">Yes: add a break</button>
         <button class="btn btn-secondary" id="pf-odd-no" type="button">No: save it as it is</button>
       </div>
-      <button class="btn btn-accent" id="pf-save" type="submit">Save litter pulse</button>
-      <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
+      </div>
+      <div class="row2 lt-row">
+        <button class="btn btn-secondary" id="pf-back" type="button">Back</button>
+        <button class="btn btn-primary" id="pf-next" type="button">Next</button>
+      </div>
+      <button class="btn btn-accent" id="pf-save" type="submit" hidden>Save litter pulse</button>
       <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
       <p class="err" id="pf-err" role="alert"></p>
     </form>
@@ -401,7 +419,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=4"></script>
-<script src="collect.js?v=6"></script>
+<script src="collect.js?v=7"></script>
 <script src="map.js?v=1"></script>
 <script src="litter.js?v=4"></script>
 </body>

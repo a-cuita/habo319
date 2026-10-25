@@ -139,7 +139,9 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings;
       types = d.types || [];
       pace = d.pace || null;
-      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0 };
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
+        // Open on HABO but not on this phone, as after signing in again (Q409).
+        open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
       $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
       // A collection open here but ended there (left alone 12 hours): forget it.
@@ -150,8 +152,8 @@ window.LitterCollect = function (app) {
   }
 
   function showPlanLine() {
-    var going = !!(c && !c.ended);
     var a = account || { plan: null, planNeeded: false, xp: 0 };
+    var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
     $('cl-plan-btn').hidden = going;
     $('cl-xp').hidden = !account;
@@ -224,6 +226,15 @@ window.LitterCollect = function (app) {
 
   function start(button) {
     if (c && !c.ended) return openCollect();
+    // Your collection is open on HABO, not on this phone: pick it up from the
+    // last litter pulse that reached HABO (Q409).
+    if (!c && account && account.open) {
+      var open = account.open;
+      return app.busy(button, 'cl-start-err', function () {
+        showStarting();
+        return startHere(open.startCell).then(function () { account.open = null; hideStarting(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideStarting(); throw err; });
+      });
+    }
     showStarting();
     app.busy(button, 'cl-start-err', function () {
       return locate().then(function (loc) {
@@ -258,11 +269,30 @@ window.LitterCollect = function (app) {
         turns: [], plan: d.plan || null };
       if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
+      if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
       save();
       return fetchStreets(cell).catch(function () {
         app.notice('The streets around you couldn\'t load just now; your stretches are measured straight until they do.');
       }).then(function () { openCollect(); });
     });
+  }
+
+  // Picking a collection up after signing in again (S3-P27, Q409): from the
+  // last litter pulse that reached HABO, so nothing counts twice.
+  function pickUp(list) {
+    var last = list[list.length - 1];
+    c.n = last.n + 1;
+    c.lastCell = last.pulseCell || last.cells[last.cells.length - 1];
+    c.current = { startedAt: last.ended, startCell: c.lastCell, pausedMin: 0 };
+    c.totals = { pounds: 0, miles: 0, minutes: 0 };
+    list.forEach(function (s) {
+      c.totals.minutes += s.activeMin || 0;
+      if (s.discarded) return;
+      c.totals.pounds += s.pounds || 0;
+      c.totals.miles += (s.streetMi || 0) + (s.offMi || 0);
+    });
+    c.bagReset = !!last.discarded;
+    c.scalePrev = last.discarded || last.newBag || last.scale == null ? 0 : last.scale;
   }
 
   /* ── The collecting screen ── */
@@ -440,8 +470,65 @@ window.LitterCollect = function (app) {
     $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
     showTypes();
     showStretch();
+    pulse.planCells = planStretchAt(pulse.cell);
+    $('pf-plan-stretch').hidden = !pulse.planCells;
+    pulse.step = 0;
+    showStep();
     // The map stays in view: the stretch is changed by tapping it.
     $('cl-map-box').scrollIntoView({ block: 'start' });
+  }
+
+  // One thing per screen (S3-P27, Q397): the stretch, the scale, litter
+  // types, the visual rating, and a break, with Next and Back. Litter types
+  // and a break can be skipped; the rating can't (Q403).
+  var STEPS = ['stretch', 'scale', 'types', 'rating', 'break'];
+  function showStep() {
+    var i = pulse.step;
+    Array.prototype.forEach.call(document.querySelectorAll('#cl-pulse .pf-step'), function (d) { d.hidden = d.dataset.step !== STEPS[i]; });
+    $('pf-step-n').textContent = 'Step ' + (i + 1) + ' of ' + STEPS.length;
+    $('pf-back').hidden = i === 0;
+    $('pf-next').hidden = i === STEPS.length - 1;
+    $('pf-save').hidden = i !== STEPS.length - 1;
+    $('pf-err').textContent = '';
+    var why = $('pf-why');
+    if (why) why.remove();
+    $('pf-discard').hidden = false;
+  }
+  function stepCheck(i) {
+    if (STEPS[i] === 'scale') return scaleError();
+    if (STEPS[i] === 'rating' && $('pf-rating').value === '') return 'Pick a visual rating: how littered it looked, from 0 to 10.';
+    return '';
+  }
+  function nextStep() {
+    var e = stepCheck(pulse.step);
+    if (e) { $('pf-err').textContent = e; return; }
+    pulse.step += 1;
+    showStep();
+  }
+  function goStep(name, why) {
+    pulse.step = STEPS.indexOf(name);
+    showStep();
+    if (why) $('pf-err').textContent = why;
+  }
+  function scaleError() {
+    var scale = $('pf-scale').value.trim();
+    var lbs = Number(scale.replace(/[^\d.]/g, ''));
+    if (scale === '' || !(lbs >= 0)) return 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this stretch.';
+    var before = c.bagReset ? 0 : c.scalePrev;
+    if (lbs < before) return 'The scale shows less than at your last litter pulse (' + before + ' lb). If you started a new bag then, the app needed to know: tick New bag at a pulse when you start one.';
+    return '';
+  }
+
+  // Your plan at a litter pulse (S3-P27, Q400): a planned stretch that starts
+  // or ends in this cell, as cells ending here, or null.
+  function planStretchAt(cell) {
+    var found = null;
+    (c && c.plan && c.plan.stretches || []).forEach(function (s) {
+      if (found || !s.cells || s.cells.length < 2) return;
+      if (s.cells[s.cells.length - 1] === cell) found = s.cells.slice();
+      else if (s.cells[0] === cell) found = s.cells.slice().reverse();
+    });
+    return found;
   }
 
   function showStretch() {
@@ -500,7 +587,7 @@ window.LitterCollect = function (app) {
 
   // Saves the litter pulse on the phone, then sends it. `discard`: Discard
   // this stretch (item 6, Q284, Q301).
-  function savePulse(discard) {
+  function savePulse(discard, why) {
     var err = $('pf-err');
     var endedAt = pulse.kind === 'end' ? fromTimeInput($('pf-end').value, pulse.pressedAt) : pulse.pressedAt;
     var lastEnd = c.current.startedAt;
@@ -508,9 +595,9 @@ window.LitterCollect = function (app) {
     var scale = $('pf-scale').value.trim();
     var lbs = Number(scale.replace(/[^\d.]/g, ''));
     if (!discard) {
-      if (scale === '' || !(lbs >= 0)) { err.textContent = 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this stretch.'; return; }
-      var before = c.bagReset ? 0 : c.scalePrev;
-      if (lbs < before) { err.textContent = 'The scale shows less than at your last litter pulse (' + before + ' lb). If you started a new bag then, the app needed to know: tick New bag at a pulse when you start one.'; return; }
+      var se = scaleError();
+      if (se) return goStep('scale', se);
+      if ($('pf-rating').value === '') return goStep('rating', 'Pick a visual rating: how littered it looked, from 0 to 10.');
     }
     var breakMin = Number($('pf-break').value) || 0;
     var cur = c.current;
@@ -532,7 +619,7 @@ window.LitterCollect = function (app) {
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
       scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
-      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak,
+      types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak, reason: discard ? why || null : null, pulseCell: pulse.cell,
       turns: (c.turns || []).filter(function (t) { return pulse.cells.indexOf(t) !== -1; })
     };
     c.queue.push({ type: 'stretch', stretch: stretch });
@@ -742,17 +829,18 @@ window.LitterCollect = function (app) {
     return box;
   }
 
-  // Discard this stretch on the summary (S3-P27, Q399, Q422, Q423): why, in
-  // one tap, then Discard. Two choices aren't reasons, and say what to do
-  // instead: a clean stretch is real data, and a wrong place is fixed.
+  // Why a stretch or a collection is discarded (S3-P27, Q411, Q412, Q422,
+  // Q423): one tap on a reason. For a stretch, two choices aren't reasons,
+  // and say what to do instead: a clean stretch is real data, and a wrong
+  // place is fixed, not discarded.
   var DISCARD_WHY = ['Entered in error', 'I wasn\'t looking for litter', 'I couldn\'t weigh it right', 'Litter from somewhere else is in the bag', 'Other'];
-  function discardWhy(s) {
+  function whyBox(o) {
     var box = document.createElement('div');
     box.className = 'lt-odd lt-discard-why';
     var chosen = '';
     var q = document.createElement('p');
     q.className = 'lt-odd-q';
-    q.textContent = 'Why are you discarding stretch ' + s.n + '?';
+    q.textContent = o.title;
     box.appendChild(q);
     var say = document.createElement('p');
     say.className = 'lt-discard-say';
@@ -765,18 +853,19 @@ window.LitterCollect = function (app) {
     var err = document.createElement('p');
     err.className = 'err';
     err.setAttribute('role', 'alert');
-    err.id = 'sd-err-' + s.id;
+    err.id = o.errId;
     var go = document.createElement('button');
     go.type = 'button';
     go.className = 'btn lt-danger lt-discard-go';
-    go.textContent = 'Discard stretch ' + s.n;
+    go.textContent = o.goLabel || '';
     go.hidden = true;
     var pick = function (why, b) {
       chosen = why;
       Array.prototype.forEach.call(box.querySelectorAll('.lt-why'), function (x) { x.classList.toggle('btn-primary', x === b); x.classList.toggle('btn-secondary', x !== b); });
       other.hidden = why !== 'Other';
       say.textContent = '';
-      go.hidden = false;
+      go.hidden = !why || !o.goLabel;
+      if (o.onPick) o.onPick(why);
     };
     var choice = function (label, fn) {
       var b = document.createElement('button');
@@ -788,43 +877,57 @@ window.LitterCollect = function (app) {
       return b;
     };
     DISCARD_WHY.forEach(function (why) { choice(why, function (b) { pick(why, b); }); });
-    choice('Nothing to pick up', function (b) {
-      pick('', b);
-      go.hidden = true;
-      say.textContent = 'Were you looking for litter the whole way?';
-      var yes = document.createElement('button');
-      yes.type = 'button'; yes.className = 'btn btn-primary lt-clean-yes'; yes.textContent = 'Yes';
-      yes.addEventListener('click', function () { say.textContent = 'Then keep it: a clean street is real data, and it counts. If its weight isn\'t 0, press Fix this stretch.'; });
-      var no = document.createElement('button');
-      no.type = 'button'; no.className = 'btn btn-secondary lt-clean-no'; no.textContent = 'No';
-      no.addEventListener('click', function () {
-        var w = Array.prototype.filter.call(box.querySelectorAll('.lt-why'), function (x) { return x.textContent === DISCARD_WHY[1]; })[0];
-        pick(DISCARD_WHY[1], w);
-        say.textContent = 'Then it\'s discarded as "' + DISCARD_WHY[1] + '".';
+    if (o.redirects) {
+      choice('Nothing to pick up', function (b) {
+        pick('', b);
+        say.textContent = 'Were you looking for litter the whole way?';
+        var yes = document.createElement('button');
+        yes.type = 'button'; yes.className = 'btn btn-primary lt-clean-yes'; yes.textContent = 'Yes';
+        yes.addEventListener('click', function () { say.textContent = o.cleanYes; });
+        var no = document.createElement('button');
+        no.type = 'button'; no.className = 'btn btn-secondary lt-clean-no'; no.textContent = 'No';
+        no.addEventListener('click', function () {
+          var w = Array.prototype.filter.call(box.querySelectorAll('.lt-why'), function (x) { return x.textContent === DISCARD_WHY[1]; })[0];
+          pick(DISCARD_WHY[1], w);
+          say.textContent = 'Then it\'s discarded as "' + DISCARD_WHY[1] + '".';
+        });
+        say.appendChild(document.createElement('br'));
+        say.appendChild(yes);
+        say.appendChild(no);
       });
-      say.appendChild(document.createElement('br'));
-      say.appendChild(yes);
-      say.appendChild(no);
-    });
-    choice('The map shows the wrong place', function (b) {
-      pick('', b);
-      go.hidden = true;
-      say.textContent = 'No need to discard it: press Fix this stretch, then Change its cells, and tap the cells you walked.';
-    });
+      choice('The map shows the wrong place', function (b) {
+        pick('', b);
+        say.textContent = o.wrongPlace;
+      });
+    }
     box.appendChild(say);
     box.appendChild(other);
     box.appendChild(go);
-    var keep = document.createElement('button');
-    keep.type = 'button';
-    keep.className = 'btn btn-secondary lt-discard-keep';
-    keep.textContent = 'Keep it';
-    keep.addEventListener('click', function () { showSummary(); });
-    box.appendChild(keep);
+    if (o.onKeep) {
+      var keep = document.createElement('button');
+      keep.type = 'button';
+      keep.className = 'btn btn-secondary lt-discard-keep';
+      keep.textContent = 'Keep it';
+      keep.addEventListener('click', o.onKeep);
+      box.appendChild(keep);
+    }
     box.appendChild(err);
+    box.reason = function () { return { reason: chosen, other: other.value }; };
     go.addEventListener('click', function () {
-      sendFix(go, s, { discard: { reason: chosen, other: other.value } }, err.id);
+      if (chosen === 'Other' && other.value.trim().length < 2) { err.textContent = 'Say in a few words why you\'re discarding it.'; return; }
+      o.onGo(box.reason(), go, err.id);
     });
     return box;
+  }
+
+  // Discard this stretch on the summary (S3-P27, Q399).
+  function discardWhy(s) {
+    return whyBox({ title: 'Why are you discarding stretch ' + s.n + '?', redirects: true, errId: 'sd-err-' + s.id,
+      cleanYes: 'Then keep it: a clean street is real data, and it counts. If its weight isn\'t 0, press Fix this stretch.',
+      wrongPlace: 'No need to discard it: press Fix this stretch, then Change its cells, and tap the cells you walked.',
+      goLabel: 'Discard stretch ' + s.n,
+      onGo: function (r, go, errId) { sendFix(go, s, { discard: r }, errId); },
+      onKeep: function () { showSummary(); } });
   }
 
   // The break question on the summary (item 7), for a stretch saved without
@@ -1034,8 +1137,12 @@ window.LitterCollect = function (app) {
   // Asked twice, and each time its button waits a moment before it can be
   // pressed, so a quick tap can't discard it by accident.
   var discardStep = 0;
+  var collectionWhy = null;
   function askDiscard(step) {
     discardStep = step;
+    var old = $('cd-why');
+    if (old) old.remove();
+    var shown = Date.now();
     $('cl-actions').hidden = true;
     $('cl-discard-box').hidden = false;
     $('cd-err').textContent = '';
@@ -1046,11 +1153,20 @@ window.LitterCollect = function (app) {
     var yes = $('cd-yes');
     yes.textContent = step === 1 ? 'Continue' : 'Confirm discard';
     yes.disabled = true;
-    setTimeout(function () { if (discardStep === step) yes.disabled = false; }, 1500);
+    if (step === 1) {
+      // Why, one tap, with the same choices as a stretch (Q412).
+      collectionWhy = whyBox({ title: 'Why are you discarding it?', errId: 'cd-why-err',
+        onPick: function (why) { if (discardStep === 1 && why && Date.now() - shown >= 1500) yes.disabled = false; } });
+      collectionWhy.id = 'cd-why';
+      $('cl-discard-box').insertBefore(collectionWhy, $('cd-no'));
+    }
+    setTimeout(function () { if (discardStep === step && (step === 2 || collectionWhy.reason().reason)) yes.disabled = false; }, 1500);
     $('cl-discard-box').scrollIntoView({ block: 'center' });
   }
   function closeDiscard() {
     discardStep = 0;
+    var old = $('cd-why');
+    if (old) old.remove();
     $('cl-discard-box').hidden = true;
     $('cl-actions').hidden = false;
   }
@@ -1060,7 +1176,7 @@ window.LitterCollect = function (app) {
       // What the phone kept goes first, so HABO has the whole record.
       return flush().then(function () {
         if (c.queue.length) throw new Error('Discarding needs signal, so the litter pulses kept on this phone reach HABO first. Try again when you have signal.');
-        return app.api('collectDiscard', { token: app.myToken(), collectionId: c.id });
+        return app.api('collectDiscard', { token: app.myToken(), collectionId: c.id, reason: collectionWhy && collectionWhy.reason() });
       }).then(function () {
         discardStep = 0;
         c = null;
@@ -1211,7 +1327,21 @@ window.LitterCollect = function (app) {
   $('cl-same-no').addEventListener('click', function () { sameAnswer(false); });
   $('cl-back').addEventListener('click', function () { app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
-  $('pf-discard').addEventListener('click', function () { savePulse(true); });
+  $('pf-next').addEventListener('click', nextStep);
+  $('pf-back').addEventListener('click', function () { if (pulse && pulse.step > 0) { pulse.step -= 1; showStep(); } });
+  $('pf-plan-stretch').addEventListener('click', function () { if (pulse && pulse.planCells) { pulse.cells = pulse.planCells.slice(); showStretch(); } });
+  $('pf-discard').addEventListener('click', function () {
+    if ($('pf-why')) return;
+    var b = whyBox({ title: 'Why are you discarding this stretch?', redirects: true, errId: 'pf-why-err',
+      cleanYes: 'Then don\'t discard it: type what the scale shows now, the same as at your last litter pulse, and go on.',
+      wrongPlace: 'No need to discard it: press Back, and tap the cells you walked on the map.',
+      goLabel: 'Discard this stretch',
+      onGo: function (r) { savePulse(true, r); },
+      onKeep: function () { b.remove(); $('pf-discard').hidden = false; } });
+    b.id = 'pf-why';
+    $('pf-discard').hidden = true;
+    $('pf-discard').parentNode.appendChild(b);
+  });
   $('pf-cancel').addEventListener('click', function () {
     if (pulse && pulse.kind === 'pause') { app.notice('Weigh it, or press Discard this stretch.'); return; }
     pulse = null; $('cl-pulse').hidden = true; $('cl-actions').hidden = false; drawCells([], c && c.lastCell, null, c && c.turns);

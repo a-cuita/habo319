@@ -17,12 +17,23 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
-  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28 };
+  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
 // The reasons Discard this stretch offers on the summary (S3-P27, Q422).
 var DISCARD_REASONS = ['Entered in error', 'I wasn\'t looking for litter', 'I couldn\'t weigh it right', 'Litter from somewhere else is in the bag'];
+// A discard's reason, as given: one of the list, or Other in a few words.
+function discardReason_(d) {
+  var why = String(d && d.reason || '').trim();
+  if (why === 'Other') {
+    var words = clean_(d.other, 200).replace(/\s+/g, ' ');
+    if (words.length < 2) throw new Error('Say in a few words why you\'re discarding it.');
+    return 'Other: ' + words;
+  }
+  if (DISCARD_REASONS.indexOf(why) === -1) throw new Error('Pick why you\'re discarding it.');
+  return why;
+}
 var TYPE_COL = { type: 1, addedBy: 2, status: 3, added: 4 };
 
 // MoCiSN's 15 litter types (Q346).
@@ -62,7 +73,11 @@ function collectStart_(req) {
   return withLock_(function () {
     endLeftAlone_(account);
     var open = openCollection_(account.id);
-    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: planView_(planById_(open.plan)) };
+    // Already open, as after signing in again (Q409): its stretches come
+    // back too, so the page picks up from the last litter pulse that
+    // reached HABO, and nothing counts twice.
+    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: planView_(planById_(open.plan)),
+      stretches: stretchesOf_(open.id).map(stretchViewOf_) };
     // A plan first, until there are enough collections to know the usual pace (Plan.js).
     var plan = openPlan_(account.id);
     if (!plan && planNeeded_(account.id)) throw coded_('plan-first', 'Plan your collection first: press Plan a collection.');
@@ -118,7 +133,7 @@ function collectStretch_(req) {
     put('cpue', r.cpue == null ? '' : round_(r.cpue, 3)); put('index', r.index == null ? '' : round_(r.index, 3));
     put('types', safeCell_(x.types.join('; '))); put('rating', x.rating); put('discarded', x.discarded ? 'Yes' : '');
     put('pastSunset', x.pastSunset ? 'Yes' : ''); put('track', ''); put('received', new Date()); put('key', key); put('asked', x.asked ? 'Asked' : '');
-    put('turns', x.turns.join(' '));
+    put('turns', x.turns.join(' ')); put('reason', x.reason ? safeCell_(x.reason) : ''); put('pulseCell', x.pulseCell);
     var sheet = getDb_().getSheetByName(TABS.stretches.name);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     var cs = getDb_().getSheetByName(TABS.collections.name);
@@ -162,12 +177,14 @@ function collectDiscard_(req) {
     var col = readCollection_(clean_(req.collectionId, 20));
     if (!col || col.account !== account.id) throw new Error('That collection isn\'t yours, or isn\'t here any more.');
     if (col.status !== 'Collecting') throw new Error('That collection has already ended, so it can\'t be discarded.');
+    var why = req.reason ? discardReason_(req.reason) : '';
     var stretches = stretchesOf_(col.id);
     var last = stretches[stretches.length - 1];
     var cs = getDb_().getSheetByName(TABS.collections.name);
     cs.getRange(col.row, COLLECTION_COL.ended).setValue(new Date());
     cs.getRange(col.row, COLLECTION_COL.endCell).setValue(last ? last.cells[last.cells.length - 1] : col.startCell);
     cs.getRange(col.row, COLLECTION_COL.status).setValue(COLLECTION_DISCARDED);
+    if (why) cs.getRange(col.row, COLLECTION_COL.reason).setValue(safeCell_(why));
     retotal_(col.id);
     if (col.plan) markPlan_(col.plan, '');
     logChange_(account.first + ' ' + account.last, 'Discarded', col.id, 'Status', 'Collecting', COLLECTION_DISCARDED);
@@ -203,14 +220,7 @@ function collectFix_(req) {
     // its time, with no reading, and comes off the map.
     if (f.discard) {
       if (r.get('discarded') === 'Yes') throw new Error('That stretch is already discarded.');
-      var why = String(f.discard.reason || '').trim();
-      if (why === 'Other') {
-        var words = clean_(f.discard.other, 200).replace(/\s+/g, ' ');
-        if (words.length < 2) throw new Error('Say in a few words why you\'re discarding it.');
-        why = 'Other: ' + words;
-      } else if (DISCARD_REASONS.indexOf(why) === -1) {
-        throw new Error('Pick why you\'re discarding it.');
-      }
+      var why = discardReason_(f.discard);
       set('discarded', 'Discarded', 'Yes');
       set('reason', 'Discard reason', safeCell_(why));
       set('pounds', 'Pounds', '');
@@ -302,7 +312,10 @@ function checkStretch_(s, col, account) {
     pausedMin: pausedMin, breakMin: breakMin, breakWhere: s.breakWhere === 'Not sure' ? 'Not sure' : s.breakWhere ? cleanCell_(s.breakWhere) : '',
     activeMin: activeMin, scale: scale, newBag: s.newBag === true, discarded: discarded, asked: s.breakAsked === true,
     turns: cleanCells_(s.turns).filter(function (t) { return cells.indexOf(t) !== -1; }).slice(0, 50),
-    types: discarded ? [] : cleanTypes_(s.types || [], account), rating: discarded ? '' : cleanRating_(s.rating)
+    types: discarded ? [] : cleanTypes_(s.types || [], account), rating: discarded ? '' : cleanRating_(s.rating),
+    reason: discarded && s.reason ? discardReason_(s.reason) : '',
+    // Where the litter pulse was pressed: where the next stretch starts (Q409).
+    pulseCell: /^-?\d+_-?\d+$/.test(String(s.pulseCell || '')) ? String(s.pulseCell) : ''
   };
 }
 
@@ -405,9 +418,9 @@ function stretchOf_(q) {
     pounds: q.get('pounds') === '' ? null : Number(q.get('pounds')), cpue: q.get('cpue') === '' ? null : Number(q.get('cpue')),
     index: q.get('index') === '' ? null : Number(q.get('index')), types: String(q.get('types')).split('; ').filter(String),
     rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
-    newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'),
+    newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'), scale: q.get('scale') === '' ? null : Number(q.get('scale')),
     pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked',
-    turns: String(q.get('turns')).split(/\s+/).filter(String), reason: String(q.get('reason') || '') };
+    turns: String(q.get('turns')).split(/\s+/).filter(String), reason: String(q.get('reason') || ''), pulseCell: String(q.get('pulseCell') || '') };
 }
 
 function stretchView_(q) { return stretchViewOf_(stretchesOf_(q.get('collection')).filter(function (s) { return s.id === q.get('id'); })[0]); }
