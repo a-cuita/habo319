@@ -1190,10 +1190,14 @@ window.LitterCollect = function (app) {
           if (cells[cells.length - 1] !== cell) cells.push(cell);
         });
         if (!cells.length) return;
-        // The same cells, whatever their order, and each once: an out and
-        // back passes its cells twice, and a stretch lists them once (|C524).
+        // Whatever their order, each once: an out and back passes its cells
+        // twice, and a stretch lists them once (|C524). And within a cell of
+        // each other, both ways: a phone's track drifts into the next cell
+        // along a street near a cell's edge, so only a stretch the track
+        // really left is called different.
         var uniq = cells.filter(function (x, i) { return cells.indexOf(x) === i; });
-        var same = uniq.slice().sort().join(' ') === s.cells.slice().sort().join(' ');
+        var near = function (list) { return function (x) { return list.some(function (y) { return G.neighbours(x, y); }); }; };
+        var same = uniq.every(near(s.cells)) && s.cells.every(near(uniq));
         if (!same) { summary.gpx[s.id] = uniq; n++; }
       });
       showSummary();
