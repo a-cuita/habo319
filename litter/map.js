@@ -43,7 +43,8 @@ window.LitterMap = function (app) {
 
   /* ── The public map ── */
 
-  // opts: { focus: [cells] to show first, back: what Back does }.
+  // opts: { focus: [cells] to show first, back: what Back does, track: a
+  // collection's kept GPX track, [[lat, lon], …], drawn as a line }.
   function open(opts) {
     opts = opts || {};
     back = opts.back || null;
@@ -65,6 +66,11 @@ window.LitterMap = function (app) {
       draw(d.cells || []);
       var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
       fit(focus);
+      // The walk's own GPX track, where you walked (S3-P27, Oct 25).
+      if (opts.track && opts.track.length > 1) {
+        L.polyline(opts.track, { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+        map.fitBounds(L.latLngBounds(opts.track), { maxZoom: 17, padding: [16, 16] });
+      }
       $('mp-note').textContent = d.cells.length ? (d.cells.length === 1 ? '1 cell has' : d.cells.length.toLocaleString('en-US') + ' cells have') + ' a reading.'
         : 'No collections on the map yet. Cells show here once someone saves a collection.';
     }, function (err) { $('mp-note').textContent = err.message; });
@@ -136,6 +142,7 @@ window.LitterMap = function (app) {
       ul.appendChild(li);
     });
     box.appendChild(ul);
+    if (c.track && c.track.length > 1) box.appendChild(el('p', 'muted small', 'Your GPX track is saved: See it on the map shows it.'));
     if (c.hidden) box.appendChild(el('p', 'lt-col-hidden', 'HABO\'s staff have taken this collection off the public map. It\'s still kept, with your hours.'));
     var row = el('div', 'lt-col-row');
     var cells = [];
@@ -143,7 +150,7 @@ window.LitterMap = function (app) {
     if (cells.length && !c.hidden) {
       var m = el('button', 'btn btn-secondary lt-col-map', 'See it on the map');
       m.type = 'button';
-      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount }); });
+      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount, track: c.track }); });
       row.appendChild(m);
     }
     if (c.editable) {
