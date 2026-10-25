@@ -14,6 +14,14 @@
 
 var PLAN_COL = { id: 1, account: 2, created: 3, stretches: 4, cells: 5, turns: 6, miles: 7, collection: 8, updated: 9 };
 var SETTING_PLAN_XP = 'XP for each planned collection';
+// XP for each stretch (S3-P27, Q401, Q402, M409, Q424): its visual rating,
+// by how close it is to the Litter Index, with a bonus as the Litter Index
+// rises; and its litter types. Every number is a setting.
+var SETTING_RATING_XP_1 = 'XP for a visual rating within 1';
+var SETTING_RATING_XP_2 = 'XP for a visual rating within 2';
+var SETTING_RATING_XP_3 = 'XP for a visual rating within 3';
+var SETTING_RATING_BONUS = 'Rating XP bonus: the Litter Index divided by';
+var SETTING_TYPES_XP = 'XP for a stretch\'s litter types';
 var PLAN_REPLACED = 'Replaced';
 
 /* ── Called from the page ── */
@@ -120,8 +128,39 @@ function setPlanXp_(collectionId) {
   getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.xp).setValue(xp);
 }
 
+// Your XP: each planned collection's, and each stretch's of your ended
+// collections, worked out from the stretches as they are now, so a fix or a
+// discard changes it, and your walk's counts (M410).
 function xpOf_(accountId) {
-  return round_(readRows_(TABS.collections).reduce(function (t, q) {
-    return t + (q.get('account') === accountId ? Number(q.get('xp')) || 0 : 0);
-  }, 0), 2);
+  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId; });
+  var plan = cols.reduce(function (t, q) { return t + (Number(q.get('xp')) || 0); }, 0);
+  var ended = {};
+  cols.forEach(function (q) { if (q.get('status') === 'Ended') ended[q.get('id')] = true; });
+  var x = xpSettings_();
+  var stretches = readRows_(TABS.stretches).reduce(function (t, q) {
+    return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) : t;
+  }, 0);
+  return round_(plan + stretches, 2);
+}
+
+function xpSettings_() {
+  return { r1: minutesSetting_(SETTING_RATING_XP_1, 3), r2: minutesSetting_(SETTING_RATING_XP_2, 2), r3: minutesSetting_(SETTING_RATING_XP_3, 1),
+    bonus: minutesSetting_(SETTING_RATING_BONUS, 5), types: minutesSetting_(SETTING_TYPES_XP, 1) };
+}
+
+// A stretch's XP: its rating's, by how far it is from the Litter Index
+// (3 within 1, 2 within 2, 1 within 3), times 1 plus the Litter Index ÷ 5
+// (counted as 10 past 10), rounded; and its litter types', when it has
+// some, or weighed 0 lb, a clean stretch (Q423, Q424). A discarded stretch
+// earns none.
+function stretchXp_(s, x) {
+  if (s.discarded) return 0;
+  var xp = 0;
+  if (s.rating != null && s.index != null) {
+    var off = Math.abs(s.rating - s.index);
+    var base = off <= 1 ? x.r1 : off <= 2 ? x.r2 : off <= 3 ? x.r3 : 0;
+    xp += Math.round(base * (1 + (x.bonus > 0 ? Math.min(10, s.index) / x.bonus : 0)));
+  }
+  if (s.types.length || s.pounds === 0) xp += x.types;
+  return xp;
 }

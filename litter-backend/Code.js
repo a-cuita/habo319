@@ -227,8 +227,29 @@ function ensureSchema_(force) {
       sheet.getRange(row, 1, missing.length, 2).setValues(missing);
     }
     settingsMemo_ = null;
+    rereadOnce_(ss);
   });
   cache.put(cacheKey, '1', 600);
+}
+
+// Once (S3-P27, Q421): every stretch's reading worked out again with the
+// Litter Index's new math, so the map uses one math.
+function rereadOnce_(ss) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('READINGS_REWORKED')) return;
+  var sheet = ss.getSheetByName(TABS.stretches.name);
+  var last = sheet.getLastRow();
+  if (last >= 2) {
+    var rows = sheet.getRange(2, 1, last - 1, TABS.stretches.header.length).getValues();
+    var out = rows.map(function (v) {
+      var lbs = v[STRETCH_COL.pounds - 1];
+      if (!String(v[0]).trim() || v[STRETCH_COL.discarded - 1] === 'Yes' || lbs === '' || lbs == null) return [v[STRETCH_COL.cpue - 1], v[STRETCH_COL.index - 1]];
+      var rd = LitterGeo.reading(Number(lbs), ((Number(v[STRETCH_COL.streetMi - 1]) || 0) + (Number(v[STRETCH_COL.offMi - 1]) || 0)) * LitterGeo.MILE_M, Number(v[STRETCH_COL.activeMin - 1]) || 0);
+      return [rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)];
+    });
+    sheet.getRange(2, STRETCH_COL.cpue, out.length, 2).setValues(out);
+  }
+  props.setProperty('READINGS_REWORKED', new Date().toISOString());
 }
 
 // Changes whenever a tab's layout or the list of settings changes, so a new
@@ -259,6 +280,11 @@ function missingSettings_(ss) {
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
     [SETTING_BREAK_AFTER, '10'],
     [SETTING_PLAN_XP, '1'],
+    [SETTING_RATING_XP_1, '3'],
+    [SETTING_RATING_XP_2, '2'],
+    [SETTING_RATING_XP_3, '1'],
+    [SETTING_RATING_BONUS, '5'],
+    [SETTING_TYPES_XP, '1'],
     [SETTING_START_SAYINGS, '']
   ].filter(function (s) { return have.indexOf(s[0]) === -1; });
 }

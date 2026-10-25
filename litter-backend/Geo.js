@@ -332,11 +332,12 @@ var LitterGeo = (function () {
 
   /* ── The reading (item 8) ── */
 
-  // CPUE = pounds ÷ (miles ÷ active hours); Litter Index = √CPUE.
+  // CPUE = pounds × active hours ÷ miles² (S3-P27, Q410): the same on a
+  // street whatever the stretch's length. Litter Index = √CPUE.
   function reading(pounds, meters, activeMinutes) {
     var miles = meters / MILE_M, hours = activeMinutes / 60;
     if (!(miles > 0) || !(hours > 0) || !(pounds >= 0)) return { cpue: null, index: null };
-    var cpue = pounds / (miles / hours);
+    var cpue = pounds * hours / (miles * miles);
     return { cpue: cpue, index: Math.sqrt(cpue) };
   }
 
