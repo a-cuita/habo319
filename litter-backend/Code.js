@@ -383,7 +383,10 @@ function withLock_(fn) {
     return fn();
   } finally {
     lockDepth_--;
-    lock.releaseLock();
+    // What was written reaches the Sheet before the next one in line reads
+    // it, so two loads at once can't both add the same missing rows (Oct 24,
+    // |C514: the five XP settings were added twice).
+    try { SpreadsheetApp.flush(); } finally { lock.releaseLock(); }
   }
 }
 

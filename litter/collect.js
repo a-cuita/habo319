@@ -157,7 +157,8 @@ window.LitterCollect = function (app) {
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
     $('cl-plan-btn').hidden = going;
     $('cl-xp').hidden = !account;
-    $('cl-xp').textContent = 'Your XP: ' + a.xp + '. A collection you plan earns ' + plural(settings.planXp, 'XP', 'XP') + ' when it ends with a weighed stretch, and each stretch earns more for a visual rating close to its Litter Index, and for its litter types.';
+    // Just your XP: how it's earned belongs in training (|C511, S3-P30).
+    $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
     var line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
