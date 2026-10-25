@@ -865,7 +865,7 @@ window.LitterCollect = function (app) {
 
   function finish(d) {
     var id = c.id;
-    summary = { id: id, collection: d.collection, stretches: d.stretches || [] };
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
     c = null;
     save();
     keep(STREETS_KEY, null);
@@ -929,7 +929,7 @@ window.LitterCollect = function (app) {
         settings = d.settings || settings;
         types = d.types || types;
         pace = d.pace || pace;
-        summary = { id: id, collection: d.collection, stretches: d.stretches || [] };
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
         showSummary();
       });
     });
@@ -1199,7 +1199,7 @@ window.LitterCollect = function (app) {
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
       if (!pts.length) { app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your recorder saved.'); return; }
       pts.sort(function (a, b) { return a.t - b.t; });
-      summary.track = pts.map(function (p) { return [p.lat, p.lon]; });
+      summary.track = thinTrack(pts);
       summary.gpx = {};
       summary.stops = {};
       var n = 0;
@@ -1224,11 +1224,29 @@ window.LitterCollect = function (app) {
         if (!same) { summary.gpx[s.id] = uniq; n++; }
       });
       showSummary();
-      app.notice((n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.') + ' It\'s drawn on the map.');
+      var said = n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.';
       $('sm-view-box').scrollIntoView({ block: 'start' });
+      // Kept on the collection as a line (S3-P27, Oct 25), so it's there next time.
+      app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track }).then(function () {
+        app.notice(said + ' Your track is drawn on the map and saved on this collection.');
+      }, function (err) {
+        app.notice(said + ' Your track is drawn on the map, but it wasn\'t saved: ' + err.message);
+      });
     };
     reader.readAsText(file);
   }
+
+  // A track to keep: points about 5 m apart or more, at most 2,000.
+  function thinTrack(pts) {
+    var out = [];
+    pts.forEach(function (p) {
+      var last = out[out.length - 1];
+      if (!last || Math.abs(p.lat - last[0]) > 0.00005 || Math.abs(p.lon - last[1]) > 0.00005) out.push([p.lat, p.lon]);
+    });
+    if (out.length > 2000) { var k = Math.ceil(out.length / 2000), all = out; out = all.filter(function (x, i) { return i % k === 0; }); }
+    return out;
+  }
+  function keptTrack(col) { return col && col.track && col.track.length > 1 ? col.track : null; }
 
   // Where the track stayed longest in one cell during a stretch (item 7):
   // { cell, minutes }, or null for under 5 minutes.

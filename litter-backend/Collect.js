@@ -17,7 +17,7 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -396,7 +396,36 @@ function collectionOf_(r) {
   return { row: r.row, id: t('id'), account: t('account'), handle: t('handle'), started: t('started'), startCell: t('startCell'),
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
-    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0 };
+    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')) };
+}
+
+// A kept track, "lat,lon;lat,lon;…", as points.
+function parseTrack_(v) {
+  return String(v || '').split(';').map(function (p) { var a = p.split(','); return [Number(a[0]), Number(a[1])]; })
+    .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]) && p[0] !== 0; });
+}
+
+// A recorder's GPX track kept on its collection, as a line (S3-P27, Oct 25):
+// at most 2,000 points, while the collection can be changed. Saving again
+// replaces it.
+function collectTrack_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return withLock_(function () {
+    var col = readCollection_(clean_(req.collectionId, 20));
+    if (!col || col.account !== account.id) throw new Error('That collection isn\'t yours, or isn\'t here any more.');
+    var hours = minutesSetting_(SETTING_EDIT_HOURS, 48);
+    var from = col.ended ? new Date(col.ended).getTime() : Date.now();
+    if (Date.now() - from > hours * 3600000) throw new Error('A collection can be changed for ' + hours + ' hours after it ends. After that, ask HABO\'s staff.');
+    var pts = (Array.isArray(req.track) ? req.track : []).filter(function (p) {
+      return Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180 && p[0] !== 0;
+    });
+    if (pts.length < 2) throw new Error('That track has too few points to draw.');
+    if (pts.length > 2000) throw new Error('That track has too many points to keep.');
+    var text = pts.map(function (p) { return Number(p[0]).toFixed(5) + ',' + Number(p[1]).toFixed(5); }).join(';');
+    getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.track).setValue(text);
+    return { track: parseTrack_(text) };
+  });
 }
 
 function openCollection_(accountId) {

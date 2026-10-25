@@ -55,9 +55,9 @@ var TABS = {
     name: 'Collections',
     header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
       'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by',
-      'Plan', 'XP', 'Discard reason'],
-    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220],
-    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@' }
+      'Plan', 'XP', 'Discard reason', 'GPX track'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220, 200],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@', 23: '@' }
   },
   // Turnarounds (Oct 24, in chat): where the stretch turned back, with no
   // weighing and no new stretch.
@@ -121,6 +121,7 @@ function actions_() {
     collectStretch: collectStretch_,
     collectEnd: collectEnd_,
     collectFix: collectFix_,
+    collectTrack: collectTrack_,
     collectLoad: collectLoad_,
     collectDiscard: collectDiscard_,
     planSave: planSave_,
