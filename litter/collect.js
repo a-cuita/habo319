@@ -685,7 +685,7 @@ window.LitterCollect = function (app) {
     box.appendChild(h);
     var p = document.createElement('p');
     p.className = 'lt-stretch-facts';
-    p.textContent = s.discarded ? 'Discarded: no reading. Its time still counts.' :
+    p.textContent = s.discarded ? 'Discarded' + (s.reason ? ' (' + s.reason + ')' : '') + ': no reading. Its time still counts.' :
       round(s.streetMi + s.offMi, 2) + ' mi · ' + Math.round(s.activeMin) + ' min · ' + (s.pounds == null ? '?' : s.pounds) + ' lb · ' +
       (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
     box.appendChild(p);
@@ -702,7 +702,98 @@ window.LitterCollect = function (app) {
       b.textContent = 'Fix this stretch';
       b.addEventListener('click', function () { openFix(s); });
       box.appendChild(b);
+      var d = document.createElement('button');
+      d.type = 'button';
+      d.className = 'btn btn-secondary lt-discard-stretch';
+      d.textContent = 'Discard this stretch';
+      d.addEventListener('click', function () { d.hidden = true; box.appendChild(discardWhy(s)); });
+      box.appendChild(d);
     }
+    return box;
+  }
+
+  // Discard this stretch on the summary (S3-P27, Q399, Q422, Q423): why, in
+  // one tap, then Discard. Two choices aren't reasons, and say what to do
+  // instead: a clean stretch is real data, and a wrong place is fixed.
+  var DISCARD_WHY = ['Entered in error', 'I wasn\'t looking for litter', 'I couldn\'t weigh it right', 'Litter from somewhere else is in the bag', 'Other'];
+  function discardWhy(s) {
+    var box = document.createElement('div');
+    box.className = 'lt-odd lt-discard-why';
+    var chosen = '';
+    var q = document.createElement('p');
+    q.className = 'lt-odd-q';
+    q.textContent = 'Why are you discarding stretch ' + s.n + '?';
+    box.appendChild(q);
+    var say = document.createElement('p');
+    say.className = 'lt-discard-say';
+    var other = document.createElement('input');
+    other.type = 'text';
+    other.className = 'lt-discard-other';
+    other.maxLength = 200;
+    other.placeholder = 'In a few words';
+    other.hidden = true;
+    var err = document.createElement('p');
+    err.className = 'err';
+    err.setAttribute('role', 'alert');
+    err.id = 'sd-err-' + s.id;
+    var go = document.createElement('button');
+    go.type = 'button';
+    go.className = 'btn lt-danger lt-discard-go';
+    go.textContent = 'Discard stretch ' + s.n;
+    go.hidden = true;
+    var pick = function (why, b) {
+      chosen = why;
+      Array.prototype.forEach.call(box.querySelectorAll('.lt-why'), function (x) { x.classList.toggle('btn-primary', x === b); x.classList.toggle('btn-secondary', x !== b); });
+      other.hidden = why !== 'Other';
+      say.textContent = '';
+      go.hidden = false;
+    };
+    var choice = function (label, fn) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary lt-why';
+      b.textContent = label;
+      b.addEventListener('click', function () { fn(b); });
+      box.appendChild(b);
+      return b;
+    };
+    DISCARD_WHY.forEach(function (why) { choice(why, function (b) { pick(why, b); }); });
+    choice('Nothing to pick up', function (b) {
+      pick('', b);
+      go.hidden = true;
+      say.textContent = 'Were you looking for litter the whole way?';
+      var yes = document.createElement('button');
+      yes.type = 'button'; yes.className = 'btn btn-primary lt-clean-yes'; yes.textContent = 'Yes';
+      yes.addEventListener('click', function () { say.textContent = 'Then keep it: a clean street is real data, and it counts. If its weight isn\'t 0, press Fix this stretch.'; });
+      var no = document.createElement('button');
+      no.type = 'button'; no.className = 'btn btn-secondary lt-clean-no'; no.textContent = 'No';
+      no.addEventListener('click', function () {
+        var w = Array.prototype.filter.call(box.querySelectorAll('.lt-why'), function (x) { return x.textContent === DISCARD_WHY[1]; })[0];
+        pick(DISCARD_WHY[1], w);
+        say.textContent = 'Then it\'s discarded as "' + DISCARD_WHY[1] + '".';
+      });
+      say.appendChild(document.createElement('br'));
+      say.appendChild(yes);
+      say.appendChild(no);
+    });
+    choice('The map shows the wrong place', function (b) {
+      pick('', b);
+      go.hidden = true;
+      say.textContent = 'No need to discard it: press Fix this stretch, then Change its cells, and tap the cells you walked.';
+    });
+    box.appendChild(say);
+    box.appendChild(other);
+    box.appendChild(go);
+    var keep = document.createElement('button');
+    keep.type = 'button';
+    keep.className = 'btn btn-secondary lt-discard-keep';
+    keep.textContent = 'Keep it';
+    keep.addEventListener('click', function () { showSummary(); });
+    box.appendChild(keep);
+    box.appendChild(err);
+    go.addEventListener('click', function () {
+      sendFix(go, s, { discard: { reason: chosen, other: other.value } }, err.id);
+    });
     return box;
   }
 
@@ -802,8 +893,8 @@ window.LitterCollect = function (app) {
     sendFix(button, s, fix);
   }
 
-  function sendFix(button, s, fix) {
-    app.busy(button, 'sf-err', function () {
+  function sendFix(button, s, fix, errBox) {
+    app.busy(button, errBox || 'sf-err', function () {
       return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }).then(function (d) {
         summary.collection = d.collection;
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
@@ -815,7 +906,7 @@ window.LitterCollect = function (app) {
         $('sm-fix').hidden = true;
         $('sm-map-box').hidden = true;
         showSummary();
-        app.notice(fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Stretch ' + s.n + ' fixed.');
+        app.notice(fix.discard ? 'Stretch ' + s.n + ' discarded. Its time still counts, and it\'s off the map.' : fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Stretch ' + s.n + ' fixed.');
       });
     });
   }

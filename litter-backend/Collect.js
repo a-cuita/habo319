@@ -20,7 +20,9 @@ var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, e
   pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
-  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27 };
+  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28 };
+// The reasons Discard this stretch offers on the summary (S3-P27, Q422).
+var DISCARD_REASONS = ['Entered in error', 'I wasn\'t looking for litter', 'I couldn\'t weigh it right', 'Litter from somewhere else is in the bag'];
 var TYPE_COL = { type: 1, addedBy: 2, status: 3, added: 4 };
 
 // MoCiSN's 15 litter types (Q346).
@@ -197,6 +199,24 @@ function collectFix_(req) {
       sheet.getRange(r.row, STRETCH_COL[k]).setValue(v);
       logChange_(who, 'Fixed', item, label, before, v);
     };
+    // Discard this stretch, with its reason (S3-P27, Q399, Q422): it keeps
+    // its time, with no reading, and comes off the map.
+    if (f.discard) {
+      if (r.get('discarded') === 'Yes') throw new Error('That stretch is already discarded.');
+      var why = String(f.discard.reason || '').trim();
+      if (why === 'Other') {
+        var words = clean_(f.discard.other, 200).replace(/\s+/g, ' ');
+        if (words.length < 2) throw new Error('Say in a few words why you\'re discarding it.');
+        why = 'Other: ' + words;
+      } else if (DISCARD_REASONS.indexOf(why) === -1) {
+        throw new Error('Pick why you\'re discarding it.');
+      }
+      set('discarded', 'Discarded', 'Yes');
+      set('reason', 'Discard reason', safeCell_(why));
+      set('pounds', 'Pounds', '');
+      set('types', 'Litter types', '');
+      set('rating', 'Visual rating', '');
+    }
     if (f.pounds != null && r.get('discarded') !== 'Yes') set('pounds', 'Pounds', round_(poundsValue_(f.pounds), 2));
     if (f.types) set('types', 'Litter types', safeCell_(cleanTypes_(f.types, account).join('; ')));
     if (f.rating !== undefined) set('rating', 'Visual rating', cleanRating_(f.rating));
@@ -387,7 +407,7 @@ function stretchOf_(q) {
     rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
     newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'),
     pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked',
-    turns: String(q.get('turns')).split(/\s+/).filter(String) };
+    turns: String(q.get('turns')).split(/\s+/).filter(String), reason: String(q.get('reason') || '') };
 }
 
 function stretchView_(q) { return stretchViewOf_(stretchesOf_(q.get('collection')).filter(function (s) { return s.id === q.get('id'); })[0]); }

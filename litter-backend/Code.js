@@ -65,8 +65,9 @@ var TABS = {
     name: 'Stretches',
     header: ['Stretch ID', 'Collection ID', 'Account ID', 'Number', 'Started', 'Ended', 'Cells', 'Street miles', 'Off-street miles',
       'Active minutes', 'Paused minutes', 'Break minutes', 'Break where', 'Scale (lb)', 'New bag', 'Pounds', 'CPUE', 'Litter Index',
-      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key', 'Break question', 'Turnarounds'],
-    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120, 110, 200],
+      'Litter types', 'Visual rating', 'Discarded', 'Past sunset', 'From track', 'Received', 'Key', 'Break question', 'Turnarounds',
+      'Discard reason'],
+    widths: [90, 100, 90, 70, 150, 150, 300, 90, 100, 100, 100, 100, 120, 80, 70, 80, 80, 90, 300, 90, 80, 90, 80, 150, 120, 110, 200, 220],
     formats: { 5: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 7: '@', 13: '@', 24: 'yyyy-mm-dd h:mm', 25: '@', 27: '@' }
   },
   // Plans (Oct 24, in chat): the stretches someone means to collect, made
