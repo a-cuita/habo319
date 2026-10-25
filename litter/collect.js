@@ -67,6 +67,29 @@ window.LitterCollect = function (app) {
       });
   }
 
+  // The question for End in the same cell (Q398).
+  var sameYes = null;
+  function sameCell(yes) {
+    sameYes = yes;
+    $('cl-actions').hidden = true;
+    $('cl-same').hidden = false;
+    $('cl-same').scrollIntoView({ block: 'center' });
+    return Promise.resolve();
+  }
+  function sameAnswer(collected) {
+    $('cl-same').hidden = true;
+    if (collected) { var y = sameYes; sameYes = null; return y && y(); }
+    sameYes = null;
+    // It ends when your last litter pulse was, with no new stretch.
+    c.queue.push({ type: 'end', endedAt: c.current.startedAt });
+    c.ended = true;
+    save();
+    $('cl-actions').hidden = false;
+    $('v-collect').hidden = true;
+    showWaitingSummary();
+    flush();
+  }
+
   /* ── Sending what the phone kept ── */
 
   // Sends the queue in order; what doesn't go waits for the next try.
@@ -374,7 +397,14 @@ window.LitterCollect = function (app) {
   function beginPulse(kind, button) {
     if (!c) return;
     var pressedAt = Date.now();
+    var askedSame = false;
     var go = function (cell) {
+      // End in the cell of your last litter pulse asks first (S3-P27, Q398):
+      // No ends the collection there, with no new stretch.
+      if (kind === 'end' && !askedSame && !c.current.pausedAt && c.lastCell && cell === c.lastCell) {
+        askedSame = true;
+        return sameCell(function () { go(cell); });
+      }
       var from = c.lastCell || c.current.startCell;
       return fetchStreets(cell).catch(function () { /* measured straight until the streets load */ }).then(function () {
         var turns = c.turns || [];
@@ -922,7 +952,7 @@ window.LitterCollect = function (app) {
         var t = p.getElementsByTagName('time')[0];
         return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
-      if (!pts.length) { app.notice('That file has no track points with times.'); return; }
+      if (!pts.length) { app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your recorder saved.'); return; }
       pts.sort(function (a, b) { return a.t - b.t; });
       summary.gpx = {};
       summary.stops = {};
@@ -1177,6 +1207,8 @@ window.LitterCollect = function (app) {
   $('cl-pulse-btn').addEventListener('click', function () { beginPulse('pulse', $('cl-pulse-btn')); });
   $('cl-pause').addEventListener('click', function () { pauseOrResume($('cl-pause')); });
   $('cl-end').addEventListener('click', function () { beginPulse('end', $('cl-end')); });
+  $('cl-same-yes').addEventListener('click', function () { sameAnswer(true); });
+  $('cl-same-no').addEventListener('click', function () { sameAnswer(false); });
   $('cl-back').addEventListener('click', function () { app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
   $('pf-discard').addEventListener('click', function () { savePulse(true); });

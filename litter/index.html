@@ -155,6 +155,12 @@
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
+    <div class="lt-odd" id="cl-same" hidden>
+      <p class="lt-odd-q">Did you collect anything since your last litter pulse?</p>
+      <p>You're in the same cell as your last one.</p>
+      <button class="btn btn-primary" id="cl-same-yes" type="button">Yes: weigh it</button>
+      <button class="btn btn-secondary" id="cl-same-no" type="button">No: end here</button>
+    </div>
     <div id="cl-actions">
       <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
       <button class="btn btn-secondary lt-turn-btn" id="cl-turn" type="button">Mark turnaround</button>
@@ -262,7 +268,7 @@
     <div id="sm-list"></div>
     <section class="card">
       <label class="lt-label" for="sm-gpx">A recorder's GPX file (optional)</label>
-      <input type="file" id="sm-gpx" accept=".gpx,application/gpx+xml,application/xml,text/xml">
+      <input type="file" id="sm-gpx">
     </section>
     <form class="card" id="sm-fix" novalidate hidden>
       <h2 id="sf-title"></h2>
@@ -395,7 +401,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=3"></script>
-<script src="collect.js?v=5"></script>
+<script src="collect.js?v=6"></script>
 <script src="map.js?v=1"></script>
 <script src="litter.js?v=4"></script>
 </body>
