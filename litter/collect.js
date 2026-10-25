@@ -144,11 +144,26 @@ window.LitterCollect = function (app) {
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
       $('cl-hours').textContent = h.collections ? 'Your volunteer hours collecting litter: ' + h.hours + ' (' + h.collections + ' collection' + (h.collections === 1 ? '' : 's') + ').' : '';
-      // A collection open here but ended there (left alone 12 hours): forget it.
-      if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id)) { c = null; save(); keep(STREETS_KEY, null); }
+      // A collection open here but ended there (left alone 12 hours, or ended
+      // or discarded on another phone, C540): forget it.
+      if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
       showPlanLine();
       showSun($('cl-account-sun'), null);
     }, function () { /* the account page shows without it */ });
+  }
+
+  // Opening the page with a collection going here that was ended or
+  // discarded on another phone or browser (S3-P27, C540): this phone's copy
+  // is forgotten, and the account page shows.
+  function endedElsewhere() {
+    if (!c || c.ended || c.queue.length) return;
+    var id = c.id;
+    app.api('collectLoad', { token: app.myToken(), collectionId: id }).then(function (d) {
+      if (!c || c.id !== id || c.ended || c.queue.length || !d.collection || d.collection.id !== id || d.collection.status === 'Collecting') return;
+      c = null; save(); keep(STREETS_KEY, null);
+      app.showAccount();
+      app.notice('That collection was ended on another phone or browser.');
+    }, function () { /* no signal: it stays as it is */ });
   }
 
   function showPlanLine() {
@@ -373,16 +388,18 @@ window.LitterCollect = function (app) {
 
   // Your plan, as a guide while you collect: dashed outlines, its
   // turnarounds as dots. It never changes a stretch (Q228).
+  // Only cells are drawn: a plan read before C540's fix can hold a bare "/".
   function drawPlan(plan) {
     if (!map) return;
     layers.plan.clearLayers();
     (plan && plan.stretches || []).forEach(function (s) {
-      s.cells.forEach(function (cell) {
+      (s.cells || []).filter(isCell).forEach(function (cell) {
         L.rectangle(G.cellBounds(cell), { color: '#7c3aed', weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
       });
-      (s.turns || []).forEach(function (cell) { turnDot(cell, '#7c3aed').addTo(layers.plan); });
+      (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, '#7c3aed').addTo(layers.plan); });
     });
   }
+  function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
 
   var picking = null;   // { done(cell) } while a cell is being picked
   function beginPick(near, why, done) {
@@ -891,6 +908,11 @@ window.LitterCollect = function (app) {
     Object.keys(summary.stops || {}).forEach(function (id) {
       L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
     });
+    // Your recorder's track, where you walked, over the cells (S3-P27, M465).
+    if (summary.track && summary.track.length > 1) {
+      L.polyline(summary.track, { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layers.cells);
+      summary.track.forEach(function (p) { b.extend(p); });
+    }
     setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
   }
 
@@ -1177,6 +1199,7 @@ window.LitterCollect = function (app) {
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
       if (!pts.length) { app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your recorder saved.'); return; }
       pts.sort(function (a, b) { return a.t - b.t; });
+      summary.track = pts.map(function (p) { return [p.lat, p.lon]; });
       summary.gpx = {};
       summary.stops = {};
       var n = 0;
@@ -1201,7 +1224,8 @@ window.LitterCollect = function (app) {
         if (!same) { summary.gpx[s.id] = uniq; n++; }
       });
       showSummary();
-      app.notice(n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.');
+      app.notice((n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.') + ' It\'s drawn on the map.');
+      $('sm-view-box').scrollIntoView({ block: 'start' });
     };
     reader.readAsText(file);
   }
@@ -1505,6 +1529,7 @@ window.LitterCollect = function (app) {
       var last = c.queue.length ? c.queue[c.queue.length - 1].stretch.endedAt : c.current.startedAt;
       if (Date.now() - last > settings.autoEndHours * 3600000 && !c.queue.length) return false;
       openCollect();
+      endedElsewhere();
       return true;
     },
     busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },

@@ -67,13 +67,17 @@ function planSave_(req) {
 /* ── Reading ── */
 
 // A Plans row as a plan: { id, created, stretches: [{ cells, turns }], miles, collection }.
+// Stretches are kept apart by "/". A stretch with no turnarounds leaves a
+// bare "/" at the end, which the Sheet keeps without its space, so the split
+// allows for that, and only cells are kept (S3-P27, C540: "Not a cell: /").
 function planOf_(r) {
-  var cells = String(r.get('cells')).split(' / '), turns = String(r.get('turns')).split(' / ');
+  var cells = String(r.get('cells')).split(/\s*\/\s*/), turns = String(r.get('turns')).split(/\s*\/\s*/);
+  var isCell = function (x) { return /^-?\d+_-?\d+$/.test(x); };
   var created = r.get('created');
   return {
     id: r.get('id'), account: r.get('account'), created: created instanceof Date ? created.getTime() : 0,
     stretches: cells.map(function (c, i) {
-      return { cells: c.split(/\s+/).filter(String), turns: String(turns[i] || '').split(/\s+/).filter(String) };
+      return { cells: c.split(/\s+/).filter(isCell), turns: String(turns[i] || '').split(/\s+/).filter(isCell) };
     }).filter(function (s) { return s.cells.length; }),
     miles: Number(r.get('miles')) || 0, collection: r.get('collection')
   };
