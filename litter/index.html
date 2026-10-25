@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=5">
+<link rel="stylesheet" href="litter.css?v=6">
 </head>
 <body>
 
@@ -197,22 +197,23 @@
         <p class="muted small" id="pf-bag-hint"></p>
       </div>
       <label class="choice-row"><input type="checkbox" id="pf-newbag"> New bag: this one is full, and I'm starting another</label>
-      <button class="btn btn-secondary" id="pf-discard" type="button">Discard this stretch</button>
+      <div class="center"><button class="link-btn lt-danger-link" id="pf-discard" type="button">Discard this stretch</button></div>
       </div>
+      <!-- Litter types in a drawer you can search (S3-P27, Q457): the list will grow. -->
       <div class="pf-step" data-step="types" hidden>
       <p class="lt-label">Litter types here (you can skip this)</p>
-      <div class="lt-types" id="pf-types"></div>
-      <div class="lt-addtype">
-        <input id="pf-newtype" maxlength="60" placeholder="Another type" aria-label="Another litter type">
-        <button class="btn btn-secondary" id="pf-addtype" type="button">Add</button>
+      <p class="lt-types-shown" id="pf-types-shown"></p>
+      <button class="btn btn-secondary" id="pf-types-open" type="button">Choose litter types</button>
       </div>
-      </div>
+      <!-- The visual rating as a wheel you swipe (S3-P27, Q458). It starts on "–", not rated, so the rating is always yours. -->
       <div class="pf-step" data-step="rating" hidden>
-      <div class="ig">
-        <label for="pf-rating">Visual rating: how littered did it look?</label>
-        <select id="pf-rating" class="lt-select"><option value="">Pick a rating</option><option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
-        <p class="muted small">0 is spotless; 10 is the worst you've seen.</p>
+      <p class="lt-label" id="pf-rating-label">Visual rating: how littered did it look?</p>
+      <input type="hidden" id="pf-rating" value="">
+      <div class="lt-wheel-box">
+        <div class="lt-wheel" id="pf-wheel" role="listbox" aria-labelledby="pf-rating-label" tabindex="0"></div>
       </div>
+      <p class="lt-wheel-shown" id="pf-rating-shown" aria-live="polite"></p>
+      <p class="muted small">Swipe, or tap a number. 0 is spotless; 10 is the worst you've seen.</p>
       </div>
       <div class="pf-step" data-step="break" hidden>
       <div class="ig">
@@ -236,14 +237,28 @@
         <button class="btn btn-secondary" id="pf-odd-no" type="button">No: save it as it is</button>
       </div>
       </div>
-      <div class="row2 lt-row">
-        <button class="btn btn-secondary" id="pf-back" type="button">Back</button>
-        <button class="btn btn-primary" id="pf-next" type="button">Next</button>
-      </div>
-      <button class="btn btn-accent" id="pf-save" type="submit" hidden>Save litter pulse</button>
-      <button class="btn btn-secondary" id="pf-cancel" type="button">Cancel</button>
       <p class="err" id="pf-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="pf-cancel" type="button">Cancel</button></div>
+      <!-- Next, Back and Save at the bottom of the screen, on every step (S3-P27, Q456). -->
+      <div class="lt-bar" id="pf-bar">
+        <div class="lt-bar-in">
+          <button class="btn btn-secondary" id="pf-back" type="button">Back</button>
+          <button class="btn btn-primary" id="pf-next" type="button">Next</button>
+          <button class="btn btn-accent" id="pf-save" type="submit" hidden>Save litter pulse</button>
+        </div>
+      </div>
     </form>
+    <div class="lt-drawer" id="pf-drawer" role="dialog" aria-modal="true" aria-labelledby="pf-drawer-title" hidden>
+      <div class="lt-drawer-box">
+        <h2 id="pf-drawer-title">Litter types</h2>
+        <input class="lt-drawer-search" id="pf-type-search" type="search" maxlength="60" placeholder="Search, or type a new one" aria-label="Search litter types" autocomplete="off">
+        <div class="lt-types" id="pf-types"></div>
+        <p class="muted small" id="pf-types-none" hidden></p>
+        <button class="btn btn-secondary" id="pf-type-add" type="button" hidden></button>
+        <p class="err" id="pf-type-err" role="alert"></p>
+        <button class="btn btn-primary lt-drawer-done" id="pf-types-done" type="button">Done</button>
+      </div>
+    </div>
   </div>
 
   <!-- Planning a collection (Oct 24, in chat): the stretches you mean to collect, before you start. -->
@@ -419,7 +434,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=4"></script>
-<script src="collect.js?v=9"></script>
+<script src="collect.js?v=10"></script>
 <script src="map.js?v=1"></script>
 <script src="litter.js?v=4"></script>
 </body>

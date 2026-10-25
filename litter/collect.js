@@ -406,6 +406,7 @@ window.LitterCollect = function (app) {
       pulse.breakWhere = cell;
       pulse.whereMode = false;
       $('pf-where-shown').textContent = 'Where you were: the cell you tapped.';
+      fitMap();
       return;
     }
     if (summary && summary.whereMode) {
@@ -457,10 +458,11 @@ window.LitterCollect = function (app) {
   function openPulse() {
     $('cl-actions').hidden = true;
     $('cl-pulse').hidden = false;
+    document.body.classList.add('lt-has-bar');
     $('pf-title').textContent = pulse.kind === 'end' ? 'End: your last litter pulse' : pulse.kind === 'pause' ? 'Weigh the stretch that ended where you paused' : 'Litter pulse';
     $('pf-scale').value = '';
     $('pf-newbag').checked = false;
-    $('pf-rating').value = '';
+    setRating('', 'auto');
     $('pf-break').value = '';
     $('pf-where-shown').textContent = '';
     $('pf-err').textContent = '';
@@ -475,8 +477,29 @@ window.LitterCollect = function (app) {
     $('pf-plan-stretch').hidden = !pulse.planCells;
     pulse.step = 0;
     showStep();
-    // The map stays in view: the stretch is changed by tapping it.
+  }
+
+  function closePulse() {
+    pulse = null;
+    $('cl-pulse').hidden = true;
+    $('pf-drawer').hidden = true;
+    $('cl-map-box').classList.remove('strip');
+    document.body.classList.remove('lt-has-bar');
+    $('cl-actions').hidden = false;
+  }
+
+  // The map full size on step 1, where the stretch is changed by tapping it,
+  // and while you tap where your break was; a strip at the top on the other
+  // steps, so each fits on the screen (S3-P27, Q455). Each step starts with the
+  // map at the top of the screen.
+  function fitMap() {
+    if (!pulse) return;
+    $('cl-map-box').classList.toggle('strip', STEPS[pulse.step] !== 'stretch' && !pulse.whereMode);
     $('cl-map-box').scrollIntoView({ block: 'start' });
+    if (!map) return;
+    map.invalidateSize();
+    var p = G.cellCenter(pulse.cell);
+    map.setView([p.lat, p.lon], map.getZoom(), { animate: false });
   }
 
   // One thing per screen (S3-P27, Q397): the stretch, the scale, litter
@@ -494,6 +517,9 @@ window.LitterCollect = function (app) {
     var why = $('pf-why');
     if (why) why.remove();
     $('pf-discard').hidden = false;
+    pulse.whereMode = false;
+    fitMap();
+    if (STEPS[i] === 'rating') setRating($('pf-rating').value, 'auto');
   }
   function stepCheck(i) {
     if (STEPS[i] === 'scale') return scaleError();
@@ -553,12 +579,49 @@ window.LitterCollect = function (app) {
       l.appendChild(document.createTextNode(' ' + t));
       box.appendChild(l);
     });
+    $('pf-type-search').value = '';
+    filterTypes();
+    showPicked();
+  }
+
+  // Litter types in a drawer you can search (S3-P27, Q457). What you type
+  // narrows the list; when nothing matches, it can be added from the same box,
+  // so a near twin of a type already there isn't added by mistake.
+  function openTypes() {
+    $('pf-drawer').hidden = false;
+    $('pf-type-err').textContent = '';
+    $('pf-type-search').focus();
+  }
+  function closeTypes() {
+    $('pf-drawer').hidden = true;
+    $('pf-type-search').value = '';
+    filterTypes();
+    showPicked();
+    $('pf-types-open').focus();
+  }
+  function filterTypes() {
+    var q = $('pf-type-search').value.trim().toLowerCase();
+    var shown = 0;
+    Array.prototype.forEach.call(document.querySelectorAll('#pf-types .lt-type'), function (l) {
+      var hit = !q || l.querySelector('input').value.toLowerCase().indexOf(q) !== -1;
+      l.hidden = !hit;
+      if (hit) shown++;
+    });
+    $('pf-types-none').hidden = !q || shown > 0;
+    $('pf-types-none').textContent = 'No litter type has "' + $('pf-type-search').value.trim() + '" in it.';
+    $('pf-type-add').hidden = !q || shown > 0;
+    $('pf-type-add').textContent = 'Add "' + $('pf-type-search').value.trim() + '" as a new type';
+  }
+  function showPicked() {
+    var p = picked();
+    $('pf-types-shown').textContent = p.length ? 'Ticked: ' + p.join(', ') : 'None ticked.';
+    $('pf-types-open').textContent = p.length ? 'Change litter types' : 'Choose litter types';
   }
 
   function addType(button) {
-    var name = $('pf-newtype').value.trim();
+    var name = $('pf-type-search').value.trim();
     if (!name) return;
-    app.busy(button, 'pf-err', function () {
+    app.busy(button, 'pf-type-err', function () {
       return app.api('addLitterType', { token: app.myToken(), type: name }).then(function (d) {
         var ticked = picked();
         types = d.types;
@@ -567,9 +630,67 @@ window.LitterCollect = function (app) {
           var i = document.querySelector('#pf-types input[value="' + t.replace(/"/g, '\\"') + '"]');
           if (i) i.checked = true;
         });
-        $('pf-newtype').value = '';
+        showPicked();
       });
     });
+  }
+
+  // The visual rating as a wheel you swipe or tap (S3-P27, Q458). It starts
+  // on "–", not rated, so Next waits for a rating you chose (Q403).
+  var RATINGS = [''].concat([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(String));
+  var wheelTimer = null;
+  function buildWheel() {
+    var w = $('pf-wheel');
+    var pad = function () { var d = document.createElement('div'); d.className = 'lt-wheel-pad'; w.appendChild(d); };
+    pad();
+    RATINGS.forEach(function (v) {
+      var d = document.createElement('div');
+      d.className = 'lt-wheel-n';
+      d.setAttribute('role', 'option');
+      d.dataset.v = v;
+      d.textContent = v === '' ? '–' : v;
+      d.setAttribute('aria-label', v === '' ? 'Not rated' : v);
+      d.addEventListener('click', function () { setRating(v, 'smooth'); });
+      w.appendChild(d);
+    });
+    pad();
+    w.addEventListener('scroll', function () {
+      clearTimeout(wheelTimer);
+      wheelTimer = setTimeout(nearestRating, 90);
+    });
+    w.addEventListener('keydown', function (e) {
+      var k = RATINGS.indexOf($('pf-rating').value);
+      if (e.key === 'ArrowRight' && k < RATINGS.length - 1) { e.preventDefault(); setRating(RATINGS[k + 1], 'smooth'); }
+      if (e.key === 'ArrowLeft' && k > 0) { e.preventDefault(); setRating(RATINGS[k - 1], 'smooth'); }
+    });
+  }
+  function wheelItem(v) { return $('pf-wheel').querySelector('.lt-wheel-n[data-v="' + v + '"]'); }
+  function markRating(v) {
+    $('pf-rating').value = v;
+    Array.prototype.forEach.call(document.querySelectorAll('#pf-wheel .lt-wheel-n'), function (d) {
+      d.classList.toggle('on', d.dataset.v === v);
+      d.setAttribute('aria-selected', d.dataset.v === v ? 'true' : 'false');
+    });
+    $('pf-rating-shown').textContent = v === '' ? 'Not rated yet.' : 'Your rating: ' + v;
+    if (v !== '' && pulse && STEPS[pulse.step] === 'rating') $('pf-err').textContent = '';
+  }
+  function setRating(v, how) {
+    markRating(v);
+    var w = $('pf-wheel'), d = wheelItem(v);
+    if (!d || !w.clientWidth) return;
+    w.scrollTo({ left: d.offsetLeft - (w.clientWidth - d.offsetWidth) / 2, behavior: how || 'auto' });
+  }
+  // The number in the middle once the wheel stops. Not while the step is
+  // hidden, when every number sits at 0.
+  function nearestRating() {
+    var w = $('pf-wheel');
+    if (!w.clientWidth || $('cl-pulse').hidden) return;
+    var mid = w.scrollLeft + w.clientWidth / 2, best = null, gap = Infinity;
+    Array.prototype.forEach.call(w.querySelectorAll('.lt-wheel-n'), function (d) {
+      var g = Math.abs(d.offsetLeft + d.offsetWidth / 2 - mid);
+      if (g < gap) { gap = g; best = d; }
+    });
+    if (best && best.dataset.v !== $('pf-rating').value) markRating(best.dataset.v);
   }
 
   function picked() {
@@ -653,9 +774,7 @@ window.LitterCollect = function (app) {
       c.current = { startedAt: endedAt, startCell: pulse.cell, pausedMin: 0 };
     }
     save();
-    pulse = null;
-    $('cl-pulse').hidden = true;
-    $('cl-actions').hidden = false;
+    closePulse();
     drawCells([], c.lastCell, c.lastCell);
     showStatus();
     if (discard) app.notice('Stretch discarded. Start a new bag now, so your next weighing has only the next stretch\'s litter.');
@@ -1348,12 +1467,18 @@ window.LitterCollect = function (app) {
   });
   $('pf-cancel').addEventListener('click', function () {
     if (pulse && pulse.kind === 'pause') { app.notice('Weigh it, or press Discard this stretch.'); return; }
-    pulse = null; $('cl-pulse').hidden = true; $('cl-actions').hidden = false; drawCells([], c && c.lastCell, null, c && c.turns);
+    closePulse(); drawCells([], c && c.lastCell, null, c && c.turns);
   });
   $('pf-suggested').addEventListener('click', function () { if (pulse) { pulse.cells = pulse.suggested.slice(); showStretch(); } });
-  $('pf-addtype').addEventListener('click', function () { addType($('pf-addtype')); });
-  $('pf-where-tap').addEventListener('click', function () { if (pulse) { pulse.whereMode = true; $('pf-where-shown').textContent = 'Tap the cell on the map.'; } });
-  $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; } });
+  $('pf-types-open').addEventListener('click', openTypes);
+  $('pf-types-done').addEventListener('click', closeTypes);
+  $('pf-drawer').addEventListener('click', function (e) { if (e.target === $('pf-drawer')) closeTypes(); });
+  $('pf-drawer').addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTypes(); });
+  $('pf-type-search').addEventListener('input', filterTypes);
+  $('pf-type-add').addEventListener('click', function () { addType($('pf-type-add')); });
+  buildWheel();
+  $('pf-where-tap').addEventListener('click', function () { if (pulse) { pulse.whereMode = true; $('pf-where-shown').textContent = 'Tap the cell on the map.'; fitMap(); } });
+  $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; fitMap(); } });
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
