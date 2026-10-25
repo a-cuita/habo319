@@ -1071,8 +1071,11 @@ window.LitterCollect = function (app) {
           if (cells[cells.length - 1] !== cell) cells.push(cell);
         });
         if (!cells.length) return;
-        var same = cells.length === s.cells.length && cells.every(function (x, i) { return x === s.cells[i]; });
-        if (!same) { summary.gpx[s.id] = cells; n++; }
+        // The same cells, whatever their order, and each once: an out and
+        // back passes its cells twice, and a stretch lists them once (|C524).
+        var uniq = cells.filter(function (x, i) { return cells.indexOf(x) === i; });
+        var same = uniq.slice().sort().join(' ') === s.cells.slice().sort().join(' ');
+        if (!same) { summary.gpx[s.id] = uniq; n++; }
       });
       showSummary();
       app.notice(n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.');
