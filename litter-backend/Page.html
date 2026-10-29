@@ -2162,7 +2162,10 @@ window.LitterCollect = function (app) {
     if (!s.discarded) {
       var tr = document.createElement('p');
       tr.className = 'muted small lt-path-say';
-      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : 'Estimated from your check-ins: save your GPX track for where you walked, and the miles.';
+      var cks = summary.collection && summary.collection.checkins;
+      // A walk from before check-ins (S5) has the street miles you confirmed.
+      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : cks && cks.length ? 'Estimated from your check-ins: save your GPX track for where you walked, and the miles.'
+        : 'From the street miles you confirmed: save your GPX track for the miles you walked.';
       box.appendChild(tr);
     }
     // Asked once.
@@ -2423,7 +2426,7 @@ window.LitterCollect = function (app) {
         if (s.discarded) return;
         // Only a weighing the track covers from start to end; any other
         // stays estimated from your check-ins.
-        var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses) : { cells: [] };
+        var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses.concat(oldPause(pts, s, pauses))) : { cells: [] };
         if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
         else short.push(s.n);
       });
@@ -2434,7 +2437,7 @@ window.LitterCollect = function (app) {
         summary.stops = {};
         summary.stretches.forEach(function (s) {
           if (s.discarded) return;
-          var stop = longestStop(pts, s, pauses);
+          var stop = longestStop(pts, s, pauses.concat(oldPause(pts, s, pauses)));
           if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
         });
         showSummary();
@@ -2492,6 +2495,29 @@ window.LitterCollect = function (app) {
     return { matched: true, offset: Math.abs(best.o) >= 60000 ? best.o : 0 };
   }
 
+  // A pause in a weighing from before check-ins (S5): its minutes were kept,
+  // but not when. Resuming in another cell ended a weighing then, so the
+  // pause ended where it began: it's taken as the stillest part of the track
+  // that long, in the weighing, and left out (Jeremy, Oct 29: "compensate
+  // for the pauses"). None when check-ins mark the weighing's pauses.
+  function oldPause(pts, s, pauses) {
+    var len = (s.pausedMin || 0) * 60000;
+    if (!(len > 0) || len >= s.ended - s.started) return [];
+    if (pauses.some(function (w) { return w[0] < s.ended && w[1] > s.started; })) return [];
+    var w = pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; });
+    if (w.length < 2) return [];
+    var walked = [0];
+    for (var k = 1; k < w.length; k++) walked.push(walked[k - 1] + G.dist(G.xy(w[k - 1].lat, w[k - 1].lon), G.xy(w[k].lat, w[k].lon)));
+    // Each stretch of that length starting at a point: how far the track went in it.
+    var best = null, j = 0;
+    for (var i = 0; i < w.length && w[i].t <= s.ended - len; i++) {
+      j = Math.max(j, i);
+      while (j < w.length - 1 && w[j + 1].t <= w[i].t + len) j++;
+      if (!best || walked[j] - walked[i] < best.moved) best = { moved: walked[j] - walked[i], from: w[i].t };
+    }
+    return best ? [[best.from, best.from + len]] : [];
+  }
+
   // Whether the track runs from a weighing's start to its end, give or take
   // 2 minutes.
   function covers(pts, s) {
@@ -2516,15 +2542,18 @@ window.LitterCollect = function (app) {
   }
 
   // A weighing's part of the track: the cells it passes through, and the
-  // miles walked, counting moves of 5 m or more, and nothing while paused.
+  // miles walked, counting moves of 5 m or more, and nothing while paused,
+  // even where the recorder was paused too and has no points then.
   function trackPath(pts, from, to, pauses) {
-    var cells = [], meters = 0, last = null;
+    var cells = [], meters = 0, last = null, lastT = null;
     var add = function (x) { if (cells.indexOf(x) === -1) cells.push(x); };
     pts.forEach(function (p) {
       if (p.t < from || p.t > to) return;
       if (pauses.some(function (w) { return p.t > w[0] && p.t < w[1]; })) { last = null; return; }
       var here = G.xy(p.lat, p.lon);
       add(G.cellAt(p.lat, p.lon));
+      if (last && pauses.some(function (w) { return w[0] >= lastT && w[0] < p.t; })) last = null;
+      lastT = p.t;
       if (!last) { last = here; return; }
       var d = G.dist(last, here);
       if (d >= 5) { meters += d; G.lineCells(last, here).forEach(add); last = here; }
