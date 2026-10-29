@@ -39,7 +39,7 @@ function planSave_(req) {
     var turns = cleanCells_(s && s.turns).filter(function (t) { return cells.indexOf(t) !== -1; });
     return { cells: cells, turns: turns, miles: milesValue_(Number(s && s.miles) || 0) };
   }).filter(function (s) { return s.cells.length; });
-  if (!list.length) throw new Error('A plan needs at least one stretch: tap its cells on the map.');
+  if (!list.length) throw new Error('A plan needs at least one cell: tap the cells you mean to cover.');
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.plans.name);
     var now = new Date();

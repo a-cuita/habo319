@@ -103,6 +103,13 @@ body.lt-has-bar { padding-bottom: 100px; }
 .lt-wheel-n.on { font-size: 1.8rem; font-weight: 800; color: var(--text); }
 .lt-wheel-shown { text-align: center; font-weight: 700; min-height: 1.4em; }
 
+/* One Litter pulse button (S5, Oct 29): what you're doing, with a line on each. */
+.lt-chooser { margin-top: 10px; padding: 14px 16px; }
+.lt-chooser .btn { margin-top: 0; }
+.lt-choice-say { margin: 4px 0 12px; }
+.lt-chooser #cl-pause { margin-bottom: 10px; }
+.lt-gpx { border: 2px solid var(--primary-dim); }
+
 /* While a collection starts (Oct 24, on C477). */
 .lt-scrim { position: fixed; inset: 0; z-index: 3000; background: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .lt-scrim[hidden] { display: none; }

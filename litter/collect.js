@@ -7,8 +7,11 @@
 // and the break question after 10 collections (item 7). Oct 24, in chat:
 // planning a collection before you start (needed until you have as many
 // collections as the break question waits for), XP for a planned one, Mark
-// turnaround, and Discard this collection. Load geo.js and Leaflet first;
-// litter.js calls LitterCollect(app) with its helpers.
+// turnaround, and Discard this collection. S5 (Oct 29, in chat): one Litter
+// pulse button for everything (Weigh, New bag, Pause, Resume, End), GPS
+// check-ins, no stretches or turnarounds, and your GPX track as the path.
+// Load geo.js and Leaflet first; litter.js calls LitterCollect(app) with its
+// helpers.
 window.LitterCollect = function (app) {
   'use strict';
 
@@ -16,18 +19,22 @@ window.LitterCollect = function (app) {
   var $ = app.$;
   var KEY = 'habo-litter-collect';
   var STREETS_KEY = 'habo-litter-streets';
+  var TYPES_KEY = 'habo-litter-types';
   var OVERPASS = 'https://overpass-api.de/api/interpreter';
-  var ROUGH_M = G.CELL_M / 2;   // a location rougher than half a cell is asked to be tapped (Q313)
-  var HOME_CELL = '22371_-50369';   // downtown Montgomery: where sunset is reckoned with no collection going
+  var ROUGH_M = 80;             // a location rougher than 80 m is asked to be tapped (Q313)
+  var HOME_CELL = '44742_-100738';   // downtown Montgomery: where sunset is reckoned with no collection going
 
   var c = load(KEY);            // the collection on this phone, or null
+  // A copy kept before the cells were halved (S5) has the old cells: it's let
+  // go, unless it holds litter pulses that haven't reached HABO.
+  if (c && c.grid !== 20 && !(c.queue && c.queue.length)) { c = null; keep(KEY, null); }
   var streets = null, streetsBox = null;
   var map = null, layers = null;
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
   var planning = null;          // the plan being made, before a collection
   var account = null;           // what the account page last loaded: plan, planNeeded, xp
-  var types = [];
+  var types = load(TYPES_KEY) || [];   // kept on the phone too, for no signal (S5)
   var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
@@ -37,6 +44,11 @@ window.LitterCollect = function (app) {
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
   function save() { keep(KEY, c); }
+  function setTypes(list) {
+    if (!list || !list.length) return;
+    types = list;
+    keep(TYPES_KEY, types);
+  }
   function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 10); }
 
   function loadStreets() {
@@ -94,7 +106,9 @@ window.LitterCollect = function (app) {
 
   // Sends the queue in order; what doesn't go waits for the next try.
   function flush() {
-    if (sending || !c || !c.queue.length) { showQueue(); return Promise.resolve(); }
+    if (sending || !c) { showQueue(); return Promise.resolve(); }
+    if (c.ckOut && c.ckOut.length) return sendCheckins().then(flush, function () { showQueue(); });
+    if (!c.queue.length) { showQueue(); return Promise.resolve(); }
     sending = true;
     var item = c.queue[0];
     var call = item.type === 'stretch'
@@ -117,6 +131,50 @@ window.LitterCollect = function (app) {
     });
   }
 
+  // GPS check-ins go ahead of the queue, in batches.
+  function sendCheckins() {
+    sending = true;
+    var id = c.id, batch = c.ckOut.slice(0, 500);
+    return app.api('collectCheckins', { token: app.myToken(), collectionId: id, checkins: batch }).then(function () {
+      sending = false;
+      if (c && c.id === id) { c.ckOut = c.ckOut.slice(batch.length); save(); }
+    }, function (err) {
+      sending = false;
+      if (err.code === 'signed-out') app.signedOut();
+      throw err;
+    });
+  }
+
+  // A GPS check-in (S5, Oct 29, in chat): where the phone was, and when, so
+  // a GPX track can be lined up with the walk. kind: s (Start), w (Weigh),
+  // n (New bag), z (Pause), r (Resume), e (End) or m (once a minute).
+  function checkin(pos, kind) {
+    if (!c || !pos) return;
+    var k = [Date.now(), Math.round(pos.lat * 1e5) / 1e5, Math.round(pos.lon * 1e5) / 1e5, Math.round(pos.acc || 0), kind];
+    c.checkins = (c.checkins || []).concat([k]).slice(-1500);
+    c.ckOut = (c.ckOut || []).concat([k]);
+    save();
+  }
+  // Where the phone was last: its last check-in, or the middle of the last
+  // cell, marked rough.
+  function lastPlace() {
+    var k = c && c.checkins && c.checkins[c.checkins.length - 1];
+    if (k) return { lat: k[1], lon: k[2], acc: 999 };
+    var p = c && c.lastCell ? G.cellCenter(c.lastCell) : null;
+    return p ? { lat: p.lat, lon: p.lon, acc: 999 } : null;
+  }
+  // About once a minute while the collecting screen is open and the phone
+  // awake, paused or not (paused time doesn't count); they go with the next
+  // litter pulse.
+  setInterval(function () {
+    if (!c || c.ended || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(function (p) {
+      if (!c || c.ended) return;
+      checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
+      drawTrail();
+    }, function () { /* no fix this minute */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  }, 60000);
+
   function showQueue() {
     var n = c ? c.queue.filter(function (q) { return q.type === 'stretch'; }).length : 0;
     $('cl-queue').textContent = n ? (n === 1 ? '1 litter pulse is' : n + ' litter pulses are') + ' kept on this phone, waiting for signal.' : '';
@@ -137,8 +195,8 @@ window.LitterCollect = function (app) {
     showPlanLine();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
-      types = d.types || [];
       pace = d.pace || null;
+      setTypes(d.types);
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
@@ -177,7 +235,7 @@ window.LitterCollect = function (app) {
     var line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
-    else if (a.plan) line.textContent = 'Your plan: ' + plural(a.plan.stretches.length, 'stretch', 'stretches') + ', ' + round(a.plan.miles, 2) + ' mi. Start collecting uses it.';
+    else if (a.plan) line.textContent = 'Your plan: ' + plural(planCells(a.plan).length, 'cell', 'cells') + ', ' + round(a.plan.miles, 2) + ' mi. Start collecting uses it.';
     else if (a.planNeeded) {
       line.className = 'lt-plan-line need';
       line.textContent = 'Plan your collection first. Until you have ' + settings.breakAfter + ' collections, each one starts from a plan, so the app learns your usual pace.';
@@ -186,6 +244,13 @@ window.LitterCollect = function (app) {
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+
+  // A plan's cells, each once (S5: a plan is just cells).
+  function planCells(plan) {
+    var out = [];
+    (plan && plan.stretches || []).forEach(function (s) { (s.cells || []).forEach(function (x) { if (isCell(x) && out.indexOf(x) === -1) out.push(x); }); });
+    return out;
+  }
 
   /* ── Sunset (item 20) ── */
 
@@ -201,21 +266,24 @@ window.LitterCollect = function (app) {
     var where = cell || (c && c.lastCell) || HOME_CELL;
     var s = sunAt(where), now = Date.now();
     box.hidden = !(now >= s.sunset - settings.sunsetWarnMin * 60000 || now < s.sunrise);
-    box.textContent = now >= s.sunset ? 'The sun has set (' + clock(s.sunset) + '). No XP is earned after sunset, and a stretch that goes past it earns no volunteer hours.'
-      : 'Sunset is at ' + clock(s.sunset) + '. After it, no XP is earned, and a stretch that goes past it earns no volunteer hours.';
+    box.textContent = now >= s.sunset ? 'The sun has set (' + clock(s.sunset) + '). No XP is earned after sunset, and a weighing that goes past it earns no volunteer hours.'
+      : 'Sunset is at ' + clock(s.sunset) + '. After it, no XP is earned, and a weighing that goes past it earns no volunteer hours.';
   }
   setInterval(function () { if (!$('v-collect').hidden) showSun($('cl-sun'), null); }, 60000);
 
   /* ── Where the phone is ── */
 
-  // The phone's location, once (the page doesn't track you, Q168): its cell,
-  // or null when it's rough or turned off, so the cell is tapped (Q313, Q314).
+  // The phone's location, once: its cell, or null when it's rough or turned
+  // off, so the cell is tapped (Q313, Q314); and where exactly, for a GPS
+  // check-in. (Q168 had the page not track you; S5 keeps check-ins while a
+  // collection is going and the page is open.)
   function locate() {
     return new Promise(function (resolve) {
       if (!navigator.geolocation) return resolve({ cell: null, why: 'off' });
       navigator.geolocation.getCurrentPosition(function (p) {
-        var cell = G.cellAt(p.coords.latitude, p.coords.longitude);
-        resolve(p.coords.accuracy > ROUGH_M ? { cell: null, near: cell, why: 'rough' } : { cell: cell });
+        var pos = { lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy };
+        var cell = G.cellAt(pos.lat, pos.lon);
+        resolve(p.coords.accuracy > ROUGH_M ? { cell: null, near: cell, why: 'rough', pos: pos } : { cell: cell, pos: pos });
       }, function () { resolve({ cell: null, why: 'off' }); }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
     });
   }
@@ -261,17 +329,17 @@ window.LitterCollect = function (app) {
           beginPick(loc.near, loc.why, function (cell) { return startAt(cell); });
           return;
         }
-        return startAt(loc.cell);
+        return startAt(loc.cell, loc.pos);
       });
     }).then(hideStarting);
   }
 
-  function startAt(cell) {
+  function startAt(cell, pos) {
     showStarting();
-    return startHere(cell).then(hideStarting, function (err) { hideStarting(); throw err; });
+    return startHere(cell, pos).then(hideStarting, function (err) { hideStarting(); throw err; });
   }
 
-  function startHere(cell) {
+  function startHere(cell, pos) {
     var s = sunAt(cell), now = Date.now();
     if (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
@@ -280,15 +348,16 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings;
       pace = d.pace || pace;
       var col = d.collection;
-      c = { id: col.id, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, way: null, queue: [], scalePrev: 0, bagReset: false,
+      c = { id: col.id, grid: 20, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
-        turns: [], plan: d.plan || null };
+        plan: d.plan || null, checkins: [], ckOut: [] };
       if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
       if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
       save();
+      if (pos && !d.already) checkin(pos, 's');
       return fetchStreets(cell).catch(function () {
-        app.notice('The streets around you couldn\'t load just now; your stretches are measured straight until they do.');
+        app.notice('The streets around you couldn\'t load just now. The map shows them once they do.');
       }).then(function () { openCollect(); });
     });
   }
@@ -309,6 +378,8 @@ window.LitterCollect = function (app) {
     });
     c.bagReset = !!last.discarded;
     c.scalePrev = last.discarded || last.newBag || last.scale == null ? 0 : last.scale;
+    c.checkins = c.checkins || [];
+    c.ckOut = c.ckOut || [];
   }
 
   /* ── The collecting screen ── */
@@ -321,10 +392,28 @@ window.LitterCollect = function (app) {
     $('cl-actions').hidden = !!pulse;
     ensureMap();
     drawPlan(c && c.plan);
-    drawCells([], c && c.lastCell, null, c && c.turns);
+    drawCells([], c && c.lastCell, null);
+    drawTrail();
     showStatus();
     showSun($('cl-sun'), null);
+    refreshTypes();
     flush();
+  }
+
+  // The litter types for a litter pulse, whenever the collecting screen
+  // opens: reopening the page during a collection used to skip them, so the
+  // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
+  function refreshTypes() {
+    return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
+      settings = d.settings || settings;
+      if (!d.types || !d.types.length) return;
+      var ticked = pulse ? picked() : [];
+      setTypes(d.types);
+      if (!pulse) return;
+      showTypes();
+      ticked.forEach(function (t) { var i = document.querySelector('#pf-types input[value="' + t.replace(/"/g, '\\"') + '"]'); if (i) i.checked = true; });
+      showPicked();
+    }, function () { /* no signal: the kept list stands */ });
   }
 
   function showStatus() {
@@ -332,12 +421,9 @@ window.LitterCollect = function (app) {
     var t = c.totals;
     $('cl-since').textContent = 'Collecting since ' + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
     $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
+    // Paused, a litter pulse offers Resume and End.
     $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
-    $('cl-pulse-btn').disabled = !!c.current.pausedAt;
-    $('cl-turn').disabled = !!c.current.pausedAt;
-    var n = (c.turns || []).length;
-    $('cl-turns').hidden = !n;
-    $('cl-turns').textContent = n ? (n === 1 ? '1 turnaround' : n + ' turnarounds') + ' marked in this stretch.' : '';
+    ['cl-weigh', 'cl-weigh-say', 'cl-newbag', 'cl-newbag-say'].forEach(function (id) { $(id).hidden = !!c.current.pausedAt; });
     showQueue();
   }
 
@@ -349,7 +435,7 @@ window.LitterCollect = function (app) {
     if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), trail: L.layerGroup().addTo(map) };
     map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
     var p = G.cellCenter((c && c.lastCell) || HOME_CELL);
     map.setView([p.lat, p.lon], 16);
@@ -379,6 +465,23 @@ window.LitterCollect = function (app) {
     (turns || []).forEach(function (cell) { turnDot(cell, '#1d4ed8').addTo(layers.cells); });
     if (center) { var p = G.cellCenter(center); map.setView([p.lat, p.lon], map.getZoom()); }
     setTimeout(function () { map.invalidateSize(); }, 0);
+  }
+
+  // Where you've been this collection, from your check-ins, as a line (S5);
+  // not across a pause.
+  function drawTrail() {
+    if (!map || !layers) return;
+    layers.trail.clearLayers();
+    if (!c || $('v-collect').hidden) return;
+    var line = [], lines = [], paused = false;
+    (c.checkins || []).forEach(function (p) {
+      if (paused && p[4] !== 'r') return;
+      if (paused) { paused = false; if (line.length > 1) lines.push(line); line = []; }
+      line.push([p[1], p[2]]);
+      if (p[4] === 'z') paused = true;
+    });
+    if (line.length > 1) lines.push(line);
+    lines.forEach(function (l) { L.polyline(l, { color: '#1d4ed8', weight: 3, opacity: 0.7, dashArray: '4 6', interactive: false, className: 'lt-trail' }).addTo(layers.trail); });
   }
 
   function turnDot(cell, colour) {
@@ -433,65 +536,90 @@ window.LitterCollect = function (app) {
       return;
     }
     if (summary && summary.editing) return summaryTap(cell);
-    if (!pulse) return;
-    // Tapping a cell adds it to the stretch, or takes it out (Q286).
-    var i = pulse.cells.indexOf(cell);
-    if (i === -1) pulse.cells.push(cell); else if (pulse.cells.length > 1) pulse.cells.splice(i, 1);
-    showStretch();
   }
 
   /* ── The litter pulse (item 2) ── */
 
-  // kind: 'pulse', 'end', or 'pause' (the stretch that ended where you paused).
+  // The Litter pulse button (S5, Oct 29, in chat): Weigh, New bag, Pause or
+  // Resume, and End, each a GPS check-in.
+  function openChooser() {
+    if (!c) return;
+    showStatus();
+    $('cl-chooser').hidden = !$('cl-chooser').hidden;
+    if (!$('cl-chooser').hidden) $('cl-chooser').scrollIntoView({ block: 'nearest' });
+  }
+  function closeChooser() { $('cl-chooser').hidden = true; }
+
+  // kind: 'weigh' (the bag so far), 'newbag' (this full bag, then an empty
+  // one) or 'end'. The litter since your last weighing goes on the path you
+  // walked since then.
   function beginPulse(kind, button) {
     if (!c) return;
     var pressedAt = Date.now();
     var askedSame = false;
-    var go = function (cell) {
-      // End in the cell of your last litter pulse asks first (S3-P27, Q398):
-      // No ends the collection there, with no new stretch.
+    var go = function (cell, pos) {
+      // End in the cell of your last weighing asks first (S3-P27, Q398): No
+      // ends the collection there, with no new weighing.
       if (kind === 'end' && !askedSame && !c.current.pausedAt && c.lastCell && cell === c.lastCell) {
         askedSame = true;
-        return sameCell(function () { go(cell); });
+        closeChooser();
+        return sameCell(function () { go(cell, pos); });
       }
-      var from = c.lastCell || c.current.startCell;
-      return fetchStreets(cell).catch(function () { /* measured straight until the streets load */ }).then(function () {
-        var turns = c.turns || [];
-        var suggested = streets ? streets.suggestVia(from, turns, cell, c.way) : G.lineVia(from, turns, cell);
-        pulse = { kind: kind, pressedAt: kind === 'pause' || (kind === 'end' && c.current.pausedAt) ? c.current.pausedAt : pressedAt, cell: cell,
-          cells: suggested.slice(), suggested: suggested, breakWhere: '' };
-        openPulse();
-      });
+      var at = kind === 'end' && c.current.pausedAt ? c.current.pausedAt : pressedAt;
+      if (pos && at === pressedAt) checkin(pos, kind === 'newbag' ? 'n' : kind === 'end' ? 'e' : 'w');
+      var est = estimate(c.current.startedAt, at, cell);
+      pulse = { kind: kind, pressedAt: at, cell: cell, cells: est.cells, m: { street: est.meters, off: 0 }, breakWhere: '' };
+      closeChooser();
+      openPulse();
     };
-    if (kind === 'pause' || (kind === 'end' && c.current.pausedAt)) return go(c.current.pauseCell);
+    if (kind === 'end' && c.current.pausedAt) return go(c.current.pauseCell, null);
     app.busy(button, 'cl-err', function () {
       return locate().then(function (loc) {
-        if (loc.cell) return go(loc.cell);
-        beginPick(loc.near, loc.why, go);
+        if (loc.cell) return go(loc.cell, loc.pos);
+        beginPick(loc.near, loc.why, function (cell) { return go(cell, loc.pos); });
       });
     });
+  }
+
+  // Where you walked since your last weighing, from your check-ins (S5): the
+  // cells they're in and between them, and the miles walked, leaving out
+  // paused time and moves smaller than a check-in's accuracy. An estimate,
+  // until your GPX track replaces it.
+  function estimate(from, to, cell) {
+    var pts = (c.checkins || []).filter(function (p) { return p[0] >= from - 2000 && p[0] <= to + 2000; });
+    var cells = [], meters = 0, last = null, paused = false;
+    var add = function (x) { if (cells.indexOf(x) === -1) cells.push(x); };
+    pts.forEach(function (p) {
+      if (paused && p[4] !== 'r') return;
+      var here = G.xy(p[1], p[2]);
+      if (paused) { paused = false; last = here; add(G.cellAt(p[1], p[2])); return; }
+      if (!last) last = here;
+      else if (G.dist(last, here) > Math.max(10, p[3] || 0)) { meters += G.dist(last, here); G.lineCells(last, here).forEach(add); last = here; }
+      add(G.cellAt(p[1], p[2]));
+      if (p[4] === 'z') paused = true;
+    });
+    if (cell) add(cell);
+    if (!cells.length && c.current.startCell) add(c.current.startCell);
+    return { cells: cells, meters: meters };
   }
 
   function openPulse() {
     $('cl-actions').hidden = true;
     $('cl-pulse').hidden = false;
     document.body.classList.add('lt-has-bar');
-    $('pf-title').textContent = pulse.kind === 'end' ? 'End: your last litter pulse' : pulse.kind === 'pause' ? 'Weigh the stretch that ended where you paused' : 'Litter pulse';
+    $('pf-title').textContent = pulse.kind === 'end' ? 'End: weigh your last bag' : pulse.kind === 'newbag' ? 'New bag: weigh this full bag' : 'Weigh the bag so far';
     $('pf-scale').value = '';
-    $('pf-newbag').checked = false;
     setRating('', 'auto');
     $('pf-break').value = '';
     $('pf-where-shown').textContent = '';
     $('pf-err').textContent = '';
     $('pf-odd').hidden = true;
-    $('pf-bag-hint').textContent = c.bagReset ? 'You started a new bag after the stretch you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
+    $('pf-bag-hint').textContent = pulse.kind === 'newbag' ? 'Include the bag. Then drop it in any bin, and start an empty one.'
+      : c.bagReset ? 'You started a new bag after the weighing you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
     $('pf-end-row').hidden = pulse.kind !== 'end';
     if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
     $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
     showTypes();
-    showStretch();
-    pulse.planCells = planStretchAt(pulse.cell);
-    $('pf-plan-stretch').hidden = !pulse.planCells;
     pulse.step = 0;
     showStep();
   }
@@ -519,10 +647,11 @@ window.LitterCollect = function (app) {
     map.setView([p.lat, p.lon], map.getZoom(), { animate: false });
   }
 
-  // One thing per screen (S3-P27, Q397): the stretch, the scale, litter
-  // types, the visual rating, and a break, with Next and Back. Litter types
-  // and a break can be skipped; the rating can't (Q403).
-  var STEPS = ['stretch', 'scale', 'types', 'rating', 'break'];
+  // One thing per screen (S3-P27, Q397): the scale, litter types, the visual
+  // rating since your last weighing, and a break, with Next and Back; the
+  // stretch step went with stretches (S5). Litter types and a break can be
+  // skipped; the rating can't, as no Litter Index comes without one (Q403, S5).
+  var STEPS = ['scale', 'types', 'rating', 'break'];
   function showStep() {
     var i = pulse.step;
     Array.prototype.forEach.call(document.querySelectorAll('#cl-pulse .pf-step'), function (d) { d.hidden = d.dataset.step !== STEPS[i]; });
@@ -540,7 +669,7 @@ window.LitterCollect = function (app) {
   }
   function stepCheck(i) {
     if (STEPS[i] === 'scale') return scaleError();
-    if (STEPS[i] === 'rating' && $('pf-rating').value === '') return 'Pick a visual rating: how littered it looked, from 0 to 10.';
+    if (STEPS[i] === 'rating' && $('pf-rating').value === '') return 'Pick a visual rating: how littered it looked since your last weighing, from 0 to 10.';
     return '';
   }
   function nextStep() {
@@ -557,30 +686,10 @@ window.LitterCollect = function (app) {
   function scaleError() {
     var scale = $('pf-scale').value.trim();
     var lbs = Number(scale.replace(/[^\d.]/g, ''));
-    if (scale === '' || !(lbs >= 0)) return 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this stretch.';
+    if (scale === '' || !(lbs >= 0)) return 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this weighing.';
     var before = c.bagReset ? 0 : c.scalePrev;
-    if (lbs < before) return 'The scale shows less than at your last litter pulse (' + before + ' lb). If you started a new bag then, the app needed to know: tick New bag at a pulse when you start one.';
+    if (lbs < before) return 'The scale shows less than at your last weighing (' + before + ' lb). If you started a new bag then, the app needed to know: use New bag when you start one.';
     return '';
-  }
-
-  // Your plan at a litter pulse (S3-P27, Q400): a planned stretch that starts
-  // or ends in this cell, as cells ending here, or null.
-  function planStretchAt(cell) {
-    var found = null;
-    (c && c.plan && c.plan.stretches || []).forEach(function (s) {
-      if (found || !s.cells || s.cells.length < 2) return;
-      if (s.cells[s.cells.length - 1] === cell) found = s.cells.slice();
-      else if (s.cells[0] === cell) found = s.cells.slice().reverse();
-    });
-    return found;
-  }
-
-  function showStretch() {
-    var m = streets ? streets.measure(pulse.cells) : { street: 0, off: G.CELL_M * pulse.cells.length };
-    pulse.m = m;
-    $('pf-stretch').textContent = 'Your stretch: ' + pulse.cells.length + ' cell' + (pulse.cells.length === 1 ? '' : 's') + ', ' +
-      round((m.street + m.off) / G.MILE_M, 2) + ' mi. Tap cells on the map to add or take them out.';
-    drawCells(pulse.cells, pulse.cell, pulse.cell, c.turns);
   }
 
   function showTypes() {
@@ -607,7 +716,9 @@ window.LitterCollect = function (app) {
   function openTypes() {
     $('pf-drawer').hidden = false;
     $('pf-type-err').textContent = '';
-    $('pf-type-search').focus();
+    filterTypes();
+    // No keyboard until you tap the search box: it covered the list (S5).
+    $('pf-types-done').focus();
   }
   function closeTypes() {
     $('pf-drawer').hidden = true;
@@ -624,8 +735,8 @@ window.LitterCollect = function (app) {
       l.hidden = !hit;
       if (hit) shown++;
     });
-    $('pf-types-none').hidden = !q || shown > 0;
-    $('pf-types-none').textContent = 'No litter type has "' + $('pf-type-search').value.trim() + '" in it.';
+    $('pf-types-none').hidden = (!q && types.length > 0) || shown > 0;
+    $('pf-types-none').textContent = !types.length && !q ? 'The litter types haven\'t loaded yet: they need signal once. Try again in a moment.' : 'No litter type has "' + $('pf-type-search').value.trim() + '" in it.';
     $('pf-type-add').hidden = !q || shown > 0;
     $('pf-type-add').textContent = 'Add "' + $('pf-type-search').value.trim() + '" as a new type';
   }
@@ -641,7 +752,7 @@ window.LitterCollect = function (app) {
     app.busy(button, 'pf-type-err', function () {
       return app.api('addLitterType', { token: app.myToken(), type: name }).then(function (d) {
         var ticked = picked();
-        types = d.types;
+        setTypes(d.types);
         showTypes();
         ticked.concat([d.added]).forEach(function (t) {
           var i = document.querySelector('#pf-types input[value="' + t.replace(/"/g, '\\"') + '"]');
@@ -736,7 +847,7 @@ window.LitterCollect = function (app) {
     if (!discard) {
       var se = scaleError();
       if (se) return goStep('scale', se);
-      if ($('pf-rating').value === '') return goStep('rating', 'Pick a visual rating: how littered it looked, from 0 to 10.');
+      if ($('pf-rating').value === '') return goStep('rating', 'Pick a visual rating: how littered it looked since your last weighing, from 0 to 10.');
     }
     var breakMin = Number($('pf-break').value) || 0;
     var cur = c.current;
@@ -757,9 +868,9 @@ window.LitterCollect = function (app) {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
-      scale: discard ? '' : scale, newBag: !discard && $('pf-newbag').checked,
+      scale: discard ? '' : scale, newBag: !discard && pulse.kind === 'newbag',
       types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak, reason: discard ? why || null : null, pulseCell: pulse.cell,
-      turns: (c.turns || []).filter(function (t) { return pulse.cells.indexOf(t) !== -1; })
+      turns: []
     };
     c.queue.push({ type: 'stretch', stretch: stretch });
     // What the collection so far shows (Q260).
@@ -777,25 +888,21 @@ window.LitterCollect = function (app) {
     }
     c.n += 1;
     c.lastCell = pulse.cell;
-    c.way = null;
-    c.turns = [];
     var kind = pulse.kind;
     if (kind === 'end') {
       c.queue.push({ type: 'end', endedAt: endedAt });
       c.ended = true;
-    } else if (kind === 'pause') {
-      // The new stretch starts where and when you resumed.
-      c.current = { startedAt: c.resumeAt, startCell: c.resumeCell, pausedMin: 0 };
-      c.lastCell = c.resumeCell;
     } else {
       c.current = { startedAt: endedAt, startCell: pulse.cell, pausedMin: 0 };
     }
     save();
     closePulse();
     drawCells([], c.lastCell, c.lastCell);
+    drawTrail();
     showStatus();
-    if (discard) app.notice('Stretch discarded. Start a new bag now, so your next weighing has only the next stretch\'s litter.');
-    else if (kind !== 'end') app.notice('Litter pulse saved.');
+    if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
+    else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
+    else if (kind !== 'end') app.notice('Weighed. Keep filling your bag.');
     if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
     flush();
   }
@@ -809,45 +916,36 @@ window.LitterCollect = function (app) {
     return minutes > Math.max(2 * usual, usual + 10) ? { minutes: minutes, usual: usual } : null;
   }
   function oddWords(odd) {
-    return 'This stretch took ' + Math.round(odd.minutes) + ' minutes. At your usual pace, it would take about ' + Math.max(1, Math.round(odd.usual)) + '.';
+    return 'This weighing took ' + Math.round(odd.minutes) + ' minutes. At your usual pace, it would take about ' + Math.max(1, Math.round(odd.usual)) + '.';
   }
 
   /* ── Pause and Resume (item 6) ── */
 
+  // Pause and Resume are check-ins, with no weighing (S5): paused time
+  // doesn't count, and neither does where you went while paused.
   function pauseOrResume(button) {
     if (!c) return;
-    if (!c.current.pausedAt) {
-      // Pause asks you to weigh, strongly, but doesn't require it (Q283).
-      app.busy(button, 'cl-err', function () {
-        return locate().then(function (loc) {
-          c.current.pausedAt = Date.now();
-          c.current.pauseCell = loc.cell || loc.near || c.lastCell;
-          save();
-          showStatus();
-          button.dataset.after = 'Resume';
-          app.notice('Paused. If you can, weigh your bag now: press Resume, then it asks for the weight.');
-        });
-      });
-      return;
-    }
+    var pausing = !c.current.pausedAt;
     app.busy(button, 'cl-err', function () {
       return locate().then(function (loc) {
-        var cell = loc.cell || loc.near || c.current.pauseCell;
+        // With no location just now, where you were last, so a GPX track
+        // still leaves the paused time out.
+        checkin(loc.pos || lastPlace(), pausing ? 'z' : 'r');
         var cur = c.current;
-        if (cell === cur.pauseCell) {
-          // In the same cell, the stretch goes on, less the pause.
+        if (pausing) {
+          cur.pausedAt = Date.now();
+          cur.pauseCell = loc.cell || loc.near || c.lastCell;
+          app.notice('Paused. Your time stops until you press Litter pulse, then Resume.');
+        } else {
           cur.pausedMin = (cur.pausedMin || 0) + (Date.now() - cur.pausedAt) / 60000;
           delete cur.pausedAt; delete cur.pauseCell;
-          save();
-          showStatus();
-          button.dataset.after = 'Pause';
-          return;
+          app.notice('Resumed.');
         }
-        // In a different cell: weigh the stretch that ended where you paused first.
-        c.resumeAt = Date.now();
-        c.resumeCell = cell;
         save();
-        return beginPulse('pause');
+        closeChooser();
+        showStatus();
+        drawTrail();
+        flush();
       });
     });
   }
@@ -893,17 +991,17 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.cells.clearLayers();
     layers.plan.clearLayers();
+    layers.trail.clearLayers();   // the check-ins' line is for while you collect
     var b = L.latLngBounds([]);
     summary.stretches.forEach(function (s) {
       if (s.discarded) return;
       var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, settings.colours);
       s.cells.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.7 });
-        r.bindPopup('Stretch ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
+        r.bindPopup('Weighing ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
         r.addTo(layers.cells);
         b.extend(G.cellBounds(cell));
       });
-      (s.turns || []).forEach(function (cell) { turnDot(cell, '#1d4ed8').addTo(layers.cells); });
     });
     Object.keys(summary.stops || {}).forEach(function (id) {
       L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
@@ -927,7 +1025,7 @@ window.LitterCollect = function (app) {
     app.busy(button, 'cl-start-err', function () {
       return app.api('collectLoad', { token: app.myToken(), collectionId: id }).then(function (d) {
         settings = d.settings || settings;
-        types = d.types || types;
+        setTypes(d.types);
         pace = d.pace || pace;
         summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
         showSummary();
@@ -940,31 +1038,35 @@ window.LitterCollect = function (app) {
     box.className = 'card lt-stretch';
     box.id = 'sm-' + s.id;
     var h = document.createElement('h3');
-    h.textContent = 'Stretch ' + s.n + ' · ' + clock(s.started) + ' to ' + clock(s.ended);
+    h.textContent = 'Weighing ' + s.n + ' · ' + clock(s.started) + ' to ' + clock(s.ended);
     box.appendChild(h);
     var p = document.createElement('p');
     p.className = 'lt-stretch-facts';
     p.textContent = s.discarded ? 'Discarded' + (s.reason ? ' (' + s.reason + ')' : '') + ': no reading. Its time still counts.' :
       round(s.streetMi + s.offMi, 2) + ' mi · ' + Math.round(s.activeMin) + ' min · ' + (s.pounds == null ? '?' : s.pounds) + ' lb · ' +
-      (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
+      (s.index == null ? 'no reading yet' : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
     box.appendChild(p);
     if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
-    if (s.track) { var tr = document.createElement('p'); tr.className = 'muted small'; tr.textContent = 'Its cells are from your GPX track.'; box.appendChild(tr); }
-    if (summary.gpx && summary.gpx[s.id]) box.appendChild(trackChoice(s, summary.gpx[s.id]));
-    // Asked once; a track that shows a long stop is new, so it asks again.
+    if (!s.discarded) {
+      var tr = document.createElement('p');
+      tr.className = 'muted small lt-path-say';
+      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : 'Estimated from your check-ins: save your GPX track for where you walked, and the miles.';
+      box.appendChild(tr);
+    }
+    // Asked once.
     var odd = !s.discarded && !s.breakMin && (!s.asked || (summary.stops && summary.stops[s.id])) ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
     if (odd) box.appendChild(oddQuestion(s, odd));
     if (!s.discarded) {
       var b = document.createElement('button');
       b.type = 'button';
       b.className = 'btn btn-secondary lt-fix';
-      b.textContent = 'Fix this stretch';
+      b.textContent = 'Fix this weighing';
       b.addEventListener('click', function () { openFix(s); });
       box.appendChild(b);
       var d = document.createElement('button');
       d.type = 'button';
       d.className = 'btn btn-secondary lt-discard-stretch';
-      d.textContent = 'Discard this stretch';
+      d.textContent = 'Discard this weighing';
       d.addEventListener('click', function () { d.hidden = true; box.appendChild(discardWhy(s)); });
       box.appendChild(d);
     }
@@ -1064,10 +1166,10 @@ window.LitterCollect = function (app) {
 
   // Discard this stretch on the summary (S3-P27, Q399).
   function discardWhy(s) {
-    return whyBox({ title: 'Why are you discarding stretch ' + s.n + '?', redirects: true, errId: 'sd-err-' + s.id,
-      cleanYes: 'Then keep it: a clean street is real data, and it counts. If its weight isn\'t 0, press Fix this stretch.',
-      wrongPlace: 'No need to discard it: press Fix this stretch, then Change its cells, and tap the cells you walked.',
-      goLabel: 'Discard stretch ' + s.n,
+    return whyBox({ title: 'Why are you discarding weighing ' + s.n + '?', redirects: true, errId: 'sd-err-' + s.id,
+      cleanYes: 'Then keep it: a clean street is real data, and it counts. If its weight isn\'t 0, press Fix this weighing.',
+      wrongPlace: 'No need to discard it: save your GPX track above, or press Fix this weighing, then Change its cells.',
+      goLabel: 'Discard weighing ' + s.n,
       onGo: function (r, go, errId) { sendFix(go, s, { discard: r }, errId); },
       onKeep: function () { showSummary(); } });
   }
@@ -1110,7 +1212,7 @@ window.LitterCollect = function (app) {
     summary.breakWhere = stop ? stop.cell : '';
     summary.whereMode = false;
     $('sf-where-shown').textContent = stop ? 'Where you were: the cell your track points to.' : '';
-    $('sf-title').textContent = 'Fix stretch ' + s.n;
+    $('sf-title').textContent = 'Fix weighing ' + s.n;
     $('sf-pounds').value = s.pounds == null ? '' : s.pounds;
     $('sf-rating').value = s.rating == null ? '' : String(s.rating);
     var box = $('sf-types');
@@ -1173,7 +1275,6 @@ window.LitterCollect = function (app) {
       return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }).then(function (d) {
         summary.collection = d.collection;
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
-        if (summary.gpx) delete summary.gpx[s.id];
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
         summary.withBreak = false;
@@ -1181,14 +1282,15 @@ window.LitterCollect = function (app) {
         $('sm-fix').hidden = true;
         $('sm-map-box').hidden = true;
         showSummary();
-        app.notice(fix.discard ? 'Stretch ' + s.n + ' discarded. Its time still counts, and it\'s off the map.' : fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Stretch ' + s.n + ' fixed.');
+        app.notice(fix.discard ? 'Weighing ' + s.n + ' discarded. Its time still counts, and it\'s off the map.' : fix.breakAsked && fix.breakMin == null ? 'Kept as it is.' : 'Weighing ' + s.n + ' fixed.');
       });
     });
   }
 
-  // A recorder's GPX file (Q227): each stretch's cells from the track points
-  // in its time; when they differ from the stretch you confirmed, both show
-  // and you choose. It never changes a stretch by itself (Q228).
+  // Your GPX track is the path (S5, Oct 29, in chat): lined up with the
+  // walk's check-ins by time, it sets each weighing's cells and miles walked,
+  // and its reading; it's kept on the collection as a line. A track that
+  // doesn't pass near the check-ins isn't this walk's, and is refused.
   function readGpx(file) {
     var reader = new FileReader();
     reader.onload = function () {
@@ -1199,41 +1301,137 @@ window.LitterCollect = function (app) {
       }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
       if (!pts.length) { app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your recorder saved.'); return; }
       pts.sort(function (a, b) { return a.t - b.t; });
-      summary.track = thinTrack(pts);
-      summary.gpx = {};
-      summary.stops = {};
-      var n = 0;
+      var checkins = summary.collection && summary.collection.checkins || [];
+      var lined = lineUp(pts, checkins);
+      if (!lined.matched) { app.notice('That track doesn\'t pass where this walk\'s check-ins were. Is it the file for this walk?'); return; }
+      pts.forEach(function (p) { p.t -= lined.offset; });
+      var pauses = pausesOf(checkins);
+      var weighings = [], short = [];
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
-        var stop = longestStop(pts, s);
-        if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
-        var cells = [];
-        pts.filter(function (p) { return p.t >= s.started && p.t <= s.ended; }).forEach(function (p) {
-          var cell = G.cellAt(p.lat, p.lon);
-          if (cells[cells.length - 1] !== cell) cells.push(cell);
-        });
-        if (!cells.length) return;
-        // Whatever their order, each once: an out and back passes its cells
-        // twice, and a stretch lists them once (|C524). And within a cell of
-        // each other, both ways: a phone's track drifts into the next cell
-        // along a street near a cell's edge, so only a stretch the track
-        // really left is called different.
-        var uniq = cells.filter(function (x, i) { return cells.indexOf(x) === i; });
-        var near = function (list) { return function (x) { return list.some(function (y) { return G.neighbours(x, y); }); }; };
-        var same = uniq.every(near(s.cells)) && s.cells.every(near(uniq));
-        if (!same) { summary.gpx[s.id] = uniq; n++; }
+        // Only a weighing the track covers from start to end; any other
+        // stays estimated from your check-ins.
+        var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses) : { cells: [] };
+        if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
+        else short.push(s.n);
       });
-      showSummary();
-      var said = n ? 'Your track shows a different stretch for ' + n + ' of them. Choose for each.' : 'Your track matches the stretches you confirmed.';
-      $('sm-view-box').scrollIntoView({ block: 'start' });
-      // Kept on the collection as a line (S3-P27, Oct 25), so it's there next time.
-      app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track }).then(function () {
-        app.notice(said + ' Your track is drawn on the map and saved on this collection.');
+      summary.track = thinTrack(pts);
+      app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings }).then(function (d) {
+        if (d.collection) summary.collection = d.collection;
+        if (d.stretches) summary.stretches = d.stretches;
+        summary.stops = {};
+        summary.stretches.forEach(function (s) {
+          if (s.discarded) return;
+          var stop = longestStop(pts, s, pauses);
+          if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
+        });
+        showSummary();
+        $('sm-view-box').scrollIntoView({ block: 'start' });
+        app.notice('Your track is saved on this collection. Where you walked, and the miles, are from it now' +
+          (lined.offset ? ' (your recorder\'s clock was ' + howLong(Math.abs(lined.offset)) + ' ' + (lined.offset > 0 ? 'ahead' : 'behind') + ')' : '') + '.' +
+          (short.length ? ' ' + (short.length === 1 ? 'Weighing ' + short[0] + ' stays' : 'Weighings ' + short.join(', ') + ' stay') + ' estimated: the track doesn\'t cover all of ' + (short.length === 1 ? 'its' : 'their') + ' time.' : ''));
       }, function (err) {
-        app.notice(said + ' Your track is drawn on the map, but it wasn\'t saved: ' + err.message);
+        showSummary();
+        app.notice('Your track is drawn on the map, but it wasn\'t saved: ' + err.message);
       });
     };
     reader.readAsText(file);
+  }
+
+  // How far the recorder's clock is off from the phone's: the offset that
+  // puts the track nearest the walk's check-ins, tried in whole hours (a
+  // recorder set to another time zone), then to the minute, then to 5
+  // seconds; under a minute counts as none. A track that, at every offset,
+  // passes within 60 m of fewer than a third of the check-ins in its time
+  // isn't this walk's. With no check-ins (a walk from before them), the
+  // track's times are taken as they are.
+  function lineUp(pts, checkins) {
+    var ks = checkins.filter(function (k) { return (k[3] || 0) < 999; });   // not the rough ones from lastPlace
+    if (!ks.length) return { matched: true, offset: 0 };
+    var txy = pts.map(function (p) { return G.xy(p.lat, p.lon); });
+    var kxy = ks.map(function (k) { return G.xy(k[1], k[2]); });
+    var place = function (t) {
+      if (t < pts[0].t || t > pts[pts.length - 1].t) return null;
+      var lo = 0, hi = pts.length - 1;
+      while (hi - lo > 1) { var mid = (lo + hi) >> 1; if (pts[mid].t <= t) lo = mid; else hi = mid; }
+      var f = pts[hi].t > pts[lo].t ? (t - pts[lo].t) / (pts[hi].t - pts[lo].t) : 0;
+      return { x: txy[lo].x + f * (txy[hi].x - txy[lo].x), y: txy[lo].y + f * (txy[hi].y - txy[lo].y) };
+    };
+    var score = function (o) {
+      var near = 0, ds = [];
+      ks.forEach(function (k, i) {
+        var p = place(k[0] + o);
+        if (!p) return;
+        var d = G.dist(p, kxy[i]);
+        ds.push(d);
+        if (d <= 60 + Math.min(k[3] || 0, 60)) near++;
+      });
+      ds.sort(function (a, b) { return a - b; });
+      return { o: o, near: near, seen: ds.length, mid: ds.length ? ds[Math.floor(ds.length / 2)] : Infinity };
+    };
+    var best = null;
+    var tryAt = function (o) { var x = score(o); if (!best || x.near > best.near || (x.near === best.near && x.mid < best.mid)) best = x; };
+    for (var h = 0; h <= 14; h++) { tryAt(h * 3600000); if (h) tryAt(-h * 3600000); }
+    var base = best.o;
+    for (var m = -30; m <= 30; m++) tryAt(base + m * 60000);
+    base = best.o;
+    for (var q = -12; q <= 12; q++) tryAt(base + q * 5000);
+    if (!best.near || best.near < Math.ceil(best.seen / 3)) return { matched: false };
+    return { matched: true, offset: Math.abs(best.o) >= 60000 ? best.o : 0 };
+  }
+
+  // Whether the track runs from a weighing's start to its end, give or take
+  // 2 minutes.
+  function covers(pts, s) {
+    return pts.length > 1 && pts[0].t <= s.started + 120000 && pts[pts.length - 1].t >= s.ended - 120000;
+  }
+
+  function howLong(ms) {
+    var m = Math.round(ms / 60000), h = Math.floor(m / 60);
+    m -= h * 60;
+    return (h ? h + (h === 1 ? ' hour' : ' hours') : '') + (h && m ? ' ' : '') + (m || !h ? m + (m === 1 ? ' minute' : ' minutes') : '');
+  }
+
+  // Paused times, from the check-ins: [from, to] for each Pause to its Resume.
+  function pausesOf(checkins) {
+    var out = [], at = null;
+    checkins.forEach(function (k) {
+      if (k[4] === 'z' && at == null) at = k[0];
+      else if (k[4] === 'r' && at != null) { out.push([at, k[0]]); at = null; }
+    });
+    if (at != null) out.push([at, Infinity]);
+    return out;
+  }
+
+  // A weighing's part of the track: the cells it passes through, and the
+  // miles walked, counting moves of 5 m or more, and nothing while paused.
+  function trackPath(pts, from, to, pauses) {
+    var cells = [], meters = 0, last = null;
+    var add = function (x) { if (cells.indexOf(x) === -1) cells.push(x); };
+    pts.forEach(function (p) {
+      if (p.t < from || p.t > to) return;
+      if (pauses.some(function (w) { return p.t > w[0] && p.t < w[1]; })) { last = null; return; }
+      var here = G.xy(p.lat, p.lon);
+      add(G.cellAt(p.lat, p.lon));
+      if (!last) { last = here; return; }
+      var d = G.dist(last, here);
+      if (d >= 5) { meters += d; G.lineCells(last, here).forEach(add); last = here; }
+    });
+    return { cells: cells, meters: meters };
+  }
+
+  // Where the track stayed longest in one cell during a weighing (item 7),
+  // not counting paused time: { cell, minutes }, or null for under 5 minutes.
+  function longestStop(pts, s, pauses) {
+    var best = null, run = null;
+    pts.forEach(function (p) {
+      if (p.t < s.started || p.t > s.ended) return;
+      if (pauses.some(function (w) { return p.t > w[0] && p.t < w[1]; })) { run = null; return; }
+      var cell = G.cellAt(p.lat, p.lon);
+      if (run && run.cell === cell) run.last = p.t; else run = { cell: cell, first: p.t, last: p.t };
+      if (!best || run.last - run.first > best.last - best.first) best = { cell: run.cell, first: run.first, last: run.last };
+    });
+    return best && best.last - best.first >= 5 * 60000 ? { cell: best.cell, minutes: (best.last - best.first) / 60000 } : null;
   }
 
   // A track to keep: points about 5 m apart or more, at most 2,000.
@@ -1247,59 +1445,6 @@ window.LitterCollect = function (app) {
     return out;
   }
   function keptTrack(col) { return col && col.track && col.track.length > 1 ? col.track : null; }
-
-  // Where the track stayed longest in one cell during a stretch (item 7):
-  // { cell, minutes }, or null for under 5 minutes.
-  function longestStop(pts, s) {
-    var best = null, run = null;
-    pts.forEach(function (p) {
-      if (p.t < s.started || p.t > s.ended) return;
-      var cell = G.cellAt(p.lat, p.lon);
-      if (run && run.cell === cell) run.last = p.t; else run = { cell: cell, first: p.t, last: p.t };
-      if (!best || run.last - run.first > best.last - best.first) best = { cell: run.cell, first: run.first, last: run.last };
-    });
-    return best && best.last - best.first >= 5 * 60000 ? { cell: best.cell, minutes: (best.last - best.first) / 60000 } : null;
-  }
-
-  function trackChoice(s, cells) {
-    var box = document.createElement('div');
-    box.className = 'lt-track';
-    var m = streets ? streets.measure(cells) : { street: 0, off: G.CELL_M * cells.length };
-    var p = document.createElement('p');
-    p.textContent = 'Your track shows ' + cells.length + ' cells, ' + round((m.street + m.off) / G.MILE_M, 2) + ' mi; you confirmed ' + s.cells.length + ' cells, ' + round(s.streetMi + s.offMi, 2) + ' mi.';
-    box.appendChild(p);
-    var use = document.createElement('button');
-    use.type = 'button'; use.className = 'btn btn-primary lt-use-track'; use.textContent = 'Use the track\'s';
-    use.addEventListener('click', function () { sendFix(use, s, { cells: cells, streetMi: m.street / G.MILE_M, offMi: m.off / G.MILE_M, fromTrack: true }); });
-    var keepMine = document.createElement('button');
-    keepMine.type = 'button'; keepMine.className = 'btn btn-secondary lt-keep-mine'; keepMine.textContent = 'Keep mine';
-    keepMine.addEventListener('click', function () { delete summary.gpx[s.id]; showSummary(); });
-    box.appendChild(use);
-    box.appendChild(keepMine);
-    return box;
-  }
-
-  /* ── Mark turnaround (Oct 24, in chat) ── */
-
-  // Where you turn back, with no weighing and no new stretch: the next
-  // litter pulse suggests the stretch out to it and back, each cell once.
-  function markTurn(button) {
-    if (!c || c.current.pausedAt) return;
-    var mark = function (cell) {
-      c.turns = c.turns || [];
-      if (c.turns[c.turns.length - 1] !== cell) c.turns.push(cell);
-      save();
-      showStatus();
-      drawCells([], cell, cell, c.turns);
-      app.notice('Turnaround marked. Your stretch goes on; press Litter pulse when you weigh.');
-    };
-    app.busy(button, 'cl-err', function () {
-      return locate().then(function (loc) {
-        if (loc.cell) return mark(loc.cell);
-        beginPick(loc.near, loc.why, mark);
-      });
-    });
-  }
 
   /* ── Discard this collection (Oct 24, in chat) ── */
 
@@ -1361,11 +1506,11 @@ window.LitterCollect = function (app) {
 
   /* ── Planning a collection (Oct 24, in chat) ── */
 
-  // Each stretch: its cells in order, its turnarounds, and the cell last
-  // tapped, which the next tap fills in from along the street. Undo takes
-  // back the last tap, turnaround or new stretch.
+  // The cells you mean to cover, with no stretches or turnarounds (S5), and
+  // the cell last tapped, which the next tap fills in from along the street.
+  // Undo takes back the last tap.
   function openPlan() {
-    planning = { stretches: [{ cells: [], turns: [], from: null }], turnMode: false, history: [] };
+    planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
     app.notice('');
     app.show('v-plan');
     $('pl-err').textContent = '';
@@ -1388,19 +1533,15 @@ window.LitterCollect = function (app) {
   }
 
   function planTap(cell) {
-    var k = planning.stretches.length - 1, st = planning.stretches[k];
-    var turn = planning.turnMode;
-    planning.turnMode = false;
-    $('pl-turn').classList.remove('on');
-    if (!turn && st.cells.indexOf(cell) !== -1) {
-      app.notice('That cell is already in this stretch. To take cells out, press Undo.');
+    var st = planning.stretches[0];
+    if (st.cells.indexOf(cell) !== -1) {
+      app.notice('That cell is already in your plan. To take cells out, press Undo.');
       return;
     }
     var path = !st.from ? [cell] : streets ? streets.suggest(st.from, cell, null) : G.lineCells(G.centerXY(st.from), G.centerXY(cell));
     var added = path.filter(function (x, i) { return st.cells.indexOf(x) === -1 && path.indexOf(x) === i; });
-    var step = { stretch: k, added: added, from: st.from, turn: turn && st.turns.indexOf(cell) === -1 ? cell : null };
+    var step = { added: added, from: st.from };
     st.cells = st.cells.concat(added);
-    if (step.turn) st.turns.push(cell);
     st.from = cell;
     planning.history.push(step);
     app.notice('');
@@ -1410,19 +1551,9 @@ window.LitterCollect = function (app) {
   function planUndo() {
     var step = planning.history.pop();
     if (!step) return;
-    if (step.newStretch) { planning.stretches.pop(); drawPlanning(false); return; }
-    var st = planning.stretches[step.stretch];
+    var st = planning.stretches[0];
     st.cells = st.cells.filter(function (x) { return step.added.indexOf(x) === -1; });
-    if (step.turn) st.turns = st.turns.filter(function (x) { return x !== step.turn; });
     st.from = step.from;
-    drawPlanning(false);
-  }
-
-  function planNewStretch() {
-    var st = planning.stretches[planning.stretches.length - 1];
-    if (!st.cells.length) { app.notice('Tap this stretch\'s cells first.'); return; }
-    planning.stretches.push({ cells: [], turns: [], from: null });
-    planning.history.push({ newStretch: true });
     drawPlanning(false);
   }
 
@@ -1431,36 +1562,25 @@ window.LitterCollect = function (app) {
     return (m.street + m.off) / G.MILE_M;
   }
 
-  // The plan on the map: this stretch orange, the others purple, with
-  // their turnarounds as dots; and each stretch's cells and miles.
+  // The plan on the map, and its cells and miles.
   function drawPlanning(center) {
-    var last = planning.stretches.length - 1;
+    var st = planning.stretches[0];
     if (map) {
       layers.cells.clearLayers();
-      planning.stretches.forEach(function (st, k) {
-        var mine = k === last;
-        st.cells.forEach(function (cell) {
-          L.rectangle(G.cellBounds(cell), mine ? { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.4, interactive: false }
-            : { color: '#6d28d9', weight: 1, fillColor: '#a78bfa', fillOpacity: 0.35, interactive: false }).addTo(layers.cells);
-        });
-        st.turns.forEach(function (cell) { turnDot(cell, mine ? '#1d4ed8' : '#6d28d9').addTo(layers.cells); });
+      st.cells.forEach(function (cell) {
+        L.rectangle(G.cellBounds(cell), { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.4, interactive: false }).addTo(layers.cells);
       });
       setTimeout(function () { map.invalidateSize(); }, 0);
     }
-    var lines = planning.stretches.map(function (st, k) {
-      if (!st.cells.length) return 'Stretch ' + (k + 1) + ': tap its first cell.';
-      return 'Stretch ' + (k + 1) + ': ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi' +
-        (st.turns.length ? ', ' + plural(st.turns.length, 'turnaround', 'turnarounds') : '') + '.';
-    });
-    $('pl-status').textContent = planning.turnMode ? 'Tap the cell where you\'ll turn back.' : lines.join(' ');
+    $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap the first cell you mean to cover.';
     $('pl-undo').disabled = !planning.history.length;
   }
 
   function savePlan(button) {
     var list = planning.stretches.filter(function (st) { return st.cells.length; }).map(function (st) {
-      return { cells: st.cells.slice(), turns: st.turns.slice(), miles: planMiles(st) };
+      return { cells: st.cells.slice(), turns: [], miles: planMiles(st) };
     });
-    if (!list.length) { $('pl-err').textContent = 'Tap the cells of the stretch you mean to collect first.'; return; }
+    if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
       return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }).then(function (d) {
         planning = null;
@@ -1476,46 +1596,37 @@ window.LitterCollect = function (app) {
 
   $('cl-start').addEventListener('click', function () { start($('cl-start')); });
   $('cl-plan-btn').addEventListener('click', openPlan);
-  $('cl-turn').addEventListener('click', function () { markTurn($('cl-turn')); });
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
-  $('pl-turn').addEventListener('click', function () {
-    planning.turnMode = !planning.turnMode;
-    $('pl-turn').classList.toggle('on', planning.turnMode);
-    drawPlanning(false);
-  });
-  $('pl-new').addEventListener('click', planNewStretch);
   $('pl-undo').addEventListener('click', planUndo);
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
   $('pl-cancel').addEventListener('click', function () { planning = null; app.showAccount(); });
-  $('cl-pulse-btn').addEventListener('click', function () { beginPulse('pulse', $('cl-pulse-btn')); });
+  $('cl-pulse-btn').addEventListener('click', openChooser);
+  $('cl-weigh').addEventListener('click', function () { beginPulse('weigh', $('cl-weigh')); });
+  $('cl-newbag').addEventListener('click', function () { beginPulse('newbag', $('cl-newbag')); });
   $('cl-pause').addEventListener('click', function () { pauseOrResume($('cl-pause')); });
   $('cl-end').addEventListener('click', function () { beginPulse('end', $('cl-end')); });
+  $('cl-chooser-cancel').addEventListener('click', closeChooser);
   $('cl-same-yes').addEventListener('click', function () { sameAnswer(true); });
   $('cl-same-no').addEventListener('click', function () { sameAnswer(false); });
   $('cl-back').addEventListener('click', function () { app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
   $('pf-next').addEventListener('click', nextStep);
   $('pf-back').addEventListener('click', function () { if (pulse && pulse.step > 0) { pulse.step -= 1; showStep(); } });
-  $('pf-plan-stretch').addEventListener('click', function () { if (pulse && pulse.planCells) { pulse.cells = pulse.planCells.slice(); showStretch(); } });
   $('pf-discard').addEventListener('click', function () {
     if ($('pf-why')) return;
-    var b = whyBox({ title: 'Why are you discarding this stretch?', redirects: true, errId: 'pf-why-err',
-      cleanYes: 'Then don\'t discard it: type what the scale shows now, the same as at your last litter pulse, and go on.',
-      wrongPlace: 'No need to discard it: press Back, and tap the cells you walked on the map.',
-      goLabel: 'Discard this stretch',
+    var b = whyBox({ title: 'Why are you discarding this weighing?', redirects: true, errId: 'pf-why-err',
+      cleanYes: 'Then don\'t discard it: type what the scale shows now, the same as at your last weighing, and go on.',
+      wrongPlace: 'No need to discard it: where you walked comes from your GPX track after you end.',
+      goLabel: 'Discard this weighing',
       onGo: function (r) { savePulse(true, r); },
       onKeep: function () { b.remove(); $('pf-discard').hidden = false; } });
     b.id = 'pf-why';
     $('pf-discard').hidden = true;
     $('pf-discard').parentNode.appendChild(b);
   });
-  $('pf-cancel').addEventListener('click', function () {
-    if (pulse && pulse.kind === 'pause') { app.notice('Weigh it, or press Discard this stretch.'); return; }
-    closePulse(); drawCells([], c && c.lastCell, null, c && c.turns);
-  });
-  $('pf-suggested').addEventListener('click', function () { if (pulse) { pulse.cells = pulse.suggested.slice(); showStretch(); } });
+  $('pf-cancel').addEventListener('click', function () { closePulse(); drawCells([], c && c.lastCell, null); });
   $('pf-types-open').addEventListener('click', openTypes);
   $('pf-types-done').addEventListener('click', closeTypes);
   $('pf-drawer').addEventListener('click', function (e) { if (e.target === $('pf-drawer')) closeTypes(); });
@@ -1523,17 +1634,17 @@ window.LitterCollect = function (app) {
   $('pf-type-search').addEventListener('input', filterTypes);
   $('pf-type-add').addEventListener('click', function () { addType($('pf-type-add')); });
   buildWheel();
-  $('pf-where-tap').addEventListener('click', function () { if (pulse) { pulse.whereMode = true; $('pf-where-shown').textContent = 'Tap the cell on the map.'; fitMap(); } });
-  $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; fitMap(); } });
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
   $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });
+  $('pf-where-tap').addEventListener('click', function () { if (pulse) { pulse.whereMode = true; $('pf-where-shown').textContent = 'Tap the cell on the map.'; fitMap(); } });
+  $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; fitMap(); } });
   $('sf-where-tap').addEventListener('click', function () { if (summary) { summary.whereMode = true; $('sf-where-shown').textContent = 'Tap the cell on the map.'; $('sm-view-box').scrollIntoView({ block: 'start' }); } });
   $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
   $('sm-done').addEventListener('click', function () { summary = null; app.showAccount(); });
   $('sm-map-open').addEventListener('click', function () { app.openMap(allCells(), function () { app.show('v-summary'); drawReadings(); }); });
-  $('pf-odd-yes').addEventListener('click', function () { $('pf-odd').hidden = true; $('pf-break').focus(); $('pf-break').scrollIntoView({ block: 'center' }); });
+  $('pf-odd-yes').addEventListener('click', function () { $('pf-odd').hidden = true; $('pf-break').focus(); });
   $('pf-odd-no').addEventListener('click', function () { $('pf-odd').hidden = true; savePulse(false); });
 
   return {

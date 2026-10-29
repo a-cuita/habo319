@@ -11,7 +11,7 @@ window.LitterMap = function (app) {
 
   var G = window.LitterGeo;
   var $ = app.$;
-  var HOME_CELL = '22371_-50369';   // downtown Montgomery
+  var HOME_CELL = '44742_-100738';   // downtown Montgomery
   var SHOW_FIRST = 10;              // collections listed before "Show all"
   var map = null, layer = null, back = null;
   var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'];
@@ -137,7 +137,7 @@ window.LitterMap = function (app) {
       var sw = el('span', 'lt-swatch' + (s.index == null ? ' none' : ''));
       if (s.index != null) sw.style.background = G.indexColour(s.index, colours);
       li.appendChild(sw);
-      li.appendChild(document.createTextNode('Stretch ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
+      li.appendChild(document.createTextNode('Weighing ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
         (s.rating == null ? '' : ' · Visual rating ' + s.rating)));
       ul.appendChild(li);
     });

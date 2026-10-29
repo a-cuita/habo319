@@ -17,7 +17,7 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -202,7 +202,7 @@ function collectFix_(req) {
   var account = requireAccount_(req.token);
   return withLock_(function () {
     var r = readRows_(TABS.stretches).filter(function (q) { return q.get('id') === clean_(req.stretchId, 20); })[0];
-    if (!r || r.get('account') !== account.id) throw new Error('That stretch isn\'t yours, or isn\'t here any more.');
+    if (!r || r.get('account') !== account.id) throw new Error('That weighing isn\'t yours, or isn\'t here any more.');
     var col = readCollection_(r.get('collection'));
     var hours = minutesSetting_(SETTING_EDIT_HOURS, 48);
     var from = col.ended ? new Date(col.ended).getTime() : Date.now();
@@ -219,7 +219,7 @@ function collectFix_(req) {
     // Discard this stretch, with its reason (S3-P27, Q399, Q422): it keeps
     // its time, with no reading, and comes off the map.
     if (f.discard) {
-      if (r.get('discarded') === 'Yes') throw new Error('That stretch is already discarded.');
+      if (r.get('discarded') === 'Yes') throw new Error('That weighing is already discarded.');
       var why = discardReason_(f.discard);
       set('discarded', 'Discarded', 'Yes');
       set('reason', 'Discard reason', safeCell_(why));
@@ -232,7 +232,7 @@ function collectFix_(req) {
     if (f.rating !== undefined) set('rating', 'Visual rating', cleanRating_(f.rating));
     if (f.cells) {
       var cells = cleanCells_(f.cells);
-      if (!cells.length) throw new Error('A stretch needs at least one cell.');
+      if (!cells.length) throw new Error('A weighing needs at least one cell.');
       set('cells', 'Cells', cells.join(' '));
       set('streetMi', 'Street miles', round_(milesValue_(f.streetMi), 3));
       set('offMi', 'Off-street miles', round_(milesValue_(f.offMi), 3));
@@ -243,7 +243,7 @@ function collectFix_(req) {
     if (f.breakMin != null && r.get('discarded') !== 'Yes') {
       var brk = nonNegative_(f.breakMin);
       var whole = (new Date(r.get('ended')).getTime() - new Date(r.get('started')).getTime()) / 60000 - (Number(r.get('pausedMin')) || 0);
-      if (brk > whole) throw new Error('The break is longer than the stretch (' + Math.round(whole) + ' minutes).');
+      if (brk > whole) throw new Error('The break is longer than the weighing\'s time (' + Math.round(whole) + ' minutes).');
       set('breakMin', 'Break minutes', round_(brk, 1));
       set('breakWhere', 'Break where', brk ? (f.breakWhere === 'Not sure' || !f.breakWhere ? 'Not sure' : cleanCell_(f.breakWhere)) : '');
       set('activeMin', 'Active minutes', round_(Math.max(0, whole - brk), 1));
@@ -302,7 +302,7 @@ function checkStretch_(s, col, account) {
   var colStart = new Date(col.started).getTime();
   if (!(started >= colStart - 60000) || !(ended >= started) || ended > Date.now() + 5 * 60000) throw new Error('A litter pulse\'s times don\'t fit its collection.');
   var cells = cleanCells_(s.cells);
-  if (!cells.length) throw new Error('A stretch needs at least one cell.');
+  if (!cells.length) throw new Error('A weighing needs at least one cell.');
   var pausedMin = nonNegative_(s.pausedMin), breakMin = nonNegative_(s.breakMin);
   var activeMin = Math.max(0, (ended - started) / 60000 - pausedMin - breakMin);
   var discarded = s.discarded === true;
@@ -341,7 +341,7 @@ function poundsValue_(v) {
 }
 function milesValue_(v) {
   var n = Number(v);
-  if (!(n >= 0) || n > 50) throw new Error('A stretch\'s length doesn\'t look right.');
+  if (!(n >= 0) || n > 50) throw new Error('A weighing\'s miles don\'t look right.');
   return n;
 }
 function nonNegative_(v) { var n = Number(v); return n > 0 && n < 24 * 60 ? n : 0; }
@@ -396,7 +396,39 @@ function collectionOf_(r) {
   return { row: r.row, id: t('id'), account: t('account'), handle: t('handle'), started: t('started'), startCell: t('startCell'),
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
-    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')) };
+    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')), checkins: parseCheckins_(t('checkins')) };
+}
+
+// GPS check-ins (S5, Oct 29, in chat): where the phone was and when, at
+// every litter pulse and about once a minute while the collecting screen is
+// open, so a GPX track can be lined up with the walk. Kept as
+// "ms,lat,lon,accuracy,kind;…"; kind is s (Start), w (Weigh), n (New bag),
+// z (Pause), r (Resume), e (End) or m (once a minute).
+var CHECKIN_KINDS = 'swnzrem';
+function parseCheckins_(v) {
+  return String(v || '').split(';').map(function (p) {
+    var a = p.split(',');
+    return [Number(a[0]), Number(a[1]), Number(a[2]), Number(a[3]) || 0, a[4] || 'm'];
+  }).filter(function (p) { return p[0] > 0 && isFinite(p[1]) && isFinite(p[2]) && p[1] !== 0; });
+}
+function collectCheckins_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return withLock_(function () {
+    var col = readCollection_(clean_(req.collectionId, 20));
+    if (!col || col.account !== account.id) throw new Error('That collection isn\'t yours, or isn\'t here any more.');
+    var started = new Date(col.started).getTime();
+    var fresh = (Array.isArray(req.checkins) ? req.checkins : []).slice(0, 500).filter(function (p) {
+      return Array.isArray(p) && Number(p[0]) >= started - 5 * 60000 && Number(p[0]) <= Date.now() + 5 * 60000 && isFinite(p[1]) && isFinite(p[2]) &&
+        Math.abs(p[1]) <= 90 && Math.abs(p[2]) <= 180 && Number(p[1]) !== 0;
+    }).map(function (p) { return [Math.round(Number(p[0])), Number(p[1]), Number(p[2]), Math.round(Number(p[3]) || 0), CHECKIN_KINDS.indexOf(String(p[4])) >= 0 && String(p[4]).length === 1 ? String(p[4]) : 'm']; });
+    var byTime = {};
+    col.checkins.concat(fresh).forEach(function (p) { byTime[p[0]] = p; });
+    var all = Object.keys(byTime).map(function (k) { return byTime[k]; }).sort(function (a, b) { return a[0] - b[0]; }).slice(-1200);
+    var text = all.map(function (p) { return p[0] + ',' + Number(p[1]).toFixed(5) + ',' + Number(p[2]).toFixed(5) + ',' + p[3] + ',' + p[4]; }).join(';');
+    getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.checkins).setValue(text);
+    return { checkins: all.length };
+  });
 }
 
 // A kept track, "lat,lon;lat,lon;…", as points.
@@ -424,7 +456,28 @@ function collectTrack_(req) {
     if (pts.length > 2000) throw new Error('That track has too many points to keep.');
     var text = pts.map(function (p) { return Number(p[0]).toFixed(5) + ',' + Number(p[1]).toFixed(5); }).join(';');
     getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.track).setValue(text);
-    return { track: parseTrack_(text) };
+    // The track is the path (S5, Oct 29): each weighing's cells and miles
+    // walked, as the page worked them out from the track, and its reading again.
+    var list = Array.isArray(req.weighings) ? req.weighings.slice(0, 500) : [];
+    if (list.length) {
+      var sheet = getDb_().getSheetByName(TABS.stretches.name);
+      var rows = readRows_(TABS.stretches).filter(function (q) { return q.get('collection') === col.id; });
+      list.forEach(function (w) {
+        var r = rows.filter(function (q) { return q.get('id') === clean_(w && w.id, 20); })[0];
+        if (!r || r.get('discarded') === 'Yes') return;
+        var cells = cleanCells_(w.cells);
+        if (!cells.length) return;
+        var miles = round_(milesValue_(w.miles), 3);
+        sheet.getRange(r.row, STRETCH_COL.cells).setValue(cells.join(' '));
+        sheet.getRange(r.row, STRETCH_COL.streetMi, 1, 2).setValues([[miles, 0]]);
+        sheet.getRange(r.row, STRETCH_COL.track).setValue('Yes');
+        var lbs = r.get('pounds') === '' ? null : Number(r.get('pounds'));
+        var rd = lbs == null ? { cpue: null, index: null } : LitterGeo.reading(lbs, miles * LitterGeo.MILE_M, Number(r.get('activeMin')));
+        sheet.getRange(r.row, STRETCH_COL.cpue, 1, 2).setValues([[rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)]]);
+      });
+      retotal_(col.id);
+    }
+    return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
   });
 }
 
@@ -476,7 +529,7 @@ function retotal_(collectionId) {
     // A discarded stretch's time still counts (Q302); one past sunset none at all (Q381).
     if (!s.pastSunset) counted += s.activeMin;
   });
-  var note = list.some(function (s) { return s.pastSunset; }) ? 'No hours for stretches past sunset' : '';
+  var note = list.some(function (s) { return s.pastSunset; }) ? 'No hours for weighings past sunset' : '';
   var event = col.status === 'Collecting' || col.status === COLLECTION_DISCARDED ? null : eventDuring_(col);
   if (event) { counted = 0; note = 'During ' + event + ', checked in: its hours count'; }
   if (col.status === COLLECTION_DISCARDED) { counted = 0; note = 'Discarded: no hours'; }

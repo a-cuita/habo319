@@ -15,9 +15,11 @@ var LitterGeo = (function () {
 
   var DEG = Math.PI / 180;
   var MILE_M = 1609.344;
-  var CELL_M = MILE_M / 10;
+  // Half the first size (S5, Oct 29, in chat): a twentieth of a mile, about
+  // 265 ft, so a block from one corner to the next is two cells or more.
+  var CELL_M = MILE_M / 20;
   // The grid is laid flat at Montgomery's latitude, so its cells are true
-  // tenth-mile squares there and across HABO's area, and never move.
+  // squares there and across HABO's area, and never move.
   var REF_LAT = 32.3668;
   var M_PER_DEG_LAT = 6371008.8 * DEG;
   var M_PER_DEG_LON = M_PER_DEG_LAT * Math.cos(REF_LAT * DEG);

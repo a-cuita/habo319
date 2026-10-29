@@ -55,9 +55,9 @@ var TABS = {
     name: 'Collections',
     header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
       'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by',
-      'Plan', 'XP', 'Discard reason', 'GPX track'],
-    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220, 200],
-    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@', 23: '@' }
+      'Plan', 'XP', 'Discard reason', 'GPX track', 'Check-ins'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220, 200, 200],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@', 23: '@', 24: '@' }
   },
   // Turnarounds (Oct 24, in chat): where the stretch turned back, with no
   // weighing and no new stretch.
@@ -122,6 +122,7 @@ function actions_() {
     collectEnd: collectEnd_,
     collectFix: collectFix_,
     collectTrack: collectTrack_,
+    collectCheckins: collectCheckins_,
     collectLoad: collectLoad_,
     collectDiscard: collectDiscard_,
     planSave: planSave_,
@@ -204,7 +205,10 @@ function ensureSchema_(force) {
     return ss.getSheetByName(TABS[k].name).getLastColumn() < TABS[k].header.length;
   });
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
-  if (!tabsMissing && !colsMissing && !tzWrong && !missingSettings_(ss).length) {
+  // The once-only changes, until each is marked done.
+  var props = PropertiesService.getScriptProperties();
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED');
+  if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
   }
@@ -229,6 +233,7 @@ function ensureSchema_(force) {
     }
     settingsMemo_ = null;
     rereadOnce_(ss);
+    halveGridOnce_(ss);
   });
   cache.put(cacheKey, '1', 600);
 }
@@ -251,6 +256,50 @@ function rereadOnce_(ss) {
     sheet.getRange(2, STRETCH_COL.cpue, out.length, 2).setValues(out);
   }
   props.setProperty('READINGS_REWORKED', new Date().toISOString());
+}
+
+// Once (S5, Oct 29): the cells halved, from a tenth of a mile to a
+// twentieth. Every cell kept so far becomes the four that make it up, where
+// it's a stretch's cells or a plan's; where it's one place (a start, an end,
+// a turnaround, a litter pulse, a break), the first of the four. Readings
+// stay as they were.
+function halveGridOnce_(ss) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('GRID_HALVED')) return;
+  var isCell = function (x) { return /^-?\d+_-?\d+$/.test(x); };
+  var rc = function (x) { var m = /^(-?\d+)_(-?\d+)$/.exec(x); return [Number(m[1]) * 2, Number(m[2]) * 2]; };
+  var four = function (x) { var p = rc(x); return [p[0] + '_' + p[1], p[0] + '_' + (p[1] + 1), (p[0] + 1) + '_' + p[1], (p[0] + 1) + '_' + (p[1] + 1)]; };
+  var one = function (x) { var p = rc(x); return p[0] + '_' + p[1]; };
+  // A list of cells, kept apart by spaces, and by " / " between a plan's stretches.
+  var area = function (v) {
+    return String(v || '').split(/(\s*\/\s*)/).map(function (part) {
+      if (/\//.test(part)) return part;
+      return part.split(/\s+/).filter(String).map(function (x) { return isCell(x) ? four(x).join(' ') : x; }).join(' ');
+    }).join('');
+  };
+  var points = function (v) {
+    return String(v || '').split(/(\s*\/\s*)/).map(function (part) {
+      if (/\//.test(part)) return part;
+      return part.split(/\s+/).filter(String).map(function (x) { return isCell(x) ? one(x) : x; }).join(' ');
+    }).join('');
+  };
+  var redo = function (tab, cols) {
+    var sheet = ss.getSheetByName(tab.name);
+    var last = sheet.getLastRow();
+    if (last < 2) return;
+    Object.keys(cols).forEach(function (col) {
+      var range = sheet.getRange(2, Number(col), last - 1, 1);
+      range.setValues(range.getValues().map(function (r) { return [String(r[0]).trim() ? cols[col](r[0]) : r[0]]; }));
+    });
+  };
+  var sc = {}, cc = {}, pc = {};
+  sc[STRETCH_COL.cells] = area; sc[STRETCH_COL.turns] = points; sc[STRETCH_COL.pulseCell] = points; sc[STRETCH_COL.breakWhere] = points;
+  cc[COLLECTION_COL.startCell] = points; cc[COLLECTION_COL.endCell] = points;
+  pc[PLAN_COL.cells] = area; pc[PLAN_COL.turns] = points;
+  redo(TABS.stretches, sc);
+  redo(TABS.collections, cc);
+  redo(TABS.plans, pc);
+  props.setProperty('GRID_HALVED', new Date().toISOString());
 }
 
 // Changes whenever a tab's layout or the list of settings changes, so a new
