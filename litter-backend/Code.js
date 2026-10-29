@@ -260,7 +260,8 @@ function rereadOnce_(ss) {
 
 // Once (S5, Oct 29): the cells halved, from a tenth of a mile to a
 // twentieth. Every cell kept so far becomes the four that make it up, where
-// it's a stretch's cells or a plan's; where it's one place (a start, an end,
+// it's a plan's cells or a weighing's (only those its walk's saved GPX track
+// passed through, when it has one); where it's one place (a start, an end,
 // a turnaround, a litter pulse, a break), the first of the four. Readings
 // stay as they were.
 function halveGridOnce_(ss) {
@@ -270,11 +271,30 @@ function halveGridOnce_(ss) {
   var rc = function (x) { var m = /^(-?\d+)_(-?\d+)$/.exec(x); return [Number(m[1]) * 2, Number(m[2]) * 2]; };
   var four = function (x) { var p = rc(x); return [p[0] + '_' + p[1], p[0] + '_' + (p[1] + 1), (p[0] + 1) + '_' + p[1], (p[0] + 1) + '_' + (p[1] + 1)]; };
   var one = function (x) { var p = rc(x); return p[0] + '_' + p[1]; };
+  // Where each collection's saved GPX track went, in the new cells (Jeremy,
+  // Oct 29): a weighing's old cell becomes only the new cells in it that its
+  // walk's track passed through, or all four when the track passed none.
+  var walked = {};
+  var cs = ss.getSheetByName(TABS.collections.name), cLast = cs.getLastRow();
+  if (cLast >= 2) cs.getRange(2, 1, cLast - 1, COLLECTION_COL.track).getValues().forEach(function (r) {
+    var pts = parseTrack_(r[COLLECTION_COL.track - 1]);
+    if (pts.length < 2) return;
+    var seen = {};
+    pts.forEach(function (q, k) {
+      seen[LitterGeo.cellAt(q[0], q[1])] = true;
+      if (k) LitterGeo.lineCells(LitterGeo.xy(pts[k - 1][0], pts[k - 1][1]), LitterGeo.xy(q[0], q[1])).forEach(function (x) { seen[x] = true; });
+    });
+    walked[r[0]] = seen;
+  });
+  var some = function (x, seen) {
+    var all = four(x), hit = seen ? all.filter(function (y) { return seen[y]; }) : [];
+    return hit.length ? hit : all;
+  };
   // A list of cells, kept apart by spaces, and by " / " between a plan's stretches.
-  var area = function (v) {
+  var area = function (v, seen) {
     return String(v || '').split(/(\s*\/\s*)/).map(function (part) {
       if (/\//.test(part)) return part;
-      return part.split(/\s+/).filter(String).map(function (x) { return isCell(x) ? four(x).join(' ') : x; }).join(' ');
+      return part.split(/\s+/).filter(String).map(function (x) { return isCell(x) ? some(x, seen).join(' ') : x; }).join(' ');
     }).join('');
   };
   var points = function (v) {
@@ -292,8 +312,15 @@ function halveGridOnce_(ss) {
       range.setValues(range.getValues().map(function (r) { return [String(r[0]).trim() ? cols[col](r[0]) : r[0]]; }));
     });
   };
+  // A weighing's cells, by its collection's track.
+  var sh = ss.getSheetByName(TABS.stretches.name), sLast = sh.getLastRow();
+  if (sLast >= 2) {
+    var of = sh.getRange(2, STRETCH_COL.collection, sLast - 1, 1).getValues();
+    var cellsRange = sh.getRange(2, STRETCH_COL.cells, sLast - 1, 1);
+    cellsRange.setValues(cellsRange.getValues().map(function (r, k) { return [String(r[0]).trim() ? area(r[0], walked[of[k][0]]) : r[0]]; }));
+  }
   var sc = {}, cc = {}, pc = {};
-  sc[STRETCH_COL.cells] = area; sc[STRETCH_COL.turns] = points; sc[STRETCH_COL.pulseCell] = points; sc[STRETCH_COL.breakWhere] = points;
+  sc[STRETCH_COL.turns] = points; sc[STRETCH_COL.pulseCell] = points; sc[STRETCH_COL.breakWhere] = points;
   cc[COLLECTION_COL.startCell] = points; cc[COLLECTION_COL.endCell] = points;
   pc[PLAN_COL.cells] = area; pc[PLAN_COL.turns] = points;
   redo(TABS.stretches, sc);

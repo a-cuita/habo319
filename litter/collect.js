@@ -191,6 +191,7 @@ window.LitterCollect = function (app) {
   // collections as the break question waits for.
   function onAccount() {
     $('cl-account').hidden = false;
+    hideGpxStep();
     $('cl-hours').textContent = '';
     showPlanLine();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
@@ -228,7 +229,7 @@ window.LitterCollect = function (app) {
     var a = account || { plan: null, planNeeded: false, xp: 0 };
     var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
-    $('cl-plan-btn').hidden = going;
+    $('cl-plan-btn').hidden = going || !$('cl-gpx-step').hidden;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
@@ -332,6 +333,26 @@ window.LitterCollect = function (app) {
         return startAt(loc.cell, loc.pos);
       });
     }).then(hideStarting);
+  }
+
+  // Your GPX recording first (S5, Oct 29, in chat): before a new collection
+  // starts, Open GPX Tracker, by its App Store page, where Open starts it (or
+  // Get installs it); or On Android, for now. Start collecting waits for one
+  // of them. Pressing Open is remembered for half an hour, in case the phone
+  // reloads the page while you're in the app.
+  var GPX_OPENED_KEY = 'habo-litter-gpx-opened';
+  function showGpxStep() {
+    var at = load(GPX_OPENED_KEY);
+    $('cl-gpx-step').hidden = false;
+    $('cl-start').hidden = true;
+    $('cl-plan-btn').hidden = true;
+    $('cl-gpx-go').disabled = !(at && Date.now() - at >= 0 && Date.now() - at < 30 * 60000);
+    $('cl-start-err').textContent = '';
+  }
+  function hideGpxStep() {
+    $('cl-gpx-step').hidden = true;
+    $('cl-start').hidden = false;
+    showPlanLine();
   }
 
   function startAt(cell, pos) {
@@ -1594,7 +1615,15 @@ window.LitterCollect = function (app) {
 
   /* ── Wiring ── */
 
-  $('cl-start').addEventListener('click', function () { start($('cl-start')); });
+  // A new collection asks for your GPX recording first; going back to one doesn't.
+  $('cl-start').addEventListener('click', function () {
+    if ((c && !c.ended) || (!c && account && account.open)) start($('cl-start'));
+    else showGpxStep();
+  });
+  $('cl-gpx-open').addEventListener('click', function () { keep(GPX_OPENED_KEY, Date.now()); $('cl-gpx-go').disabled = false; });
+  $('cl-gpx-android').addEventListener('click', function () { $('cl-gpx-go').disabled = false; });
+  $('cl-gpx-go').addEventListener('click', function () { start($('cl-gpx-go')); });
+  $('cl-gpx-cancel').addEventListener('click', hideGpxStep);
   $('cl-plan-btn').addEventListener('click', openPlan);
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);
