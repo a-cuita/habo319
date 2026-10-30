@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=8">
+<link rel="stylesheet" href="litter.css?v=9">
 </head>
 <body>
 
@@ -154,27 +154,32 @@
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
-    <div class="lt-odd" id="cl-same" hidden>
-      <p class="lt-odd-q">Did you collect anything since your last weighing?</p>
-      <p>You're in the same cell as your last one.</p>
-      <button class="btn btn-primary" id="cl-same-yes" type="button">Yes: weigh it</button>
-      <button class="btn btn-secondary" id="cl-same-no" type="button">No: end here</button>
+    <!-- The End question in the same cell, as a pop-up (S5, round 2): it was easy to miss. -->
+    <div class="lt-scrim" id="cl-same" role="dialog" aria-modal="true" aria-labelledby="cl-same-q" hidden>
+      <div class="lt-scrim-box">
+        <p class="lt-scrim-title" id="cl-same-q">Did you collect anything since your last weighing?</p>
+        <p class="lt-modal-say">You're in the same cell as your last one.</p>
+        <button class="btn btn-primary" id="cl-same-yes" type="button">Yes: weigh it</button>
+        <button class="btn btn-secondary" id="cl-same-no" type="button">No: end here</button>
+      </div>
     </div>
     <div id="cl-actions">
       <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
-      <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse. -->
-      <div class="card lt-chooser" id="cl-chooser" hidden>
-        <button class="btn btn-primary" id="cl-weigh" type="button">Weigh</button>
-        <p class="muted small lt-choice-say" id="cl-weigh-say">Weigh the bag so far, and keep filling it.</p>
-        <button class="btn btn-secondary" id="cl-newbag" type="button">New bag</button>
-        <p class="muted small lt-choice-say" id="cl-newbag-say">Weigh this full bag, drop it in any bin, and start an empty one.</p>
-        <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
-        <button class="btn btn-secondary" id="cl-end" type="button">End</button>
-        <div class="center"><button class="link-btn" id="cl-chooser-cancel" type="button">Cancel</button></div>
-      </div>
       <p class="err" id="cl-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
       <div class="lt-discard-row"><button class="link-btn lt-danger-link" id="cl-discard" type="button">Discard this collection</button></div>
+    </div>
+    <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse; its menu a sheet from the bottom (round 2). -->
+    <div class="lt-drawer" id="cl-chooser" hidden>
+      <div class="lt-drawer-box lt-chooser-box" role="dialog" aria-label="Litter pulse">
+        <div class="lt-chooser-grid">
+          <button class="btn btn-primary" id="cl-weigh" type="button">Weigh</button>
+          <button class="btn btn-secondary" id="cl-newbag" type="button">New bag</button>
+          <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
+          <button class="btn btn-secondary" id="cl-end" type="button">End</button>
+        </div>
+        <div class="center"><button class="link-btn" id="cl-chooser-cancel" type="button">Cancel</button></div>
+      </div>
     </div>
     <!-- Discard this collection (Oct 24, in chat): asked twice, each button waiting a moment before it can be pressed. -->
     <section class="card lt-confirm" id="cl-discard-box" hidden>
@@ -274,6 +279,23 @@
   </div>
 
   <!-- While a collection starts (Oct 24, on C477): over the whole page, so nothing can be pressed twice. -->
+  <!-- Your GPX recording first (S5, round 2): before a new collection starts, two pop-ups. Your GPX track is required. -->
+  <div class="lt-scrim" id="cl-rec" role="dialog" aria-modal="true" aria-labelledby="cl-rec-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cl-rec-title">Start your GPX recording</p>
+      <p class="lt-modal-say">Start the recording in your GPX app, then come back here. Without your GPX track, a walk gets no Litter Index and no XP.</p>
+      <button class="btn btn-primary" id="cl-rec-yes" type="button">I've started recording</button>
+      <div class="center"><button class="link-btn" id="cl-rec-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <div class="lt-scrim" id="cl-ready" role="dialog" aria-modal="true" aria-labelledby="cl-ready-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cl-ready-title">Ready to start collecting?</p>
+      <p class="lt-modal-say">Your collection starts when you press Start collecting.</p>
+      <button class="btn btn-accent" id="cl-ready-go" type="button">Start collecting</button>
+      <div class="center"><button class="link-btn" id="cl-ready-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
   <div class="lt-scrim" id="cl-starting" role="status" aria-live="polite" hidden>
     <div class="lt-scrim-box">
       <div class="lt-spinner" aria-hidden="true"></div>
@@ -291,7 +313,7 @@
     </section>
     <section class="card lt-gpx" id="sm-gpx-box">
       <label class="lt-label" for="sm-gpx">Your GPX track</label>
-      <p class="muted small" id="sm-gpx-say">Pick the file your recorder saved for this walk: it sets where you walked, and the miles.</p>
+      <p class="muted small" id="sm-gpx-say">Pick the file your GPX app saved for this walk: it sets where you walked, and the miles. Without it, the walk gets no Litter Index and no XP.</p>
       <input type="file" id="sm-gpx">
     </section>
     <div class="lt-map-box" id="sm-view-box" hidden></div>
@@ -410,15 +432,6 @@
       <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
-      <!-- Your GPX recording first (S5, Oct 29, in chat): a step before each new collection starts. -->
-      <div class="lt-gpx-step" id="cl-gpx-step" hidden>
-        <p class="lt-label">Start your GPX recording first</p>
-        <p class="muted small">Open GPX Tracker and press its record button. Then come back here and press Start collecting.</p>
-        <a class="btn btn-primary" id="cl-gpx-open" href="https://apps.apple.com/us/app/open-gpx-tracker/id984503772" target="_blank" rel="noopener">Open GPX Tracker</a>
-        <p class="muted small">It opens the App Store: press Open there, or Get if you don't have it yet.</p>
-        <button class="btn btn-accent" id="cl-gpx-go" type="button" disabled>Start collecting</button>
-        <div class="lt-gpx-skip"><button class="link-btn lt-android" id="cl-gpx-android" type="button">On Android</button><button class="link-btn" id="cl-gpx-cancel" type="button">Cancel</button></div>
-      </div>
       <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
     </section>
@@ -437,7 +450,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=5"></script>
-<script src="collect.js?v=15"></script>
+<script src="collect.js?v=16"></script>
 <script src="map.js?v=3"></script>
 <script src="litter.js?v=4"></script>
 </body>

@@ -251,17 +251,14 @@ body.lt-has-bar { padding-bottom: 100px; }
 .lt-wheel-shown { text-align: center; font-weight: 700; min-height: 1.4em; }
 
 /* One Litter pulse button (S5, Oct 29): what you're doing, with a line on each. */
-.lt-chooser { margin-top: 10px; padding: 14px 16px; }
-.lt-chooser .btn { margin-top: 0; }
-.lt-choice-say { margin: 4px 0 12px; }
-.lt-chooser #cl-pause { margin-bottom: 10px; }
 .lt-gpx { border: 2px solid var(--primary-dim); }
-/* Your GPX recording first, before a collection starts (S5): On Android small and grey. */
-.lt-gpx-step { margin: 10px 0; padding: 12px; border-radius: var(--radius-sm); background: var(--primary-dim); }
-.lt-gpx-step .btn { margin-top: 6px; }
-.lt-gpx-step a.btn { display: flex; align-items: center; justify-content: center; text-decoration: none; }
-.lt-gpx-skip { display: flex; justify-content: space-between; margin-top: 8px; }
-.lt-android { color: var(--text-dim); font-size: 0.8rem; opacity: 0.8; }
+/* Round 2 (S5): the Litter pulse menu as a sheet from the bottom, four buttons in two rows; pop-ups over the page. */
+.lt-chooser-box { padding-top: 18px; }
+.lt-chooser-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 4px; }
+.lt-chooser-grid .btn { margin-top: 0; }
+.lt-chooser-grid .btn[hidden] { display: none; }
+.lt-modal-say { margin: 10px 0 14px; color: var(--text-dim); }
+.lt-scrim-box .btn + .btn { margin-top: 10px; }
 
 /* While a collection starts (Oct 24, on C477). */
 .lt-scrim { position: fixed; inset: 0; z-index: 3000; background: rgba(15, 23, 42, 0.6); display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -419,27 +416,32 @@ body.lt-has-bar { padding-bottom: 100px; }
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
-    <div class="lt-odd" id="cl-same" hidden>
-      <p class="lt-odd-q">Did you collect anything since your last weighing?</p>
-      <p>You're in the same cell as your last one.</p>
-      <button class="btn btn-primary" id="cl-same-yes" type="button">Yes: weigh it</button>
-      <button class="btn btn-secondary" id="cl-same-no" type="button">No: end here</button>
+    <!-- The End question in the same cell, as a pop-up (S5, round 2): it was easy to miss. -->
+    <div class="lt-scrim" id="cl-same" role="dialog" aria-modal="true" aria-labelledby="cl-same-q" hidden>
+      <div class="lt-scrim-box">
+        <p class="lt-scrim-title" id="cl-same-q">Did you collect anything since your last weighing?</p>
+        <p class="lt-modal-say">You're in the same cell as your last one.</p>
+        <button class="btn btn-primary" id="cl-same-yes" type="button">Yes: weigh it</button>
+        <button class="btn btn-secondary" id="cl-same-no" type="button">No: end here</button>
+      </div>
     </div>
     <div id="cl-actions">
       <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
-      <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse. -->
-      <div class="card lt-chooser" id="cl-chooser" hidden>
-        <button class="btn btn-primary" id="cl-weigh" type="button">Weigh</button>
-        <p class="muted small lt-choice-say" id="cl-weigh-say">Weigh the bag so far, and keep filling it.</p>
-        <button class="btn btn-secondary" id="cl-newbag" type="button">New bag</button>
-        <p class="muted small lt-choice-say" id="cl-newbag-say">Weigh this full bag, drop it in any bin, and start an empty one.</p>
-        <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
-        <button class="btn btn-secondary" id="cl-end" type="button">End</button>
-        <div class="center"><button class="link-btn" id="cl-chooser-cancel" type="button">Cancel</button></div>
-      </div>
       <p class="err" id="cl-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
       <div class="lt-discard-row"><button class="link-btn lt-danger-link" id="cl-discard" type="button">Discard this collection</button></div>
+    </div>
+    <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse; its menu a sheet from the bottom (round 2). -->
+    <div class="lt-drawer" id="cl-chooser" hidden>
+      <div class="lt-drawer-box lt-chooser-box" role="dialog" aria-label="Litter pulse">
+        <div class="lt-chooser-grid">
+          <button class="btn btn-primary" id="cl-weigh" type="button">Weigh</button>
+          <button class="btn btn-secondary" id="cl-newbag" type="button">New bag</button>
+          <button class="btn btn-secondary" id="cl-pause" type="button">Pause</button>
+          <button class="btn btn-secondary" id="cl-end" type="button">End</button>
+        </div>
+        <div class="center"><button class="link-btn" id="cl-chooser-cancel" type="button">Cancel</button></div>
+      </div>
     </div>
     <!-- Discard this collection (Oct 24, in chat): asked twice, each button waiting a moment before it can be pressed. -->
     <section class="card lt-confirm" id="cl-discard-box" hidden>
@@ -539,6 +541,23 @@ body.lt-has-bar { padding-bottom: 100px; }
   </div>
 
   <!-- While a collection starts (Oct 24, on C477): over the whole page, so nothing can be pressed twice. -->
+  <!-- Your GPX recording first (S5, round 2): before a new collection starts, two pop-ups. Your GPX track is required. -->
+  <div class="lt-scrim" id="cl-rec" role="dialog" aria-modal="true" aria-labelledby="cl-rec-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cl-rec-title">Start your GPX recording</p>
+      <p class="lt-modal-say">Start the recording in your GPX app, then come back here. Without your GPX track, a walk gets no Litter Index and no XP.</p>
+      <button class="btn btn-primary" id="cl-rec-yes" type="button">I've started recording</button>
+      <div class="center"><button class="link-btn" id="cl-rec-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <div class="lt-scrim" id="cl-ready" role="dialog" aria-modal="true" aria-labelledby="cl-ready-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cl-ready-title">Ready to start collecting?</p>
+      <p class="lt-modal-say">Your collection starts when you press Start collecting.</p>
+      <button class="btn btn-accent" id="cl-ready-go" type="button">Start collecting</button>
+      <div class="center"><button class="link-btn" id="cl-ready-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
   <div class="lt-scrim" id="cl-starting" role="status" aria-live="polite" hidden>
     <div class="lt-scrim-box">
       <div class="lt-spinner" aria-hidden="true"></div>
@@ -556,7 +575,7 @@ body.lt-has-bar { padding-bottom: 100px; }
     </section>
     <section class="card lt-gpx" id="sm-gpx-box">
       <label class="lt-label" for="sm-gpx">Your GPX track</label>
-      <p class="muted small" id="sm-gpx-say">Pick the file your recorder saved for this walk: it sets where you walked, and the miles.</p>
+      <p class="muted small" id="sm-gpx-say">Pick the file your GPX app saved for this walk: it sets where you walked, and the miles. Without it, the walk gets no Litter Index and no XP.</p>
       <input type="file" id="sm-gpx">
     </section>
     <div class="lt-map-box" id="sm-view-box" hidden></div>
@@ -675,15 +694,6 @@ body.lt-has-bar { padding-bottom: 100px; }
       <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
-      <!-- Your GPX recording first (S5, Oct 29, in chat): a step before each new collection starts. -->
-      <div class="lt-gpx-step" id="cl-gpx-step" hidden>
-        <p class="lt-label">Start your GPX recording first</p>
-        <p class="muted small">Open GPX Tracker and press its record button. Then come back here and press Start collecting.</p>
-        <a class="btn btn-primary" id="cl-gpx-open" href="https://apps.apple.com/us/app/open-gpx-tracker/id984503772" target="_blank" rel="noopener">Open GPX Tracker</a>
-        <p class="muted small">It opens the App Store: press Open there, or Get if you don't have it yet.</p>
-        <button class="btn btn-accent" id="cl-gpx-go" type="button" disabled>Start collecting</button>
-        <div class="lt-gpx-skip"><button class="link-btn lt-android" id="cl-gpx-android" type="button">On Android</button><button class="link-btn" id="cl-gpx-cancel" type="button">Cancel</button></div>
-      </div>
       <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
     </section>
@@ -1123,6 +1133,7 @@ window.LitterCollect = function (app) {
   var map = null, layers = null;
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
+  var GPX_SAY = $('sm-gpx-say').textContent;
   var planning = null;          // the plan being made, before a collection
   var account = null;           // what the account page last loaded: plan, planNeeded, xp
   var types = load(TYPES_KEY) || [];   // kept on the phone too, for no signal (S5)
@@ -1198,7 +1209,7 @@ window.LitterCollect = function (app) {
   // Sends the queue in order; what doesn't go waits for the next try.
   function flush() {
     if (sending || !c) { showQueue(); return Promise.resolve(); }
-    if (c.ckOut && c.ckOut.length) return sendCheckins().then(flush, function () { showQueue(); });
+    if (c.ckOut && c.ckOut.length) return sendCheckins().then(flush, function () { if (c.ended) savedLater(); showQueue(); });
     if (!c.queue.length) { showQueue(); return Promise.resolve(); }
     sending = true;
     var item = c.queue[0];
@@ -1218,6 +1229,7 @@ window.LitterCollect = function (app) {
       // A refusal that isn't about signal is kept, and shown.
       if (!/couldn't reach HABO/.test(err.message)) c.lastError = err.message;
       save();
+      if (c.ended) savedLater();
       showQueue();
     });
   }
@@ -1262,7 +1274,6 @@ window.LitterCollect = function (app) {
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended) return;
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
-      drawTrail();
     }, function () { /* no fix this minute */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   }, 60000);
 
@@ -1282,7 +1293,7 @@ window.LitterCollect = function (app) {
   // collections as the break question waits for.
   function onAccount() {
     $('cl-account').hidden = false;
-    hideGpxStep();
+    closeStartAsks();
     $('cl-hours').textContent = '';
     showPlanLine();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
@@ -1320,7 +1331,7 @@ window.LitterCollect = function (app) {
     var a = account || { plan: null, planNeeded: false, xp: 0 };
     var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
-    $('cl-plan-btn').hidden = going || !$('cl-gpx-step').hidden;
+    $('cl-plan-btn').hidden = going;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
@@ -1382,22 +1393,33 @@ window.LitterCollect = function (app) {
 
   /* ── Start ── */
 
-  // While a collection starts (Jeremy, on C477): a screen over the page, so
-  // nothing can be pressed twice, with staff's sayings shown in turn.
-  var sayingTimer = null;
-  function showStarting() {
+  // While you wait on HABO (Jeremy, on C477; any time, M479): a screen over
+  // the page, so nothing can be pressed twice, with staff's sayings shown in
+  // turn, 8 seconds each, long enough to read (S5, round 2). `tag` says what
+  // it's for, so only that can take it down.
+  var sayingTimer = null, busyFor = null;
+  var STARTING = 'Starting your collection, please wait...';
+  function showBusy(title, tag) {
+    $('cl-starting').querySelector('.lt-scrim-title').textContent = title || STARTING;
+    busyFor = tag || null;
+    if (!$('cl-starting').hidden) return;
     $('cl-starting').hidden = false;
     var list = (settings.sayings || []).slice();
     var k = list.length ? Math.floor(Math.random() * list.length) : 0;
     var next = function () { $('cl-saying').textContent = list.length ? list[k++ % list.length] : ''; };
     next();
     clearInterval(sayingTimer);
-    if (list.length > 1) sayingTimer = setInterval(next, 4000);
+    if (list.length > 1) sayingTimer = setInterval(next, 8000);
   }
-  function hideStarting() {
+  function hideBusy() {
     clearInterval(sayingTimer);
     sayingTimer = null;
+    busyFor = null;
     $('cl-starting').hidden = true;
+  }
+  function busyWhile(title, work) {
+    showBusy(title);
+    return Promise.resolve().then(work).then(function (v) { hideBusy(); return v; }, function (e) { hideBusy(); throw e; });
   }
 
   function start(button) {
@@ -1407,48 +1429,36 @@ window.LitterCollect = function (app) {
     if (!c && account && account.open) {
       var open = account.open;
       return app.busy(button, 'cl-start-err', function () {
-        showStarting();
-        return startHere(open.startCell).then(function () { account.open = null; hideStarting(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideStarting(); throw err; });
+        showBusy(STARTING);
+        return startHere(open.startCell).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
       });
     }
-    showStarting();
+    showBusy(STARTING);
     app.busy(button, 'cl-start-err', function () {
       return locate().then(function (loc) {
         if (!loc.cell) {
           // No location: pick the cell on the map, then Start.
-          hideStarting();
+          hideBusy();
           openCollect();
           beginPick(loc.near, loc.why, function (cell) { return startAt(cell); });
           return;
         }
         return startAt(loc.cell, loc.pos);
       });
-    }).then(hideStarting);
+    }).then(hideBusy);
   }
 
-  // Your GPX recording first (S5, Oct 29, in chat): before a new collection
-  // starts, Open GPX Tracker, by its App Store page, where Open starts it (or
-  // Get installs it); or On Android, for now. Start collecting waits for one
-  // of them. Pressing Open is remembered for half an hour, in case the phone
-  // reloads the page while you're in the app.
-  var GPX_OPENED_KEY = 'habo-litter-gpx-opened';
-  function showGpxStep() {
-    var at = load(GPX_OPENED_KEY);
-    $('cl-gpx-step').hidden = false;
-    $('cl-start').hidden = true;
-    $('cl-plan-btn').hidden = true;
-    $('cl-gpx-go').disabled = !(at && Date.now() - at >= 0 && Date.now() - at < 30 * 60000);
-    $('cl-start-err').textContent = '';
-  }
-  function hideGpxStep() {
-    $('cl-gpx-step').hidden = true;
-    $('cl-start').hidden = false;
-    showPlanLine();
-  }
+  // Your GPX recording first (S5, round 2, C551): before a new collection
+  // starts, a pop-up to start the recording in your GPX app, then one to
+  // start collecting. Your GPX track is required: no track, no Litter Index
+  // and no XP (Jeremy, Oct 29). When you confirmed the recording is kept, and
+  // the track before it is cut; the time between the two is a safety buffer.
+  var recordingAt = null;
+  function closeStartAsks() { $('cl-rec').hidden = true; $('cl-ready').hidden = true; }
 
   function startAt(cell, pos) {
-    showStarting();
-    return startHere(cell, pos).then(hideStarting, function (err) { hideStarting(); throw err; });
+    showBusy(STARTING);
+    return startHere(cell, pos).then(hideBusy, function (err) { hideBusy(); throw err; });
   }
 
   function startHere(cell, pos) {
@@ -1456,7 +1466,8 @@ window.LitterCollect = function (app) {
     if (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid() }).then(function (d) {
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt }).then(function (d) {
+      recordingAt = null;
       settings = d.settings || settings;
       pace = d.pace || pace;
       var col = d.collection;
@@ -1505,7 +1516,6 @@ window.LitterCollect = function (app) {
     ensureMap();
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
-    drawTrail();
     showStatus();
     showSun($('cl-sun'), null);
     refreshTypes();
@@ -1535,7 +1545,7 @@ window.LitterCollect = function (app) {
     $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
     // Paused, a litter pulse offers Resume and End.
     $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
-    ['cl-weigh', 'cl-weigh-say', 'cl-newbag', 'cl-newbag-say'].forEach(function (id) { $(id).hidden = !!c.current.pausedAt; });
+    ['cl-weigh', 'cl-newbag'].forEach(function (id) { $(id).hidden = !!c.current.pausedAt; });
     showQueue();
   }
 
@@ -1547,7 +1557,7 @@ window.LitterCollect = function (app) {
     if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), trail: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
     map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
     var p = G.cellCenter((c && c.lastCell) || HOME_CELL);
     map.setView([p.lat, p.lon], 16);
@@ -1577,23 +1587,6 @@ window.LitterCollect = function (app) {
     (turns || []).forEach(function (cell) { turnDot(cell, '#1d4ed8').addTo(layers.cells); });
     if (center) { var p = G.cellCenter(center); map.setView([p.lat, p.lon], map.getZoom()); }
     setTimeout(function () { map.invalidateSize(); }, 0);
-  }
-
-  // Where you've been this collection, from your check-ins, as a line (S5);
-  // not across a pause.
-  function drawTrail() {
-    if (!map || !layers) return;
-    layers.trail.clearLayers();
-    if (!c || $('v-collect').hidden) return;
-    var line = [], lines = [], paused = false;
-    (c.checkins || []).forEach(function (p) {
-      if (paused && p[4] !== 'r') return;
-      if (paused) { paused = false; if (line.length > 1) lines.push(line); line = []; }
-      line.push([p[1], p[2]]);
-      if (p[4] === 'z') paused = true;
-    });
-    if (line.length > 1) lines.push(line);
-    lines.forEach(function (l) { L.polyline(l, { color: '#1d4ed8', weight: 3, opacity: 0.7, dashArray: '4 6', interactive: false, className: 'lt-trail' }).addTo(layers.trail); });
   }
 
   function turnDot(cell, colour) {
@@ -1658,7 +1651,6 @@ window.LitterCollect = function (app) {
     if (!c) return;
     showStatus();
     $('cl-chooser').hidden = !$('cl-chooser').hidden;
-    if (!$('cl-chooser').hidden) $('cl-chooser').scrollIntoView({ block: 'nearest' });
   }
   function closeChooser() { $('cl-chooser').hidden = true; }
 
@@ -2010,7 +2002,6 @@ window.LitterCollect = function (app) {
     save();
     closePulse();
     drawCells([], c.lastCell, c.lastCell);
-    drawTrail();
     showStatus();
     if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
     else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
@@ -2056,7 +2047,6 @@ window.LitterCollect = function (app) {
         save();
         closeChooser();
         showStatus();
-        drawTrail();
         flush();
       });
     });
@@ -2068,9 +2058,18 @@ window.LitterCollect = function (app) {
     app.notice('');
     app.show('v-summary');
     $('sm-list').textContent = '';
+    $('sm-view-box').hidden = true;
+    // A GPX file waits until the collection is saved (C563: picked before, it was lost).
+    $('sm-gpx').disabled = true;
+    $('sm-gpx-say').textContent = 'You can pick your GPX file once your collection is saved.';
     $('sm-wait').hidden = false;
     $('sm-wait').textContent = 'Saving your collection…';
-    if (c && c.queue.length) $('sm-wait').textContent = 'Your collection is kept on this phone and saves when there\'s signal.' + (c.lastError ? ' HABO couldn\'t take it: ' + c.lastError : '');
+    showBusy('Saving your collection, please wait...', 'end');
+  }
+  // Saving at End didn't go: it's kept on the phone, and says so.
+  function savedLater() {
+    if (busyFor === 'end') hideBusy();
+    $('sm-wait').textContent = 'Your collection is kept on this phone and saves when there\'s signal.' + (c && c.lastError ? ' HABO couldn\'t take it: ' + c.lastError : '');
   }
 
   function finish(d) {
@@ -2079,11 +2078,14 @@ window.LitterCollect = function (app) {
     c = null;
     save();
     keep(STREETS_KEY, null);
+    if (busyFor === 'end') hideBusy();
     showSummary();
   }
 
   function showSummary() {
     app.show('v-summary');
+    $('sm-gpx').disabled = false;
+    $('sm-gpx-say').textContent = GPX_SAY;
     $('sm-wait').hidden = true;
     var col = summary.collection;
     $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
@@ -2103,7 +2105,6 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.cells.clearLayers();
     layers.plan.clearLayers();
-    layers.trail.clearLayers();   // the check-ins' line is for while you collect
     var b = L.latLngBounds([]);
     summary.stretches.forEach(function (s) {
       if (s.discarded) return;
@@ -2135,7 +2136,7 @@ window.LitterCollect = function (app) {
   // A saved collection's summary, from the account page, for its fixes.
   function openPast(id, button) {
     app.busy(button, 'cl-start-err', function () {
-      return app.api('collectLoad', { token: app.myToken(), collectionId: id }).then(function (d) {
+      return busyWhile('Opening your collection, please wait...', function () { return app.api('collectLoad', { token: app.myToken(), collectionId: id }); }).then(function (d) {
         settings = d.settings || settings;
         setTypes(d.types);
         pace = d.pace || pace;
@@ -2164,7 +2165,7 @@ window.LitterCollect = function (app) {
       tr.className = 'muted small lt-path-say';
       var cks = summary.collection && summary.collection.checkins;
       // A walk from before check-ins (S5) has the street miles you confirmed.
-      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : cks && cks.length ? 'Estimated from your check-ins: save your GPX track for where you walked, and the miles.'
+      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : cks && cks.length || s.index == null ? 'No Litter Index until you save your GPX track.'
         : 'From the street miles you confirmed: save your GPX track for the miles you walked.';
       box.appendChild(tr);
     }
@@ -2387,7 +2388,7 @@ window.LitterCollect = function (app) {
 
   function sendFix(button, s, fix, errBox) {
     app.busy(button, errBox || 'sf-err', function () {
-      return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }).then(function (d) {
+      return busyWhile('Saving, please wait...', function () { return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }); }).then(function (d) {
         summary.collection = d.collection;
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
@@ -2407,50 +2408,65 @@ window.LitterCollect = function (app) {
   // and its reading; it's kept on the collection as a line. A track that
   // doesn't pass near the check-ins isn't this walk's, and is refused.
   function readGpx(file) {
+    if (!summary || !summary.collection) { app.notice('You can pick your GPX file once your collection is saved.'); return; }
     var reader = new FileReader();
+    reader.onerror = function () { app.notice('That file couldn\'t be read. Choose the .gpx file your GPX app saved.'); };
     reader.onload = function () {
-      var doc = new DOMParser().parseFromString(String(reader.result), 'application/xml');
-      var pts = Array.prototype.map.call(doc.getElementsByTagName('trkpt'), function (p) {
-        var t = p.getElementsByTagName('time')[0];
-        return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
-      }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
-      if (!pts.length) { app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your recorder saved.'); return; }
-      pts.sort(function (a, b) { return a.t - b.t; });
-      var checkins = summary.collection && summary.collection.checkins || [];
-      var lined = lineUp(pts, checkins);
-      if (!lined.matched) { app.notice('That track doesn\'t pass where this walk\'s check-ins were. Is it the file for this walk?'); return; }
-      pts.forEach(function (p) { p.t -= lined.offset; });
-      var pauses = pausesOf(checkins);
-      var weighings = [], short = [];
+      try { useGpx(String(reader.result)); } catch (e) { hideBusy(); app.notice('That file couldn\'t be read: ' + e.message); }
+    };
+    showBusy('Reading your GPX track, please wait...');
+    reader.readAsText(file);
+  }
+
+  function useGpx(text) {
+    var doc = new DOMParser().parseFromString(text, 'application/xml');
+    var pts = Array.prototype.map.call(doc.getElementsByTagName('trkpt'), function (p) {
+      var t = p.getElementsByTagName('time')[0];
+      return { lat: Number(p.getAttribute('lat')), lon: Number(p.getAttribute('lon')), t: t ? Date.parse(t.textContent) : NaN };
+    }).filter(function (p) { return isFinite(p.lat) && isFinite(p.lon) && isFinite(p.t); });
+    if (!pts.length) { hideBusy(); app.notice('That file isn\'t a GPX track with times. Choose the .gpx file your GPX app saved.'); return; }
+    pts.sort(function (a, b) { return a.t - b.t; });
+    var checkins = summary.collection && summary.collection.checkins || [];
+    var lined = lineUp(pts, checkins);
+    if (!lined.matched) { hideBusy(); app.notice('That track doesn\'t pass where this walk\'s check-ins were. Is it the file for this walk?'); return; }
+    pts.forEach(function (p) { p.t -= lined.offset; });
+    // Only from when you confirmed your recording had started to End (S5,
+    // round 2, C551): before and after aren't this walk.
+    var col = summary.collection, from = col.recordingAt || -Infinity, to = Number(col.ended) || Infinity;
+    pts = pts.filter(function (p) { return p.t >= from && p.t <= to; });
+    if (pts.length < 2) { hideBusy(); app.notice('That track has nothing between when you started recording and End. Is it the file for this walk?'); return; }
+    var pauses = pausesOf(checkins);
+    var weighings = [], short = [];
+    summary.stretches.forEach(function (s) {
+      if (s.discarded) return;
+      // Only a weighing the track covers from start to end; any other has
+      // no Litter Index (no GPX track, no CPUE, Jeremy, Oct 29).
+      var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses.concat(oldPause(pts, s, pauses))) : { cells: [] };
+      if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
+      else short.push(s.n);
+    });
+    summary.track = thinTrack(pts);
+    showBusy('Saving your GPX track, please wait...');
+    app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings }).then(function (d) {
+      hideBusy();
+      if (d.collection) summary.collection = d.collection;
+      if (d.stretches) summary.stretches = d.stretches;
+      summary.stops = {};
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
-        // Only a weighing the track covers from start to end; any other
-        // stays estimated from your check-ins.
-        var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses.concat(oldPause(pts, s, pauses))) : { cells: [] };
-        if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
-        else short.push(s.n);
+        var stop = longestStop(pts, s, pauses.concat(oldPause(pts, s, pauses)));
+        if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
       });
-      summary.track = thinTrack(pts);
-      app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings }).then(function (d) {
-        if (d.collection) summary.collection = d.collection;
-        if (d.stretches) summary.stretches = d.stretches;
-        summary.stops = {};
-        summary.stretches.forEach(function (s) {
-          if (s.discarded) return;
-          var stop = longestStop(pts, s, pauses.concat(oldPause(pts, s, pauses)));
-          if (stop && !s.breakMin && oddTime(s.activeMin, s.streetMi + s.offMi)) summary.stops[s.id] = stop;
-        });
-        showSummary();
-        $('sm-view-box').scrollIntoView({ block: 'start' });
-        app.notice('Your track is saved on this collection. Where you walked, and the miles, are from it now' +
-          (lined.offset ? ' (your recorder\'s clock was ' + howLong(Math.abs(lined.offset)) + ' ' + (lined.offset > 0 ? 'ahead' : 'behind') + ')' : '') + '.' +
-          (short.length ? ' ' + (short.length === 1 ? 'Weighing ' + short[0] + ' stays' : 'Weighings ' + short.join(', ') + ' stay') + ' estimated: the track doesn\'t cover all of ' + (short.length === 1 ? 'its' : 'their') + ' time.' : ''));
-      }, function (err) {
-        showSummary();
-        app.notice('Your track is drawn on the map, but it wasn\'t saved: ' + err.message);
-      });
-    };
-    reader.readAsText(file);
+      showSummary();
+      $('sm-view-box').scrollIntoView({ block: 'start' });
+      app.notice('Your track is saved on this collection. Where you walked, and the miles, are from it now' +
+        (lined.offset ? ' (your recorder\'s clock was ' + howLong(Math.abs(lined.offset)) + ' ' + (lined.offset > 0 ? 'ahead' : 'behind') + ')' : '') + '.' +
+        (short.length ? ' ' + (short.length === 1 ? 'Weighing ' + short[0] + ' has' : 'Weighings ' + short.join(', ') + ' have') + ' no Litter Index: the track doesn\'t cover all of ' + (short.length === 1 ? 'its' : 'their') + ' time.' : ''));
+    }, function (err) {
+      hideBusy();
+      showSummary();
+      app.notice('Your track is drawn on the map, but it wasn\'t saved: ' + err.message);
+    });
   }
 
   // How far the recorder's clock is off from the phone's: the offset that
@@ -2629,9 +2645,11 @@ window.LitterCollect = function (app) {
     if (!c) return;
     app.busy(button, 'cd-err', function () {
       // What the phone kept goes first, so HABO has the whole record.
-      return flush().then(function () {
-        if (c.queue.length) throw new Error('Discarding needs signal, so the litter pulses kept on this phone reach HABO first. Try again when you have signal.');
-        return app.api('collectDiscard', { token: app.myToken(), collectionId: c.id, reason: collectionWhy && collectionWhy.reason() });
+      return busyWhile('Discarding your collection, please wait...', function () {
+        return flush().then(function () {
+          if (c.queue.length) throw new Error('Discarding needs signal, so the litter pulses kept on this phone reach HABO first. Try again when you have signal.');
+          return app.api('collectDiscard', { token: app.myToken(), collectionId: c.id, reason: collectionWhy && collectionWhy.reason() });
+        });
       }).then(function () {
         discardStep = 0;
         c = null;
@@ -2723,7 +2741,7 @@ window.LitterCollect = function (app) {
     });
     if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
-      return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }).then(function (d) {
+      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }); }).then(function (d) {
         planning = null;
         account = account || { plan: null, planNeeded: false, xp: 0 };
         account.plan = d.plan;
@@ -2737,13 +2755,15 @@ window.LitterCollect = function (app) {
 
   // A new collection asks for your GPX recording first; going back to one doesn't.
   $('cl-start').addEventListener('click', function () {
-    if ((c && !c.ended) || (!c && account && account.open)) start($('cl-start'));
-    else showGpxStep();
+    if ((c && !c.ended) || (!c && account && account.open)) return start($('cl-start'));
+    $('cl-start-err').textContent = '';
+    $('cl-rec').hidden = false;
   });
-  $('cl-gpx-open').addEventListener('click', function () { keep(GPX_OPENED_KEY, Date.now()); $('cl-gpx-go').disabled = false; });
-  $('cl-gpx-android').addEventListener('click', function () { $('cl-gpx-go').disabled = false; });
-  $('cl-gpx-go').addEventListener('click', function () { start($('cl-gpx-go')); });
-  $('cl-gpx-cancel').addEventListener('click', hideGpxStep);
+  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); $('cl-rec').hidden = true; $('cl-ready').hidden = false; });
+  $('cl-rec-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
+  $('cl-ready-go').addEventListener('click', function () { closeStartAsks(); start($('cl-start')); });
+  $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
+  $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);

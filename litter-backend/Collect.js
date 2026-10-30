@@ -17,7 +17,7 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -96,6 +96,10 @@ function collectStart_(req) {
     row[COLLECTION_COL.updated - 1] = now;
     row[COLLECTION_COL.key - 1] = clean_(req.key, 80);
     row[COLLECTION_COL.plan - 1] = plan ? plan.id : '';
+    // When you confirmed your GPX recording had started (S5, round 2): the
+    // track before it is cut.
+    var rec = Number(req.recordingAt);
+    row[COLLECTION_COL.recording - 1] = rec > now.getTime() - 3 * 3600000 && rec <= now.getTime() + 60000 ? new Date(rec) : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     if (plan) markPlan_(plan.id, id);
     return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: planView_(plan) };
@@ -121,7 +125,9 @@ function collectStretch_(req) {
     x.pounds = x.discarded ? '' : poundsOf_(x, prev);
     var sun = sunFor_(x.cells[x.cells.length - 1] || col.startCell, new Date(x.ended));
     x.pastSunset = x.ended > sun.sunset;
-    var r = x.discarded || x.pounds === '' ? { cpue: null, index: null } : LitterGeo.reading(x.pounds, (x.streetMi + x.offMi) * LitterGeo.MILE_M, x.activeMin);
+    // No reading until the walk's GPX track is saved (Jeremy, Oct 29: no GPX
+    // track, no CPUE and no XP).
+    var r = { cpue: null, index: null };
     var row = blankRow_(TABS.stretches);
     var id = nextId_('S', readRows_(TABS.stretches).map(function (q) { return q.values[0]; }));
     var put = function (k, v) { row[STRETCH_COL[k] - 1] = v; };
@@ -252,7 +258,7 @@ function collectFix_(req) {
     // The reading again, from what it has now.
     var now = readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0];
     var lbs = now.get('pounds') === '' ? null : Number(now.get('pounds'));
-    var rd = lbs == null ? { cpue: null, index: null } : LitterGeo.reading(lbs, (Number(now.get('streetMi')) + Number(now.get('offMi'))) * LitterGeo.MILE_M, Number(now.get('activeMin')));
+    var rd = lbs == null || now.get('track') !== 'Yes' ? { cpue: null, index: null } : LitterGeo.reading(lbs, (Number(now.get('streetMi')) + Number(now.get('offMi'))) * LitterGeo.MILE_M, Number(now.get('activeMin')));
     sheet.getRange(r.row, STRETCH_COL.cpue, 1, 2).setValues([[rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)]]);
     retotal_(col.id);
     return { stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0]), collection: collectionView_(readCollection_(col.id)) };
@@ -396,7 +402,8 @@ function collectionOf_(r) {
   return { row: r.row, id: t('id'), account: t('account'), handle: t('handle'), started: t('started'), startCell: t('startCell'),
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
-    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')), checkins: parseCheckins_(t('checkins')) };
+    hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')), checkins: parseCheckins_(t('checkins')),
+    recordingAt: Number(t('recording')) || null };
 }
 
 // GPS check-ins (S5, Oct 29, in chat): where the phone was and when, at
@@ -477,6 +484,7 @@ function collectTrack_(req) {
       });
       retotal_(col.id);
     }
+    setPlanXp_(col.id);   // XP comes with the GPX track
     return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
   });
 }
