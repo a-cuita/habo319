@@ -17,7 +17,7 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -66,7 +66,10 @@ function collectStart_(req) {
   var now = new Date();
   var sun = sunFor_(cell, now);
   var noStart = minutesSetting_(SETTING_NO_START, 15);
-  if (now.getTime() >= sun.sunset - noStart * 60000 || now.getTime() < sun.sunrise) {
+  // A simulated walk (S5-U2): only a Head Builder's, at any time of day, and
+  // nothing it does reaches the map, XP, volunteer hours or the grant.
+  var simulated = req.simulated === true && account.rank === 'Head Builder';
+  if (!simulated && (now.getTime() >= sun.sunset - noStart * 60000 || now.getTime() < sun.sunrise)) {
     throw coded_('too-late', 'No new collection can start from ' + noStart + ' minutes before sunset until sunrise. Sunrise is at ' +
       clock_(now.getTime() < sun.sunrise ? sun.sunrise : sunFor_(cell, new Date(now.getTime() + 86400000)).sunrise) + '.');
   }
@@ -100,6 +103,7 @@ function collectStart_(req) {
     // track before it is cut.
     var rec = Number(req.recordingAt);
     row[COLLECTION_COL.recording - 1] = rec > now.getTime() - 3 * 3600000 && rec <= now.getTime() + 60000 ? new Date(rec) : '';
+    row[COLLECTION_COL.simulated - 1] = simulated ? 'Yes' : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     if (plan) markPlan_(plan.id, id);
     return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: planView_(plan) };
@@ -403,7 +407,7 @@ function collectionOf_(r) {
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
     hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')), checkins: parseCheckins_(t('checkins')),
-    recordingAt: Number(t('recording')) || null };
+    recordingAt: Number(t('recording')) || null, simulated: t('simulated') === 'Yes' };
 }
 
 // GPS check-ins (S5, Oct 29, in chat): where the phone was and when, at
@@ -541,6 +545,7 @@ function retotal_(collectionId) {
   var event = col.status === 'Collecting' || col.status === COLLECTION_DISCARDED ? null : eventDuring_(col);
   if (event) { counted = 0; note = 'During ' + event + ', checked in: its hours count'; }
   if (col.status === COLLECTION_DISCARDED) { counted = 0; note = 'Discarded: no hours'; }
+  if (col.simulated) { counted = 0; note = 'Simulated: no hours'; }
   var sheet = getDb_().getSheetByName(TABS.collections.name);
   sheet.getRange(col.row, COLLECTION_COL.stretches, 1, 6).setValues([[list.length, round_(pounds, 2), round_(miles, 3), round_(active, 1), round_(counted / 60, 2), note]]);
   sheet.getRange(col.row, COLLECTION_COL.updated).setValue(new Date());
@@ -548,7 +553,7 @@ function retotal_(collectionId) {
 
 // The account's volunteer hours collecting litter (Q387 (a)).
 function hoursOf_(accountId) {
-  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; });
+  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && q.get('simulated') !== 'Yes'; });
   return { collections: cols.length, hours: round_(cols.reduce(function (t, q) { return t + (Number(q.get('hours')) || 0); }, 0), 2) };
 }
 

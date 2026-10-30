@@ -39,6 +39,9 @@ window.LitterCollect = function (app) {
   var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
+  var SIM_KEY = 'habo-litter-sim';   // the Simulated walk switch, kept on this computer (S5-U2)
+  var lastTap = null;           // where the map was last clicked
+  var SIM_SAY = 'A simulated walk: the line you drew stands in for your GPX track. It sets where you walked, and the miles.';
 
   /* ── Kept on the phone ── */
 
@@ -169,7 +172,7 @@ window.LitterCollect = function (app) {
   // awake, paused or not (paused time doesn't count); they go with the next
   // litter pulse.
   setInterval(function () {
-    if (!c || c.ended || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
+    if (!c || c.ended || c.sim || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended) return;
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
@@ -195,6 +198,8 @@ window.LitterCollect = function (app) {
     closeStartAsks();
     $('cl-hours').textContent = '';
     showPlanLine();
+    $('cl-sim-box').hidden = $('cl-sim-say').hidden = !simAllowed();
+    $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
       pace = d.pace || null;
@@ -280,6 +285,11 @@ window.LitterCollect = function (app) {
   // check-in. (Q168 had the page not track you; S5 keeps check-ins while a
   // collection is going and the page is open.)
   function locate() {
+    // On a simulated walk, where you are is the end of your line (S5-U2).
+    if (c && c.sim && !c.ended) {
+      var e = simEnd();
+      return Promise.resolve(e ? { cell: G.cellAt(e.lat, e.lon), pos: e } : { cell: null, why: 'sim' });
+    }
     return new Promise(function (resolve) {
       if (!navigator.geolocation) return resolve({ cell: null, why: 'off' });
       navigator.geolocation.getCurrentPosition(function (p) {
@@ -332,6 +342,12 @@ window.LitterCollect = function (app) {
         return startHere(open.startCell).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
       });
     }
+    // A simulated walk starts where you click on the map (S5-U2).
+    if (simOn()) {
+      openCollect();
+      beginPick(null, 'sim', function (cell) { return startAt(cell, lastTap, true); });
+      return;
+    }
     showBusy(STARTING);
     app.busy(button, 'cl-start-err', function () {
       return locate().then(function (loc) {
@@ -355,29 +371,30 @@ window.LitterCollect = function (app) {
   var recordingAt = null;
   function closeStartAsks() { $('cl-rec').hidden = true; $('cl-ready').hidden = true; }
 
-  function startAt(cell, pos) {
+  function startAt(cell, pos, sim) {
     showBusy(STARTING);
-    return startHere(cell, pos).then(hideBusy, function (err) { hideBusy(); throw err; });
+    return startHere(cell, pos, sim).then(hideBusy, function (err) { hideBusy(); throw err; });
   }
 
-  function startHere(cell, pos) {
+  function startHere(cell, pos, sim) {
     var s = sunAt(cell), now = Date.now();
-    if (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise) {
+    if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt }).then(function (d) {
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
       recordingAt = null;
       settings = d.settings || settings;
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, grid: 20, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
-        plan: d.plan || null, checkins: [], ckOut: [] };
+        plan: d.plan || null, checkins: [], ckOut: [], sim: !!col.simulated, line: [] };
       if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
       if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
       save();
       if (pos && !d.already) checkin(pos, 's');
+      if (c.sim && pos && !d.already) { c.line.push([pos.lat, pos.lon]); save(); }
       return fetchStreets(cell).catch(function () {
         app.notice('The streets around you couldn\'t load just now. The map shows them once they do.');
       }).then(function () { openCollect(); });
@@ -415,6 +432,7 @@ window.LitterCollect = function (app) {
     ensureMap();
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
+    drawSim();
     showStatus();
     showSun($('cl-sun'), null);
     refreshTypes();
@@ -456,8 +474,12 @@ window.LitterCollect = function (app) {
     if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map) };
-    map.on('click', function (e) { tapCell(G.cellAt(e.latlng.lat, e.latlng.lng)); });
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
+    map.on('click', function (e) {
+      lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
+      if (simDraws()) return simAdd(lastTap);
+      tapCell(G.cellAt(e.latlng.lat, e.latlng.lng));
+    });
     var p = G.cellCenter((c && c.lastCell) || HOME_CELL);
     map.setView([p.lat, p.lon], 16);
     drawStreets();
@@ -508,11 +530,60 @@ window.LitterCollect = function (app) {
   }
   function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
 
+  /* ── A simulated walk (S5-U2) ── */
+
+  // A Head Builder's walk from the desk: drawn as a line on the map, point by
+  // point, as you go (Q497, Q498). Each point is a check-in; the end of the
+  // line is where you are. No GPS and no recorder.
+  function simAllowed() { var a = app.me && app.me(); return !!a && a.rank === 'Head Builder'; }
+  function simOn() { return simAllowed() && load(SIM_KEY) === true; }
+  function simDraws() { return !!(c && c.sim && !c.ended && !picking && !pulse && !$('v-collect').hidden); }
+  function simEnd() {
+    var l = c && c.line && c.line[c.line.length - 1];
+    if (l) return { lat: l[0], lon: l[1], acc: 5 };
+    var p = lastPlace();   // picked up on another computer: from the last check-in
+    return p ? { lat: p.lat, lon: p.lon, acc: 5 } : null;
+  }
+  function simAdd(p) {
+    if (!c.line.length) { var e = simEnd(); if (e) c.line.push([e.lat, e.lon]); }
+    c.line.push([p.lat, p.lon]);
+    checkin(p, 'm');
+    drawSim();
+    drawCells([], G.cellAt(p.lat, p.lon), null);
+  }
+  function drawSim() {
+    $('cl-sim-note').hidden = !(c && c.sim && !c.ended);
+    if (!map) return;
+    layers.sim.clearLayers();
+    if (!(c && c.sim && c.line && c.line.length)) return;
+    L.polyline(c.line, { color: '#15803d', weight: 4, interactive: false }).addTo(layers.sim);
+    L.circleMarker(c.line[c.line.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#15803d', fillOpacity: 1, interactive: false }).addTo(layers.sim);
+  }
+
+  // On the summary, the line stands in for the GPX track (Q499): its points
+  // are the walk's check-ins, with where the line was at each weighing's
+  // start and end, so each weighing gets the part drawn in it.
+  function useLine() {
+    if (!summary || !summary.collection) return;
+    var ks = (summary.collection.checkins || []).filter(function (k) { return (k[3] || 0) < 999; }).sort(function (a, b) { return a[0] - b[0]; });
+    if (!ks.length) { app.notice('This walk has no drawn line.'); return; }
+    var at = function (t) { var p = ks[0]; ks.forEach(function (k) { if (k[0] <= t) p = k; }); return p; };
+    var pts = ks.map(function (k) { return { lat: k[1], lon: k[2], t: k[0] }; });
+    summary.stretches.forEach(function (s) {
+      [Number(s.started), Number(s.ended)].forEach(function (t) { if (isFinite(t)) { var k = at(t); pts.push({ lat: k[1], lon: k[2], t: t }); } });
+    });
+    showBusy('Reading your drawn line, please wait...');
+    useGpx('<gpx><trk><trkseg>' + pts.map(function (p) {
+      return '<trkpt lat="' + p.lat + '" lon="' + p.lon + '"><time>' + new Date(p.t).toISOString() + '</time></trkpt>';
+    }).join('') + '</trkseg></trk></gpx>');
+  }
+
   var picking = null;   // { done(cell) } while a cell is being picked
   function beginPick(near, why, done) {
     picking = { done: done };
     $('cl-pick').hidden = false;
-    $('cl-pick').textContent = why === 'rough' ? 'Your phone\'s location is rough just now. Tap the cell you\'re in on the map.'
+    $('cl-pick').textContent = why === 'sim' ? 'Simulated walk: click the map where your walk starts.'
+      : why === 'rough' ? 'Your phone\'s location is rough just now. Tap the cell you\'re in on the map.'
       : 'Your phone\'s location is off. Tap the cell you\'re in on the map.';
     if (near) drawCells([], near, near);
   }
@@ -959,7 +1030,7 @@ window.LitterCollect = function (app) {
     $('sm-list').textContent = '';
     $('sm-view-box').hidden = true;
     // A GPX file waits until the collection is saved (C563: picked before, it was lost).
-    $('sm-gpx').disabled = true;
+    $('sm-gpx').disabled = $('sm-sim-line').disabled = true;
     $('sm-gpx-say').textContent = 'You can pick your GPX file once your collection is saved.';
     $('sm-wait').hidden = false;
     $('sm-wait').textContent = 'Saving your collection…';
@@ -983,10 +1054,12 @@ window.LitterCollect = function (app) {
 
   function showSummary() {
     app.show('v-summary');
-    $('sm-gpx').disabled = false;
-    $('sm-gpx-say').textContent = GPX_SAY;
+    var col = summary.collection, sim = !!(col && col.simulated);
+    $('sm-gpx').disabled = $('sm-sim-line').disabled = false;
+    $('sm-gpx').hidden = sim;
+    $('sm-sim-line').hidden = !sim;
+    $('sm-gpx-say').textContent = sim ? SIM_SAY : GPX_SAY;
     $('sm-wait').hidden = true;
-    var col = summary.collection;
     $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
       (col.hoursNote ? ' (' + col.hoursNote + ')' : '') + (col.xp ? ' · ' + col.xp + ' XP for planning it' : '');
     var list = $('sm-list');
@@ -1703,6 +1776,8 @@ window.LitterCollect = function (app) {
   $('pf-type-add').addEventListener('click', function () { addType($('pf-type-add')); });
   buildWheel();
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
+  $('sm-sim-line').addEventListener('click', useLine);
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
   $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });

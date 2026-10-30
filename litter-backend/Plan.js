@@ -116,7 +116,7 @@ function planNeeded_(accountId) {
 // Collections that have ended and weren't discarded.
 function countedCollections_(accountId) {
   return readRows_(TABS.collections).filter(function (q) {
-    return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED;
+    return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && q.get('simulated') !== 'Yes';
   }).length;
 }
 
@@ -129,7 +129,7 @@ function setPlanXp_(collectionId) {
   if (!col) return;
   var weighed = stretchesOf_(collectionId).some(function (s) { return !s.discarded && s.pounds != null; });
   // No GPX track, no XP (Jeremy, Oct 29).
-  var xp = col.plan && weighed && col.status !== COLLECTION_DISCARDED && col.track.length > 1 ? minutesSetting_(SETTING_PLAN_XP, 1) : '';
+  var xp = col.plan && weighed && col.status !== COLLECTION_DISCARDED && col.track.length > 1 && !col.simulated ? minutesSetting_(SETTING_PLAN_XP, 1) : '';
   getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.xp).setValue(xp);
 }
 
@@ -138,7 +138,7 @@ function setPlanXp_(collectionId) {
 // discard changes it, and your walk's counts (M410).
 function xpOf_(accountId) {
   // Only walks with their GPX track saved earn XP (Jeremy, Oct 29).
-  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && String(q.get('track')).trim(); });
+  var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && String(q.get('track')).trim() && q.get('simulated') !== 'Yes'; });
   var plan = cols.reduce(function (t, q) { return t + (Number(q.get('xp')) || 0); }, 0);
   var ended = {};
   cols.forEach(function (q) { if (q.get('status') === 'Ended') ended[q.get('id')] = true; });

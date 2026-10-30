@@ -36,7 +36,7 @@ function mapLoad_() {
   });
   var open = {};
   readRows_(TABS.collections).forEach(function (q) {
-    if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && !q.get('hidden')) open[q.get('id')] = true;
+    if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && !q.get('hidden') && q.get('simulated') !== 'Yes') open[q.get('id')] = true;
   });
   // Each cell's latest reading: the stretch that ended last.
   var latest = {};
@@ -100,7 +100,7 @@ function paceOf_(accountId) {
   var ended = {};
   var n = 0;
   readRows_(TABS.collections).forEach(function (q) {
-    if (q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED) { ended[q.get('id')] = true; n++; }
+    if (q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && q.get('simulated') !== 'Yes') { ended[q.get('id')] = true; n++; }
   });
   var paces = [];
   readRows_(TABS.stretches).forEach(function (q) {

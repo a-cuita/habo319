@@ -183,9 +183,16 @@ function readAccounts_() {
     return {
       row: i + 2, id: get('id'), first: get('first'), last: get('last'), email: get('email').toLowerCase(),
       handle: get('handle'), shows: get('shows'), signed: get('signed'), waiver: get('waiver'), waiverPrint: get('waiverPrint'),
-      volunteer: get('volunteer'), created: get('created'), active: get('status') === 'Active'
+      volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status'))
     };
   }).filter(function (a) { return a.id; });
+}
+
+// An administrator's rank, typed by hand in the Status column instead of
+// Active (S5-U2, M504): the ranks on S3-P30. A rank counts as Active.
+var RANKS = ['Apprentice', 'Builder', 'Architect', 'Head Builder'];
+function rankOf_(status) {
+  return RANKS.indexOf(String(status || '').trim()) >= 0 ? String(status).trim() : '';
 }
 
 // What the page gets of an account.
@@ -194,7 +201,7 @@ function accountView_(a) {
   return {
     id: a.id, firstName: a.first, lastName: a.last, email: a.email, handle: a.handle, mapShows: a.shows,
     created: a.created, waiverSigned: a.signed, waiverTitle: a.waiver, waiverCurrent: !!w.fingerprint && a.waiverPrint === w.fingerprint,
-    matched: !!a.volunteer
+    matched: !!a.volunteer, rank: a.rank || ''
   };
 }
 

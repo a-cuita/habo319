@@ -454,6 +454,7 @@
 
   var collect = window.LitterCollect({
     $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
   });
