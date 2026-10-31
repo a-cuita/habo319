@@ -61,7 +61,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -405,10 +405,28 @@
     return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // A plan's name in lists and the Plan menu (Oct 31): its own, or its
+  // segment's, or when it was saved.
+  function planLabel(p) {
+    if (p.name) return p.name;
+    if (p.segment && p.segment.name) return p.segment.name;
+    return p.created ? new Date(p.created).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Plan ' + p.id;
+  }
+
+  // The panel at the top of the main page (Oct 31, field first).
+  function panel(open) {
+    $('me-panel').hidden = !open;
+    $('me-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('me-caret').textContent = open ? '▴' : '▾';
+  }
+
   function showAccount(a) {
     state.account = a;
     notice('');
     if (!a.waiverCurrent) return startResign();
+    // Closed, the panel shows your public map name; with Neither, your handle (only you see it).
+    $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
+    panel(false);
     $('me-handle').textContent = a.handle;
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
     $('me-shows').textContent = { Handle: 'Your handle', Name: 'Your name', Neither: 'Neither your name nor your handle' }[a.mapShows] || a.mapShows;
@@ -422,6 +440,7 @@
     show('v-account');
     collect.onAccount();
     mapper.showMine();
+    mapper.inline();
   }
 
   function startEdit() {
@@ -468,7 +487,9 @@
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
-    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
+    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); },
+    planLabel: planLabel,
+    onPlanPicked: function (cells) { mapper.showPlan(cells); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
@@ -478,7 +499,12 @@
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
-    openSummary: function (id, button) { collect.openPast(id, button); }
+    openSummary: function (id, button) { collect.openPast(id, button); },
+    planLabel: planLabel,
+    pickedPlanCells: function () { return collect.pickedCells(); },
+    onPlans: function (d) { collect.onPlans(d); },
+    showCollections: function () { notice(''); show('v-collections'); },
+    showPlans: function () { notice(''); show('v-plans'); }
   });
 
   /* ── Wiring ── */
@@ -486,7 +512,13 @@
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
   $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
-  $('cl-map-open').addEventListener('click', function () { mapper.open({ back: function () { showAccount(state.account); } }); });
+  $('me-toggle').addEventListener('click', function () { panel($('me-panel').hidden); });
+  document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
+  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
+  $('me-go-plans').addEventListener('click', function () { panel(false); notice(''); show('v-plans'); window.scrollTo(0, 0); });
+  $('my-back').addEventListener('click', function () { showAccount(state.account); });
+  $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
     b.addEventListener('click', function () { notice(''); show('v-welcome'); });

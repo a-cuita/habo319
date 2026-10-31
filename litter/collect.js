@@ -39,6 +39,7 @@ window.LitterCollect = function (app) {
   var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
+  var PLAN_KEY = 'habo-litter-plan';  // the plan picked in the Plan menu, kept on this phone (Oct 31)
   var SIM_KEY = 'habo-litter-sim';   // the Simulated walk switch, kept on this computer (S5-U2)
   var lastTap = null;           // where the map was last clicked
   var SIM_SAY = 'A simulated walk: the line you drew stands in for your GPX track. It sets where you walked, and the miles.';
@@ -237,7 +238,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
-      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [],
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
@@ -246,6 +247,7 @@ window.LitterCollect = function (app) {
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
       showPlanLine();
+      if (app.onPlanPicked) app.onPlanPicked(pickedCells());
       showSun($('cl-account-sun'), null);
     }, function () { /* the account page shows without it */ });
   }
@@ -264,23 +266,61 @@ window.LitterCollect = function (app) {
     }, function () { /* no signal: it stays as it is */ });
   }
 
+  // The plan picked in the Plan menu (Oct 31, field first): the one picked
+  // on this phone, until a newer plan is saved (here or elsewhere); then the
+  // newest. 'none' for no plan, once a plan is up to you.
+  function pickedId() {
+    if (!account) return '';
+    var plans = account.plans || [], k = load(PLAN_KEY);
+    var newest = plans[0] ? plans[0].id : '';
+    if (k && typeof k === 'object' && k.newest === newest) {
+      if (k.id === 'none' && !account.planNeeded) return 'none';
+      if (plans.some(function (p) { return p.id === k.id; })) return k.id;
+    }
+    return newest || (account.planNeeded ? '' : 'none');
+  }
+  function keepPick(id) { keep(PLAN_KEY, { id: id, newest: account && account.plans && account.plans[0] ? account.plans[0].id : '' }); }
+  function pickedPlan() {
+    var id = pickedId();
+    return (account && account.plans || []).filter(function (p) { return p.id === id; })[0] || null;
+  }
+  function pickedCells() { var p = pickedPlan(); return p ? p.cells : []; }
+
   function showPlanLine() {
-    var a = account || { plan: null, planNeeded: false, xp: 0 };
+    var a = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
     var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
     $('cl-plan-btn').hidden = going;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
+    // The Plan menu: your plans, newest first, and No plan once a plan is up to you.
+    var plans = a.plans || [], menu = $('cl-plan-pick');
+    menu.textContent = '';
+    plans.forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = app.planLabel(p) + ' · ' + round(p.miles, 2) + ' mi';
+      menu.appendChild(o);
+    });
+    if (!a.planNeeded) {
+      var none = document.createElement('option');
+      none.value = 'none';
+      none.textContent = 'No plan';
+      menu.appendChild(none);
+    }
+    menu.value = pickedId();
+    $('cl-plan-pick-box').hidden = going || !account || !plans.length;
+    var p = pickedPlan();
     var line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
-    else if (a.plan) line.textContent = 'Your plan: ' + plural(planCells(a.plan).length, 'cell', 'cells') + ', ' + round(a.plan.miles, 2) + ' mi. Start collecting uses it.';
+    else if (p) line.textContent = 'Your plan: ' + plural(p.cells.length, 'cell', 'cells') + ', ' + round(p.miles, 2) + ' mi. Start collecting uses it.';
     else if (a.planNeeded) {
       line.className = 'lt-plan-line need';
       line.textContent = 'Plan your collection first. Until you have ' + settings.breakAfter + ' collections, each one starts from a plan, so the app learns your usual pace.';
     } else line.textContent = account ? 'A plan is up to you now; a planned collection still earns XP.' : '';
-    $('cl-start').disabled = !going && !!account && a.planNeeded && !a.plan;
+    $('cl-start').disabled = !going && !!account && a.planNeeded && !p;
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -414,7 +454,8 @@ window.LitterCollect = function (app) {
     if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
+    var planId = pickedId();
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planId: planId || undefined }).then(function (d) {
       recordingAt = null;
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || pace;
@@ -422,7 +463,6 @@ window.LitterCollect = function (app) {
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
         plan: d.plan || null, checkins: [], ckOut: [], sim: !!col.simulated, line: [] };
-      if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
       if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
       save();
@@ -1707,6 +1747,7 @@ window.LitterCollect = function (app) {
   // Undo takes back the last tap.
   function openPlan() {
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
+    $('pl-name').value = '';
     // The planning map is the collecting map: a simulated walk's line stays off it (C606).
     if (layers) layers.sim.clearLayers();
     $('cl-sim-note').hidden = true;
@@ -1809,12 +1850,15 @@ window.LitterCollect = function (app) {
     });
     if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
-      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }); }).then(function (d) {
+      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
         planning = null;
-        account = account || { plan: null, planNeeded: false, xp: 0 };
+        account = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
         account.plan = d.plan;
+        if (d.plans) account.plans = d.plans;
+        // The new plan is the one picked (Oct 31).
+        if (d.plan) keepPick(d.plan.id);
         app.showAccount();
-        app.notice('Your plan is saved. Start collecting uses it.');
+        app.notice('Your plan is saved, and picked in the Plan menu. Start collecting uses it.');
       });
     });
   }
@@ -1833,6 +1877,11 @@ window.LitterCollect = function (app) {
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
+  $('cl-plan-pick').addEventListener('change', function () {
+    keepPick(this.value);
+    showPlanLine();
+    if (app.onPlanPicked) app.onPlanPicked(pickedCells());
+  });
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
@@ -1907,6 +1956,16 @@ window.LitterCollect = function (app) {
       return true;
     },
     busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
+    // The picked plan's squares, for the main page's map; and your plans after
+    // one is deleted (Oct 31).
+    pickedCells: pickedCells,
+    onPlans: function (d) {
+      if (!account) return;
+      account.plans = d.plans || [];
+      account.plan = d.plan || null;
+      if (d.planNeeded != null) account.planNeeded = !!d.planNeeded;
+      showPlanLine();
+    },
     forget: function () { c = null; save(); keep(STREETS_KEY, null); }
   };
 };

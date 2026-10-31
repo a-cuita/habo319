@@ -72,12 +72,14 @@ var TABS = {
   },
   // Plans (Oct 24, in chat): the stretches someone means to collect, made
   // before they start (Plan.js). Each stretch's cells and turnarounds are
-  // split by " / ". Collection: the one it started, or Replaced.
+  // split by " / ". Collection: the last one it started (Replaced on rows from
+  // before plans could be picked again, Oct 31). Name: the player's, or empty.
+  // Deleted: when the player deleted it; the row stays, for the record.
   plans: {
     name: 'Plans',
-    header: ['Plan ID', 'Account ID', 'Created', 'Stretches', 'Cells', 'Turnarounds', 'Miles', 'Collection', 'Updated'],
-    widths: [90, 90, 150, 80, 420, 220, 80, 110, 150],
-    formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm' }
+    header: ['Plan ID', 'Account ID', 'Created', 'Stretches', 'Cells', 'Turnarounds', 'Miles', 'Collection', 'Updated', 'Name', 'Deleted'],
+    widths: [90, 90, 150, 80, 420, 220, 80, 110, 150, 200, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm', 10: '@', 11: 'yyyy-mm-dd h:mm' }
   },
   // Accepted segments (S5-P3): a player's plan, proposed; HABO's staff accept
   // it by typing Yes under Accepted (Q527); Kind is Path or Field (Q533). Its
@@ -148,6 +150,7 @@ function actions_() {
     collectLoad: collectLoad_,
     collectDiscard: collectDiscard_,
     planSave: planSave_,
+    planDelete: planDelete_,
     segmentPropose: segmentPropose_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,

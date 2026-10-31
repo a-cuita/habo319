@@ -309,6 +309,21 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-seg-item.partly { border-left: 4px solid #f59e0b; padding-left: 10px; }
 .lt-seg-item.due { border-left: 4px solid var(--accent); padding-left: 10px; }
 .lt-pop-part { font-weight: 600; margin-top: 2px; }
+
+/* The main page (Oct 31, field first): a bar at the top with your public
+   name; its panel lays over the page with your details, hours, XP and lists. */
+.lt-me-bar { position: sticky; top: 0; z-index: 1100; margin-bottom: 14px; }
+.lt-me-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; font-size: 1.15rem; font-weight: 800; cursor: pointer; text-align: left; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08); }
+.lt-me-toggle span:first-child { overflow-wrap: anywhere; }
+.lt-me-caret { flex: none; font-size: 1rem; color: var(--text-dim); }
+.lt-me-panel { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: 75vh; overflow-y: auto; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22); }
+.lt-me-panel .card:last-of-type { margin-bottom: 8px; }
+.lt-me-panel .btn + .btn { margin-top: 8px; }
+.lt-plan-pick select { width: 100%; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); color: var(--text); }
+.lt-plan-name { margin-bottom: 10px; }
+#cl-litter-map-slot { margin-top: 12px; }
+#cl-litter-map-slot .lt-map { height: 45vh; min-height: 260px; }
+.lt-back-main { margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -576,6 +591,10 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="pl-map-box"></div>
+    <div class="ig lt-plan-name">
+      <label for="pl-name">Name this plan (optional)</label>
+      <input id="pl-name" maxlength="60" autocomplete="off" placeholder="Like the streets it covers">
+    </div>
     <button class="btn btn-secondary" id="pl-undo" type="button">Undo</button>
     <button class="btn btn-accent" id="pl-save" type="button">Save the plan</button>
     <button class="btn btn-secondary" id="pl-cancel" type="button">Cancel</button>
@@ -669,15 +688,20 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
   <div id="v-map" hidden>
     <section class="card">
       <h2>The litter map</h2>
-      <p class="muted small">Each square is a twentieth of a mile (about 265 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
-      <div class="lt-layers" id="mp-layers">
-        <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
-        <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
-      </div>
-      <div class="lt-legend" id="mp-legend"></div>
+      <p class="muted small">Each square is 1/160 of a mile (about 33 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
     </section>
-    <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
-    <p class="muted small" id="mp-note"></p>
+    <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
+    <div id="mp-slot">
+      <div id="mp-body">
+        <div class="lt-layers" id="mp-layers">
+          <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
+          <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
+        </div>
+        <div class="lt-legend" id="mp-legend"></div>
+        <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
+        <p class="muted small" id="mp-note"></p>
+      </div>
+    </div>
     <button class="btn btn-secondary" id="mp-back" type="button">Back</button>
   </div>
 
@@ -703,50 +727,63 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
     <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
   </form>
 
-  <!-- The account page, for now (item 6). -->
+  <!-- The main page (Oct 31, field first): a panel at the top with your
+       details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
-    <section class="card lt-me">
-      <p class="lt-handle-big" id="me-handle"></p>
-      <p class="lt-name" id="me-name"></p>
-      <dl class="lt-facts">
-        <dt>On the map</dt><dd id="me-shows"></dd>
-        <dt>Email</dt><dd id="me-email"></dd>
-        <dt>Waiver</dt><dd id="me-waiver"></dd>
-        <dt>Volunteer record</dt><dd id="me-match"></dd>
-      </dl>
-      <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
-    </section>
+    <div class="lt-me-bar" id="me-bar">
+      <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
+        <span id="me-public"></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="lt-me-panel" id="me-panel" hidden>
+        <section class="card lt-me">
+          <p class="lt-handle-big" id="me-handle"></p>
+          <p class="lt-name" id="me-name"></p>
+          <dl class="lt-facts">
+            <dt>On the map</dt><dd id="me-shows"></dd>
+            <dt>Email</dt><dd id="me-email"></dd>
+            <dt>Waiver</dt><dd id="me-waiver"></dd>
+            <dt>Volunteer record</dt><dd id="me-match"></dd>
+          </dl>
+          <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
+        </section>
 
-    <form class="card" id="me-form" novalidate hidden>
-      <h2>Change my details</h2>
-      <div class="row2">
-        <div class="ig">
-          <label for="ed-first">First name</label>
-          <input id="ed-first" autocomplete="given-name" maxlength="60">
-        </div>
-        <div class="ig">
-          <label for="ed-last">Last name</label>
-          <input id="ed-last" autocomplete="family-name" maxlength="60">
-        </div>
+        <form class="card" id="me-form" novalidate hidden>
+          <h2>Change my details</h2>
+          <div class="row2">
+            <div class="ig">
+              <label for="ed-first">First name</label>
+              <input id="ed-first" autocomplete="given-name" maxlength="60">
+            </div>
+            <div class="ig">
+              <label for="ed-last">Last name</label>
+              <input id="ed-last" autocomplete="family-name" maxlength="60">
+            </div>
+          </div>
+          <div class="ig">
+            <label for="ed-handle">Handle</label>
+            <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
+          </div>
+          <p class="lt-label">On the public map, show</p>
+          <div id="ed-shows"></div>
+          <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
+          <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
+          <p class="err" id="ed-err" role="alert"></p>
+        </form>
+
+        <section class="card">
+          <p id="cl-hours"></p>
+          <p class="lt-xp" id="cl-xp" hidden></p>
+          <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
+          <button class="btn btn-secondary" id="me-go-plans" type="button">Your plans</button>
+        </section>
+        <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
       </div>
-      <div class="ig">
-        <label for="ed-handle">Handle</label>
-        <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
-      </div>
-      <p class="lt-label">On the public map, show</p>
-      <div id="ed-shows"></div>
-      <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
-      <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
-      <p class="err" id="ed-err" role="alert"></p>
-    </form>
+    </div>
 
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
-      <p id="cl-hours"></p>
-      <p class="lt-xp" id="cl-xp" hidden></p>
-      <p class="lt-plan-line" id="cl-plan"></p>
       <!-- A Head Builder's simulated walk (S5-U2). -->
       <div class="lt-sim-row" id="cl-sim-box" hidden>
         <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
@@ -754,24 +791,17 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       </div>
       <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
       <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
+      <!-- Pick one of your plans; Start collecting uses it (Oct 31, field first). -->
+      <div class="ig lt-plan-pick" id="cl-plan-pick-box" hidden>
+        <label for="cl-plan-pick">Plan</label>
+        <select id="cl-plan-pick"></select>
+      </div>
+      <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
-      <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
-    </section>
-
-    <!-- Your collections (S3-P22, item 15): each with its stretches; no means. -->
-    <section class="card" id="my-collections" hidden>
-      <h2>Your collections</h2>
-      <div id="my-list"></div>
-      <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
-    </section>
-
-    <!-- Your plans (S5-P3, Q517): each opens on the map, and can be proposed as a segment (M565). -->
-    <section class="card" id="my-plans" hidden>
-      <h2>Your plans</h2>
-      <p class="muted small">Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
-      <div id="plans-list"></div>
+      <!-- The litter map, with your picked plan outlined (Oct 31). -->
+      <div id="cl-litter-map-slot"></div>
     </section>
 
     <!-- Segments (S5-P3, Q530): the accepted ones, partly cleaned first. -->
@@ -780,8 +810,28 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       <p class="muted small">Accepted segments anyone can collect again. Partly cleaned ones come first: help finish them.</p>
       <div id="segments-list"></div>
     </section>
+  </div>
 
-    <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
+  <!-- Your collections (S3-P22, item 15), on a screen of its own from the panel (Oct 31). -->
+  <div id="v-collections" hidden>
+    <section class="card" id="my-collections">
+      <h2>Your collections</h2>
+      <p class="muted small" id="my-none" hidden>No collections yet.</p>
+      <div id="my-list"></div>
+      <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
+    </section>
+    <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+  </div>
+
+  <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
+  <div id="v-plans" hidden>
+    <section class="card" id="my-plans">
+      <h2>Your plans</h2>
+      <p class="muted small">Pick a plan on the main page, in the Plan menu. Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
+      <p class="muted small" id="plans-none" hidden>No plans yet. Press Plan a collection on the main page.</p>
+      <div id="plans-list"></div>
+    </section>
+    <button class="btn btn-secondary lt-back-main" id="plans-back" type="button">Back</button>
   </div>
 </main>
 
@@ -1233,6 +1283,7 @@ window.LitterCollect = function (app) {
   var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
+  var PLAN_KEY = 'habo-litter-plan';  // the plan picked in the Plan menu, kept on this phone (Oct 31)
   var SIM_KEY = 'habo-litter-sim';   // the Simulated walk switch, kept on this computer (S5-U2)
   var lastTap = null;           // where the map was last clicked
   var SIM_SAY = 'A simulated walk: the line you drew stands in for your GPX track. It sets where you walked, and the miles.';
@@ -1431,7 +1482,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
-      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [],
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
@@ -1440,6 +1491,7 @@ window.LitterCollect = function (app) {
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
       showPlanLine();
+      if (app.onPlanPicked) app.onPlanPicked(pickedCells());
       showSun($('cl-account-sun'), null);
     }, function () { /* the account page shows without it */ });
   }
@@ -1458,23 +1510,61 @@ window.LitterCollect = function (app) {
     }, function () { /* no signal: it stays as it is */ });
   }
 
+  // The plan picked in the Plan menu (Oct 31, field first): the one picked
+  // on this phone, until a newer plan is saved (here or elsewhere); then the
+  // newest. 'none' for no plan, once a plan is up to you.
+  function pickedId() {
+    if (!account) return '';
+    var plans = account.plans || [], k = load(PLAN_KEY);
+    var newest = plans[0] ? plans[0].id : '';
+    if (k && typeof k === 'object' && k.newest === newest) {
+      if (k.id === 'none' && !account.planNeeded) return 'none';
+      if (plans.some(function (p) { return p.id === k.id; })) return k.id;
+    }
+    return newest || (account.planNeeded ? '' : 'none');
+  }
+  function keepPick(id) { keep(PLAN_KEY, { id: id, newest: account && account.plans && account.plans[0] ? account.plans[0].id : '' }); }
+  function pickedPlan() {
+    var id = pickedId();
+    return (account && account.plans || []).filter(function (p) { return p.id === id; })[0] || null;
+  }
+  function pickedCells() { var p = pickedPlan(); return p ? p.cells : []; }
+
   function showPlanLine() {
-    var a = account || { plan: null, planNeeded: false, xp: 0 };
+    var a = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
     var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
     $('cl-plan-btn').hidden = going;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
+    // The Plan menu: your plans, newest first, and No plan once a plan is up to you.
+    var plans = a.plans || [], menu = $('cl-plan-pick');
+    menu.textContent = '';
+    plans.forEach(function (p) {
+      var o = document.createElement('option');
+      o.value = p.id;
+      o.textContent = app.planLabel(p) + ' · ' + round(p.miles, 2) + ' mi';
+      menu.appendChild(o);
+    });
+    if (!a.planNeeded) {
+      var none = document.createElement('option');
+      none.value = 'none';
+      none.textContent = 'No plan';
+      menu.appendChild(none);
+    }
+    menu.value = pickedId();
+    $('cl-plan-pick-box').hidden = going || !account || !plans.length;
+    var p = pickedPlan();
     var line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
-    else if (a.plan) line.textContent = 'Your plan: ' + plural(planCells(a.plan).length, 'cell', 'cells') + ', ' + round(a.plan.miles, 2) + ' mi. Start collecting uses it.';
+    else if (p) line.textContent = 'Your plan: ' + plural(p.cells.length, 'cell', 'cells') + ', ' + round(p.miles, 2) + ' mi. Start collecting uses it.';
     else if (a.planNeeded) {
       line.className = 'lt-plan-line need';
       line.textContent = 'Plan your collection first. Until you have ' + settings.breakAfter + ' collections, each one starts from a plan, so the app learns your usual pace.';
     } else line.textContent = account ? 'A plan is up to you now; a planned collection still earns XP.' : '';
-    $('cl-start').disabled = !going && !!account && a.planNeeded && !a.plan;
+    $('cl-start').disabled = !going && !!account && a.planNeeded && !p;
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -1608,7 +1698,8 @@ window.LitterCollect = function (app) {
     if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
+    var planId = pickedId();
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planId: planId || undefined }).then(function (d) {
       recordingAt = null;
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || pace;
@@ -1616,7 +1707,6 @@ window.LitterCollect = function (app) {
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
         plan: d.plan || null, checkins: [], ckOut: [], sim: !!col.simulated, line: [] };
-      if (account) account.plan = null;
       if (d.already && col.started) c.current.startedAt = col.started;
       if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
       save();
@@ -2901,6 +2991,7 @@ window.LitterCollect = function (app) {
   // Undo takes back the last tap.
   function openPlan() {
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
+    $('pl-name').value = '';
     // The planning map is the collecting map: a simulated walk's line stays off it (C606).
     if (layers) layers.sim.clearLayers();
     $('cl-sim-note').hidden = true;
@@ -3003,12 +3094,15 @@ window.LitterCollect = function (app) {
     });
     if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
-      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list } }); }).then(function (d) {
+      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
         planning = null;
-        account = account || { plan: null, planNeeded: false, xp: 0 };
+        account = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
         account.plan = d.plan;
+        if (d.plans) account.plans = d.plans;
+        // The new plan is the one picked (Oct 31).
+        if (d.plan) keepPick(d.plan.id);
         app.showAccount();
-        app.notice('Your plan is saved. Start collecting uses it.');
+        app.notice('Your plan is saved, and picked in the Plan menu. Start collecting uses it.');
       });
     });
   }
@@ -3027,6 +3121,11 @@ window.LitterCollect = function (app) {
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
+  $('cl-plan-pick').addEventListener('change', function () {
+    keepPick(this.value);
+    showPlanLine();
+    if (app.onPlanPicked) app.onPlanPicked(pickedCells());
+  });
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
@@ -3101,6 +3200,16 @@ window.LitterCollect = function (app) {
       return true;
     },
     busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
+    // The picked plan's squares, for the main page's map; and your plans after
+    // one is deleted (Oct 31).
+    pickedCells: pickedCells,
+    onPlans: function (d) {
+      if (!account) return;
+      account.plans = d.plans || [];
+      account.plan = d.plan || null;
+      if (d.planNeeded != null) account.planNeeded = !!d.planNeeded;
+      showPlanLine();
+    },
     forget: function () { c = null; save(); keep(STREETS_KEY, null); }
   };
 };
@@ -3121,7 +3230,8 @@ window.LitterMap = function (app) {
   var $ = app.$;
   var HOME_CELL = '357940_-805900';   // downtown Montgomery
   var SHOW_FIRST = 10;              // collections listed before "Show all"
-  var map = null, layer = null, back = null;
+  var map = null, layer = null, planLayer = null, back = null;
+  var loaded = null, loadedAt = 0;   // the last mapLoad, which the main page's map reuses for 2 minutes
   var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'], dark = null;
   var mine = null, showAll = false;
   // Accepted segments and their rates (S5-P3): a layer of their own, and a
@@ -3160,6 +3270,35 @@ window.LitterMap = function (app) {
 
   /* ── The public map ── */
 
+  function ensureMap() {
+    if (map) return;
+    map = L.map('mp-map', { zoomControl: true, attributionControl: true });
+    L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    layer = L.layerGroup().addTo(map);
+    planLayer = L.layerGroup().addTo(map);
+    var h = G.cellCenter(HOME_CELL);
+    map.setView([h.lat, h.lon], 13);
+  }
+
+  function useLoad(d) {
+    loaded = d; loadedAt = Date.now();
+    colours = d.colours || colours;
+    dark = d.dark || dark;
+    realSegs = d.segments || [];
+    simSegs = d.simSegments || [];
+    rateTop = d.rateTop || rateTop;
+    legend($('mp-legend'));
+  }
+
+  // A plan's squares outlined, on a layer of its own, so switching layers
+  // keeps it (S5-P3, Q517; Oct 31).
+  function outlinePlan(cells) {
+    if (!planLayer) return;
+    planLayer.clearLayers();
+    var pc = darkColours() ? darkColours().plan : '#7c3aed';
+    (cells || []).forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(planLayer); });
+  }
+
   // opts: { focus: [cells] to show first, back: what Back does, track: a
   // collection's kept GPX track, [[lat, lon], …], drawn as a line }.
   function open(opts) {
@@ -3167,32 +3306,19 @@ window.LitterMap = function (app) {
     back = opts.back || null;
     app.notice('');
     app.show('v-map');
+    $('mp-slot').appendChild($('mp-body'));
     $('mp-note').textContent = 'Loading the map…';
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
-    if (!map) {
-      map = L.map('mp-map', { zoomControl: true, attributionControl: true });
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
-      layer = L.layerGroup().addTo(map);
-      var h = G.cellCenter(HOME_CELL);
-      map.setView([h.lat, h.lon], 13);
-    }
+    ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
     return app.api('mapLoad', {}).then(function (d) {
-      colours = d.colours || colours;
-      dark = d.dark || dark;
-      realSegs = d.segments || [];
-      simSegs = d.simSegments || [];
-      rateTop = d.rateTop || rateTop;
-      legend($('mp-legend'));
+      useLoad(d);
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       lastCells = (d.cells || []).concat(opts.own || []);
       draw(lastCells);
-      // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
       if (opts.layer && opts.layer !== mode) setMode(opts.layer);
-      if (opts.plan) {
-        var pc = darkColours() ? darkColours().plan : '#7c3aed';
-        opts.plan.forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(layer); });
-      }
+      // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
+      outlinePlan(opts.plan || []);
       var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
@@ -3207,6 +3333,33 @@ window.LitterMap = function (app) {
       $('mp-note').textContent = d.cells.length ? (d.cells.length === 1 ? '1 cell has' : d.cells.length.toLocaleString('en-US') + ' cells have') + ' a reading.'
         : 'No collections on the map yet. Cells show here once someone saves a collection.';
     }, function (err) { $('mp-note').textContent = err.message; });
+  }
+
+  // The same map on the main page, in the Collecting card, with your picked
+  // plan outlined, in place of See the map (Oct 31, field first).
+  function inline() {
+    $('cl-litter-map-slot').appendChild($('mp-body'));
+    if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
+    ensureMap();
+    setTimeout(function () { map.invalidateSize(); }, 0);
+    var fresh = loaded && Date.now() - loadedAt < 120000;
+    if (!fresh) $('mp-note').textContent = 'Loading the map…';
+    return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', {})).then(function (d) {
+      useLoad(d);
+      lastCells = d.cells || [];
+      draw(lastCells);
+      showPlan(app.pickedPlanCells ? app.pickedPlanCells() : []);
+      $('mp-note').textContent = mode === 'rate' ? $('mp-note').textContent : '';
+      if (mode === 'rate') setMode('rate');
+    }, function (err) { $('mp-note').textContent = err.message; });
+  }
+
+  // The picked plan on the main page's map: outlined, and the map on it.
+  function showPlan(planCells) {
+    if (!map) return;
+    outlinePlan(planCells || []);
+    var focus = (planCells || []).length ? planCells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
+    setTimeout(function () { map.invalidateSize(); fit(focus); }, 0);
   }
 
   // A segment's line in a pop-up: its rate, confidence and arrow, and
@@ -3288,12 +3441,11 @@ window.LitterMap = function (app) {
   /* ── Your collections (item 15) ── */
 
   function showMine() {
-    var box = $('my-collections');
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
       colours = d.colours || colours;
       dark = d.dark || dark;
-      box.hidden = !d.collections.length;
+      $('my-none').hidden = !!d.collections.length;
       drawMine();
       drawPlans(d.plans || []);
       realSegs = d.segments || realSegs;
@@ -3301,7 +3453,8 @@ window.LitterMap = function (app) {
       drawSegments();
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
-      box.hidden = true;
+      $('my-none').hidden = false;
+      $('my-none').textContent = err.message;
     });
   }
 
@@ -3343,7 +3496,7 @@ window.LitterMap = function (app) {
       // A simulated walk is off the public map (S5-U2), so its own squares come with it.
       var own = c.simulated ? [].concat.apply([], c.stretchList.filter(function (s) { return !s.discarded && s.index != null; })
         .map(function (s) { return s.cells.map(function (x) { return [x, s.index, '', 'Simulated walk']; }); })) : null;
-      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount, track: c.track, own: own }); });
+      m.addEventListener('click', function () { open({ focus: cells, back: app.showCollections, track: c.track, own: own }); });
       row.appendChild(m);
     }
     if (c.editable) {
@@ -3356,24 +3509,26 @@ window.LitterMap = function (app) {
     return box;
   }
 
-  /* ── Your plans (S5-P3, Q517), each can be proposed as a segment (M565) ── */
+  /* ── Your plans (S5-P3, Q517), each can be proposed as a segment (M565),
+     picked again on the main page, or deleted (Oct 31, field first) ── */
 
   function drawPlans(plans) {
     var list = $('plans-list');
     list.textContent = '';
-    $('my-plans').hidden = !plans.length;
+    $('plans-none').hidden = !!plans.length;
     plans.forEach(function (p) {
       var box = el('div', 'lt-plan-item');
       box.id = 'plan-' + p.id;
-      box.appendChild(el('p', 'lt-col-head', 'Plan ' + p.id + ' · ' + (p.created ? new Date(p.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')));
+      box.appendChild(el('p', 'lt-col-head', app.planLabel(p)));
       box.appendChild(el('p', 'muted small', p.cells.length + ' square' + (p.cells.length === 1 ? '' : 's') + ' · ' + round(p.miles, 2) + ' mi · ' +
-        (p.used ? 'collected (' + p.used + ')' : p.replaced ? 'replaced by a newer plan' : 'not collected yet')));
+        (p.used ? 'collected ' + (p.used === 1 ? 'once' : p.used + ' times') + (p.lastUsed ? ', last ' + new Date(p.lastUsed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')
+          : 'not collected yet') + ' · saved ' + (p.created ? new Date(p.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')));
       if (p.segment) box.appendChild(el('p', 'lt-plan-seg', p.segment.accepted ? 'Accepted segment ' + p.segment.id + ': ' + p.segment.name
         : 'Proposed as a segment (' + p.segment.id + ': ' + p.segment.name + '), waiting for HABO\'s staff'));
       var row = el('div', 'lt-col-row');
       var m = el('button', 'btn btn-secondary lt-plan-map', 'See it on the map');
       m.type = 'button';
-      m.addEventListener('click', function () { open({ focus: p.cells, back: app.showAccount, plan: p.cells }); });
+      m.addEventListener('click', function () { open({ focus: p.cells, back: app.showPlans, plan: p.cells }); });
       row.appendChild(m);
       if (!p.segment) {
         var g = el('button', 'btn btn-secondary lt-plan-propose', 'Propose as a segment');
@@ -3389,6 +3544,18 @@ window.LitterMap = function (app) {
         });
         row.appendChild(g);
       }
+      var x = el('button', 'btn btn-secondary lt-plan-delete', 'Delete');
+      x.type = 'button';
+      x.addEventListener('click', function () {
+        if (!window.confirm('Delete "' + app.planLabel(p) + '"? It leaves your plans and the Plan menu. Collections that used it keep their record.')) return;
+        x.disabled = true;
+        app.api('planDelete', { token: app.myToken(), planId: p.id }).then(function (d) {
+          drawPlans(d.plans);
+          app.onPlans(d);
+          app.notice('Deleted.');
+        }, function (err) { x.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+      });
+      row.appendChild(x);
       box.appendChild(row);
       list.appendChild(box);
     });
@@ -3423,7 +3590,7 @@ window.LitterMap = function (app) {
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
   Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.addEventListener('click', function () { setMode(b.dataset.layer); }); });
 
-  return { open: open, showMine: showMine };
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan };
 };
 </script>
 <script>
@@ -3490,7 +3657,7 @@ window.LitterMap = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -3834,10 +4001,28 @@ window.LitterMap = function (app) {
     return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  // A plan's name in lists and the Plan menu (Oct 31): its own, or its
+  // segment's, or when it was saved.
+  function planLabel(p) {
+    if (p.name) return p.name;
+    if (p.segment && p.segment.name) return p.segment.name;
+    return p.created ? new Date(p.created).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Plan ' + p.id;
+  }
+
+  // The panel at the top of the main page (Oct 31, field first).
+  function panel(open) {
+    $('me-panel').hidden = !open;
+    $('me-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+    $('me-caret').textContent = open ? '▴' : '▾';
+  }
+
   function showAccount(a) {
     state.account = a;
     notice('');
     if (!a.waiverCurrent) return startResign();
+    // Closed, the panel shows your public map name; with Neither, your handle (only you see it).
+    $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
+    panel(false);
     $('me-handle').textContent = a.handle;
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
     $('me-shows').textContent = { Handle: 'Your handle', Name: 'Your name', Neither: 'Neither your name nor your handle' }[a.mapShows] || a.mapShows;
@@ -3851,6 +4036,7 @@ window.LitterMap = function (app) {
     show('v-account');
     collect.onAccount();
     mapper.showMine();
+    mapper.inline();
   }
 
   function startEdit() {
@@ -3897,7 +4083,9 @@ window.LitterMap = function (app) {
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
-    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
+    openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); },
+    planLabel: planLabel,
+    onPlanPicked: function (cells) { mapper.showPlan(cells); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
@@ -3907,7 +4095,12 @@ window.LitterMap = function (app) {
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
-    openSummary: function (id, button) { collect.openPast(id, button); }
+    openSummary: function (id, button) { collect.openPast(id, button); },
+    planLabel: planLabel,
+    pickedPlanCells: function () { return collect.pickedCells(); },
+    onPlans: function (d) { collect.onPlans(d); },
+    showCollections: function () { notice(''); show('v-collections'); },
+    showPlans: function () { notice(''); show('v-plans'); }
   });
 
   /* ── Wiring ── */
@@ -3915,7 +4108,13 @@ window.LitterMap = function (app) {
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
   $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
-  $('cl-map-open').addEventListener('click', function () { mapper.open({ back: function () { showAccount(state.account); } }); });
+  $('me-toggle').addEventListener('click', function () { panel($('me-panel').hidden); });
+  document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
+  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
+  $('me-go-plans').addEventListener('click', function () { panel(false); notice(''); show('v-plans'); window.scrollTo(0, 0); });
+  $('my-back').addEventListener('click', function () { showAccount(state.account); });
+  $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {
     b.addEventListener('click', function () { notice(''); show('v-welcome'); });

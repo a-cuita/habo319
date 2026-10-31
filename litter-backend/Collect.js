@@ -81,8 +81,9 @@ function collectStart_(req) {
     // reached HABO, and nothing counts twice.
     if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: planView_(planById_(open.plan)),
       stretches: stretchesOf_(open.id).map(stretchViewOf_) };
-    // A plan first, until there are enough collections to know the usual pace (Plan.js).
-    var plan = openPlan_(account.id);
+    // A plan first, until there are enough collections to know the usual pace;
+    // the one picked on the main page (Plan.js, Oct 31).
+    var plan = pickPlan_(account.id, req.planId);
     if (!plan && planNeeded_(account.id)) throw coded_('plan-first', 'Plan your collection first: press Plan a collection.');
     var sheet = getDb_().getSheetByName(TABS.collections.name);
     var rows = readRows_(TABS.collections);
@@ -282,7 +283,7 @@ function collectLoad_(req) {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
-    segments: segmentSummaries_(false), simSegments: segmentSummaries_(true)
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true)
   };
 }
 

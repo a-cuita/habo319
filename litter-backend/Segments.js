@@ -302,15 +302,26 @@ function segmentSummaries_(sim) {
   });
 }
 
-// Your plans (Q517), newest first, each with the segment proposed from it.
+// Your plans (Q517), newest first, each with the segment proposed from it,
+// its name (Oct 31), and how many collections it started and when last.
+// Deleted plans leave the list.
 function myPlans_(accountId) {
   var segs = segmentsAll_();
-  return readRows_(TABS.plans).filter(function (r) { return r.get('account') === accountId; }).map(function (r) {
+  var uses = {};
+  readRows_(TABS.collections).forEach(function (q) {
+    if (q.get('account') !== accountId || q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED || !q.get('plan')) return;
+    var t = q.get('started') instanceof Date ? q.get('started').getTime() : 0;
+    var u = uses[q.get('plan')] = uses[q.get('plan')] || { n: 0, last: 0 };
+    u.n++;
+    if (t > u.last) u.last = t;
+  });
+  return readRows_(TABS.plans).filter(function (r) { return r.get('account') === accountId && !r.get('deleted'); }).map(function (r) {
     var p = planOf_(r);
     var g = segs.filter(function (s) { return s.plan === p.id; })[0];
     var cells = [];
     p.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
-    return { id: p.id, created: p.created, cells: cells, miles: p.miles, used: p.collection && p.collection !== PLAN_REPLACED ? p.collection : '',
-      replaced: p.collection === PLAN_REPLACED, segment: g ? { id: g.id, name: g.name, accepted: g.accepted } : null };
+    var u = uses[p.id] || { n: 0, last: 0 };
+    return { id: p.id, created: p.created, name: p.name, cells: cells, miles: p.miles, used: u.n, lastUsed: u.last,
+      segment: g ? { id: g.id, name: g.name, accepted: g.accepted } : null };
   }).reverse().slice(0, 50);
 }

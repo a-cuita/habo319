@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=14">
+<link rel="stylesheet" href="litter.css?v=15">
 </head>
 <body>
 
@@ -274,6 +274,10 @@
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="pl-map-box"></div>
+    <div class="ig lt-plan-name">
+      <label for="pl-name">Name this plan (optional)</label>
+      <input id="pl-name" maxlength="60" autocomplete="off" placeholder="Like the streets it covers">
+    </div>
     <button class="btn btn-secondary" id="pl-undo" type="button">Undo</button>
     <button class="btn btn-accent" id="pl-save" type="button">Save the plan</button>
     <button class="btn btn-secondary" id="pl-cancel" type="button">Cancel</button>
@@ -367,15 +371,20 @@
   <div id="v-map" hidden>
     <section class="card">
       <h2>The litter map</h2>
-      <p class="muted small">Each square is a twentieth of a mile (about 265 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
-      <div class="lt-layers" id="mp-layers">
-        <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
-        <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
-      </div>
-      <div class="lt-legend" id="mp-legend"></div>
+      <p class="muted small">Each square is 1/160 of a mile (about 33 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
     </section>
-    <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
-    <p class="muted small" id="mp-note"></p>
+    <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
+    <div id="mp-slot">
+      <div id="mp-body">
+        <div class="lt-layers" id="mp-layers">
+          <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
+          <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
+        </div>
+        <div class="lt-legend" id="mp-legend"></div>
+        <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
+        <p class="muted small" id="mp-note"></p>
+      </div>
+    </div>
     <button class="btn btn-secondary" id="mp-back" type="button">Back</button>
   </div>
 
@@ -401,50 +410,63 @@
     <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
   </form>
 
-  <!-- The account page, for now (item 6). -->
+  <!-- The main page (Oct 31, field first): a panel at the top with your
+       details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
-    <section class="card lt-me">
-      <p class="lt-handle-big" id="me-handle"></p>
-      <p class="lt-name" id="me-name"></p>
-      <dl class="lt-facts">
-        <dt>On the map</dt><dd id="me-shows"></dd>
-        <dt>Email</dt><dd id="me-email"></dd>
-        <dt>Waiver</dt><dd id="me-waiver"></dd>
-        <dt>Volunteer record</dt><dd id="me-match"></dd>
-      </dl>
-      <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
-    </section>
+    <div class="lt-me-bar" id="me-bar">
+      <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
+        <span id="me-public"></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="lt-me-panel" id="me-panel" hidden>
+        <section class="card lt-me">
+          <p class="lt-handle-big" id="me-handle"></p>
+          <p class="lt-name" id="me-name"></p>
+          <dl class="lt-facts">
+            <dt>On the map</dt><dd id="me-shows"></dd>
+            <dt>Email</dt><dd id="me-email"></dd>
+            <dt>Waiver</dt><dd id="me-waiver"></dd>
+            <dt>Volunteer record</dt><dd id="me-match"></dd>
+          </dl>
+          <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
+        </section>
 
-    <form class="card" id="me-form" novalidate hidden>
-      <h2>Change my details</h2>
-      <div class="row2">
-        <div class="ig">
-          <label for="ed-first">First name</label>
-          <input id="ed-first" autocomplete="given-name" maxlength="60">
-        </div>
-        <div class="ig">
-          <label for="ed-last">Last name</label>
-          <input id="ed-last" autocomplete="family-name" maxlength="60">
-        </div>
+        <form class="card" id="me-form" novalidate hidden>
+          <h2>Change my details</h2>
+          <div class="row2">
+            <div class="ig">
+              <label for="ed-first">First name</label>
+              <input id="ed-first" autocomplete="given-name" maxlength="60">
+            </div>
+            <div class="ig">
+              <label for="ed-last">Last name</label>
+              <input id="ed-last" autocomplete="family-name" maxlength="60">
+            </div>
+          </div>
+          <div class="ig">
+            <label for="ed-handle">Handle</label>
+            <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
+          </div>
+          <p class="lt-label">On the public map, show</p>
+          <div id="ed-shows"></div>
+          <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
+          <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
+          <p class="err" id="ed-err" role="alert"></p>
+        </form>
+
+        <section class="card">
+          <p id="cl-hours"></p>
+          <p class="lt-xp" id="cl-xp" hidden></p>
+          <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
+          <button class="btn btn-secondary" id="me-go-plans" type="button">Your plans</button>
+        </section>
+        <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
       </div>
-      <div class="ig">
-        <label for="ed-handle">Handle</label>
-        <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-        <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
-      </div>
-      <p class="lt-label">On the public map, show</p>
-      <div id="ed-shows"></div>
-      <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
-      <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
-      <p class="err" id="ed-err" role="alert"></p>
-    </form>
+    </div>
 
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
-      <p id="cl-hours"></p>
-      <p class="lt-xp" id="cl-xp" hidden></p>
-      <p class="lt-plan-line" id="cl-plan"></p>
       <!-- A Head Builder's simulated walk (S5-U2). -->
       <div class="lt-sim-row" id="cl-sim-box" hidden>
         <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
@@ -452,24 +474,17 @@
       </div>
       <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
       <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
+      <!-- Pick one of your plans; Start collecting uses it (Oct 31, field first). -->
+      <div class="ig lt-plan-pick" id="cl-plan-pick-box" hidden>
+        <label for="cl-plan-pick">Plan</label>
+        <select id="cl-plan-pick"></select>
+      </div>
+      <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
-      <button class="btn btn-secondary" id="cl-map-open" type="button">See the map</button>
       <p class="err" id="cl-start-err" role="alert"></p>
-    </section>
-
-    <!-- Your collections (S3-P22, item 15): each with its stretches; no means. -->
-    <section class="card" id="my-collections" hidden>
-      <h2>Your collections</h2>
-      <div id="my-list"></div>
-      <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
-    </section>
-
-    <!-- Your plans (S5-P3, Q517): each opens on the map, and can be proposed as a segment (M565). -->
-    <section class="card" id="my-plans" hidden>
-      <h2>Your plans</h2>
-      <p class="muted small">Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
-      <div id="plans-list"></div>
+      <!-- The litter map, with your picked plan outlined (Oct 31). -->
+      <div id="cl-litter-map-slot"></div>
     </section>
 
     <!-- Segments (S5-P3, Q530): the accepted ones, partly cleaned first. -->
@@ -478,16 +493,36 @@
       <p class="muted small">Accepted segments anyone can collect again. Partly cleaned ones come first: help finish them.</p>
       <div id="segments-list"></div>
     </section>
+  </div>
 
-    <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
+  <!-- Your collections (S3-P22, item 15), on a screen of its own from the panel (Oct 31). -->
+  <div id="v-collections" hidden>
+    <section class="card" id="my-collections">
+      <h2>Your collections</h2>
+      <p class="muted small" id="my-none" hidden>No collections yet.</p>
+      <div id="my-list"></div>
+      <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
+    </section>
+    <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+  </div>
+
+  <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
+  <div id="v-plans" hidden>
+    <section class="card" id="my-plans">
+      <h2>Your plans</h2>
+      <p class="muted small">Pick a plan on the main page, in the Plan menu. Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
+      <p class="muted small" id="plans-none" hidden>No plans yet. Press Plan a collection on the main page.</p>
+      <div id="plans-list"></div>
+    </section>
+    <button class="btn btn-secondary lt-back-main" id="plans-back" type="button">Back</button>
   </div>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=6"></script>
-<script src="collect.js?v=25"></script>
-<script src="map.js?v=8"></script>
-<script src="litter.js?v=6"></script>
+<script src="collect.js?v=26"></script>
+<script src="map.js?v=9"></script>
+<script src="litter.js?v=7"></script>
 </body>
 </html>

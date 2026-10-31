@@ -5,14 +5,17 @@
  *   the map: each stretch's cells, and where they'll turn around. Until they
  *   have as many collections as the break question waits for (10, a setting:
  *   enough to know their usual pace), Start needs a plan; after that, a plan
- *   is up to them. Start uses the plan saved last that hasn't started one.
+ *   is up to them. Start uses the plan picked on the main page, the one saved
+ *   last to begin with, and a plan can start any number of collections (Oct
+ *   31, field first). A plan can have a name, and can be deleted: its row
+ *   stays, marked Deleted, so the collections that used it keep their record.
  * - A collection that started from a plan earns XP when it ends, if at least
  *   one of its stretches was weighed: 1 to start, a setting.
  * - A plan never changes a stretch: the stretches come from where the person
  *   actually went, as with a recorder's GPX file (Q228).
  */
 
-var PLAN_COL = { id: 1, account: 2, created: 3, stretches: 4, cells: 5, turns: 6, miles: 7, collection: 8, updated: 9 };
+var PLAN_COL = { id: 1, account: 2, created: 3, stretches: 4, cells: 5, turns: 6, miles: 7, collection: 8, updated: 9, name: 10, deleted: 11 };
 var SETTING_PLAN_XP = 'XP for each planned collection';
 // XP for each stretch (S3-P27, Q401, Q402, M409, Q424): its visual rating,
 // by how close it is to the Litter Index, with a bonus as the Litter Index
@@ -27,8 +30,8 @@ var PLAN_REPLACED = 'Replaced';
 /* ── Called from the page ── */
 
 // Saves a plan: its stretches, each with its cells in order and its
-// turnarounds, and their miles as the phone measured them. A newer plan
-// replaces one that hasn't started a collection yet.
+// turnarounds, and their miles as the phone measured them, and its name.
+// The plans saved before stay, to be picked again (Oct 31).
 function planSave_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
@@ -40,14 +43,10 @@ function planSave_(req) {
     return { cells: cells, turns: turns, miles: milesValue_(Number(s && s.miles) || 0) };
   }).filter(function (s) { return s.cells.length; });
   if (!list.length) throw new Error('A plan needs at least one cell: tap the cells you mean to cover.');
+  var name = clean_(p.name, 60);
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.plans.name);
     var now = new Date();
-    readRows_(TABS.plans).forEach(function (r) {
-      if (r.get('account') === account.id && !r.get('collection')) {
-        sheet.getRange(r.row, PLAN_COL.collection, 1, 2).setValues([[PLAN_REPLACED, now]]);
-      }
-    });
     var id = nextId_('P', readRows_(TABS.plans).map(function (r) { return r.values[0]; }));
     var miles = list.reduce(function (t, s) { return t + s.miles; }, 0);
     var row = blankRow_(TABS.plans);
@@ -59,8 +58,28 @@ function planSave_(req) {
     row[PLAN_COL.turns - 1] = list.map(function (s) { return s.turns.join(' '); }).join(' / ');
     row[PLAN_COL.miles - 1] = round_(miles, 2);
     row[PLAN_COL.updated - 1] = now;
+    row[PLAN_COL.name - 1] = safeCell_(name);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-    return { plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id) };
+    return { plan: planView_(planById_(id)), planNeeded: planNeeded_(account.id), plans: myPlans_(account.id) };
+  });
+}
+
+// Deletes one of your plans (Oct 31, field first): it leaves your plans and
+// the Plan menu; its row stays in the Plans tab, marked Deleted, so the
+// collections and segments that used it keep their record.
+function planDelete_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  var id = clean_(req.planId, 20);
+  return withLock_(function () {
+    var r = readRows_(TABS.plans).filter(function (q) { return q.get('id') === id; })[0];
+    if (!r || r.get('account') !== account.id) throw new Error('That plan isn\'t yours, or isn\'t here any more.');
+    if (!r.get('deleted')) {
+      var now = new Date();
+      getDb_().getSheetByName(TABS.plans.name).getRange(r.row, PLAN_COL.updated).setValue(now);
+      getDb_().getSheetByName(TABS.plans.name).getRange(r.row, PLAN_COL.deleted).setValue(now);
+    }
+    return { plans: myPlans_(account.id), plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id) };
   });
 }
 
@@ -79,19 +98,30 @@ function planOf_(r) {
     stretches: cells.map(function (c, i) {
       return { cells: c.split(/\s+/).filter(isCell), turns: String(turns[i] || '').split(/\s+/).filter(isCell) };
     }).filter(function (s) { return s.cells.length; }),
-    miles: Number(r.get('miles')) || 0, collection: r.get('collection')
+    miles: Number(r.get('miles')) || 0, collection: r.get('collection'), name: r.get('name'), deleted: !!r.get('deleted')
   };
 }
 
 function planView_(p) {
   if (!p) return null;
-  return { id: p.id, created: p.created, stretches: p.stretches, miles: p.miles };
+  return { id: p.id, created: p.created, stretches: p.stretches, miles: p.miles, name: p.name };
 }
 
-// The plan saved last that hasn't started a collection, or null.
+// The plan Start picks to begin with: the one saved last that isn't deleted,
+// or null.
 function openPlan_(accountId) {
-  var r = readRows_(TABS.plans).filter(function (q) { return q.get('account') === accountId && !q.get('collection'); }).pop();
+  var r = readRows_(TABS.plans).filter(function (q) { return q.get('account') === accountId && !q.get('deleted'); }).pop();
   return r ? planOf_(r) : null;
+}
+
+// The plan a new collection starts from (Oct 31): the one picked on the main
+// page, 'none' for no plan, or, when the page doesn't say, the one saved last.
+function pickPlan_(accountId, planId) {
+  if (planId === 'none') return null;
+  if (planId == null || planId === '') return openPlan_(accountId);
+  var p = planById_(clean_(planId, 20));
+  if (!p || p.account !== accountId || p.deleted) throw coded_('plan-gone', 'That plan isn\'t yours, or was deleted. Pick another in the Plan menu.');
+  return p;
 }
 
 function planById_(id) {
