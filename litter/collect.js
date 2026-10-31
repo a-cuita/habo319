@@ -47,6 +47,9 @@ window.LitterCollect = function (app) {
 
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
+  // Head Builder mode draws in its own colours, from the Settings tab (S5-U2 round 3, Q528).
+  function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
+  function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
   function save() { keep(KEY, c); }
   function setTypes(list) {
     if (!list || !list.length) return;
@@ -494,7 +497,7 @@ window.LitterCollect = function (app) {
     (s && s.ways || []).forEach(function (w) {
       var pts = [];
       for (var k = 1; k + 1 < w.length; k += 2) pts.push([w[k], w[k + 1]]);
-      L.polyline(pts, { color: '#555', weight: 3, opacity: 0.7, interactive: false }).addTo(layers.streets);
+      L.polyline(pts, { color: darkColours() ? darkColours().streets : '#555', weight: 3, opacity: 0.7, interactive: false }).addTo(layers.streets);
     });
   }
 
@@ -523,11 +526,12 @@ window.LitterCollect = function (app) {
   function drawPlan(plan) {
     if (!map) return;
     layers.plan.clearLayers();
+    var colour = darkColours() ? darkColours().plan : '#7c3aed';
     (plan && plan.stretches || []).forEach(function (s) {
       (s.cells || []).filter(isCell).forEach(function (cell) {
-        L.rectangle(G.cellBounds(cell), { color: '#7c3aed', weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
+        L.rectangle(G.cellBounds(cell), { color: colour, weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
       });
-      (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, '#7c3aed').addTo(layers.plan); });
+      (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
     });
   }
   function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
@@ -558,8 +562,9 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.sim.clearLayers();
     if (!(c && c.sim && c.line && c.line.length)) return;
-    L.polyline(c.line, { color: '#15803d', weight: 4, interactive: false }).addTo(layers.sim);
-    L.circleMarker(c.line[c.line.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#15803d', fillOpacity: 1, interactive: false }).addTo(layers.sim);
+    var colour = darkColours() ? darkColours().sim : '#15803d';
+    L.polyline(c.line, { color: colour, weight: 4, interactive: false }).addTo(layers.sim);
+    L.circleMarker(c.line[c.line.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: colour, fillOpacity: 1, interactive: false }).addTo(layers.sim);
   }
 
   // On the summary, the line stands in for the GPX track (Q499): its points
@@ -1101,7 +1106,7 @@ window.LitterCollect = function (app) {
     var b = L.latLngBounds([]);
     summary.stretches.forEach(function (s) {
       if (s.discarded) return;
-      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, settings.colours);
+      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, scale());
       s.cells.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.7 });
         r.bindPopup('Weighing ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
@@ -1114,7 +1119,7 @@ window.LitterCollect = function (app) {
     });
     // Your recorder's track, where you walked, over the cells (S3-P27, M465).
     if (summary.track && summary.track.length > 1) {
-      drawTrack(summary.track, layers.cells, settings.pausedColour);
+      drawTrack(summary.track, layers.cells, darkColours() ? darkColours().paused : settings.pausedColour);
       summary.track.forEach(function (p) { b.extend(p); });
     }
     setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
@@ -1599,9 +1604,10 @@ window.LitterCollect = function (app) {
   }
   // A track, the paused parts faded in their own colour, solid (S5-P1, Q507).
   function drawTrack(track, layer, paused) {
+    var line = darkColours() ? darkColours().track : '#111827';
     G.trackRuns(track).forEach(function (run) {
       L.polyline(run.pts, run.paused ? { color: paused || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
-        : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+        : { color: line, weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
     });
   }
   function keptTrack(col) { return col && col.track && col.track.length > 1 ? col.track : null; }
@@ -1812,7 +1818,7 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
-  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;

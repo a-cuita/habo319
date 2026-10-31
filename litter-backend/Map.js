@@ -27,6 +27,19 @@ var SETTING_PAUSED_COLOUR = 'Paused track colour';
 var DEFAULT_PAUSED_COLOUR = '#9ca3af';
 // MoCiSN's index colours (Coalition Builder, M127): blue, sand, brown.
 var MOCISN_COLOURS = ['#2c7bb6', '#f6e8c3', '#8c510a'];
+// Head Builder mode's own colours (S5-U2 round 3, Q528): the page goes dark
+// while the Simulated walk switch is on, so the map's lines and the Litter
+// Index scale have lighter versions, each a row in the Settings tab.
+var DARK_SETTINGS = [
+  ['track', 'Head Builder mode: track colour', '#f3f4f6'],
+  ['paused', 'Head Builder mode: paused track colour', '#9ca3af'],
+  ['sim', 'Head Builder mode: simulated walk colour', '#4ade80'],
+  ['plan', 'Head Builder mode: plan colour', '#c4b5fd'],
+  ['streets', 'Head Builder mode: streets colour', '#d1d5db'],
+  ['colour0', 'Head Builder mode: map colour at 0', '#5aa9e6'],
+  ['colour5', 'Head Builder mode: map colour at 5', '#f6e8c3'],
+  ['colour10', 'Head Builder mode: map colour at 10', '#e08f3c']
+];
 
 /* ── Called from the page ── */
 
@@ -57,7 +70,7 @@ function mapLoad_() {
     var x = latest[cell];
     return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
   });
-  return { colours: mapColours_(), pausedColour: pausedColour_(), cells: cells };
+  return { colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), cells: cells };
 }
 
 // This account's collections, newest first, each with its stretches.
@@ -80,7 +93,7 @@ function myCollections_(req) {
       return col;
     })
     .sort(function (a, b) { return b.started - a.started; });
-  return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), editHours: editHours };
+  return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours };
 }
 
 /* ── The colours ── */
@@ -96,6 +109,16 @@ function mapColours_() {
 function pausedColour_() {
   var v = String(getSetting_(SETTING_PAUSED_COLOUR) || '').trim().toLowerCase();
   return /^#[0-9a-f]{6}$/.test(v) ? v : DEFAULT_PAUSED_COLOUR;
+}
+// Head Builder mode's colours, each its default where the setting is blank
+// or isn't a colour.
+function darkColours_() {
+  var c = {};
+  DARK_SETTINGS.forEach(function (s) {
+    var v = String(getSetting_(s[1]) || '').trim().toLowerCase();
+    c[s[0]] = /^#[0-9a-f]{6}$/.test(v) ? v : s[2];
+  });
+  return { track: c.track, paused: c.paused, sim: c.sim, plan: c.plan, streets: c.streets, colours: [c.colour0, c.colour5, c.colour10] };
 }
 
 /* ── The usual pace (item 7) ── */

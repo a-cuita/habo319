@@ -14,8 +14,11 @@ window.LitterMap = function (app) {
   var HOME_CELL = '357940_-805900';   // downtown Montgomery
   var SHOW_FIRST = 10;              // collections listed before "Show all"
   var map = null, layer = null, back = null;
-  var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'];
+  var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'], dark = null;
   var mine = null, showAll = false;
+  // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
+  function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
+  function scale() { var k = darkColours(); return k ? k.colours : colours; }
 
   function round(n, p) { var f = Math.pow(10, p); return Math.round(n * f) / f; }
   function day(ymd) {
@@ -34,7 +37,7 @@ window.LitterMap = function (app) {
   function legend(box) {
     box.textContent = '';
     var bar = el('div', 'lt-legend-bar');
-    bar.style.background = 'linear-gradient(to right, ' + colours.join(', ') + ')';
+    bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
     ['0 · clean', '5', '10 or more · heavy'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
@@ -62,6 +65,7 @@ window.LitterMap = function (app) {
     setTimeout(function () { map.invalidateSize(); }, 0);
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
+      dark = d.dark || dark;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       draw((d.cells || []).concat(opts.own || []));
@@ -69,9 +73,10 @@ window.LitterMap = function (app) {
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
       if (opts.track && opts.track.length > 1) {
+        var k = darkColours();
         G.trackRuns(opts.track).forEach(function (run) {
-          L.polyline(run.pts, run.paused ? { color: d.pausedColour || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
-            : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+          L.polyline(run.pts, run.paused ? { color: (k ? k.paused : d.pausedColour) || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
+            : { color: k ? k.track : '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
         });
         map.fitBounds(L.latLngBounds(opts.track), { maxZoom: 17, padding: [16, 16] });
       }
@@ -83,7 +88,7 @@ window.LitterMap = function (app) {
   function draw(cells) {
     layer.clearLayers();
     cells.forEach(function (x) {
-      var c = G.indexColour(x[1], colours);
+      var c = G.indexColour(x[1], scale());
       var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7 });
       r.bindPopup(function () {
         var box = el('div', 'lt-pop');
@@ -111,6 +116,7 @@ window.LitterMap = function (app) {
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
       colours = d.colours || colours;
+      dark = d.dark || dark;
       box.hidden = !d.collections.length;
       drawMine();
     }, function (err) {
@@ -139,7 +145,7 @@ window.LitterMap = function (app) {
     c.stretchList.forEach(function (s) {
       var li = el('li');
       var sw = el('span', 'lt-swatch' + (s.index == null ? ' none' : ''));
-      if (s.index != null) sw.style.background = G.indexColour(s.index, colours);
+      if (s.index != null) sw.style.background = G.indexColour(s.index, scale());
       li.appendChild(sw);
       li.appendChild(document.createTextNode('Weighing ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
         (s.rating == null ? '' : ' · Visual rating ' + s.rating)));

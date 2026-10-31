@@ -273,6 +273,31 @@ body.lt-has-bar { padding-bottom: 100px; }
 .lt-scrim-saying:empty { display: none; }
 .lt-spinner { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; border: 4px solid var(--surface-2); border-top-color: var(--primary); animation: lt-spin 0.9s linear infinite; }
 @keyframes lt-spin { to { transform: rotate(360deg); } }
+
+/* Head Builder mode (S5-U2 round 3, M563, Q528): while a Head Builder's
+   Simulated walk switch is on, the whole page is dark, the map too, so it's
+   never mistaken for Player mode. The map's lines and the Litter Index scale
+   take their Head Builder mode colours from the Settings tab. */
+html.lt-builder {
+  color-scheme: dark;
+  --bg: #0f1115; --surface: #1b1e24; --surface-2: #252931;
+  --border: #3a3f48; --border-hi: #4b515c;
+  --primary: #8ab4ff; --primary-dim: #1d2b48;
+  --accent: #6fd486; --accent-dim: #183622;
+  --danger: #f87171;
+  --text: #ececf1; --text-dim: #a4a4ad; --text-label: #8f8f99;
+}
+html.lt-builder .btn-primary, html.lt-builder .btn-accent, html.lt-builder .lt-danger { color: #0b0f17; }
+html.lt-builder .lt-sun, html.lt-builder .lt-col-hidden, html.lt-builder .lt-odd, html.lt-builder .lt-plan-line.need { background: #3a2a06; color: #fde68a; border-color: #b45309; }
+html.lt-builder .lt-odd-q { color: #fde68a; }
+html.lt-builder .lt-swatch.none { background: repeating-linear-gradient(45deg, #4b515c, #4b515c 3px, #252931 3px, #252931 6px); }
+html.lt-builder .btn.on { outline-color: #c4b5fd; }
+html.lt-builder .leaflet-container { background: #1b1e24; }
+html.lt-builder .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+html.lt-builder .leaflet-bar a, html.lt-builder .leaflet-bar a:hover { background: var(--surface-2); color: var(--text); border-bottom-color: var(--border); }
+html.lt-builder .leaflet-control-attribution { background: rgba(15, 17, 21, 0.75); color: var(--text-dim); }
+html.lt-builder .leaflet-control-attribution a { color: var(--primary); }
+html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-tip { background: var(--surface); color: var(--text); }
 </style>
 </head>
 <body>
@@ -1186,6 +1211,9 @@ window.LitterCollect = function (app) {
 
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
+  // Head Builder mode draws in its own colours, from the Settings tab (S5-U2 round 3, Q528).
+  function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
+  function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
   function save() { keep(KEY, c); }
   function setTypes(list) {
     if (!list || !list.length) return;
@@ -1633,7 +1661,7 @@ window.LitterCollect = function (app) {
     (s && s.ways || []).forEach(function (w) {
       var pts = [];
       for (var k = 1; k + 1 < w.length; k += 2) pts.push([w[k], w[k + 1]]);
-      L.polyline(pts, { color: '#555', weight: 3, opacity: 0.7, interactive: false }).addTo(layers.streets);
+      L.polyline(pts, { color: darkColours() ? darkColours().streets : '#555', weight: 3, opacity: 0.7, interactive: false }).addTo(layers.streets);
     });
   }
 
@@ -1662,11 +1690,12 @@ window.LitterCollect = function (app) {
   function drawPlan(plan) {
     if (!map) return;
     layers.plan.clearLayers();
+    var colour = darkColours() ? darkColours().plan : '#7c3aed';
     (plan && plan.stretches || []).forEach(function (s) {
       (s.cells || []).filter(isCell).forEach(function (cell) {
-        L.rectangle(G.cellBounds(cell), { color: '#7c3aed', weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
+        L.rectangle(G.cellBounds(cell), { color: colour, weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
       });
-      (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, '#7c3aed').addTo(layers.plan); });
+      (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
     });
   }
   function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
@@ -1697,8 +1726,9 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.sim.clearLayers();
     if (!(c && c.sim && c.line && c.line.length)) return;
-    L.polyline(c.line, { color: '#15803d', weight: 4, interactive: false }).addTo(layers.sim);
-    L.circleMarker(c.line[c.line.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: '#15803d', fillOpacity: 1, interactive: false }).addTo(layers.sim);
+    var colour = darkColours() ? darkColours().sim : '#15803d';
+    L.polyline(c.line, { color: colour, weight: 4, interactive: false }).addTo(layers.sim);
+    L.circleMarker(c.line[c.line.length - 1], { radius: 6, color: '#fff', weight: 2, fillColor: colour, fillOpacity: 1, interactive: false }).addTo(layers.sim);
   }
 
   // On the summary, the line stands in for the GPX track (Q499): its points
@@ -2240,7 +2270,7 @@ window.LitterCollect = function (app) {
     var b = L.latLngBounds([]);
     summary.stretches.forEach(function (s) {
       if (s.discarded) return;
-      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, settings.colours);
+      var colour = s.index == null ? '#9ca3af' : G.indexColour(s.index, scale());
       s.cells.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: colour, weight: 1, fillColor: colour, fillOpacity: 0.7 });
         r.bindPopup('Weighing ' + s.n + ': ' + (s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)));
@@ -2253,7 +2283,7 @@ window.LitterCollect = function (app) {
     });
     // Your recorder's track, where you walked, over the cells (S3-P27, M465).
     if (summary.track && summary.track.length > 1) {
-      drawTrack(summary.track, layers.cells, settings.pausedColour);
+      drawTrack(summary.track, layers.cells, darkColours() ? darkColours().paused : settings.pausedColour);
       summary.track.forEach(function (p) { b.extend(p); });
     }
     setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
@@ -2738,9 +2768,10 @@ window.LitterCollect = function (app) {
   }
   // A track, the paused parts faded in their own colour, solid (S5-P1, Q507).
   function drawTrack(track, layer, paused) {
+    var line = darkColours() ? darkColours().track : '#111827';
     G.trackRuns(track).forEach(function (run) {
       L.polyline(run.pts, run.paused ? { color: paused || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
-        : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+        : { color: line, weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
     });
   }
   function keptTrack(col) { return col && col.track && col.track.length > 1 ? col.track : null; }
@@ -2951,7 +2982,7 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
-  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;
@@ -3005,8 +3036,11 @@ window.LitterMap = function (app) {
   var HOME_CELL = '357940_-805900';   // downtown Montgomery
   var SHOW_FIRST = 10;              // collections listed before "Show all"
   var map = null, layer = null, back = null;
-  var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'];
+  var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'], dark = null;
   var mine = null, showAll = false;
+  // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
+  function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
+  function scale() { var k = darkColours(); return k ? k.colours : colours; }
 
   function round(n, p) { var f = Math.pow(10, p); return Math.round(n * f) / f; }
   function day(ymd) {
@@ -3025,7 +3059,7 @@ window.LitterMap = function (app) {
   function legend(box) {
     box.textContent = '';
     var bar = el('div', 'lt-legend-bar');
-    bar.style.background = 'linear-gradient(to right, ' + colours.join(', ') + ')';
+    bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
     ['0 · clean', '5', '10 or more · heavy'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
@@ -3053,6 +3087,7 @@ window.LitterMap = function (app) {
     setTimeout(function () { map.invalidateSize(); }, 0);
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
+      dark = d.dark || dark;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       draw((d.cells || []).concat(opts.own || []));
@@ -3060,9 +3095,10 @@ window.LitterMap = function (app) {
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
       if (opts.track && opts.track.length > 1) {
+        var k = darkColours();
         G.trackRuns(opts.track).forEach(function (run) {
-          L.polyline(run.pts, run.paused ? { color: d.pausedColour || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
-            : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+          L.polyline(run.pts, run.paused ? { color: (k ? k.paused : d.pausedColour) || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
+            : { color: k ? k.track : '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
         });
         map.fitBounds(L.latLngBounds(opts.track), { maxZoom: 17, padding: [16, 16] });
       }
@@ -3074,7 +3110,7 @@ window.LitterMap = function (app) {
   function draw(cells) {
     layer.clearLayers();
     cells.forEach(function (x) {
-      var c = G.indexColour(x[1], colours);
+      var c = G.indexColour(x[1], scale());
       var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7 });
       r.bindPopup(function () {
         var box = el('div', 'lt-pop');
@@ -3102,6 +3138,7 @@ window.LitterMap = function (app) {
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
       colours = d.colours || colours;
+      dark = d.dark || dark;
       box.hidden = !d.collections.length;
       drawMine();
     }, function (err) {
@@ -3130,7 +3167,7 @@ window.LitterMap = function (app) {
     c.stretchList.forEach(function (s) {
       var li = el('li');
       var sw = el('span', 'lt-swatch' + (s.index == null ? ' none' : ''));
-      if (s.index != null) sw.style.background = G.indexColour(s.index, colours);
+      if (s.index != null) sw.style.background = G.indexColour(s.index, scale());
       li.appendChild(sw);
       li.appendChild(document.createTextNode('Weighing ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
         (s.rating == null ? '' : ' · Visual rating ' + s.rating)));
@@ -3239,11 +3276,22 @@ window.LitterMap = function (app) {
 
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    paintMode();
     window.scrollTo(0, 0);
     // A signature box can only be measured once it's showing.
     if (id === 'v-setup' && !sigs['su-sig']) setupSignature('su-sig', 'su-sig-clear');
     if (id === 'v-resign' && !sigs['rs-sig']) setupSignature('rs-sig', 'rs-sig-clear');
   }
+
+  // Head Builder mode (S5-U2 round 3, M563): a Head Builder's Simulated walk
+  // switch on, on this computer. The whole page goes dark while it's on, so
+  // it's never mistaken for Player mode.
+  var SIM_KEY = 'habo-litter-sim';
+  function builderMode() {
+    if (!state.account || state.account.rank !== 'Head Builder') return false;
+    try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
+  }
+  function paintMode() { document.documentElement.classList.toggle('lt-builder', builderMode()); }
 
   function notice(text) {
     $('notice').textContent = text || '';
@@ -3627,6 +3675,7 @@ window.LitterMap = function (app) {
   var collect = window.LitterCollect({
     $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
     me: function () { return state.account; },
+    builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
   });
@@ -3634,7 +3683,7 @@ window.LitterMap = function (app) {
   /* ── The map and your collections (S3-P22, map.js) ── */
 
   var mapper = window.LitterMap({
-    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },

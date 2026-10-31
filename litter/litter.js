@@ -67,11 +67,22 @@
 
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    paintMode();
     window.scrollTo(0, 0);
     // A signature box can only be measured once it's showing.
     if (id === 'v-setup' && !sigs['su-sig']) setupSignature('su-sig', 'su-sig-clear');
     if (id === 'v-resign' && !sigs['rs-sig']) setupSignature('rs-sig', 'rs-sig-clear');
   }
+
+  // Head Builder mode (S5-U2 round 3, M563): a Head Builder's Simulated walk
+  // switch on, on this computer. The whole page goes dark while it's on, so
+  // it's never mistaken for Player mode.
+  var SIM_KEY = 'habo-litter-sim';
+  function builderMode() {
+    if (!state.account || state.account.rank !== 'Head Builder') return false;
+    try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
+  }
+  function paintMode() { document.documentElement.classList.toggle('lt-builder', builderMode()); }
 
   function notice(text) {
     $('notice').textContent = text || '';
@@ -455,6 +466,7 @@
   var collect = window.LitterCollect({
     $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
     me: function () { return state.account; },
+    builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); }
   });
@@ -462,7 +474,7 @@
   /* ── The map and your collections (S3-P22, map.js) ── */
 
   var mapper = window.LitterMap({
-    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },

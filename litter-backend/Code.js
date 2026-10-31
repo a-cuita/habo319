@@ -440,7 +440,7 @@ function missingSettings_(ss) {
     [SETTING_RATING_BONUS, '5'],
     [SETTING_TYPES_XP, '1'],
     [SETTING_START_SAYINGS, '']
-  ].filter(function (s) { return have.indexOf(s[0]) === -1; });
+  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; })).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
 function ensureTab_(ss, tab) {

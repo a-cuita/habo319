@@ -126,3 +126,28 @@ body.lt-has-bar { padding-bottom: 100px; }
 .lt-scrim-saying:empty { display: none; }
 .lt-spinner { width: 40px; height: 40px; margin: 0 auto; border-radius: 50%; border: 4px solid var(--surface-2); border-top-color: var(--primary); animation: lt-spin 0.9s linear infinite; }
 @keyframes lt-spin { to { transform: rotate(360deg); } }
+
+/* Head Builder mode (S5-U2 round 3, M563, Q528): while a Head Builder's
+   Simulated walk switch is on, the whole page is dark, the map too, so it's
+   never mistaken for Player mode. The map's lines and the Litter Index scale
+   take their Head Builder mode colours from the Settings tab. */
+html.lt-builder {
+  color-scheme: dark;
+  --bg: #0f1115; --surface: #1b1e24; --surface-2: #252931;
+  --border: #3a3f48; --border-hi: #4b515c;
+  --primary: #8ab4ff; --primary-dim: #1d2b48;
+  --accent: #6fd486; --accent-dim: #183622;
+  --danger: #f87171;
+  --text: #ececf1; --text-dim: #a4a4ad; --text-label: #8f8f99;
+}
+html.lt-builder .btn-primary, html.lt-builder .btn-accent, html.lt-builder .lt-danger { color: #0b0f17; }
+html.lt-builder .lt-sun, html.lt-builder .lt-col-hidden, html.lt-builder .lt-odd, html.lt-builder .lt-plan-line.need { background: #3a2a06; color: #fde68a; border-color: #b45309; }
+html.lt-builder .lt-odd-q { color: #fde68a; }
+html.lt-builder .lt-swatch.none { background: repeating-linear-gradient(45deg, #4b515c, #4b515c 3px, #252931 3px, #252931 6px); }
+html.lt-builder .btn.on { outline-color: #c4b5fd; }
+html.lt-builder .leaflet-container { background: #1b1e24; }
+html.lt-builder .leaflet-tile-pane { filter: invert(1) hue-rotate(180deg) brightness(0.85) contrast(0.9); }
+html.lt-builder .leaflet-bar a, html.lt-builder .leaflet-bar a:hover { background: var(--surface-2); color: var(--text); border-bottom-color: var(--border); }
+html.lt-builder .leaflet-control-attribution { background: rgba(15, 17, 21, 0.75); color: var(--text-dim); }
+html.lt-builder .leaflet-control-attribution a { color: var(--primary); }
+html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-tip { background: var(--surface); color: var(--text); }
