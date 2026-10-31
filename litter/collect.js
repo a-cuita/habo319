@@ -1748,6 +1748,7 @@ window.LitterCollect = function (app) {
   function openPlan() {
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
     $('pl-name').value = '';
+    fillAdds();
     // The planning map is the collecting map: a simulated walk's line stays off it (C606).
     if (layers) layers.sim.clearLayers();
     $('cl-sim-note').hidden = true;
@@ -1770,6 +1771,45 @@ window.LitterCollect = function (app) {
         app.notice('The streets around you couldn\'t load just now; the plan fills in straight between your taps until they do.');
       });
     }).then(function () { drawPlanning(false); });
+  }
+
+  // Add a plan, Add a segment (Oct 31, field first): chain your plans and the
+  // accepted segments into the plan you're drawing; each adds its squares,
+  // the next tap carries on from its end, and Undo takes it back out.
+  var addLists = { plans: [], segs: [] };
+  function fillAdds() {
+    addLists = { plans: (account && account.plans || []).slice(), segs: segs().slice() };
+    var fill = function (id, first, list, label) {
+      var m = $(id);
+      m.textContent = '';
+      var o = document.createElement('option');
+      o.value = '';
+      o.textContent = first;
+      m.appendChild(o);
+      list.forEach(function (x, i) { var e = document.createElement('option'); e.value = String(i); e.textContent = label(x); m.appendChild(e); });
+      m.hidden = !list.length;
+      m.value = '';
+    };
+    fill('pl-add-plan', 'Add a plan…', addLists.plans, function (p) { return app.planLabel(p) + ' · ' + round(p.miles, 2) + ' mi'; });
+    fill('pl-add-seg', 'Add a segment…', addLists.segs, function (g) { return g.name + ' · ' + round(g.miles, 2) + ' mi'; });
+    $('pl-adds').hidden = !addLists.plans.length && !addLists.segs.length;
+  }
+  function planAdd(cells) {
+    if (!planning) return;
+    var st = planning.stretches[0];
+    cells = (cells || []).filter(isCell);
+    var added = cells.filter(function (x, i) { return st.cells.indexOf(x) === -1 && cells.indexOf(x) === i; });
+    if (!added.length) { app.notice('Those squares are already in your plan.'); return; }
+    planning.history.push({ added: added, from: st.from });
+    st.cells = st.cells.concat(added);
+    st.from = cells[cells.length - 1];
+    app.notice('');
+    drawPlanning(false);
+    if (map) {
+      var b = L.latLngBounds([]);
+      st.cells.forEach(function (x) { b.extend(G.cellBounds(x)); });
+      map.fitBounds(b, { maxZoom: 17, padding: [16, 16] });
+    }
   }
 
   function planTap(cell) {
@@ -1886,6 +1926,16 @@ window.LitterCollect = function (app) {
   $('cd-no').addEventListener('click', closeDiscard);
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
   $('pl-undo').addEventListener('click', planUndo);
+  $('pl-add-plan').addEventListener('change', function () {
+    var p = addLists.plans[Number(this.value)];
+    this.value = '';
+    if (p) planAdd(p.cells);
+  });
+  $('pl-add-seg').addEventListener('change', function () {
+    var g = addLists.segs[Number(this.value)];
+    this.value = '';
+    if (g) planAdd(g.squares);
+  });
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
   $('pl-cancel').addEventListener('click', function () { planning = null; app.showAccount(); });
   $('cl-pulse-btn').addEventListener('click', openChooser);

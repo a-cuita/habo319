@@ -175,5 +175,6 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-plan-pick select { width: 100%; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); color: var(--text); }
 .lt-plan-name { margin-bottom: 10px; }
 #cl-litter-map-slot { margin-top: 12px; }
+.lt-plan-adds select { width: 100%; padding: 12px; margin-top: 8px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); color: var(--text); }
 #cl-litter-map-slot .lt-map { height: 45vh; min-height: 260px; }
 .lt-back-main { margin-top: 4px; }

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=15">
+<link rel="stylesheet" href="litter.css?v=16">
 </head>
 <body>
 
@@ -271,6 +271,11 @@
       <p class="muted small">Tap the cells you mean to cover. The app fills in along the street from the cell you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
       <div class="lt-plan-line need" id="pl-segments" hidden></div>
+      <!-- Chain plans and segments into this one (Oct 31, field first): each adds its squares, as Add the whole segment does. -->
+      <div class="lt-plan-adds" id="pl-adds" hidden>
+        <select id="pl-add-plan" aria-label="Add a plan"></select>
+        <select id="pl-add-seg" aria-label="Add a segment"></select>
+      </div>
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="pl-map-box"></div>
@@ -521,7 +526,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=6"></script>
-<script src="collect.js?v=26"></script>
+<script src="collect.js?v=27"></script>
 <script src="map.js?v=9"></script>
 <script src="litter.js?v=7"></script>
 </body>
