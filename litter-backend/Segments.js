@@ -62,6 +62,8 @@ function segmentPropose_(req) {
   var plan = planById_(clean_(req.planId, 20));
   if (!plan || plan.account !== account.id) throw new Error('That plan isn\'t yours, or isn\'t here any more.');
   var name = clean_(req.name, 80) || 'From plan ' + plan.id;
+  // Path or Field, asked when proposing (Oct 31, field first); HABO's staff can change it in the Sheet.
+  var kind = /^\s*f/i.test(String(req.kind || '')) ? 'Field' : 'Path';
   return withLock_(function () {
     var had = segmentsAll_().filter(function (s) { return s.plan === plan.id; })[0];
     if (had) throw new Error('That plan is already proposed, as ' + had.id + '.');
@@ -77,10 +79,31 @@ function segmentPropose_(req) {
     row[SEGMENT_COL.plan - 1] = plan.id;
     row[SEGMENT_COL.squares - 1] = squares.join(' ');
     row[SEGMENT_COL.miles - 1] = round_(plan.miles, 2);
-    row[SEGMENT_COL.kind - 1] = 'Path';
+    row[SEGMENT_COL.kind - 1] = kind;
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-    logChange_(account.email, 'Segment', id, 'Proposed', '', name + ' (from ' + plan.id + ')');
+    logChange_(account.email, 'Segment', id, 'Proposed', '', name + ' (from ' + plan.id + ', ' + kind + ')');
     return { plans: myPlans_(account.id) };
+  });
+}
+
+// Measure again (Oct 31, field first): a saved walk's segment rates worked
+// out again, with the Settings and each segment's Kind as they are now. Each
+// segment it gives a rate replaces that segment's row for this walk.
+function measureAgain_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  var id = clean_(req.collectionId, 20);
+  return withLock_(function () {
+    var col = readCollection_(id);
+    if (!col || col.account !== account.id) throw new Error('That collection isn\'t yours, or isn\'t here any more.');
+    if (col.status === 'Collecting' || col.status === COLLECTION_DISCARDED) throw new Error('Only an ended collection can be measured again.');
+    if (!(col.track && col.track.length > 1)) throw new Error('Its GPX track isn\'t saved, and a rate is measured from it.');
+    var made = measureRates_(col.id);
+    var names = {};
+    segmentsAll_().forEach(function (g) { names[g.id] = g.name; });
+    logChange_(account.email, 'Segment rates', col.id, 'Measured again', '', made.map(function (m) { return m.segment + ' ' + m.rate; }).join(', ') || 'none');
+    return { measured: made.map(function (m) { return { segment: m.segment, name: names[m.segment] || m.segment, rate: m.rate }; }),
+      segments: segmentSummaries_(false), simSegments: segmentSummaries_(true) };
   });
 }
 

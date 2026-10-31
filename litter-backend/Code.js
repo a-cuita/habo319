@@ -152,6 +152,7 @@ function actions_() {
     planSave: planSave_,
     planDelete: planDelete_,
     segmentPropose: segmentPropose_,
+    measureAgain: measureAgain_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_

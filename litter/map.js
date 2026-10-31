@@ -282,6 +282,24 @@ window.LitterMap = function (app) {
       m.addEventListener('click', function () { open({ focus: cells, back: app.showCollections, track: c.track, own: own }); });
       row.appendChild(m);
     }
+    // Measure again (Oct 31, field first): its segment rates worked out again,
+    // with the Settings and each segment's Kind as they are now.
+    if (c.track && c.track.length > 1) {
+      var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
+      ma.type = 'button';
+      ma.addEventListener('click', function () {
+        ma.disabled = true;
+        app.api('measureAgain', { token: app.myToken(), collectionId: c.id }).then(function (d) {
+          ma.disabled = false;
+          realSegs = d.segments || realSegs;
+          simSegs = d.simSegments || simSegs;
+          drawSegments();
+          app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb per mile per day.'
+            : 'Measured again: no segment rate from this walk.');
+        }, function (err) { ma.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+      });
+      row.appendChild(ma);
+    }
     if (c.editable) {
       var f = el('button', 'btn btn-secondary lt-col-fix', 'Fix it (until ' + when(c.editableUntil) + ')');
       f.type = 'button';
@@ -316,14 +334,31 @@ window.LitterMap = function (app) {
       if (!p.segment) {
         var g = el('button', 'btn btn-secondary lt-plan-propose', 'Propose as a segment');
         g.type = 'button';
+        // Its name, and Path or Field (Oct 31, field first).
         g.addEventListener('click', function () {
-          var name = window.prompt('Name this segment, like the street it runs along:', '');
-          if (name == null) return;
-          g.disabled = true;
-          app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: name }).then(function (d) {
-            drawPlans(d.plans);
-            app.notice('Proposed. Once HABO\'s staff accept it, anyone can collect it again and its accumulation rate builds.');
-          }, function (err) { g.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+          g.hidden = true;
+          var f = el('div', 'lt-propose');
+          var n1 = el('div', 'ig'), l1 = el('label', null, 'Segment name'), inp = el('input', 'lt-propose-name');
+          inp.id = 'pp-name-' + p.id; l1.htmlFor = inp.id; inp.maxLength = 80; inp.placeholder = 'Like the street it runs along'; inp.value = p.name || '';
+          n1.appendChild(l1); n1.appendChild(inp); f.appendChild(n1);
+          var n2 = el('div', 'ig'), l2 = el('label', null, 'Kind'), sel = el('select', 'lt-propose-kind');
+          sel.id = 'pp-kind-' + p.id; l2.htmlFor = sel.id;
+          ['Path', 'Field'].forEach(function (k) { var o = el('option', null, k); o.value = k; sel.appendChild(o); });
+          n2.appendChild(l2); n2.appendChild(sel); f.appendChild(n2);
+          f.appendChild(el('p', 'muted small', 'Path: a street, sidewalk or trail. Field: open ground, like a lawn or a park.'));
+          var go = el('button', 'btn btn-primary lt-propose-go', 'Propose'), no = el('button', 'btn btn-secondary lt-propose-cancel', 'Cancel');
+          go.type = 'button'; no.type = 'button';
+          no.addEventListener('click', function () { f.parentNode.removeChild(f); g.hidden = false; });
+          go.addEventListener('click', function () {
+            go.disabled = true;
+            app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: inp.value, kind: sel.value }).then(function (d) {
+              drawPlans(d.plans);
+              app.notice('Proposed. Once HABO\'s staff accept it, anyone can collect it again and its accumulation rate builds.');
+            }, function (err) { go.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+          });
+          f.appendChild(go); f.appendChild(no);
+          box.appendChild(f);
+          inp.focus();
         });
         row.appendChild(g);
       }
@@ -355,7 +390,8 @@ window.LitterMap = function (app) {
     all.forEach(function (g) {
       var box = el('div', 'lt-plan-item lt-seg-item' + (g.partly ? ' partly' : g.due ? ' due' : ''));
       box.id = 'seg-' + g.id;
-      box.appendChild(el('p', 'lt-col-head', g.name + (g.kind === 'Field' ? ' (field)' : '') + ' · ' + round(g.miles, 2) + ' mi'));
+      // Its kind, Path or Field (Oct 31, field first).
+      box.appendChild(el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi'));
       box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
       if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
