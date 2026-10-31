@@ -2043,6 +2043,9 @@ window.LitterCollect = function (app) {
 
   function toTimeInput(ms) { var d = new Date(ms); return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2); }
   function fromTimeInput(v, near) {
+    // Left as shown, it's the moment pressed, seconds and all: cut to the
+    // minute, a walk's last minute of track was lost (S5-P1, C605).
+    if (v === toTimeInput(near)) return near;
     var m = /^(\d{2}):(\d{2})$/.exec(v || '');
     if (!m) return near;
     var d = new Date(near);
@@ -2807,6 +2810,9 @@ window.LitterCollect = function (app) {
   // Undo takes back the last tap.
   function openPlan() {
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
+    // The planning map is the collecting map: a simulated walk's line stays off it (C606).
+    if (layers) layers.sim.clearLayers();
+    $('cl-sim-note').hidden = true;
     app.notice('');
     app.show('v-plan');
     $('pl-err').textContent = '';
