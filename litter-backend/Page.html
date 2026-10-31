@@ -306,6 +306,9 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-plan-item:first-child { border-top: 0; padding-top: 0; }
 .lt-plan-seg { font-weight: 700; color: var(--accent); }
 #pl-segments .btn { margin-top: 6px; }
+.lt-seg-item.partly { border-left: 4px solid #f59e0b; padding-left: 10px; }
+.lt-seg-item.due { border-left: 4px solid var(--accent); padding-left: 10px; }
+.lt-pop-part { font-weight: 600; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -771,6 +774,13 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       <div id="plans-list"></div>
     </section>
 
+    <!-- Segments (S5-P3, Q530): the accepted ones, partly cleaned first. -->
+    <section class="card" id="my-segments" hidden>
+      <h2>Segments</h2>
+      <p class="muted small">Accepted segments anyone can collect again. Partly cleaned ones come first: help finish them.</p>
+      <div id="segments-list"></div>
+    </section>
+
     <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
   </div>
 </main>
@@ -1234,7 +1244,9 @@ window.LitterCollect = function (app) {
   // Head Builder mode draws in its own colours, from the Settings tab (S5-U2 round 3, Q528).
   // Accepted segments (S5-P3), from the last load: for the plan alert and
   // the weigh prompts.
-  var segments = [];
+  // In Head Builder mode, the simulated world's (Q529).
+  var segments = [], simSegments = [];
+  function segs() { return app.builderMode && app.builderMode() ? simSegments : segments; }
   function nearSquare(list, cell) {
     var p = String(cell).split('_'), r = Number(p[0]), k = Number(p[1]);
     for (var dr = -1; dr <= 1; dr++) for (var dk = -1; dk <= 1; dk++) if (list.indexOf((r + dr) + '_' + (k + dk)) !== -1) return true;
@@ -1360,10 +1372,10 @@ window.LitterCollect = function (app) {
   // Weigh as you step onto a due segment and as you step off it, so its
   // pounds are its own (S5-P3, Q524).
   function segmentPrompt(pos) {
-    if (!c || c.ended || !segments.length) return;
+    if (!c || c.ended || !segs().length) return;
     var cell = G.cellAt(pos.lat, pos.lon);
-    var on = segments.filter(function (s) { return s.due && nearSquare(s.squares, cell); })[0];
-    var was = c.onSegment ? segments.filter(function (s) { return s.id === c.onSegment; })[0] : null;
+    var on = segs().filter(function (s) { return s.due && nearSquare(s.squares, cell); })[0];
+    var was = c.onSegment ? segs().filter(function (s) { return s.id === c.onSegment; })[0] : null;
     if (on && (!was || was.id !== on.id)) {
       c.onSegment = on.id;
       app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
@@ -1416,7 +1428,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
-      settings = d.settings || settings; segments = d.segments || segments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
@@ -1598,7 +1610,7 @@ window.LitterCollect = function (app) {
     }
     return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
       recordingAt = null;
-      settings = d.settings || settings; segments = d.segments || segments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
@@ -1659,7 +1671,7 @@ window.LitterCollect = function (app) {
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
     return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
-      settings = d.settings || settings; segments = d.segments || segments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       if (!d.types || !d.types.length) return;
       var ticked = pulse ? picked() : [];
       setTypes(d.types);
@@ -2345,7 +2357,7 @@ window.LitterCollect = function (app) {
   function openPast(id, button) {
     app.busy(button, 'cl-start-err', function () {
       return busyWhile('Opening your collection, please wait...', function () { return app.api('collectLoad', { token: app.myToken(), collectionId: id }); }).then(function (d) {
-        settings = d.settings || settings; segments = d.segments || segments;
+        settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
         setTypes(d.types);
         pace = d.pace || pace;
         summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
@@ -2963,7 +2975,7 @@ window.LitterCollect = function (app) {
   function planSegments(st) {
     var box = $('pl-segments');
     box.textContent = '';
-    var touched = segments.filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
+    var touched = segs().filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
     box.hidden = !touched.length;
     touched.forEach(function (s) {
       var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
@@ -3114,7 +3126,9 @@ window.LitterMap = function (app) {
   var mine = null, showAll = false;
   // Accepted segments and their rates (S5-P3): a layer of their own, and a
   // line in every square's pop-up (Q482).
-  var segs = [], rateTop = 5, mode = 'index', lastCells = [];
+  var realSegs = [], simSegs = [], rateTop = 5, mode = 'index', lastCells = [];
+  // In Head Builder mode, the simulated world's segments (Q529).
+  function segList() { return app.builderMode && app.builderMode() ? simSegs : realSegs; }
   // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
   function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : colours; }
@@ -3166,13 +3180,15 @@ window.LitterMap = function (app) {
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
       dark = d.dark || dark;
-      segs = d.segments || [];
+      realSegs = d.segments || [];
+      simSegs = d.simSegments || [];
       rateTop = d.rateTop || rateTop;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       lastCells = (d.cells || []).concat(opts.own || []);
       draw(lastCells);
       // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
+      if (opts.layer && opts.layer !== mode) setMode(opts.layer);
       if (opts.plan) {
         var pc = darkColours() ? darkColours().plan : '#7c3aed';
         opts.plan.forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(layer); });
@@ -3199,10 +3215,17 @@ window.LitterMap = function (app) {
   function segmentLine(g) {
     var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb per mile per day'
       : round(g.rate, 2) + ' lb per mile per day (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
-    return g.name + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
-      (g.partly ? ' · Partly cleaned: help finish it' : g.due ? ' · Due: collect it to measure its rate' : '');
+    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
+      (g.due ? ' · Due: collect it to measure its rate' : '');
   }
-  function segmentsAt(cell) { return segs.filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
+  // Partly cleaned (Q532): "Partial (NE): 60% of this segment was cleaned 4 days ago".
+  function partialLines(g) {
+    return (g.groups || []).map(function (p) {
+      return 'Partial' + (p.dir ? ' (' + p.dir + ')' : '') + ': ' + p.pct + '% of this segment ' +
+        (p.days == null ? 'hasn\'t been cleaned yet' : 'was cleaned ' + (p.days === 0 ? 'less than a day ago' : p.days === 1 ? '1 day ago' : p.days + ' days ago'));
+    });
+  }
+  function segmentsAt(cell) { return segList().filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
 
   function draw(cells) {
     layer.clearLayers();
@@ -3215,7 +3238,10 @@ window.LitterMap = function (app) {
         box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
         box.appendChild(el('div', null, 'Collected ' + day(x[2])));
         if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
-        segmentsAt(x[0]).forEach(function (g) { box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); });
+        segmentsAt(x[0]).forEach(function (g) {
+          box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+        });
         return box;
       });
       r.cellId = x[0];
@@ -3227,11 +3253,17 @@ window.LitterMap = function (app) {
   // rate's colour, on the same scale up to the Settings tab's top; grey with
   // no recent rate.
   function drawRates() {
-    segs.forEach(function (g) {
+    segList().forEach(function (g) {
       var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
       g.squares.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
-        r.bindPopup(function () { var box = el('div', 'lt-pop'); box.appendChild(el('strong', null, 'Accumulation rate')); box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); return box; });
+        r.bindPopup(function () {
+          var box = el('div', 'lt-pop');
+          box.appendChild(el('strong', null, 'Accumulation rate'));
+          box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+          return box;
+        });
         r.addTo(layer);
       });
     });
@@ -3242,7 +3274,8 @@ window.LitterMap = function (app) {
     Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
     legend($('mp-legend'));
     if (layer) draw(lastCells);
-    $('mp-note').textContent = m === 'rate' ? (segs.length ? segs.length + ' accepted segment' + (segs.length === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
+    var n = segList().length;
+    $('mp-note').textContent = m === 'rate' ? (n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
   }
 
   function fit(cells) {
@@ -3263,6 +3296,9 @@ window.LitterMap = function (app) {
       box.hidden = !d.collections.length;
       drawMine();
       drawPlans(d.plans || []);
+      realSegs = d.segments || realSegs;
+      simSegs = d.simSegments || simSegs;
+      drawSegments();
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
       box.hidden = true;
@@ -3354,6 +3390,29 @@ window.LitterMap = function (app) {
         row.appendChild(g);
       }
       box.appendChild(row);
+      list.appendChild(box);
+    });
+  }
+
+  /* ── Segments (S5-P3, Q530): partly cleaned first, then due, then the rest ── */
+
+  function drawSegments() {
+    var list = $('segments-list');
+    list.textContent = '';
+    var rank = function (g) { return g.partly ? 0 : g.due ? 1 : 2; };
+    var all = segList().slice().sort(function (a, b) { return rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)); });
+    $('my-segments').hidden = !all.length;
+    all.forEach(function (g) {
+      var box = el('div', 'lt-plan-item lt-seg-item' + (g.partly ? ' partly' : g.due ? ' due' : ''));
+      box.id = 'seg-' + g.id;
+      box.appendChild(el('p', 'lt-col-head', g.name + (g.kind === 'Field' ? ' (field)' : '') + ' · ' + round(g.miles, 2) + ' mi'));
+      box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
+      partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
+      if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
+      var m = el('button', 'btn btn-secondary lt-seg-map', 'See it on the map');
+      m.type = 'button';
+      m.addEventListener('click', function () { open({ focus: g.squares, back: app.showAccount, layer: 'rate' }); });
+      box.appendChild(m);
       list.appendChild(box);
     });
   }

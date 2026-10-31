@@ -80,17 +80,18 @@ var TABS = {
     formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm' }
   },
   // Accepted segments (S5-P3): a player's plan, proposed; HABO's staff accept
-  // it by typing Yes under Accepted (Q527). Its rates in the next tab.
+  // it by typing Yes under Accepted (Q527); Kind is Path or Field (Q533). Its
+  // rates in the next tab, a simulated walk's marked Simulated (Q529).
   segments: {
     name: 'Segments',
-    header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note'],
-    widths: [90, 220, 90, 150, 80, 420, 70, 80, 260],
+    header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note', 'Kind'],
+    widths: [90, 220, 90, 150, 80, 420, 70, 80, 260, 70],
     formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@' }
   },
   rates: {
     name: 'Segment rates',
-    header: ['Segment ID', 'Collection ID', 'Collected', 'Pounds', 'Miles', 'Days', 'Rate (lb per mile per day)', 'Squares covered (%)'],
-    widths: [90, 100, 150, 70, 70, 60, 170, 130],
+    header: ['Segment ID', 'Collection ID', 'Collected', 'Pounds', 'Miles', 'Days', 'Rate (lb per mile per day)', 'Squares covered (%)', 'Simulated'],
+    widths: [90, 100, 150, 70, 70, 60, 170, 130, 90],
     formats: { 3: 'yyyy-mm-dd h:mm' }
   },
   // The published work our decisions lean on (S5-P3, Q520), kept so it can

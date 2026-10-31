@@ -159,3 +159,6 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-plan-item:first-child { border-top: 0; padding-top: 0; }
 .lt-plan-seg { font-weight: 700; color: var(--accent); }
 #pl-segments .btn { margin-top: 6px; }
+.lt-seg-item.partly { border-left: 4px solid #f59e0b; padding-left: 10px; }
+.lt-seg-item.due { border-left: 4px solid var(--accent); padding-left: 10px; }
+.lt-pop-part { font-weight: 600; margin-top: 2px; }

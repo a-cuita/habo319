@@ -18,7 +18,9 @@ window.LitterMap = function (app) {
   var mine = null, showAll = false;
   // Accepted segments and their rates (S5-P3): a layer of their own, and a
   // line in every square's pop-up (Q482).
-  var segs = [], rateTop = 5, mode = 'index', lastCells = [];
+  var realSegs = [], simSegs = [], rateTop = 5, mode = 'index', lastCells = [];
+  // In Head Builder mode, the simulated world's segments (Q529).
+  function segList() { return app.builderMode && app.builderMode() ? simSegs : realSegs; }
   // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
   function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : colours; }
@@ -70,13 +72,15 @@ window.LitterMap = function (app) {
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
       dark = d.dark || dark;
-      segs = d.segments || [];
+      realSegs = d.segments || [];
+      simSegs = d.simSegments || [];
       rateTop = d.rateTop || rateTop;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       lastCells = (d.cells || []).concat(opts.own || []);
       draw(lastCells);
       // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
+      if (opts.layer && opts.layer !== mode) setMode(opts.layer);
       if (opts.plan) {
         var pc = darkColours() ? darkColours().plan : '#7c3aed';
         opts.plan.forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(layer); });
@@ -103,10 +107,17 @@ window.LitterMap = function (app) {
   function segmentLine(g) {
     var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb per mile per day'
       : round(g.rate, 2) + ' lb per mile per day (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
-    return g.name + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
-      (g.partly ? ' · Partly cleaned: help finish it' : g.due ? ' · Due: collect it to measure its rate' : '');
+    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
+      (g.due ? ' · Due: collect it to measure its rate' : '');
   }
-  function segmentsAt(cell) { return segs.filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
+  // Partly cleaned (Q532): "Partial (NE): 60% of this segment was cleaned 4 days ago".
+  function partialLines(g) {
+    return (g.groups || []).map(function (p) {
+      return 'Partial' + (p.dir ? ' (' + p.dir + ')' : '') + ': ' + p.pct + '% of this segment ' +
+        (p.days == null ? 'hasn\'t been cleaned yet' : 'was cleaned ' + (p.days === 0 ? 'less than a day ago' : p.days === 1 ? '1 day ago' : p.days + ' days ago'));
+    });
+  }
+  function segmentsAt(cell) { return segList().filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
 
   function draw(cells) {
     layer.clearLayers();
@@ -119,7 +130,10 @@ window.LitterMap = function (app) {
         box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
         box.appendChild(el('div', null, 'Collected ' + day(x[2])));
         if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
-        segmentsAt(x[0]).forEach(function (g) { box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); });
+        segmentsAt(x[0]).forEach(function (g) {
+          box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+        });
         return box;
       });
       r.cellId = x[0];
@@ -131,11 +145,17 @@ window.LitterMap = function (app) {
   // rate's colour, on the same scale up to the Settings tab's top; grey with
   // no recent rate.
   function drawRates() {
-    segs.forEach(function (g) {
+    segList().forEach(function (g) {
       var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
       g.squares.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
-        r.bindPopup(function () { var box = el('div', 'lt-pop'); box.appendChild(el('strong', null, 'Accumulation rate')); box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); return box; });
+        r.bindPopup(function () {
+          var box = el('div', 'lt-pop');
+          box.appendChild(el('strong', null, 'Accumulation rate'));
+          box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+          return box;
+        });
         r.addTo(layer);
       });
     });
@@ -146,7 +166,8 @@ window.LitterMap = function (app) {
     Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
     legend($('mp-legend'));
     if (layer) draw(lastCells);
-    $('mp-note').textContent = m === 'rate' ? (segs.length ? segs.length + ' accepted segment' + (segs.length === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
+    var n = segList().length;
+    $('mp-note').textContent = m === 'rate' ? (n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
   }
 
   function fit(cells) {
@@ -167,6 +188,9 @@ window.LitterMap = function (app) {
       box.hidden = !d.collections.length;
       drawMine();
       drawPlans(d.plans || []);
+      realSegs = d.segments || realSegs;
+      simSegs = d.simSegments || simSegs;
+      drawSegments();
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
       box.hidden = true;
@@ -258,6 +282,29 @@ window.LitterMap = function (app) {
         row.appendChild(g);
       }
       box.appendChild(row);
+      list.appendChild(box);
+    });
+  }
+
+  /* ── Segments (S5-P3, Q530): partly cleaned first, then due, then the rest ── */
+
+  function drawSegments() {
+    var list = $('segments-list');
+    list.textContent = '';
+    var rank = function (g) { return g.partly ? 0 : g.due ? 1 : 2; };
+    var all = segList().slice().sort(function (a, b) { return rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)); });
+    $('my-segments').hidden = !all.length;
+    all.forEach(function (g) {
+      var box = el('div', 'lt-plan-item lt-seg-item' + (g.partly ? ' partly' : g.due ? ' due' : ''));
+      box.id = 'seg-' + g.id;
+      box.appendChild(el('p', 'lt-col-head', g.name + (g.kind === 'Field' ? ' (field)' : '') + ' · ' + round(g.miles, 2) + ' mi'));
+      box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
+      partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
+      if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
+      var m = el('button', 'btn btn-secondary lt-seg-map', 'See it on the map');
+      m.type = 'button';
+      m.addEventListener('click', function () { open({ focus: g.squares, back: app.showAccount, layer: 'rate' }); });
+      box.appendChild(m);
       list.appendChild(box);
     });
   }

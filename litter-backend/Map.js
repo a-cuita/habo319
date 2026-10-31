@@ -71,7 +71,7 @@ function mapLoad_() {
     return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
   });
   return { colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), cells: cells,
-    segments: segmentSummaries_(), rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+    segments: segmentSummaries_(false), simSegments: segmentSummaries_(true), rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
 }
 
 // This account's collections, newest first, each with its stretches.
@@ -95,7 +95,7 @@ function myCollections_(req) {
     })
     .sort(function (a, b) { return b.started - a.started; });
   return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
-    plans: myPlans_(account.id) };
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true) };
 }
 
 /* ── The colours ── */
