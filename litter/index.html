@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=10">
+<link rel="stylesheet" href="litter.css?v=11">
 </head>
 <body>
 
@@ -433,7 +433,11 @@
       <p class="lt-xp" id="cl-xp" hidden></p>
       <p class="lt-plan-line" id="cl-plan"></p>
       <!-- A Head Builder's simulated walk (S5-U2). -->
-      <label class="lt-sim" id="cl-sim-box" hidden><input type="checkbox" id="cl-sim"> Simulated walk</label>
+      <div class="lt-sim-row" id="cl-sim-box" hidden>
+        <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
+        <button class="lt-info" id="cl-sim-info" type="button" aria-label="About the simulated walk" aria-expanded="false" title="While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
+      </div>
+      <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
       <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
@@ -455,7 +459,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=5"></script>
-<script src="collect.js?v=17"></script>
+<script src="collect.js?v=18"></script>
 <script src="map.js?v=3"></script>
 <script src="litter.js?v=5"></script>
 </body>

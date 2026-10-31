@@ -27,7 +27,9 @@
 .lt-since { font-weight: 700; }
 .lt-totals { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
 .lt-pick { background: var(--primary-dim); color: var(--primary); font-weight: 700; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 10px; }
-.lt-sim { display: flex; align-items: center; gap: 8px; font-weight: 700; margin: 10px 0 4px; }
+.lt-sim-row { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; }
+.lt-sim { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.lt-info { border: 0; background: none; font-size: 1.1rem; line-height: 1; padding: 4px; cursor: help; }
 .lt-sim input { width: 20px; height: 20px; }
 .lt-map-box { margin-bottom: 10px; }
 .lt-map { height: 55vh; min-height: 280px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); }

@@ -174,7 +174,9 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
 .lt-since { font-weight: 700; }
 .lt-totals { font-size: 1.15rem; font-weight: 800; color: var(--accent); }
 .lt-pick { background: var(--primary-dim); color: var(--primary); font-weight: 700; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 10px; }
-.lt-sim { display: flex; align-items: center; gap: 8px; font-weight: 700; margin: 10px 0 4px; }
+.lt-sim-row { display: flex; align-items: center; gap: 6px; margin: 10px 0 4px; }
+.lt-sim { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.lt-info { border: 0; background: none; font-size: 1.1rem; line-height: 1; padding: 4px; cursor: help; }
 .lt-sim input { width: 20px; height: 20px; }
 .lt-map-box { margin-bottom: 10px; }
 .lt-map { height: 55vh; min-height: 280px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface-2); }
@@ -697,7 +699,11 @@ body.lt-has-bar { padding-bottom: 100px; }
       <p class="lt-xp" id="cl-xp" hidden></p>
       <p class="lt-plan-line" id="cl-plan"></p>
       <!-- A Head Builder's simulated walk (S5-U2). -->
-      <label class="lt-sim" id="cl-sim-box" hidden><input type="checkbox" id="cl-sim"> Simulated walk</label>
+      <div class="lt-sim-row" id="cl-sim-box" hidden>
+        <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
+        <button class="lt-info" id="cl-sim-info" type="button" aria-label="About the simulated walk" aria-expanded="false" title="While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
+      </div>
+      <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
       <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
       <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
@@ -1306,7 +1312,9 @@ window.LitterCollect = function (app) {
     closeStartAsks();
     $('cl-hours').textContent = '';
     showPlanLine();
-    $('cl-sim-box').hidden = $('cl-sim-say').hidden = !simAllowed();
+    $('cl-sim-box').hidden = !simAllowed();
+    $('cl-sim-say').hidden = true;
+    $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
@@ -2886,6 +2894,11 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
+  $('cl-sim-info').addEventListener('click', function () {
+    var open = $('cl-sim-say').hidden;
+    $('cl-sim-say').hidden = !open;
+    this.setAttribute('aria-expanded', String(open));
+  });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
   $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });

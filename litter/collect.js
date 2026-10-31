@@ -198,7 +198,9 @@ window.LitterCollect = function (app) {
     closeStartAsks();
     $('cl-hours').textContent = '';
     showPlanLine();
-    $('cl-sim-box').hidden = $('cl-sim-say').hidden = !simAllowed();
+    $('cl-sim-box').hidden = !simAllowed();
+    $('cl-sim-say').hidden = true;
+    $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings;
@@ -1778,6 +1780,11 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
+  $('cl-sim-info').addEventListener('click', function () {
+    var open = $('cl-sim-say').hidden;
+    $('cl-sim-say').hidden = !open;
+    this.setAttribute('aria-expanded', String(open));
+  });
   $('sf-cells').addEventListener('click', editCells);
   $('sm-fix').addEventListener('submit', function (e) { e.preventDefault(); saveFix($('sf-save')); });
   $('sf-cancel').addEventListener('click', function () { summary.editing = false; summary.withBreak = false; summary.whereMode = false; $('sm-fix').hidden = true; $('sm-map-box').hidden = true; drawReadings(); });
