@@ -63,7 +63,8 @@ window.LitterMap = function (app) {
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
       legend($('mp-legend'));
-      draw(d.cells || []);
+      // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
+      draw((d.cells || []).concat(opts.own || []));
       var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
@@ -153,7 +154,10 @@ window.LitterMap = function (app) {
     if (cells.length && !c.hidden) {
       var m = el('button', 'btn btn-secondary lt-col-map', 'See it on the map');
       m.type = 'button';
-      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount, track: c.track }); });
+      // A simulated walk is off the public map (S5-U2), so its own squares come with it.
+      var own = c.simulated ? [].concat.apply([], c.stretchList.filter(function (s) { return !s.discarded && s.index != null; })
+        .map(function (s) { return s.cells.map(function (x) { return [x, s.index, '', 'Simulated walk']; }); })) : null;
+      m.addEventListener('click', function () { open({ focus: cells, back: app.showAccount, track: c.track, own: own }); });
       row.appendChild(m);
     }
     if (c.editable) {

@@ -214,7 +214,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -246,6 +246,7 @@ function ensureSchema_(force) {
     regridOnce_(ss, 'GRID_HALVED', 2, LitterGeo.MILE_M / 20);
     // 10 m squares (S5-P1, Q516): each square kept so far becomes its 64.
     regridOnce_(ss, 'GRID_10M', 8, LitterGeo.MILE_M / 160);
+    trackOnlyOnce_(ss);
   });
   cache.put(cacheKey, '1', 600);
 }
@@ -368,6 +369,41 @@ var SEED_SOURCES = [
   ['Buckland, S.T., and others (2001). Introduction to Distance Sampling. Oxford University Press.', 'https://academic.oup.com/book/53746',
     'Strip transects: everything within a set distance either side of a walked line', 'A walker\'s range of attention; with 10 m squares, the squares along the track are the strip searched.', '2026-10-30', 'S5-P1, S5-P3']
 ];
+
+// A walk with a saved GPX track keeps only the squares its track passed
+// through (S5-P1, C602, Jeremy's agree, Oct 30): an old square the track
+// never touched had become all 64 small ones. A weighing the track missed
+// entirely keeps its squares as they are. Once.
+function trackOnlyOnce_(ss) {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('GRID_10M_TRACK')) return;
+  var walked = {};
+  var cs = ss.getSheetByName(TABS.collections.name), cLast = cs.getLastRow();
+  if (cLast >= 2) cs.getRange(2, 1, cLast - 1, COLLECTION_COL.track).getValues().forEach(function (r) {
+    var pts = parseTrack_(r[COLLECTION_COL.track - 1]);
+    if (pts.length < 2) return;
+    var seen = {};
+    pts.forEach(function (q, k) {
+      seen[LitterGeo.cellAt(q[0], q[1])] = true;
+      if (!k) return;
+      var a = pts[k - 1], n = Math.ceil(LitterGeo.dist(LitterGeo.xy(a[0], a[1]), LitterGeo.xy(q[0], q[1])) / (LitterGeo.CELL_M / 4));
+      for (var t = 1; t < n; t++) seen[LitterGeo.cellAt(a[0] + (q[0] - a[0]) * t / n, a[1] + (q[1] - a[1]) * t / n)] = true;
+    });
+    walked[r[0]] = seen;
+  });
+  var sh = ss.getSheetByName(TABS.stretches.name), sLast = sh.getLastRow();
+  if (sLast >= 2) {
+    var of = sh.getRange(2, STRETCH_COL.collection, sLast - 1, 1).getValues();
+    var range = sh.getRange(2, STRETCH_COL.cells, sLast - 1, 1);
+    range.setValues(range.getValues().map(function (r, k) {
+      var seen = walked[of[k][0]];
+      if (!seen || !String(r[0]).trim()) return [r[0]];
+      var all = String(r[0]).split(/\s+/).filter(String), hit = all.filter(function (x) { return seen[x]; });
+      return [hit.length ? hit.join(' ') : r[0]];
+    }));
+  }
+  props.setProperty('GRID_10M_TRACK', new Date().toISOString());
+}
 
 // Changes whenever a tab's layout or the list of settings changes, so a new
 // version of the code always re-checks the Sheet.

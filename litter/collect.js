@@ -693,6 +693,7 @@ window.LitterCollect = function (app) {
     $('pf-odd').hidden = true;
     $('pf-bag-hint').textContent = pulse.kind === 'newbag' ? 'Include the bag. Then drop it in any bin, and start an empty one.'
       : c.bagReset ? 'You started a new bag after the weighing you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
+    stepsFor(pulse.kind);
     $('pf-end-row').hidden = pulse.kind !== 'end';
     if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
     $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
@@ -728,7 +729,10 @@ window.LitterCollect = function (app) {
   // rating since your last weighing, and a break, with Next and Back; the
   // stretch step went with stretches (S5). Litter types and a break can be
   // skipped; the rating can't, as no Litter Index comes without one (Q403, S5).
+  // No break step (S5-P1, C606: Pause covers breaks); the last step stays
+  // only for End, with Stop the clock at.
   var STEPS = ['scale', 'types', 'rating', 'break'];
+  function stepsFor(kind) { STEPS = kind === 'end' ? ['scale', 'types', 'rating', 'break'] : ['scale', 'types', 'rating']; }
   function showStep() {
     var i = pulse.step;
     Array.prototype.forEach.call(document.querySelectorAll('#cl-pulse .pf-step'), function (d) { d.hidden = d.dataset.step !== STEPS[i]; });
@@ -919,6 +923,14 @@ window.LitterCollect = function (app) {
   // this stretch (item 6, Q284, Q301).
   function savePulse(discard, why) {
     var err = $('pf-err');
+    // Every step's check before saving: with the break step gone, the rating
+    // can be the last step, and it still can't be skipped (Q403, C606).
+    if (!discard) {
+      for (var k = 0; k < STEPS.length; k++) {
+        var stepErr = stepCheck(k);
+        if (stepErr) { pulse.step = k; showStep(); err.textContent = stepErr; return; }
+      }
+    }
     var endedAt = pulse.kind === 'end' ? fromTimeInput($('pf-end').value, pulse.pressedAt) : pulse.pressedAt;
     var lastEnd = c.current.startedAt;
     if (endedAt < lastEnd) { err.textContent = 'The clock can\'t stop before your last litter pulse (' + clock(lastEnd) + ').'; return; }
@@ -932,18 +944,8 @@ window.LitterCollect = function (app) {
     var breakMin = Number($('pf-break').value) || 0;
     var cur = c.current;
     var pausedMin = cur.pausedMin || 0;
-    // The break question (item 7): once you have enough collections, a
-    // stretch much slower than your usual pace asks; it never takes time off.
-    if (!discard && !pulse.askedBreak) {
-      var odd = oddTime(Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin), (pulse.m.street + pulse.m.off) / G.MILE_M);
-      if (odd) {
-        pulse.askedBreak = true;
-        $('pf-odd-why').textContent = oddWords(odd);
-        $('pf-odd').hidden = false;
-        $('pf-odd').scrollIntoView({ block: 'center' });
-        return;
-      }
-    }
+    // The break question (item 7) went with the break step: Pause covers a
+    // break (S5-P1, C606).
     var stretch = {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
@@ -1162,7 +1164,7 @@ window.LitterCollect = function (app) {
     }
     // Asked once.
     var odd = !s.discarded && !s.breakMin && (!s.asked || (summary.stops && summary.stops[s.id])) ? oddTime(s.activeMin, s.streetMi + s.offMi) : null;
-    if (odd) box.appendChild(oddQuestion(s, odd));
+    // No break question on the summary either: Pause covers a break (S5-P1, C606).
     if (!s.discarded) {
       var b = document.createElement('button');
       b.type = 'button';
