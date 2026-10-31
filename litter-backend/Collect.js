@@ -281,7 +281,8 @@ function collectLoad_(req) {
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
-    plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id)
+    plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
+    segments: segmentSummaries_()
   };
 }
 
@@ -387,7 +388,8 @@ function readRows_(tab) {
   var sheet = getDb_().getSheetByName(tab.name);
   var last = lastRowWith_(sheet, 1);
   if (last < 2) return [];
-  var cols = tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL : TYPE_COL;
+  var cols = tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL :
+    tab === TABS.segments ? SEGMENT_COL : tab === TABS.rates ? RATE_COL : TYPE_COL;
   return sheet.getRange(2, 1, last - 1, tab.header.length).getValues().map(function (values, i) {
     return { row: i + 2, values: values, get: function (k) { var v = values[cols[k] - 1]; return v instanceof Date ? v : String(v == null ? '' : v).trim(); } };
   }).filter(function (r) { return String(r.values[0]).trim(); });
@@ -490,6 +492,7 @@ function collectTrack_(req) {
       retotal_(col.id);
     }
     setPlanXp_(col.id);   // XP comes with the GPX track
+    measureRates_(col.id);   // and a rate for each due segment it collected (S5-P3)
     return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
   });
 }

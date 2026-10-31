@@ -79,6 +79,20 @@ var TABS = {
     widths: [90, 90, 150, 80, 420, 220, 80, 110, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm' }
   },
+  // Accepted segments (S5-P3): a player's plan, proposed; HABO's staff accept
+  // it by typing Yes under Accepted (Q527). Its rates in the next tab.
+  segments: {
+    name: 'Segments',
+    header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note'],
+    widths: [90, 220, 90, 150, 80, 420, 70, 80, 260],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@' }
+  },
+  rates: {
+    name: 'Segment rates',
+    header: ['Segment ID', 'Collection ID', 'Collected', 'Pounds', 'Miles', 'Days', 'Rate (lb per mile per day)', 'Squares covered (%)'],
+    widths: [90, 100, 150, 70, 70, 60, 170, 130],
+    formats: { 3: 'yyyy-mm-dd h:mm' }
+  },
   // The published work our decisions lean on (S5-P3, Q520), kept so it can
   // be shown later as info.
   sources: {
@@ -133,6 +147,7 @@ function actions_() {
     collectLoad: collectLoad_,
     collectDiscard: collectDiscard_,
     planSave: planSave_,
+    segmentPropose: segmentPropose_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_
@@ -440,7 +455,7 @@ function missingSettings_(ss) {
     [SETTING_RATING_BONUS, '5'],
     [SETTING_TYPES_XP, '1'],
     [SETTING_START_SAYINGS, '']
-  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; })).filter(function (s) { return have.indexOf(s[0]) === -1; });
+  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
 function ensureTab_(ss, tab) {

@@ -298,6 +298,14 @@ html.lt-builder .leaflet-bar a, html.lt-builder .leaflet-bar a:hover { backgroun
 html.lt-builder .leaflet-control-attribution { background: rgba(15, 17, 21, 0.75); color: var(--text-dim); }
 html.lt-builder .leaflet-control-attribution a { color: var(--primary); }
 html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-tip { background: var(--surface); color: var(--text); }
+
+/* Accepted segments and their rates (S5-P3). */
+.lt-layers { display: flex; gap: 8px; margin: 10px 0 0; }
+.lt-layers .btn { margin-top: 0; padding: 8px 10px; font-size: 0.9rem; }
+.lt-plan-item { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-plan-item:first-child { border-top: 0; padding-top: 0; }
+.lt-plan-seg { font-weight: 700; color: var(--accent); }
+#pl-segments .btn { margin-top: 6px; }
 </style>
 </head>
 <body>
@@ -561,6 +569,7 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       <h2>Plan a collection</h2>
       <p class="muted small">Tap the cells you mean to cover. The app fills in along the street from the cell you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
+      <div class="lt-plan-line need" id="pl-segments" hidden></div>
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="pl-map-box"></div>
@@ -658,6 +667,10 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
     <section class="card">
       <h2>The litter map</h2>
       <p class="muted small">Each square is a twentieth of a mile (about 265 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <div class="lt-layers" id="mp-layers">
+        <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
+        <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
+      </div>
       <div class="lt-legend" id="mp-legend"></div>
     </section>
     <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
@@ -749,6 +762,13 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       <h2>Your collections</h2>
       <div id="my-list"></div>
       <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
+    </section>
+
+    <!-- Your plans (S5-P3, Q517): each opens on the map, and can be proposed as a segment (M565). -->
+    <section class="card" id="my-plans" hidden>
+      <h2>Your plans</h2>
+      <p class="muted small">Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
+      <div id="plans-list"></div>
     </section>
 
     <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -1212,6 +1232,15 @@ window.LitterCollect = function (app) {
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
   // Head Builder mode draws in its own colours, from the Settings tab (S5-U2 round 3, Q528).
+  // Accepted segments (S5-P3), from the last load: for the plan alert and
+  // the weigh prompts.
+  var segments = [];
+  function nearSquare(list, cell) {
+    var p = String(cell).split('_'), r = Number(p[0]), k = Number(p[1]);
+    for (var dr = -1; dr <= 1; dr++) for (var dk = -1; dk <= 1; dk++) if (list.indexOf((r + dr) + '_' + (k + dk)) !== -1) return true;
+    return false;
+  }
+  function days(n) { return n == null ? 'some time' : n === 1 ? '1 day' : n + ' days'; }
   function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
   function save() { keep(KEY, c); }
@@ -1326,6 +1355,23 @@ window.LitterCollect = function (app) {
     c.checkins = (c.checkins || []).concat([k]).slice(-1500);
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
+    segmentPrompt(pos);
+  }
+  // Weigh as you step onto a due segment and as you step off it, so its
+  // pounds are its own (S5-P3, Q524).
+  function segmentPrompt(pos) {
+    if (!c || c.ended || !segments.length) return;
+    var cell = G.cellAt(pos.lat, pos.lon);
+    var on = segments.filter(function (s) { return s.due && nearSquare(s.squares, cell); })[0];
+    var was = c.onSegment ? segments.filter(function (s) { return s.id === c.onSegment; })[0] : null;
+    if (on && (!was || was.id !== on.id)) {
+      c.onSegment = on.id;
+      app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
+    } else if (!on && was) {
+      c.onSegment = '';
+      app.notice('You\'re stepping off ' + was.name + '. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
+    } else return;
+    save();
   }
   // Where the phone was last: its last check-in, or the middle of the last
   // cell, marked rough.
@@ -1370,7 +1416,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       pace = d.pace || null;
       setTypes(d.types);
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
@@ -1552,7 +1598,7 @@ window.LitterCollect = function (app) {
     }
     return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
       recordingAt = null;
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
@@ -1613,7 +1659,7 @@ window.LitterCollect = function (app) {
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
     return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       if (!d.types || !d.types.length) return;
       var ticked = pulse ? picked() : [];
       setTypes(d.types);
@@ -2299,7 +2345,7 @@ window.LitterCollect = function (app) {
   function openPast(id, button) {
     app.busy(button, 'cl-start-err', function () {
       return busyWhile('Opening your collection, please wait...', function () { return app.api('collectLoad', { token: app.myToken(), collectionId: id }); }).then(function (d) {
-        settings = d.settings || settings;
+        settings = d.settings || settings; segments = d.segments || segments;
         setTypes(d.types);
         pace = d.pace || pace;
         summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
@@ -2909,6 +2955,34 @@ window.LitterCollect = function (app) {
     }
     $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
     $('pl-undo').disabled = !planning.history.length;
+    planSegments(st);
+  }
+
+  // A plan that touches a segment building a rate says so, and offers to
+  // take in the whole segment (S5-P3, Q524).
+  function planSegments(st) {
+    var box = $('pl-segments');
+    box.textContent = '';
+    var touched = segments.filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
+    box.hidden = !touched.length;
+    touched.forEach(function (s) {
+      var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
+      var p = document.createElement('p');
+      p.textContent = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
+        (missing.length ? 'Your plan covers only part of it; collect all of it to measure the rate.' : 'Your plan covers all of it.');
+      box.appendChild(p);
+      if (!missing.length) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary pl-seg-add';
+      b.textContent = 'Add the whole segment';
+      b.addEventListener('click', function () {
+        planning.history.push({ added: missing, from: st.from });
+        st.cells = st.cells.concat(missing);
+        drawPlanning(false);
+      });
+      box.appendChild(b);
+    });
   }
 
   function savePlan(button) {
@@ -3038,6 +3112,9 @@ window.LitterMap = function (app) {
   var map = null, layer = null, back = null;
   var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'], dark = null;
   var mine = null, showAll = false;
+  // Accepted segments and their rates (S5-P3): a layer of their own, and a
+  // line in every square's pop-up (Q482).
+  var segs = [], rateTop = 5, mode = 'index', lastCells = [];
   // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
   function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : colours; }
@@ -3062,7 +3139,8 @@ window.LitterMap = function (app) {
     bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
-    ['0 · clean', '5', '10 or more · heavy'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
+    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb per mile per day'] : ['0 · clean', '5', '10 or more · heavy'])
+      .forEach(function (t) { marks.appendChild(el('span', null, t)); });
     box.appendChild(marks);
   }
 
@@ -3088,9 +3166,17 @@ window.LitterMap = function (app) {
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
       dark = d.dark || dark;
+      segs = d.segments || [];
+      rateTop = d.rateTop || rateTop;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
-      draw((d.cells || []).concat(opts.own || []));
+      lastCells = (d.cells || []).concat(opts.own || []);
+      draw(lastCells);
+      // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
+      if (opts.plan) {
+        var pc = darkColours() ? darkColours().plan : '#7c3aed';
+        opts.plan.forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(layer); });
+      }
       var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
@@ -3107,21 +3193,56 @@ window.LitterMap = function (app) {
     }, function (err) { $('mp-note').textContent = err.message; });
   }
 
+  // A segment's line in a pop-up: its rate, confidence and arrow, and
+  // whether it's due or partly cleaned.
+  var ARROWS = { up: ' ↑', down: ' ↓', level: ' →' };
+  function segmentLine(g) {
+    var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb per mile per day'
+      : round(g.rate, 2) + ' lb per mile per day (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
+    return g.name + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
+      (g.partly ? ' · Partly cleaned: help finish it' : g.due ? ' · Due: collect it to measure its rate' : '');
+  }
+  function segmentsAt(cell) { return segs.filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
+
   function draw(cells) {
     layer.clearLayers();
+    if (mode === 'rate') return drawRates();
     cells.forEach(function (x) {
       var c = G.indexColour(x[1], scale());
-      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7 });
+      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-index-square' });
       r.bindPopup(function () {
         var box = el('div', 'lt-pop');
         box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
         box.appendChild(el('div', null, 'Collected ' + day(x[2])));
         if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
+        segmentsAt(x[0]).forEach(function (g) { box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); });
         return box;
       });
       r.cellId = x[0];
       r.addTo(layer);
     });
+  }
+
+  // The accumulation rate layer: each accepted segment's squares in its
+  // rate's colour, on the same scale up to the Settings tab's top; grey with
+  // no recent rate.
+  function drawRates() {
+    segs.forEach(function (g) {
+      var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
+      g.squares.forEach(function (cell) {
+        var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
+        r.bindPopup(function () { var box = el('div', 'lt-pop'); box.appendChild(el('strong', null, 'Accumulation rate')); box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); return box; });
+        r.addTo(layer);
+      });
+    });
+  }
+  function setMode(m) {
+    mode = m;
+    if (map) map.closePopup();
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
+    legend($('mp-legend'));
+    if (layer) draw(lastCells);
+    $('mp-note').textContent = m === 'rate' ? (segs.length ? segs.length + ' accepted segment' + (segs.length === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
   }
 
   function fit(cells) {
@@ -3141,6 +3262,7 @@ window.LitterMap = function (app) {
       dark = d.dark || dark;
       box.hidden = !d.collections.length;
       drawMine();
+      drawPlans(d.plans || []);
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
       box.hidden = true;
@@ -3198,10 +3320,49 @@ window.LitterMap = function (app) {
     return box;
   }
 
+  /* ── Your plans (S5-P3, Q517), each can be proposed as a segment (M565) ── */
+
+  function drawPlans(plans) {
+    var list = $('plans-list');
+    list.textContent = '';
+    $('my-plans').hidden = !plans.length;
+    plans.forEach(function (p) {
+      var box = el('div', 'lt-plan-item');
+      box.id = 'plan-' + p.id;
+      box.appendChild(el('p', 'lt-col-head', 'Plan ' + p.id + ' · ' + (p.created ? new Date(p.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')));
+      box.appendChild(el('p', 'muted small', p.cells.length + ' square' + (p.cells.length === 1 ? '' : 's') + ' · ' + round(p.miles, 2) + ' mi · ' +
+        (p.used ? 'collected (' + p.used + ')' : p.replaced ? 'replaced by a newer plan' : 'not collected yet')));
+      if (p.segment) box.appendChild(el('p', 'lt-plan-seg', p.segment.accepted ? 'Accepted segment ' + p.segment.id + ': ' + p.segment.name
+        : 'Proposed as a segment (' + p.segment.id + ': ' + p.segment.name + '), waiting for HABO\'s staff'));
+      var row = el('div', 'lt-col-row');
+      var m = el('button', 'btn btn-secondary lt-plan-map', 'See it on the map');
+      m.type = 'button';
+      m.addEventListener('click', function () { open({ focus: p.cells, back: app.showAccount, plan: p.cells }); });
+      row.appendChild(m);
+      if (!p.segment) {
+        var g = el('button', 'btn btn-secondary lt-plan-propose', 'Propose as a segment');
+        g.type = 'button';
+        g.addEventListener('click', function () {
+          var name = window.prompt('Name this segment, like the street it runs along:', '');
+          if (name == null) return;
+          g.disabled = true;
+          app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: name }).then(function (d) {
+            drawPlans(d.plans);
+            app.notice('Proposed. Once HABO\'s staff accept it, anyone can collect it again and its accumulation rate builds.');
+          }, function (err) { g.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+        });
+        row.appendChild(g);
+      }
+      box.appendChild(row);
+      list.appendChild(box);
+    });
+  }
+
   /* ── Wiring ── */
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.addEventListener('click', function () { setMode(b.dataset.layer); }); });
 
   return { open: open, showMine: showMine };
 };

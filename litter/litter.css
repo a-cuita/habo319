@@ -151,3 +151,11 @@ html.lt-builder .leaflet-bar a, html.lt-builder .leaflet-bar a:hover { backgroun
 html.lt-builder .leaflet-control-attribution { background: rgba(15, 17, 21, 0.75); color: var(--text-dim); }
 html.lt-builder .leaflet-control-attribution a { color: var(--primary); }
 html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-tip { background: var(--surface); color: var(--text); }
+
+/* Accepted segments and their rates (S5-P3). */
+.lt-layers { display: flex; gap: 8px; margin: 10px 0 0; }
+.lt-layers .btn { margin-top: 0; padding: 8px 10px; font-size: 0.9rem; }
+.lt-plan-item { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-plan-item:first-child { border-top: 0; padding-top: 0; }
+.lt-plan-seg { font-weight: 700; color: var(--accent); }
+#pl-segments .btn { margin-top: 6px; }

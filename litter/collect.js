@@ -48,6 +48,15 @@ window.LitterCollect = function (app) {
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
   // Head Builder mode draws in its own colours, from the Settings tab (S5-U2 round 3, Q528).
+  // Accepted segments (S5-P3), from the last load: for the plan alert and
+  // the weigh prompts.
+  var segments = [];
+  function nearSquare(list, cell) {
+    var p = String(cell).split('_'), r = Number(p[0]), k = Number(p[1]);
+    for (var dr = -1; dr <= 1; dr++) for (var dk = -1; dk <= 1; dk++) if (list.indexOf((r + dr) + '_' + (k + dk)) !== -1) return true;
+    return false;
+  }
+  function days(n) { return n == null ? 'some time' : n === 1 ? '1 day' : n + ' days'; }
   function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
   function save() { keep(KEY, c); }
@@ -162,6 +171,23 @@ window.LitterCollect = function (app) {
     c.checkins = (c.checkins || []).concat([k]).slice(-1500);
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
+    segmentPrompt(pos);
+  }
+  // Weigh as you step onto a due segment and as you step off it, so its
+  // pounds are its own (S5-P3, Q524).
+  function segmentPrompt(pos) {
+    if (!c || c.ended || !segments.length) return;
+    var cell = G.cellAt(pos.lat, pos.lon);
+    var on = segments.filter(function (s) { return s.due && nearSquare(s.squares, cell); })[0];
+    var was = c.onSegment ? segments.filter(function (s) { return s.id === c.onSegment; })[0] : null;
+    if (on && (!was || was.id !== on.id)) {
+      c.onSegment = on.id;
+      app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
+    } else if (!on && was) {
+      c.onSegment = '';
+      app.notice('You\'re stepping off ' + was.name + '. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
+    } else return;
+    save();
   }
   // Where the phone was last: its last check-in, or the middle of the last
   // cell, marked rough.
@@ -206,7 +232,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       pace = d.pace || null;
       setTypes(d.types);
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0,
@@ -388,7 +414,7 @@ window.LitterCollect = function (app) {
     }
     return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim }).then(function (d) {
       recordingAt = null;
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
@@ -449,7 +475,7 @@ window.LitterCollect = function (app) {
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
     return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
-      settings = d.settings || settings;
+      settings = d.settings || settings; segments = d.segments || segments;
       if (!d.types || !d.types.length) return;
       var ticked = pulse ? picked() : [];
       setTypes(d.types);
@@ -1135,7 +1161,7 @@ window.LitterCollect = function (app) {
   function openPast(id, button) {
     app.busy(button, 'cl-start-err', function () {
       return busyWhile('Opening your collection, please wait...', function () { return app.api('collectLoad', { token: app.myToken(), collectionId: id }); }).then(function (d) {
-        settings = d.settings || settings;
+        settings = d.settings || settings; segments = d.segments || segments;
         setTypes(d.types);
         pace = d.pace || pace;
         summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
@@ -1745,6 +1771,34 @@ window.LitterCollect = function (app) {
     }
     $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
     $('pl-undo').disabled = !planning.history.length;
+    planSegments(st);
+  }
+
+  // A plan that touches a segment building a rate says so, and offers to
+  // take in the whole segment (S5-P3, Q524).
+  function planSegments(st) {
+    var box = $('pl-segments');
+    box.textContent = '';
+    var touched = segments.filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
+    box.hidden = !touched.length;
+    touched.forEach(function (s) {
+      var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
+      var p = document.createElement('p');
+      p.textContent = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
+        (missing.length ? 'Your plan covers only part of it; collect all of it to measure the rate.' : 'Your plan covers all of it.');
+      box.appendChild(p);
+      if (!missing.length) return;
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-secondary pl-seg-add';
+      b.textContent = 'Add the whole segment';
+      b.addEventListener('click', function () {
+        planning.history.push({ added: missing, from: st.from });
+        st.cells = st.cells.concat(missing);
+        drawPlanning(false);
+      });
+      box.appendChild(b);
+    });
   }
 
   function savePlan(button) {

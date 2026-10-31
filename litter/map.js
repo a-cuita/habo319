@@ -16,6 +16,9 @@ window.LitterMap = function (app) {
   var map = null, layer = null, back = null;
   var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'], dark = null;
   var mine = null, showAll = false;
+  // Accepted segments and their rates (S5-P3): a layer of their own, and a
+  // line in every square's pop-up (Q482).
+  var segs = [], rateTop = 5, mode = 'index', lastCells = [];
   // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
   function darkColours() { return app.builderMode && app.builderMode() && dark ? dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : colours; }
@@ -40,7 +43,8 @@ window.LitterMap = function (app) {
     bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
-    ['0 · clean', '5', '10 or more · heavy'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
+    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb per mile per day'] : ['0 · clean', '5', '10 or more · heavy'])
+      .forEach(function (t) { marks.appendChild(el('span', null, t)); });
     box.appendChild(marks);
   }
 
@@ -66,9 +70,17 @@ window.LitterMap = function (app) {
     return app.api('mapLoad', {}).then(function (d) {
       colours = d.colours || colours;
       dark = d.dark || dark;
+      segs = d.segments || [];
+      rateTop = d.rateTop || rateTop;
       legend($('mp-legend'));
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
-      draw((d.cells || []).concat(opts.own || []));
+      lastCells = (d.cells || []).concat(opts.own || []);
+      draw(lastCells);
+      // A plan, opened from Your plans: its squares outlined (S5-P3, Q517).
+      if (opts.plan) {
+        var pc = darkColours() ? darkColours().plan : '#7c3aed';
+        opts.plan.forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(layer); });
+      }
       var focus = (opts.focus || []).length ? opts.focus : (d.cells || []).map(function (x) { return x[0]; });
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
@@ -85,21 +97,56 @@ window.LitterMap = function (app) {
     }, function (err) { $('mp-note').textContent = err.message; });
   }
 
+  // A segment's line in a pop-up: its rate, confidence and arrow, and
+  // whether it's due or partly cleaned.
+  var ARROWS = { up: ' ↑', down: ' ↓', level: ' →' };
+  function segmentLine(g) {
+    var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb per mile per day'
+      : round(g.rate, 2) + ' lb per mile per day (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
+    return g.name + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
+      (g.partly ? ' · Partly cleaned: help finish it' : g.due ? ' · Due: collect it to measure its rate' : '');
+  }
+  function segmentsAt(cell) { return segs.filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
+
   function draw(cells) {
     layer.clearLayers();
+    if (mode === 'rate') return drawRates();
     cells.forEach(function (x) {
       var c = G.indexColour(x[1], scale());
-      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7 });
+      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-index-square' });
       r.bindPopup(function () {
         var box = el('div', 'lt-pop');
         box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
         box.appendChild(el('div', null, 'Collected ' + day(x[2])));
         if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
+        segmentsAt(x[0]).forEach(function (g) { box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); });
         return box;
       });
       r.cellId = x[0];
       r.addTo(layer);
     });
+  }
+
+  // The accumulation rate layer: each accepted segment's squares in its
+  // rate's colour, on the same scale up to the Settings tab's top; grey with
+  // no recent rate.
+  function drawRates() {
+    segs.forEach(function (g) {
+      var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
+      g.squares.forEach(function (cell) {
+        var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
+        r.bindPopup(function () { var box = el('div', 'lt-pop'); box.appendChild(el('strong', null, 'Accumulation rate')); box.appendChild(el('div', 'lt-pop-seg', segmentLine(g))); return box; });
+        r.addTo(layer);
+      });
+    });
+  }
+  function setMode(m) {
+    mode = m;
+    if (map) map.closePopup();
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
+    legend($('mp-legend'));
+    if (layer) draw(lastCells);
+    $('mp-note').textContent = m === 'rate' ? (segs.length ? segs.length + ' accepted segment' + (segs.length === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
   }
 
   function fit(cells) {
@@ -119,6 +166,7 @@ window.LitterMap = function (app) {
       dark = d.dark || dark;
       box.hidden = !d.collections.length;
       drawMine();
+      drawPlans(d.plans || []);
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
       box.hidden = true;
@@ -176,10 +224,49 @@ window.LitterMap = function (app) {
     return box;
   }
 
+  /* ── Your plans (S5-P3, Q517), each can be proposed as a segment (M565) ── */
+
+  function drawPlans(plans) {
+    var list = $('plans-list');
+    list.textContent = '';
+    $('my-plans').hidden = !plans.length;
+    plans.forEach(function (p) {
+      var box = el('div', 'lt-plan-item');
+      box.id = 'plan-' + p.id;
+      box.appendChild(el('p', 'lt-col-head', 'Plan ' + p.id + ' · ' + (p.created ? new Date(p.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '')));
+      box.appendChild(el('p', 'muted small', p.cells.length + ' square' + (p.cells.length === 1 ? '' : 's') + ' · ' + round(p.miles, 2) + ' mi · ' +
+        (p.used ? 'collected (' + p.used + ')' : p.replaced ? 'replaced by a newer plan' : 'not collected yet')));
+      if (p.segment) box.appendChild(el('p', 'lt-plan-seg', p.segment.accepted ? 'Accepted segment ' + p.segment.id + ': ' + p.segment.name
+        : 'Proposed as a segment (' + p.segment.id + ': ' + p.segment.name + '), waiting for HABO\'s staff'));
+      var row = el('div', 'lt-col-row');
+      var m = el('button', 'btn btn-secondary lt-plan-map', 'See it on the map');
+      m.type = 'button';
+      m.addEventListener('click', function () { open({ focus: p.cells, back: app.showAccount, plan: p.cells }); });
+      row.appendChild(m);
+      if (!p.segment) {
+        var g = el('button', 'btn btn-secondary lt-plan-propose', 'Propose as a segment');
+        g.type = 'button';
+        g.addEventListener('click', function () {
+          var name = window.prompt('Name this segment, like the street it runs along:', '');
+          if (name == null) return;
+          g.disabled = true;
+          app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: name }).then(function (d) {
+            drawPlans(d.plans);
+            app.notice('Proposed. Once HABO\'s staff accept it, anyone can collect it again and its accumulation rate builds.');
+          }, function (err) { g.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+        });
+        row.appendChild(g);
+      }
+      box.appendChild(row);
+      list.appendChild(box);
+    });
+  }
+
   /* ── Wiring ── */
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
+  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.addEventListener('click', function () { setMode(b.dataset.layer); }); });
 
   return { open: open, showMine: showMine };
 };
