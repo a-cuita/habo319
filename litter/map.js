@@ -11,7 +11,7 @@ window.LitterMap = function (app) {
 
   var G = window.LitterGeo;
   var $ = app.$;
-  var HOME_CELL = '44742_-100738';   // downtown Montgomery
+  var HOME_CELL = '357940_-805900';   // downtown Montgomery
   var SHOW_FIRST = 10;              // collections listed before "Show all"
   var map = null, layer = null, back = null;
   var colours = ['#2c7bb6', '#f6e8c3', '#8c510a'];
@@ -68,7 +68,10 @@ window.LitterMap = function (app) {
       fit(focus);
       // The walk's own GPX track, where you walked (S3-P27, Oct 25).
       if (opts.track && opts.track.length > 1) {
-        L.polyline(opts.track, { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+        G.trackRuns(opts.track).forEach(function (run) {
+          L.polyline(run.pts, run.paused ? { color: d.pausedColour || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
+            : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+        });
         map.fitBounds(L.latLngBounds(opts.track), { maxZoom: 17, padding: [16, 16] });
       }
       $('mp-note').textContent = d.cells.length ? (d.cells.length === 1 ? '1 cell has' : d.cells.length.toLocaleString('en-US') + ' cells have') + ' a reading.'

@@ -22,12 +22,12 @@ window.LitterCollect = function (app) {
   var TYPES_KEY = 'habo-litter-types';
   var OVERPASS = 'https://overpass-api.de/api/interpreter';
   var ROUGH_M = 80;             // a location rougher than 80 m is asked to be tapped (Q313)
-  var HOME_CELL = '44742_-100738';   // downtown Montgomery: where sunset is reckoned with no collection going
+  var HOME_CELL = '357940_-805900';   // downtown Montgomery: where sunset is reckoned with no collection going
 
   var c = load(KEY);            // the collection on this phone, or null
   // A copy kept before the cells were halved (S5) has the old cells: it's let
   // go, unless it holds litter pulses that haven't reached HABO.
-  if (c && c.grid !== 20 && !(c.queue && c.queue.length)) { c = null; keep(KEY, null); }
+  if (c && c.grid !== 160 && !(c.queue && c.queue.length)) { c = null; keep(KEY, null); }
   var streets = null, streetsBox = null;
   var map = null, layers = null;
   var pulse = null;             // the litter pulse being filled in
@@ -388,7 +388,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings;
       pace = d.pace || pace;
       var col = d.collection;
-      c = { id: col.id, grid: 20, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
+      c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: col.started, startCell: col.startCell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false,
         plan: d.plan || null, checkins: [], ckOut: [], sim: !!col.simulated, line: [] };
       if (account) account.plan = null;
@@ -634,9 +634,10 @@ window.LitterCollect = function (app) {
     var pressedAt = Date.now();
     var askedSame = false;
     var go = function (cell, pos) {
-      // End in the cell of your last weighing asks first (S3-P27, Q398): No
-      // ends the collection there, with no new weighing.
-      if (kind === 'end' && !askedSame && !c.current.pausedAt && c.lastCell && cell === c.lastCell) {
+      // End asks first whenever there was a weighing before it (S5-P1,
+      // Q506: a place test missed it at the greenhouse, C572): No ends the
+      // collection where your last weighing was, with no new weighing.
+      if (kind === 'end' && !askedSame && !c.current.pausedAt && c.n > 1) {
         askedSame = true;
         closeChooser();
         return sameCell(function () { go(cell, pos); });
@@ -1052,9 +1053,22 @@ window.LitterCollect = function (app) {
     keep(STREETS_KEY, null);
     if (busyFor === 'end') hideBusy();
     showSummary();
+    if (!summary.track) gpxPop(true);
+  }
+
+  // The GPX section in a pop-up over the summary, right after End (S5-P1,
+  // C575); Later, or the track saved, puts it back in the summary.
+  var gpxHome = null;
+  function gpxPop(open) {
+    var box = $('sm-gpx-box');
+    if (!gpxHome) gpxHome = { parent: box.parentNode, next: box.nextSibling };
+    if (open) $('sm-gpx-slot').appendChild(box);
+    else if (box.parentNode !== gpxHome.parent) gpxHome.parent.insertBefore(box, gpxHome.next);
+    $('sm-gpx-pop').hidden = !open;
   }
 
   function showSummary() {
+    if (gpxHome) gpxPop(false);
     app.show('v-summary');
     var col = summary.collection, sim = !!(col && col.simulated);
     $('sm-gpx').disabled = $('sm-sim-line').disabled = false;
@@ -1095,7 +1109,7 @@ window.LitterCollect = function (app) {
     });
     // Your recorder's track, where you walked, over the cells (S3-P27, M465).
     if (summary.track && summary.track.length > 1) {
-      L.polyline(summary.track, { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layers.cells);
+      drawTrack(summary.track, layers.cells, settings.pausedColour);
       summary.track.forEach(function (p) { b.extend(p); });
     }
     setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
@@ -1419,10 +1433,12 @@ window.LitterCollect = function (app) {
       if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
       else short.push(s.n);
     });
+    pts.forEach(function (p) { p.paused = pauses.some(function (w) { return p.t > w[0] && p.t < w[1]; }); });
     summary.track = thinTrack(pts);
     showBusy('Saving your GPX track, please wait...');
     app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings }).then(function (d) {
       hideBusy();
+      gpxPop(false);
       if (d.collection) summary.collection = d.collection;
       if (d.stretches) summary.stretches = d.stretches;
       summary.stops = {};
@@ -1570,10 +1586,18 @@ window.LitterCollect = function (app) {
     var out = [];
     pts.forEach(function (p) {
       var last = out[out.length - 1];
-      if (!last || Math.abs(p.lat - last[0]) > 0.00005 || Math.abs(p.lon - last[1]) > 0.00005) out.push([p.lat, p.lon]);
+      var mark = p.paused ? 1 : 0;
+      if (!last || (last[2] || 0) !== mark || Math.abs(p.lat - last[0]) > 0.00005 || Math.abs(p.lon - last[1]) > 0.00005) out.push(mark ? [p.lat, p.lon, 1] : [p.lat, p.lon]);
     });
     if (out.length > 2000) { var k = Math.ceil(out.length / 2000), all = out; out = all.filter(function (x, i) { return i % k === 0; }); }
     return out;
+  }
+  // A track, the paused parts faded in their own colour, solid (S5-P1, Q507).
+  function drawTrack(track, layer, paused) {
+    G.trackRuns(track).forEach(function (run) {
+      L.polyline(run.pts, run.paused ? { color: paused || '#9ca3af', weight: 3, opacity: 0.55, interactive: false, className: 'lt-track-paused' }
+        : { color: '#111827', weight: 3, opacity: 0.85, interactive: false, className: 'lt-track-line' }).addTo(layer);
+    });
   }
   function keptTrack(col) { return col && col.track && col.track.length > 1 ? col.track : null; }
 
@@ -1705,7 +1729,7 @@ window.LitterCollect = function (app) {
       });
       setTimeout(function () { map.invalidateSize(); }, 0);
     }
-    $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap the first cell you mean to cover.';
+    $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
     $('pl-undo').disabled = !planning.history.length;
   }
 
@@ -1779,6 +1803,7 @@ window.LitterCollect = function (app) {
   buildWheel();
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
+  $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
   $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;

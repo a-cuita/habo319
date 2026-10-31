@@ -281,6 +281,14 @@
 
   <!-- While a collection starts (Oct 24, on C477): over the whole page, so nothing can be pressed twice. -->
   <!-- Your GPX recording first (S5, round 2): before a new collection starts, two pop-ups. Your GPX track is required. -->
+  <!-- Your GPX file after End, as a pop-up once the collection is saved (S5-P1, C575, Q509). -->
+  <div class="lt-scrim" id="sm-gpx-pop" role="dialog" aria-modal="true" aria-labelledby="sm-gpx-pop-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="sm-gpx-pop-title">Your collection is saved</p>
+      <div id="sm-gpx-slot"></div>
+      <div class="center"><button class="link-btn" id="sm-gpx-later" type="button">Later</button></div>
+    </div>
+  </div>
   <div class="lt-scrim" id="cl-rec" role="dialog" aria-modal="true" aria-labelledby="cl-rec-title" hidden>
     <div class="lt-scrim-box">
       <p class="lt-scrim-title" id="cl-rec-title">Start your GPX recording</p>
@@ -458,9 +466,9 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
-<script src="geo.js?v=5"></script>
-<script src="collect.js?v=18"></script>
-<script src="map.js?v=3"></script>
+<script src="geo.js?v=6"></script>
+<script src="collect.js?v=19"></script>
+<script src="map.js?v=4"></script>
 <script src="litter.js?v=5"></script>
 </body>
 </html>

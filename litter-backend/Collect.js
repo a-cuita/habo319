@@ -444,7 +444,7 @@ function collectCheckins_(req) {
 
 // A kept track, "lat,lon;lat,lon;…", as points.
 function parseTrack_(v) {
-  return String(v || '').split(';').map(function (p) { var a = p.split(','); return [Number(a[0]), Number(a[1])]; })
+  return String(v || '').split(';').map(function (p) { var a = p.split(','); return a[2] === 'p' ? [Number(a[0]), Number(a[1]), 1] : [Number(a[0]), Number(a[1])]; })
     .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]) && p[0] !== 0; });
 }
 
@@ -465,7 +465,8 @@ function collectTrack_(req) {
     });
     if (pts.length < 2) throw new Error('That track has too few points to draw.');
     if (pts.length > 2000) throw new Error('That track has too many points to keep.');
-    var text = pts.map(function (p) { return Number(p[0]).toFixed(5) + ',' + Number(p[1]).toFixed(5); }).join(';');
+    // A point inside a pause is marked, so it's drawn faded (S5-P1, Q507).
+    var text = pts.map(function (p) { return Number(p[0]).toFixed(5) + ',' + Number(p[1]).toFixed(5) + (p[2] ? ',p' : ''); }).join(';');
     getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.track).setValue(text);
     // The track is the path (S5, Oct 29): each weighing's cells and miles
     // walked, as the page worked them out from the track, and its reading again.
@@ -647,7 +648,7 @@ function minutesSetting_(name, fallback) {
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
-    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_(),
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_(), pausedColour: pausedColour_(),
     sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
 }
 

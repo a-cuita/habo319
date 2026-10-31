@@ -14,9 +14,11 @@ var LitterGeo = (function () {
 
   var DEG = Math.PI / 180;
   var MILE_M = 1609.344;
-  // Half the first size (S5, Oct 29, in chat): a twentieth of a mile, about
-  // 265 ft, so a block from one corner to the next is two cells or more.
-  var CELL_M = MILE_M / 20;
+  // A hundred-and-sixtieth of a mile, about 10 m (33 ft) (S5-P1, Q516):
+  // about how far you look while collecting, and about as fine as phone GPS
+  // can tell, so the squares along a walk make a line about a sidewalk wide.
+  // (A twentieth of a mile from Oct 29; a tenth before that.)
+  var CELL_M = MILE_M / 160;
   // The grid is laid flat at Montgomery's latitude, so its cells are true
   // squares there and across HABO's area, and never move.
   var REF_LAT = 32.3668;
@@ -30,6 +32,20 @@ var LitterGeo = (function () {
   function dist(a, b) { return Math.sqrt((a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y)); }
 
   // A cell's id is its row and column, like "24871_-128210".
+  // A kept track split into runs, walking or paused ([lat, lon, 1] is paused),
+  // each run starting where the last ended so the line has no gaps (S5-P1).
+  function trackRuns(track) {
+    var runs = [];
+    (track || []).forEach(function (p) {
+      var paused = !!p[2], run = runs[runs.length - 1];
+      if (!run || run.paused !== paused) {
+        var start = run ? [run.pts[run.pts.length - 1]] : [];
+        runs.push(run = { paused: paused, pts: start });
+      }
+      run.pts.push([p[0], p[1]]);
+    });
+    return runs.filter(function (r) { return r.pts.length > 1; });
+  }
   function cellAt(lat, lon) {
     var p = xy(lat, lon);
     return Math.floor(p.y / CELL_M) + '_' + Math.floor(p.x / CELL_M);
@@ -379,6 +395,7 @@ var LitterGeo = (function () {
   }
 
   return {
+    trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes

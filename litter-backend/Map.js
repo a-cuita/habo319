@@ -22,6 +22,9 @@ var SETTING_COLOUR_0 = 'Map colour at 0';
 var SETTING_COLOUR_5 = 'Map colour at 5';
 var SETTING_COLOUR_10 = 'Map colour at 10';
 var SETTING_BREAK_AFTER = 'Break question after (collections)';
+// The paused part of a GPX track, drawn faded in this colour (S5-P1, Q507, M545).
+var SETTING_PAUSED_COLOUR = 'Paused track colour';
+var DEFAULT_PAUSED_COLOUR = '#9ca3af';
 // MoCiSN's index colours (Coalition Builder, M127): blue, sand, brown.
 var MOCISN_COLOURS = ['#2c7bb6', '#f6e8c3', '#8c510a'];
 
@@ -54,7 +57,7 @@ function mapLoad_() {
     var x = latest[cell];
     return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
   });
-  return { colours: mapColours_(), cells: cells };
+  return { colours: mapColours_(), pausedColour: pausedColour_(), cells: cells };
 }
 
 // This account's collections, newest first, each with its stretches.
@@ -77,7 +80,7 @@ function myCollections_(req) {
       return col;
     })
     .sort(function (a, b) { return b.started - a.started; });
-  return { collections: list, colours: mapColours_(), editHours: editHours };
+  return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), editHours: editHours };
 }
 
 /* ── The colours ── */
@@ -89,6 +92,10 @@ function mapColours_() {
     var v = String(getSetting_(name) || '').trim().toLowerCase();
     return /^#[0-9a-f]{6}$/.test(v) ? v : MOCISN_COLOURS[i];
   });
+}
+function pausedColour_() {
+  var v = String(getSetting_(SETTING_PAUSED_COLOUR) || '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(v) ? v : DEFAULT_PAUSED_COLOUR;
 }
 
 /* ── The usual pace (item 7) ── */

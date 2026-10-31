@@ -79,6 +79,13 @@ var TABS = {
     widths: [90, 90, 150, 80, 420, 220, 80, 110, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm' }
   },
+  // The published work our decisions lean on (S5-P3, Q520), kept so it can
+  // be shown later as info.
+  sources: {
+    name: 'Sources',
+    header: ['Source', 'Link', 'Used for', 'Our reasoning', 'Date', 'Card'],
+    widths: [320, 260, 260, 360, 100, 80]
+  },
   types: {
     name: 'Litter Types',
     header: ['Litter type', 'Added by', 'Status', 'Added'],
@@ -207,7 +214,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -221,6 +228,9 @@ function ensureSchema_(force) {
     if (types.getLastRow() < 2) {
       types.getRange(2, 1, SEED_LITTER_TYPES.length, 4).setValues(SEED_LITTER_TYPES.map(function (t) { return [t, '', TYPE_SHARED, '']; }));
     }
+    // The sources so far, the first time (S5-P3, Q520).
+    var src = ss.getSheetByName(TABS.sources.name);
+    if (src.getLastRow() < 2) src.getRange(2, 1, SEED_SOURCES.length, 6).setValues(SEED_SOURCES);
     // A new bound Sheet starts with an empty "Sheet1".
     var first = ss.getSheetByName('Sheet1');
     if (first && ss.getSheets().length > 1 && first.getLastRow() === 0) ss.deleteSheet(first);
@@ -233,7 +243,9 @@ function ensureSchema_(force) {
     }
     settingsMemo_ = null;
     rereadOnce_(ss);
-    halveGridOnce_(ss);
+    regridOnce_(ss, 'GRID_HALVED', 2, LitterGeo.MILE_M / 20);
+    // 10 m squares (S5-P1, Q516): each square kept so far becomes its 64.
+    regridOnce_(ss, 'GRID_10M', 8, LitterGeo.MILE_M / 160);
   });
   cache.put(cacheKey, '1', 600);
 }
@@ -264,13 +276,23 @@ function rereadOnce_(ss) {
 // passed through, when it has one); where it's one place (a start, an end,
 // a turnaround, a litter pulse, a break), the first of the four. Readings
 // stay as they were.
-function halveGridOnce_(ss) {
+// The same again for 10 m squares (S5-P1, Q516): each square becomes its
+// 8 x 8, by the same rules; a place becomes the one in its middle.
+// `factor` is how many new squares fit along an old one's side, and `cellM`
+// the new squares' size, in meters.
+function regridOnce_(ss, prop, factor, cellM) {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('GRID_HALVED')) return;
+  if (props.getProperty(prop)) return;
   var isCell = function (x) { return /^-?\d+_-?\d+$/.test(x); };
-  var rc = function (x) { var m = /^(-?\d+)_(-?\d+)$/.exec(x); return [Number(m[1]) * 2, Number(m[2]) * 2]; };
-  var four = function (x) { var p = rc(x); return [p[0] + '_' + p[1], p[0] + '_' + (p[1] + 1), (p[0] + 1) + '_' + p[1], (p[0] + 1) + '_' + (p[1] + 1)]; };
-  var one = function (x) { var p = rc(x); return p[0] + '_' + p[1]; };
+  var rc = function (x) { var m = /^(-?\d+)_(-?\d+)$/.exec(x); return [Number(m[1]) * factor, Number(m[2]) * factor]; };
+  var four = function (x) {
+    var p = rc(x), out = [];
+    for (var i = 0; i < factor; i++) for (var j = 0; j < factor; j++) out.push((p[0] + i) + '_' + (p[1] + j));
+    return out;
+  };
+  var mid = factor > 2 ? factor / 2 : 0;
+  var one = function (x) { var p = rc(x); return (p[0] + mid) + '_' + (p[1] + mid); };
+  var at = function (q) { var p = LitterGeo.xy(q[0], q[1]); return Math.floor(p.y / cellM) + '_' + Math.floor(p.x / cellM); };
   // Where each collection's saved GPX track went, in the new cells (Jeremy,
   // Oct 29): a weighing's old cell becomes only the new cells in it that its
   // walk's track passed through, or all four when the track passed none.
@@ -280,9 +302,12 @@ function halveGridOnce_(ss) {
     var pts = parseTrack_(r[COLLECTION_COL.track - 1]);
     if (pts.length < 2) return;
     var seen = {};
+    // Every point, and points every quarter square between them.
     pts.forEach(function (q, k) {
-      seen[LitterGeo.cellAt(q[0], q[1])] = true;
-      if (k) LitterGeo.lineCells(LitterGeo.xy(pts[k - 1][0], pts[k - 1][1]), LitterGeo.xy(q[0], q[1])).forEach(function (x) { seen[x] = true; });
+      seen[at(q)] = true;
+      if (!k) return;
+      var a = pts[k - 1], n = Math.ceil(LitterGeo.dist(LitterGeo.xy(a[0], a[1]), LitterGeo.xy(q[0], q[1])) / (cellM / 4));
+      for (var t = 1; t < n; t++) seen[at([a[0] + (q[0] - a[0]) * t / n, a[1] + (q[1] - a[1]) * t / n])] = true;
     });
     walked[r[0]] = seen;
   });
@@ -326,8 +351,23 @@ function halveGridOnce_(ss) {
   redo(TABS.stretches, sc);
   redo(TABS.collections, cc);
   redo(TABS.plans, pc);
-  props.setProperty('GRID_HALVED', new Date().toISOString());
+  props.setProperty(prop, new Date().toISOString());
 }
+
+var SEED_SOURCES = [
+  ['Hoyle, S.D., and others (2024). Catch per unit effort modelling for stock assessment: a summary of good practices. Fisheries Research.', '',
+    'What catch per unit effort is, and how it is standardized', 'The Litter Index is a catch per unit effort; good practice is one measure of effort, which is why using both miles and hours was questioned.', '2026-10-30', 'S5-P3'],
+  ['Marine Conservation Society (UK). Beachwatch beach litter surveys.', '',
+    'Volunteers record effort (people, time, distance) with their counts', 'Volunteer litter counts are corrected for effort, as the Litter Index does.', '2026-10-30', 'S5-P3'],
+  ['Cowger, W., and others (2022). Litter origins, accumulation rates, and hierarchical composition on urban roadsides of the Inland Empire, California. Environmental Research Letters 17(1).', '',
+    'Accumulation rate from cleaning the same roadside stretches again and again', 'The accumulation rate (pounds per mile per day on a stretch cleaned again) is measured the same way.', '2026-10-30', 'S5-P3'],
+  ['Virginia Transportation Research Council. Roadside litter surveys at fixed sites.', '',
+    'Repeated pickups at fixed sites; the first repeat carries what the first cleanup missed', 'Why the first repeat runs high, and why the median of recent rates is shown.', '2026-10-30', 'S5-P3'],
+  ['NOAA Marine Debris Program (2021). Marine Debris Monitoring and Assessment Project Shoreline Survey Guide (NOAA Technical Memorandum NOS OR&R 56).', 'https://marinedebris.noaa.gov/protocol/noaa-marine-debris-monitoring-and-assessment-project-shoreline-survey-guide',
+    'Accumulation surveys clear the same shoreline site (100 m or longer) each visit and count per area', 'Fields: what is searched is counted as an area, the squares the track passes through.', '2026-10-30', 'S5-P3'],
+  ['Buckland, S.T., and others (2001). Introduction to Distance Sampling. Oxford University Press.', 'https://academic.oup.com/book/53746',
+    'Strip transects: everything within a set distance either side of a walked line', 'A walker\'s range of attention; with 10 m squares, the squares along the track are the strip searched.', '2026-10-30', 'S5-P1, S5-P3']
+];
 
 // Changes whenever a tab's layout or the list of settings changes, so a new
 // version of the code always re-checks the Sheet.
@@ -355,6 +395,7 @@ function missingSettings_(ss) {
     [SETTING_COLOUR_0, MOCISN_COLOURS[0]],
     [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
+    [SETTING_PAUSED_COLOUR, DEFAULT_PAUSED_COLOUR],
     [SETTING_BREAK_AFTER, '10'],
     [SETTING_PLAN_XP, '1'],
     [SETTING_RATING_XP_1, '3'],
