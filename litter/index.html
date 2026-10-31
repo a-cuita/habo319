@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=17">
+<link rel="stylesheet" href="litter.css?v=18">
 </head>
 <body>
 
@@ -375,18 +375,29 @@
   <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
   <div id="v-map" hidden>
     <section class="card">
-      <h2>The litter map</h2>
-      <p class="muted small">Each square is 1/160 of a mile (about 33 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <!-- The square size behind an ℹ️ (S5-P11, M593): pointing at it shows the words; a tap shows them here. -->
+      <div class="lt-title-row">
+        <h2>The litter map</h2>
+        <button class="lt-info" id="mp-info" type="button" aria-label="How big a square is" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side.">ℹ️</button>
+      </div>
+      <p class="muted small" id="mp-info-say" hidden>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
+      <p class="muted small">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
     <div id="mp-slot">
       <div id="mp-body">
-        <div class="lt-layers" id="mp-layers">
-          <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
-          <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
-        </div>
         <div class="lt-legend" id="mp-legend"></div>
-        <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
+        <div class="lt-map-box lt-map-has-layers">
+          <div class="lt-map" id="mp-map"></div>
+          <!-- The layer choice: a small button at the map's top right (S5-P11, Q549). -->
+          <div class="lt-layers" id="mp-layers">
+            <button class="lt-layers-btn" id="mp-layers-btn" type="button" aria-label="Map layers" aria-expanded="false" title="Map layers"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m2 13 10 5 10-5M2 17.5l10 5 10-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+            <div class="lt-layers-menu" id="mp-layers-menu" hidden>
+              <button class="lt-layer-opt on" data-layer="index" type="button" aria-pressed="true">Litter Index</button>
+              <button class="lt-layer-opt" data-layer="rate" type="button" aria-pressed="false">Accumulation rate</button>
+            </div>
+          </div>
+        </div>
         <p class="muted small" id="mp-note"></p>
       </div>
     </div>
@@ -527,7 +538,7 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=6"></script>
 <script src="collect.js?v=27"></script>
-<script src="map.js?v=10"></script>
-<script src="litter.js?v=7"></script>
+<script src="map.js?v=11"></script>
+<script src="litter.js?v=8"></script>
 </body>
 </html>

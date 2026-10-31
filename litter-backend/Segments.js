@@ -92,6 +92,8 @@ function segmentPropose_(req) {
 function measureAgain_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  // A Head Builder's action only (S5-P13, Q555), as with the Simulated walk switch.
+  if (account.rank !== 'Head Builder') throw new Error('Only a Head Builder can measure a walk again.');
   var id = clean_(req.collectionId, 20);
   return withLock_(function () {
     var col = readCollection_(id);

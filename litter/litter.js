@@ -496,6 +496,7 @@
 
   var mapper = window.LitterMap({
     $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
+    me: function () { return state.account; },
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },

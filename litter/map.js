@@ -90,6 +90,7 @@ window.LitterMap = function (app) {
     app.notice('');
     app.show('v-map');
     $('mp-slot').appendChild($('mp-body'));
+    layersMenu(false);
     $('mp-note').textContent = 'Loading the map…';
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
@@ -122,6 +123,7 @@ window.LitterMap = function (app) {
   // plan outlined, in place of See the map (Oct 31, field first).
   function inline() {
     $('cl-litter-map-slot').appendChild($('mp-body'));
+    layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
@@ -207,7 +209,10 @@ window.LitterMap = function (app) {
   function setMode(m) {
     mode = m;
     if (map) map.closePopup();
-    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
+      b.classList.toggle('on', b.dataset.layer === m);
+      b.setAttribute('aria-pressed', b.dataset.layer === m ? 'true' : 'false');
+    });
     legend($('mp-legend'));
     if (layer) draw(lastCells);
     var n = segList().length;
@@ -283,8 +288,10 @@ window.LitterMap = function (app) {
       row.appendChild(m);
     }
     // Measure again (Oct 31, field first): its segment rates worked out again,
-    // with the Settings and each segment's Kind as they are now.
-    if (c.track && c.track.length > 1) {
+    // with the Settings and each segment's Kind as they are now. A Head
+    // Builder's only (S5-P13, Q555), as with the Simulated walk switch.
+    var me = app.me && app.me();
+    if (c.track && c.track.length > 1 && me && me.rank === 'Head Builder') {
       var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
       ma.type = 'button';
       ma.addEventListener('click', function () {
@@ -407,7 +414,24 @@ window.LitterMap = function (app) {
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
-  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.addEventListener('click', function () { setMode(b.dataset.layer); }); });
+  // The layer choice (S5-P11, Q549): the small button opens its menu; picking
+  // a layer, a tap elsewhere or Escape closes it.
+  function layersMenu(show) {
+    $('mp-layers-menu').hidden = !show;
+    $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
+  }
+  $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
+  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
+    b.addEventListener('click', function () { setMode(b.dataset.layer); layersMenu(false); });
+  });
+  document.addEventListener('click', function (e) { if (!$('mp-layers').contains(e.target)) layersMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') layersMenu(false); });
+  // The square size, behind its ℹ️ (S5-P11, M593): a tap shows or hides the words.
+  $('mp-info').addEventListener('click', function () {
+    var show = $('mp-info-say').hidden;
+    $('mp-info-say').hidden = !show;
+    this.setAttribute('aria-expanded', show ? 'true' : 'false');
+  });
 
   return { open: open, showMine: showMine, inline: inline, showPlan: showPlan };
 };

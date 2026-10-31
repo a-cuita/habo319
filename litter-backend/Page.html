@@ -300,8 +300,19 @@ html.lt-builder .leaflet-control-attribution a { color: var(--primary); }
 html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-tip { background: var(--surface); color: var(--text); }
 
 /* Accepted segments and their rates (S5-P3). */
-.lt-layers { display: flex; gap: 8px; margin: 10px 0 0; }
-.lt-layers .btn { margin-top: 0; padding: 8px 10px; font-size: 0.9rem; }
+/* The layer choice: a small button at the map's top right, opening a menu (S5-P11, Q549). */
+.lt-map-has-layers { position: relative; }
+.lt-layers { position: absolute; top: 10px; right: 10px; z-index: 1000; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.lt-layers-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer; padding: 0; background-clip: padding-box; }
+.lt-layers-btn[aria-expanded="true"] { color: var(--primary); }
+.lt-layers-menu { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); padding: 4px; display: flex; flex-direction: column; min-width: 170px; }
+.lt-layers-menu[hidden] { display: none; }
+.lt-layer-opt { border: 0; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; padding: 9px 10px 9px 28px; border-radius: 6px; cursor: pointer; position: relative; }
+.lt-layer-opt:hover { background: var(--surface-2); }
+.lt-layer-opt.on { font-weight: 700; color: var(--primary); }
+.lt-layer-opt.on::before { content: "✓"; position: absolute; left: 10px; }
+.lt-title-row { display: flex; align-items: center; gap: 6px; }
+.lt-title-row h2 { margin: 0; }
 .lt-plan-item { border-top: 1px solid var(--border); padding: 10px 0; }
 .lt-plan-item:first-child { border-top: 0; padding-top: 0; }
 .lt-plan-seg { font-weight: 700; color: var(--accent); }
@@ -696,18 +707,29 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
   <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
   <div id="v-map" hidden>
     <section class="card">
-      <h2>The litter map</h2>
-      <p class="muted small">Each square is 1/160 of a mile (about 33 ft) on a side. Its colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <!-- The square size behind an ℹ️ (S5-P11, M593): pointing at it shows the words; a tap shows them here. -->
+      <div class="lt-title-row">
+        <h2>The litter map</h2>
+        <button class="lt-info" id="mp-info" type="button" aria-label="How big a square is" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side.">ℹ️</button>
+      </div>
+      <p class="muted small" id="mp-info-say" hidden>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
+      <p class="muted small">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
     <div id="mp-slot">
       <div id="mp-body">
-        <div class="lt-layers" id="mp-layers">
-          <button class="btn btn-secondary on" data-layer="index" type="button">Litter Index</button>
-          <button class="btn btn-secondary" data-layer="rate" type="button">Accumulation rate</button>
-        </div>
         <div class="lt-legend" id="mp-legend"></div>
-        <div class="lt-map-box"><div class="lt-map" id="mp-map"></div></div>
+        <div class="lt-map-box lt-map-has-layers">
+          <div class="lt-map" id="mp-map"></div>
+          <!-- The layer choice: a small button at the map's top right (S5-P11, Q549). -->
+          <div class="lt-layers" id="mp-layers">
+            <button class="lt-layers-btn" id="mp-layers-btn" type="button" aria-label="Map layers" aria-expanded="false" title="Map layers"><svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M12 3 2 8l10 5 10-5-10-5z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="m2 13 10 5 10-5M2 17.5l10 5 10-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
+            <div class="lt-layers-menu" id="mp-layers-menu" hidden>
+              <button class="lt-layer-opt on" data-layer="index" type="button" aria-pressed="true">Litter Index</button>
+              <button class="lt-layer-opt" data-layer="rate" type="button" aria-pressed="false">Accumulation rate</button>
+            </div>
+          </div>
+        </div>
         <p class="muted small" id="mp-note"></p>
       </div>
     </div>
@@ -3366,6 +3388,7 @@ window.LitterMap = function (app) {
     app.notice('');
     app.show('v-map');
     $('mp-slot').appendChild($('mp-body'));
+    layersMenu(false);
     $('mp-note').textContent = 'Loading the map…';
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
@@ -3398,6 +3421,7 @@ window.LitterMap = function (app) {
   // plan outlined, in place of See the map (Oct 31, field first).
   function inline() {
     $('cl-litter-map-slot').appendChild($('mp-body'));
+    layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
@@ -3483,7 +3507,10 @@ window.LitterMap = function (app) {
   function setMode(m) {
     mode = m;
     if (map) map.closePopup();
-    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.classList.toggle('on', b.dataset.layer === m); });
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
+      b.classList.toggle('on', b.dataset.layer === m);
+      b.setAttribute('aria-pressed', b.dataset.layer === m ? 'true' : 'false');
+    });
     legend($('mp-legend'));
     if (layer) draw(lastCells);
     var n = segList().length;
@@ -3559,8 +3586,10 @@ window.LitterMap = function (app) {
       row.appendChild(m);
     }
     // Measure again (Oct 31, field first): its segment rates worked out again,
-    // with the Settings and each segment's Kind as they are now.
-    if (c.track && c.track.length > 1) {
+    // with the Settings and each segment's Kind as they are now. A Head
+    // Builder's only (S5-P13, Q555), as with the Simulated walk switch.
+    var me = app.me && app.me();
+    if (c.track && c.track.length > 1 && me && me.rank === 'Head Builder') {
       var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
       ma.type = 'button';
       ma.addEventListener('click', function () {
@@ -3683,7 +3712,24 @@ window.LitterMap = function (app) {
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
-  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .btn'), function (b) { b.addEventListener('click', function () { setMode(b.dataset.layer); }); });
+  // The layer choice (S5-P11, Q549): the small button opens its menu; picking
+  // a layer, a tap elsewhere or Escape closes it.
+  function layersMenu(show) {
+    $('mp-layers-menu').hidden = !show;
+    $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
+  }
+  $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
+  Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
+    b.addEventListener('click', function () { setMode(b.dataset.layer); layersMenu(false); });
+  });
+  document.addEventListener('click', function (e) { if (!$('mp-layers').contains(e.target)) layersMenu(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') layersMenu(false); });
+  // The square size, behind its ℹ️ (S5-P11, M593): a tap shows or hides the words.
+  $('mp-info').addEventListener('click', function () {
+    var show = $('mp-info-say').hidden;
+    $('mp-info-say').hidden = !show;
+    this.setAttribute('aria-expanded', show ? 'true' : 'false');
+  });
 
   return { open: open, showMine: showMine, inline: inline, showPlan: showPlan };
 };
@@ -4187,6 +4233,7 @@ window.LitterMap = function (app) {
 
   var mapper = window.LitterMap({
     $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
+    me: function () { return state.account; },
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
