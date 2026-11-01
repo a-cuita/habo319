@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=19">
+<link rel="stylesheet" href="litter.css?v=20">
 </head>
 <body>
 
@@ -269,25 +269,30 @@
   <!-- Planning a collection (Oct 24, in chat): the cells you mean to cover, before you start (S5: no stretches or turnarounds). -->
   <div id="v-plan" hidden>
     <section class="card">
-      <h2>Plan a collection</h2>
-      <p class="muted small">Tap the cells you mean to cover. The app fills in along the street from the cell you tapped last.</p>
+      <!-- Drawing a private segment (S5-P12, Q550): squares you keep, to use again in a walk's plan. -->
+      <h2>Draw a private segment</h2>
+      <p class="muted small">Tap the squares you mean to keep. The app fills in along the street from the square you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
-      <!-- Chain plans and segments into this one (Oct 31, field first): each adds its squares, as Add the whole segment does. -->
-      <div class="lt-plan-adds" id="pl-adds" hidden>
-        <select id="pl-add-plan" aria-label="Add a plan"></select>
-        <select id="pl-add-seg" aria-label="Add a segment"></select>
-      </div>
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
     <div class="lt-map-box" id="pl-map-box"></div>
     <div class="ig lt-plan-name">
-      <label for="pl-name">Name this plan (optional)</label>
+      <label for="pl-name">Name it (optional)</label>
       <input id="pl-name" maxlength="60" autocomplete="off" placeholder="Like the streets it covers">
     </div>
     <button class="btn btn-secondary" id="pl-undo" type="button">Undo</button>
-    <button class="btn btn-accent" id="pl-save" type="button">Save the plan</button>
+    <button class="btn btn-accent" id="pl-save" type="button">Save</button>
     <button class="btn btn-secondary" id="pl-cancel" type="button">Cancel</button>
     <p class="err" id="pl-err" role="alert"></p>
+  </div>
+
+  <!-- A segment's map, larger, over the page (S5-P9, M590): from its small map on its card. -->
+  <div class="lt-scrim" id="seg-modal" role="dialog" aria-modal="true" aria-labelledby="seg-modal-title" hidden>
+    <div class="lt-scrim-box lt-seg-modal-box">
+      <p class="lt-scrim-title" id="seg-modal-title"></p>
+      <div class="lt-seg-modal-map" id="seg-modal-map"></div>
+      <button class="btn btn-secondary" id="seg-modal-close" type="button">Close</button>
+    </div>
   </div>
 
   <!-- While a collection starts (Oct 24, on C477): over the whole page, so nothing can be pressed twice. -->
@@ -340,6 +345,16 @@
     <div class="lt-map-box" id="sm-view-box" hidden></div>
     <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
+    <!-- Ground you collected off your plan, kept as a private segment if you like (S5-P9, Q560). -->
+    <section class="card" id="sm-offplan" hidden>
+      <p id="sm-offplan-say"></p>
+      <div class="ig">
+        <label for="sm-offplan-name">Name it (optional)</label>
+        <input id="sm-offplan-name" maxlength="60" autocomplete="off" placeholder="Like the street it runs along">
+      </div>
+      <button class="btn btn-secondary" id="sm-offplan-save" type="button">Save as a private segment</button>
+      <p class="err" id="sm-offplan-err" role="alert"></p>
+    </section>
     <form class="card" id="sm-fix" novalidate hidden>
       <h2 id="sf-title"></h2>
       <div class="ig">
@@ -477,7 +492,7 @@
           <p id="cl-hours"></p>
           <p class="lt-xp" id="cl-xp" hidden></p>
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
-          <button class="btn btn-secondary" id="me-go-plans" type="button">Your plans</button>
+          <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
         </section>
         <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
              It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
@@ -495,13 +510,10 @@
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
-      <!-- Pick one of your plans; Start collecting uses it (Oct 31, field first). -->
-      <div class="ig lt-plan-pick" id="cl-plan-pick-box" hidden>
-        <label for="cl-plan-pick">Plan</label>
-        <select id="cl-plan-pick"></select>
-      </div>
+      <!-- Your plan for this walk (S5-P9, S5-P12, M590, Q553): the segments you chose; every collection starts from one. -->
       <p class="lt-plan-line" id="cl-plan"></p>
-      <button class="btn btn-primary" id="cl-plan-btn" type="button">Plan a collection</button>
+      <button class="btn btn-primary" id="cl-choose" type="button">Choose your plan</button>
+      <button class="btn btn-secondary" id="cl-plan-btn" type="button">Draw a private segment</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
       <p class="err" id="cl-start-err" role="alert"></p>
       <!-- The litter map, with your picked plan outlined (Oct 31). -->
@@ -538,19 +550,38 @@
 
   <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
   <div id="v-plans" hidden>
+    <!-- Segments (S5-P9, S5-P12, M590, Q544, Q545): your private segments, then the public ones, each list folding away.
+         Select… chooses a walk's plan from them (Q553, Q562). -->
     <section class="card" id="my-plans">
-      <h2>Your plans</h2>
-      <p class="muted small">Pick a plan on the main page, in the Plan menu. Propose a plan as a segment, and once HABO's staff accept it, anyone can collect it again and its accumulation rate builds.</p>
-      <p class="muted small" id="plans-none" hidden>No plans yet. Press Plan a collection on the main page.</p>
-      <div id="plans-list"></div>
+      <div class="lt-title-row lt-seg-top">
+        <h2>Segments</h2>
+        <button class="btn btn-secondary lt-select-btn" id="seg-select" type="button">Select…</button>
+      </div>
+      <p class="muted small" id="seg-select-say" hidden>Tap the segments you mean to collect on your walk, then press Use as my plan.</p>
+      <details class="lt-seg-group" id="plans-group" open>
+        <summary>Your private segments <span id="plans-count"></span></summary>
+        <p class="muted small" id="plans-none" hidden>None yet. Press Draw a private segment on the main page.</p>
+        <div id="plans-list"></div>
+      </details>
+      <details class="lt-seg-group public" id="public-group" open>
+        <summary>Public segments <span id="public-count"></span></summary>
+        <p class="muted small" id="public-none" hidden>None yet. Once HABO's staff accept a submitted segment, it's here for anyone to collect.</p>
+        <div id="public-list"></div>
+      </details>
     </section>
     <button class="btn btn-secondary lt-back-main" id="plans-back" type="button">Back</button>
+    <!-- While selecting: how many, their miles, Use as my plan and Cancel (Q562). -->
+    <div class="lt-select-bar" id="seg-bar" hidden>
+      <span id="seg-bar-say"></span>
+      <button class="btn btn-accent" id="seg-use" type="button">Use as my plan</button>
+      <button class="btn btn-secondary" id="seg-cancel" type="button">Cancel</button>
+    </div>
   </div>
 </main>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
-<script src="geo.js?v=6"></script>
+<script src="geo.js?v=7"></script>
 <script src="collect.js?v=28"></script>
 <script src="map.js?v=12"></script>
 <script src="litter.js?v=9"></script>

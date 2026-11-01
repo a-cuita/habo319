@@ -39,7 +39,7 @@ window.LitterCollect = function (app) {
   var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
-  var PLAN_KEY = 'habo-litter-plan';  // the plan picked in the Plan menu, kept on this phone (Oct 31)
+  var WALK_KEY = 'habo-litter-walkplan';  // the walk's plan chosen on this phone: its segments' ids (S5-P9, S5-P12)
   var SIM_KEY = 'habo-litter-sim';   // the Simulated walk switch, kept on this computer (S5-U2)
   var lastTap = null;           // where the map was last clicked
   var SIM_SAY = 'A simulated walk: the line you drew stands in for your GPX track. It sets where you walked, and the miles.';
@@ -249,7 +249,7 @@ window.LitterCollect = function (app) {
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
       showPlanLine();
-      if (app.onPlanPicked) app.onPlanPicked(pickedCells());
+      if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
     }, function () { /* the account page shows without it */ });
   }
@@ -268,61 +268,62 @@ window.LitterCollect = function (app) {
     }, function () { /* no signal: it stays as it is */ });
   }
 
-  // The plan picked in the Plan menu (Oct 31, field first): the one picked
-  // on this phone, until a newer plan is saved (here or elsewhere); then the
-  // newest. 'none' for no plan, once a plan is up to you.
-  function pickedId() {
-    if (!account) return '';
-    var plans = account.plans || [], k = load(PLAN_KEY);
-    var newest = plans[0] ? plans[0].id : '';
-    if (k && typeof k === 'object' && k.newest === newest) {
-      if (k.id === 'none' && !account.planNeeded) return 'none';
-      if (plans.some(function (p) { return p.id === k.id; })) return k.id;
+  // The walk's plan (S5-P9, S5-P12, Q552, Q553, Q562): the segments you chose
+  // with Select… on the Segments screen, your private ones and public ones,
+  // kept on this phone until the walk starts, then kept with the collection.
+  // Every collection starts from one (M590). A segment deleted, or no longer
+  // public, drops out.
+  function walkPlan() {
+    var k = load(WALK_KEY), ids = k && Array.isArray(k.ids) ? k.ids : [];
+    var out = [];
+    ids.forEach(function (id) {
+      if (/^P\d+$/.test(id)) {
+        var p = (account && account.plans || []).filter(function (x) { return x.id === id; })[0];
+        if (p) out.push({ id: id, name: app.planLabel(p), cells: p.cells, miles: p.miles, kind: 'private' });
+      } else {
+        var g = segments.filter(function (x) { return x.id === id; })[0];
+        if (g) out.push({ id: id, name: g.name, cells: g.squares, miles: g.miles, kind: 'public' });
+      }
+    });
+    return out;
+  }
+  function setWalkPlan(ids) { keep(WALK_KEY, ids && ids.length ? { ids: ids } : null); }
+  function walkCells() {
+    var out = [];
+    walkPlan().forEach(function (w) { w.cells.forEach(function (x) { if (out.indexOf(x) === -1) out.push(x); }); });
+    return out;
+  }
+  // The shortest distance between two segments of the plan, in miles, for
+  // the far-apart notice (Q545, Q558).
+  function farthestApart(list) {
+    var worst = 0;
+    for (var i = 0; i < list.length; i++) for (var j = i + 1; j < list.length; j++) {
+      var best = Infinity;
+      list[i].cells.forEach(function (a) { var pa = G.centerXY(a); list[j].cells.forEach(function (b) { best = Math.min(best, G.dist(pa, G.centerXY(b))); }); });
+      if (best !== Infinity) worst = Math.max(worst, best);
     }
-    return newest || (account.planNeeded ? '' : 'none');
+    return worst / G.MILE_M;
   }
-  function keepPick(id) { keep(PLAN_KEY, { id: id, newest: account && account.plans && account.plans[0] ? account.plans[0].id : '' }); }
-  function pickedPlan() {
-    var id = pickedId();
-    return (account && account.plans || []).filter(function (p) { return p.id === id; })[0] || null;
-  }
-  function pickedCells() { var p = pickedPlan(); return p ? p.cells : []; }
 
   function showPlanLine() {
-    var a = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
+    var a = account || { xp: 0, plans: [] };
     var going = !!(c && !c.ended) || !!(!c && a.open);
     $('cl-start').textContent = going ? 'Back to my collection' : 'Start collecting';
     $('cl-plan-btn').hidden = going;
+    $('cl-choose').hidden = going;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
-    // The Plan menu: your plans, newest first, and No plan once a plan is up to you.
-    var plans = a.plans || [], menu = $('cl-plan-pick');
-    menu.textContent = '';
-    plans.forEach(function (p) {
-      var o = document.createElement('option');
-      o.value = p.id;
-      o.textContent = app.planLabel(p) + ' · ' + round(p.miles, 2) + ' mi';
-      menu.appendChild(o);
-    });
-    if (!a.planNeeded) {
-      var none = document.createElement('option');
-      none.value = 'none';
-      none.textContent = 'No plan';
-      menu.appendChild(none);
-    }
-    menu.value = pickedId();
-    $('cl-plan-pick-box').hidden = going || !account || !plans.length;
-    var p = pickedPlan();
-    var line = $('cl-plan');
+    var w = walkPlan(), line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
-    else if (p) line.textContent = 'Your plan: ' + plural(p.cells.length, 'cell', 'cells') + ', ' + round(p.miles, 2) + ' mi. Start collecting uses it.';
-    else if (a.planNeeded) {
+    else if (w.length) line.textContent = 'Your plan: ' + w.map(function (x) { return x.name; }).join(', ') + ' · ' +
+      round(w.reduce(function (t, x) { return t + (Number(x.miles) || 0); }, 0), 2) + ' mi. Start collecting uses it.';
+    else if (account) {
       line.className = 'lt-plan-line need';
-      line.textContent = 'Plan your collection first. Until you have ' + settings.breakAfter + ' collections, each one starts from a plan, so the app learns your usual pace.';
-    } else line.textContent = account ? 'A plan is up to you now; a planned collection still earns XP.' : '';
-    $('cl-start').disabled = !going && !!account && a.planNeeded && !p;
+      line.textContent = 'Choose your plan first: the segments you mean to collect on this walk.';
+    } else line.textContent = '';
+    $('cl-start').disabled = !going && !!account && !w.length;
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -456,9 +457,13 @@ window.LitterCollect = function (app) {
     if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
-    var planId = pickedId();
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planId: planId || undefined }).then(function (d) {
+    var chosen = walkPlan();
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planIds: chosen.map(function (x) { return x.id; }) }).then(function (d) {
       recordingAt = null;
+      // The plan goes with the collection now (Q552).
+      if (!d.already) setWalkPlan(null);
+      // More than one segment: pause while travelling between them (Q559).
+      if (!d.already && chosen.length > 1) app.notice('Pause the app whenever you travel between your plan\'s segments, unless you\'re collecting on the way. Your GPX recorder can keep recording.', { key: 'between' });
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || pace;
       var col = d.collection;
@@ -1127,7 +1132,9 @@ window.LitterCollect = function (app) {
 
   function finish(d) {
     var id = c.id;
-    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection),
+      // The walk's plan, to offer the ground collected off it (Q560).
+      planCells: c.plan ? planCells(c.plan) : [] };
     c = null;
     save();
     keep(STREETS_KEY, null);
@@ -1161,7 +1168,35 @@ window.LitterCollect = function (app) {
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
+    showOffPlan();
     drawReadings();
+  }
+
+  // Ground you collected off your plan (S5-P9, Q545, Q560): right after the
+  // walk, an offer to keep it as a private segment, to use again. Three
+  // squares or more, a square away from the plan's squares.
+  function offPlanCells() {
+    var plan = summary && summary.planCells || [];
+    if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
+    return allCells().filter(function (x) { return !nearSquare(plan, x); });
+  }
+  function showOffPlan() {
+    var off = offPlanCells();
+    $('sm-offplan').hidden = off.length < 3 || !!summary.offSaved;
+    $('sm-offplan-err').textContent = '';
+    if (off.length >= 3) $('sm-offplan-say').textContent = 'You collected ' + off.length + ' squares off your plan. Keep them as a private segment, to put in a plan again?';
+  }
+  function saveOffPlan(button) {
+    var off = offPlanCells();
+    if (off.length < 3) return;
+    app.busy(button, 'sm-offplan-err', function () {
+      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: off, turns: [], miles: planMiles({ cells: off }) }], name: $('sm-offplan-name').value } }).then(function (d) {
+        summary.offSaved = true;
+        if (account && d.plans) account.plans = d.plans;
+        $('sm-offplan').hidden = true;
+        app.notice('Saved as a private segment. It\'s in Segments, to put in a plan again.');
+      });
+    });
   }
 
   // After you save, your stretches on the map with their readings (Q245),
@@ -1731,6 +1766,8 @@ window.LitterCollect = function (app) {
         });
       }).then(function () {
         discardStep = 0;
+        // A discarded walk's plan comes back to this phone, to start again (S5-P9).
+        if (c.plan && c.plan.id) setWalkPlan(String(c.plan.id).split(/\s+/).filter(String));
         c = null;
         save();
         keep(STREETS_KEY, null);
@@ -1750,7 +1787,6 @@ window.LitterCollect = function (app) {
   function openPlan() {
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
     $('pl-name').value = '';
-    fillAdds();
     // The planning map is the collecting map: a simulated walk's line stays off it (C606).
     if (layers) layers.sim.clearLayers();
     $('cl-sim-note').hidden = true;
@@ -1775,49 +1811,10 @@ window.LitterCollect = function (app) {
     }).then(function () { drawPlanning(false); });
   }
 
-  // Add a plan, Add a segment (Oct 31, field first): chain your plans and the
-  // accepted segments into the plan you're drawing; each adds its squares,
-  // the next tap carries on from its end, and Undo takes it back out.
-  var addLists = { plans: [], segs: [] };
-  function fillAdds() {
-    addLists = { plans: (account && account.plans || []).slice(), segs: segs().slice() };
-    var fill = function (id, first, list, label) {
-      var m = $(id);
-      m.textContent = '';
-      var o = document.createElement('option');
-      o.value = '';
-      o.textContent = first;
-      m.appendChild(o);
-      list.forEach(function (x, i) { var e = document.createElement('option'); e.value = String(i); e.textContent = label(x); m.appendChild(e); });
-      m.hidden = !list.length;
-      m.value = '';
-    };
-    fill('pl-add-plan', 'Add a plan…', addLists.plans, function (p) { return app.planLabel(p) + ' · ' + round(p.miles, 2) + ' mi'; });
-    fill('pl-add-seg', 'Add a segment…', addLists.segs, function (g) { return g.name + ' · ' + round(g.miles, 2) + ' mi'; });
-    $('pl-adds').hidden = !addLists.plans.length && !addLists.segs.length;
-  }
-  function planAdd(cells) {
-    if (!planning) return;
-    var st = planning.stretches[0];
-    cells = (cells || []).filter(isCell);
-    var added = cells.filter(function (x, i) { return st.cells.indexOf(x) === -1 && cells.indexOf(x) === i; });
-    if (!added.length) { app.notice('Those squares are already in your plan.'); return; }
-    planning.history.push({ added: added, from: st.from });
-    st.cells = st.cells.concat(added);
-    st.from = cells[cells.length - 1];
-    app.notice('');
-    drawPlanning(false);
-    if (map) {
-      var b = L.latLngBounds([]);
-      st.cells.forEach(function (x) { b.extend(G.cellBounds(x)); });
-      map.fitBounds(b, { maxZoom: 17, padding: [16, 16] });
-    }
-  }
-
   function planTap(cell) {
     var st = planning.stretches[0];
     if (st.cells.indexOf(cell) !== -1) {
-      app.notice('That cell is already in your plan. To take cells out, press Undo.');
+      app.notice('That square is already in it. To take squares out, press Undo.');
       return;
     }
     var path = !st.from ? [cell] : streets ? streets.suggest(st.from, cell, null) : G.lineCells(G.centerXY(st.from), G.centerXY(cell));
@@ -1854,7 +1851,7 @@ window.LitterCollect = function (app) {
       });
       setTimeout(function () { map.invalidateSize(); }, 0);
     }
-    $('pl-status').textContent = st.cells.length ? 'Your plan: ' + plural(st.cells.length, 'cell', 'cells') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
+    $('pl-status').textContent = st.cells.length ? 'Your private segment: ' + plural(st.cells.length, 'square', 'squares') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
     $('pl-undo').disabled = !planning.history.length;
     planSegments(st);
   }
@@ -1873,8 +1870,8 @@ window.LitterCollect = function (app) {
     });
     touched.forEach(function (s) {
       var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
-      var text = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
-        (missing.length ? 'Your plan covers only part of it; collect all of it to measure the rate.' : 'Your plan covers all of it.');
+      var text = 'Your private segment touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
+        (missing.length ? 'It covers only part of it; collect all of it to measure the rate.' : 'It covers all of it.');
       if (said[s.id] === text) return;
       said[s.id] = text;
       app.notice(text, { key: 'plan-seg-' + s.id, buttons: missing.length ? [{ label: 'Add the whole segment', go: function () {
@@ -1893,18 +1890,19 @@ window.LitterCollect = function (app) {
     var list = planning.stretches.filter(function (st) { return st.cells.length; }).map(function (st) {
       return { cells: st.cells.slice(), turns: [], miles: planMiles(st) };
     });
-    if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
+    if (!list.length) { $('pl-err').textContent = 'Tap the squares you mean to keep first.'; return; }
     app.busy(button, 'pl-err', function () {
-      return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
+      return busyWhile('Saving your private segment, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
         planNoticesGone();
         planning = null;
-        account = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
-        account.plan = d.plan;
+        account = account || { xp: 0, plans: [] };
         if (d.plans) account.plans = d.plans;
-        // The new plan is the one picked (Oct 31).
-        if (d.plan) keepPick(d.plan.id);
+        // A private segment you just drew goes into your plan for this walk
+        // (S5-P12): you drew it to collect it.
+        var ids = walkPlan().map(function (x) { return x.id; });
+        if (d.plan && ids.indexOf(d.plan.id) === -1) setWalkPlan(ids.concat([d.plan.id]));
         app.showAccount();
-        app.notice('Your plan is saved, and picked in the Plan menu. Start collecting uses it.');
+        app.notice('Saved as a private segment, and added to your plan for this walk.');
       });
     });
   }
@@ -1923,26 +1921,25 @@ window.LitterCollect = function (app) {
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
-  $('cl-plan-pick').addEventListener('change', function () {
-    keepPick(this.value);
-    showPlanLine();
-    if (app.onPlanPicked) app.onPlanPicked(pickedCells());
-  });
+  $('cl-choose').addEventListener('click', function () { if (app.chooseWalkPlan) app.chooseWalkPlan(walkPlan().map(function (x) { return x.id; })); });
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
   $('pl-undo').addEventListener('click', planUndo);
-  $('pl-add-plan').addEventListener('change', function () {
-    var p = addLists.plans[Number(this.value)];
-    this.value = '';
-    if (p) planAdd(p.cells);
-  });
-  $('pl-add-seg').addEventListener('change', function () {
-    var g = addLists.segs[Number(this.value)];
-    this.value = '';
-    if (g) planAdd(g.squares);
-  });
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
+  $('sm-offplan-save').addEventListener('click', function () { saveOffPlan($('sm-offplan-save')); });
+  // Back on the app during a walk, off your plan's segments (S5-P9, Q559): a
+  // notice to pause while you travel, unless you're collecting on the way.
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden || !c || c.ended || c.sim || !c.plan || c.current.pausedAt || $('v-collect').hidden || !navigator.geolocation) return;
+    var cells = planCells(c.plan);
+    if (!cells.length) return;
+    navigator.geolocation.getCurrentPosition(function (p) {
+      if (!c || c.ended || c.current.pausedAt) return;
+      if (nearSquare(cells, G.cellAt(p.coords.latitude, p.coords.longitude))) { app.clearNotice('off-plan'); return; }
+      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way.', { key: 'off-plan' });
+    }, function () { /* no fix: nothing to say */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
+  });
   $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });
   $('cl-pulse-btn').addEventListener('click', openChooser);
   $('cl-weigh').addEventListener('click', function () { beginPulse('weigh', $('cl-weigh')); });
@@ -2014,13 +2011,24 @@ window.LitterCollect = function (app) {
     busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
     // The picked plan's squares, for the main page's map; and your plans after
     // one is deleted (Oct 31).
-    pickedCells: pickedCells,
+    pickedCells: walkCells,
     onPlans: function (d) {
       if (!account) return;
       account.plans = d.plans || [];
-      account.plan = d.plan || null;
-      if (d.planNeeded != null) account.planNeeded = !!d.planNeeded;
       showPlanLine();
+      if (app.onPlanPicked) app.onPlanPicked(walkCells());
+    },
+    // The walk's plan, chosen on the Segments screen (S5-P12, Q562).
+    walkIds: function () { return walkPlan().map(function (x) { return x.id; }); },
+    setWalkPlan: function (ids) {
+      setWalkPlan(ids);
+      var w = walkPlan();
+      showPlanLine();
+      if (app.onPlanPicked) app.onPlanPicked(walkCells());
+      // Segments far apart (Q545, Q558): a loud notice while the plan can still change.
+      var apart = farthestApart(w), limit = Number(settings.apartMi) || 1;
+      if (w.length > 1 && apart > limit) app.notice('Your plan\'s segments are ' + round(apart, 1) + ' mi apart: plan how you\'ll travel between them.', { key: 'apart' });
+      return w;
     },
     forget: function () { c = null; save(); keep(STREETS_KEY, null); }
   };

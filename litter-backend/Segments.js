@@ -45,10 +45,12 @@ var SETTING_PART_M = 'Part of a segment (m)';
 var SETTING_COVER = 'Segment collected when covered (%)';
 var SETTING_INSIDE = 'A weighing counts for a segment when inside (%)';
 var SETTING_NEAR = 'Near enough to a segment (m)';
+// A walk's plan with segments farther apart than this gets a notice (S5-P9, Q545, Q558).
+var SETTING_APART = 'Plan segments far apart (mi)';
 var SEGMENT_SETTINGS = [
   [SETTING_DUE_FROM, '1'], [SETTING_DUE_TO, '4'], [SETTING_RATE_WINDOW, '60'], [SETTING_RATE_SHOWS, 'Median'],
   [SETTING_CONF_LOW, '2'], [SETTING_CONF_MODERATE, '5'], [SETTING_CONF_NAMES, 'No recent rate, Low, Moderate, Established'],
-  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15']
+  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15'], [SETTING_APART, '1']
 ];
 var DAY_MS = 86400000;
 var COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -339,9 +341,12 @@ function myPlans_(accountId) {
   readRows_(TABS.collections).forEach(function (q) {
     if (q.get('account') !== accountId || q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED || !q.get('plan')) return;
     var t = q.get('started') instanceof Date ? q.get('started').getTime() : 0;
-    var u = uses[q.get('plan')] = uses[q.get('plan')] || { n: 0, last: 0 };
-    u.n++;
-    if (t > u.last) u.last = t;
+    // A walk's plan lists its segments (S5-P9): each private one counts it.
+    String(q.get('plan')).split(/\s+/).filter(String).forEach(function (id) {
+      var u = uses[id] = uses[id] || { n: 0, last: 0 };
+      u.n++;
+      if (t > u.last) u.last = t;
+    });
   });
   return readRows_(TABS.plans).filter(function (r) { return r.get('account') === accountId && !r.get('deleted'); }).map(function (r) {
     var p = planOf_(r);

@@ -587,7 +587,9 @@
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); },
     planLabel: planLabel,
-    onPlanPicked: function (cells) { mapper.showPlan(cells); }
+    onPlanPicked: function (cells) { mapper.showPlan(cells); },
+    // Choose your plan (S5-P12, Q553): the Segments screen, selecting.
+    chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
@@ -602,8 +604,10 @@
     planLabel: planLabel,
     pickedPlanCells: function () { return collect.pickedCells(); },
     onPlans: function (d) { collect.onPlans(d); },
+    walkIds: function () { return collect.walkIds(); },
+    useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
     showCollections: function () { notice(''); show('v-collections'); },
-    showPlans: function () { notice(''); show('v-plans'); }
+    showPlans: function () { show('v-plans'); mapper.showSegments(); }
   });
 
   /* ── Wiring ── */
@@ -615,7 +619,7 @@
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
-  $('me-go-plans').addEventListener('click', function () { panel(false); notice(''); show('v-plans'); window.scrollTo(0, 0); });
+  $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
   $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);

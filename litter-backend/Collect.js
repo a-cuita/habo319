@@ -79,12 +79,19 @@ function collectStart_(req) {
     // Already open, as after signing in again (Q409): its stretches come
     // back too, so the page picks up from the last litter pulse that
     // reached HABO, and nothing counts twice.
-    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: planView_(planById_(open.plan)),
+    if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: walkPlanView_(walkPlan_(account.id, open.plan, false)),
       stretches: stretchesOf_(open.id).map(stretchViewOf_) };
-    // A plan first, until there are enough collections to know the usual pace;
-    // the one picked on the main page (Plan.js, Oct 31).
-    var plan = pickPlan_(account.id, req.planId);
-    if (!plan && planNeeded_(account.id)) throw coded_('plan-first', 'Plan your collection first: press Plan a collection.');
+    // Every collection starts from a plan (S5-P9, M590): the segments chosen
+    // for this walk (Plan.js). A phone still on the page from before sends one
+    // plan's id, or none for the newest; "No plan" is refused.
+    var parts;
+    if (req.planIds != null) parts = walkPlan_(account.id, req.planIds, true);
+    else {
+      var old = req.planId === 'none' ? null : pickPlan_(account.id, req.planId);
+      parts = old ? walkPlan_(account.id, [old.id], true) : [];
+    }
+    if (!parts.length) throw coded_('plan-first', 'Choose your plan first: the segments you mean to collect.');
+    var plan = walkPlanView_(parts);
     var sheet = getDb_().getSheetByName(TABS.collections.name);
     var rows = readRows_(TABS.collections);
     var id = nextId_('L', rows.map(function (r) { return r.values[0]; }));
@@ -106,8 +113,8 @@ function collectStart_(req) {
     row[COLLECTION_COL.recording - 1] = rec > now.getTime() - 3 * 3600000 && rec <= now.getTime() + 60000 ? new Date(rec) : '';
     row[COLLECTION_COL.simulated - 1] = simulated ? 'Yes' : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-    if (plan) markPlan_(plan.id, id);
-    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: planView_(plan) };
+    markWalkPlan_(plan.id, id);
+    return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: plan };
   });
 }
 
@@ -197,7 +204,7 @@ function collectDiscard_(req) {
     cs.getRange(col.row, COLLECTION_COL.status).setValue(COLLECTION_DISCARDED);
     if (why) cs.getRange(col.row, COLLECTION_COL.reason).setValue(safeCell_(why));
     retotal_(col.id);
-    if (col.plan) markPlan_(col.plan, '');
+    if (col.plan) markWalkPlan_(col.plan, '');
     logChange_(account.first + ' ' + account.last, 'Discarded', col.id, 'Status', 'Collecting', COLLECTION_DISCARDED);
     return { collection: collectionView_(readCollection_(col.id)), hours: hoursOf_(account.id), plan: planView_(openPlan_(account.id)),
       planNeeded: planNeeded_(account.id), xp: xpOf_(account.id) };
@@ -652,7 +659,7 @@ function minutesSetting_(name, fallback) {
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
-    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(),
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(),
     sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
 }
 

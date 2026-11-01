@@ -130,6 +130,36 @@ var LitterGeo = (function () {
 
   Streets.prototype.hasStreet = function (cell) { return !!(this.byCell[cell] && this.byCell[cell].length); };
 
+  // The streets a segment runs along, in words (S5-P9, M590): "Perry St from
+  // Felder Ave to Frederick St" when one street carries most of it, with the
+  // cross streets near its ends; else the streets in the order it meets them.
+  // Names within a square of each square count; '' when none are found.
+  Streets.prototype.describe = function (cells) {
+    var self = this;
+    var namesNear = function (cell) {
+      var out = [];
+      var rc = rowCol(cell), around = [];
+      for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) around.push((rc.i + di) + '_' + (rc.j + dj));
+      around.forEach(function (n) {
+        (self.byCell[n] || []).forEach(function (si) { var nm = self.segs[si].name; if (nm && out.indexOf(nm) === -1) out.push(nm); });
+      });
+      return out;
+    };
+    var count = {}, order = [], named = 0;
+    (cells || []).forEach(function (cell) {
+      var here = (self.byCell[cell] || []).map(function (si) { return self.segs[si].name; }).filter(String);
+      if (!here.length) here = namesNear(cell);
+      if (here.length) named++;
+      here.forEach(function (nm) { if (!count[nm]) { count[nm] = 0; order.push(nm); } count[nm]++; });
+    });
+    if (!order.length) return '';
+    var main = order.slice().sort(function (a, b) { return count[b] - count[a]; })[0];
+    if (count[main] < 0.7 * named) return order.slice(0, 3).join(', ');
+    var cross = function (cell) { return namesNear(cell).filter(function (nm) { return nm !== main; })[0] || ''; };
+    var from = cross(cells[0]), to = cross(cells[cells.length - 1]);
+    return main + (from && to && from !== to ? ' from ' + from + ' to ' + to : from ? ' at ' + from : to ? ' at ' + to : '');
+  };
+
   // The point on the street closest to the cell's center, inside the cell
   // (Q212, Q213). In a cell with two streets, the one `way` names, when the
   // stretch follows it (Q214).

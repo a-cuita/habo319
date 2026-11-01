@@ -137,10 +137,49 @@ function markPlan_(planId, collectionId) {
   getDb_().getSheetByName(TABS.plans.name).getRange(r.row, PLAN_COL.collection, 1, 2).setValues([[collectionId, new Date()]]);
 }
 
-// Whether Start needs a plan: until the account has as many collections as
-// the break question waits for (the same setting, 10 to start).
+// Every collection starts from a plan (S5-P9, M590): there's no "No plan".
 function planNeeded_(accountId) {
-  return countedCollections_(accountId) < minutesSetting_(SETTING_BREAK_AFTER, 10);
+  return true;
+}
+
+// A walk's plan (S5-P9, S5-P12, Q552, Q553): the segments chosen to collect
+// on one walk, your private segments (P…, the Plans tab) and public ones
+// (SG…, accepted in the Segments tab), kept with the collection as their ids,
+// "P003 SG001". Not saved on its own. strict: a missing one is refused.
+function walkPlan_(accountId, ids, strict) {
+  var seen = {}, segs = null;
+  ids = (Array.isArray(ids) ? ids : String(ids || '').split(/\s+/)).map(function (x) { return clean_(x, 20); })
+    .filter(function (x) { return x && !seen[x] && (seen[x] = true); }).slice(0, 30);
+  return ids.map(function (id) {
+    if (/^P\d+$/.test(id)) {
+      var p = planById_(id);
+      if (!p || p.account !== accountId || p.deleted) {
+        if (strict) throw coded_('plan-gone', 'One of the segments in your plan isn\'t yours, or was deleted. Choose your plan again.');
+        return null;
+      }
+      var cells = [];
+      p.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
+      return { id: id, name: p.name || '', cells: cells, miles: p.miles };
+    }
+    segs = segs || segmentsAll_();
+    var g = segs.filter(function (s) { return s.id === id && s.accepted; })[0];
+    if (!g) {
+      if (strict) throw coded_('plan-gone', 'One of the segments in your plan isn\'t public any more. Choose your plan again.');
+      return null;
+    }
+    return { id: id, name: g.name, cells: g.squares, miles: g.miles };
+  }).filter(Boolean);
+}
+// As the page shows it: one stretch per segment, and their names.
+function walkPlanView_(parts) {
+  if (!parts || !parts.length) return null;
+  return { id: parts.map(function (p) { return p.id; }).join(' '), name: parts.map(function (p) { return p.name; }).filter(String).join(', '),
+    stretches: parts.map(function (p) { return { cells: p.cells, turns: [] }; }), miles: round_(parts.reduce(function (t, p) { return t + (Number(p.miles) || 0); }, 0), 2),
+    segments: parts.map(function (p) { return { id: p.id, name: p.name }; }) };
+}
+// Each private segment in a collection's plan, marked with that collection ('' gives it back).
+function markWalkPlan_(planText, collectionId) {
+  String(planText || '').split(/\s+/).filter(function (x) { return /^P\d+$/.test(x); }).forEach(function (id) { markPlan_(id, collectionId); });
 }
 
 // Collections that have ended and weren't discarded.

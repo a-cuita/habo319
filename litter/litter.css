@@ -216,3 +216,38 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-propose { margin-top: 10px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface-2); }
 .lt-propose select, .lt-propose input { width: 100%; }
 .lt-propose .btn + .btn { margin-top: 8px; }
+/* Segments (S5-P9, S5-P12): your private segments, then the public ones, each list folding away. */
+.lt-seg-top { justify-content: space-between; }
+.lt-select-btn { width: auto; margin: 0; padding: 6px 12px; font-size: 0.9rem; }
+.lt-seg-group { margin-top: 12px; }
+.lt-seg-group > summary { font-weight: 800; cursor: pointer; padding: 6px 0; }
+.lt-seg-card { position: relative; border-left: 4px solid #7c3aed; padding-left: 10px; }
+.lt-seg-card.public { border-left-color: #0e7490; background: rgba(14, 116, 144, 0.06); border-radius: var(--radius-sm); padding-right: 8px; }
+.lt-seg-card-top { display: flex; align-items: center; gap: 8px; }
+.lt-seg-card-top .lt-col-head { flex: 1; margin: 0; }
+.lt-seg-tick { display: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--border-hi); color: transparent; font-weight: 900; align-items: center; justify-content: center; flex: none; }
+#my-plans.selecting .lt-seg-tick { display: inline-flex; }
+#my-plans.selecting .lt-seg-card { cursor: pointer; }
+.lt-seg-card.picked { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
+.lt-seg-card.picked .lt-seg-tick { background: var(--accent); border-color: var(--accent); color: #fff; }
+.lt-seg-thumb { height: 120px; margin: 8px 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); cursor: zoom-in; overflow: hidden; }
+.lt-seg-thumb .leaflet-control-attribution { font-size: 9px; }
+.lt-seg-streets { font-weight: 700; margin: 0 0 2px; }
+.lt-seg-more-wrap { position: relative; flex: none; }
+.lt-seg-more { border: 0; background: none; color: inherit; font-size: 1.4rem; line-height: 1; padding: 2px 8px; cursor: pointer; border-radius: 8px; }
+.lt-seg-more:hover { background: var(--surface-2); }
+.lt-seg-menu { position: absolute; right: 0; top: 100%; z-index: 1200; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); padding: 4px; min-width: 210px; display: flex; flex-direction: column; }
+.lt-seg-menu[hidden] { display: none; }
+.lt-seg-menu-item { border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 10px 12px; border-radius: 6px; cursor: pointer; }
+.lt-seg-menu-item:hover { background: var(--surface-2); }
+.lt-seg-menu-item.lt-plan-delete { color: var(--danger); }
+/* While selecting: how many, their miles, Use as my plan and Cancel (Q562). */
+.lt-select-bar { position: fixed; left: 50%; transform: translateX(-50%); bottom: 12px; z-index: 1150; width: min(560px, calc(100% - 24px)); display: flex; align-items: center; flex-wrap: wrap; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25); padding: 10px 12px; }
+.lt-select-bar[hidden] { display: none; }
+.lt-select-bar span { flex: 1 1 100%; font-weight: 800; }
+.lt-select-bar .btn { flex: 1; margin: 0; }
+#v-plans { padding-bottom: 90px; }
+.lt-seg-modal-box { width: min(640px, calc(100vw - 32px)); }
+.lt-seg-modal-map { height: 60vh; min-height: 280px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 10px; }
+#sm-offplan { margin-top: 12px; }
