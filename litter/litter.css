@@ -13,6 +13,9 @@
 /* While HABO answers, nothing else can be pressed (S5-P16, C634). */
 .lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.12); cursor: progress; }
 .lt-working-scrim[hidden] { display: none; }
+/* In Admin Mode's dark look, the notices stand out from the page. */
+html.lt-builder .lt-nt { background: #3f4654; border: 1px solid #6b7280; }
+html.lt-builder .lt-nt.working { background: #4b5563; }
 .lt-note { margin: -4px 0 14px; }
 .lt-handle { min-height: 1.2em; margin-top: 6px; font-weight: 600; }
 .lt-handle.ok { color: var(--accent); }
