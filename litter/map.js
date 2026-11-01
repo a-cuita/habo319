@@ -289,9 +289,8 @@ window.LitterMap = function (app) {
     }
     // Measure again (Oct 31, field first): its segment rates worked out again,
     // with the Settings and each segment's Kind as they are now. A Head
-    // Builder's only (S5-P13, Q555), as with the Simulated walk switch.
-    var me = app.me && app.me();
-    if (c.track && c.track.length > 1 && me && me.rank === 'Head Builder') {
+    // Builder's, only while Admin Mode is on (S5-P13, Q555, Q564).
+    if (c.track && c.track.length > 1 && app.builderMode && app.builderMode()) {
       var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
       ma.type = 'button';
       ma.addEventListener('click', function () {
@@ -433,5 +432,9 @@ window.LitterMap = function (app) {
     this.setAttribute('aria-expanded', show ? 'true' : 'false');
   });
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan };
+  // Admin Mode turned on or off (S5-P13): Your collections (Measure again)
+  // and the Segments list drawn again for it, at once.
+  function redraw() { if (mine) drawMine(); drawSegments(); }
+
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw };
 };

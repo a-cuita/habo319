@@ -22,7 +22,13 @@
 
   // Calls one backend action and resolves with its data. An error keeps the
   // backend's code, like "signed-out".
-  function api(action, data) {
+  // quiet: sent in the background (the walk's queue, check-ins, the handle
+  // check), with no working bar, so it never stops a press (S5-P16).
+  function api(action, data, quiet) {
+    if (!quiet) workStart();
+    return ask(action, data).then(function (d) { if (!quiet) workEnd(); return d; }, function (err) { if (!quiet) workEnd(); throw err; });
+  }
+  function ask(action, data) {
     var body = JSON.stringify(Object.assign({ action: action }, data || {}));
     var asked = inAppsScript
       ? new Promise(function (resolve, reject) {
@@ -82,11 +88,103 @@
     if (!state.account || state.account.rank !== 'Head Builder') return false;
     try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
   }
-  function paintMode() { document.documentElement.classList.toggle('lt-builder', builderMode()); }
+  function paintMode() {
+    document.documentElement.classList.toggle('lt-builder', builderMode());
+    if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();
+  }
 
-  function notice(text) {
-    $('notice').textContent = text || '';
-    $('notice').hidden = !text;
+  /* ── Notices (S5-P16, C634): stacked at the top, newest at the bottom, each
+     until it's closed, with Close all once there are two. The same words
+     again, or the same key, replace the one already there. opt: { key,
+     buttons: [{ label, go }] }. ── */
+
+  function notice(text, opt) {
+    if (!text) return;   // a notice stays until it's closed
+    opt = opt || {};
+    var stack = $('notice');
+    Array.prototype.forEach.call(stack.querySelectorAll('.lt-nt:not(.working)'), function (n) {
+      if (opt.key ? n.dataset.key === opt.key : n.dataset.text === text) n.remove();
+    });
+    var n = document.createElement('div');
+    n.className = 'lt-nt';
+    n.dataset.text = text;
+    if (opt.key) n.dataset.key = opt.key;
+    var t = document.createElement('span');
+    t.className = 'lt-nt-text';
+    t.textContent = text;
+    n.appendChild(t);
+    (opt.buttons || []).forEach(function (b) {
+      var go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'lt-nt-btn';
+      go.textContent = b.label;
+      go.addEventListener('click', function () { n.remove(); tidyNotices(); b.go(); });
+      n.appendChild(go);
+    });
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'lt-nt-close';
+    x.textContent = '×';
+    x.setAttribute('aria-label', 'Close');
+    x.addEventListener('click', function () { n.remove(); tidyNotices(); });
+    n.appendChild(x);
+    stack.insertBefore(n, stack.querySelector('.lt-nt.working') || stack.querySelector('.lt-nt-all'));
+    tidyNotices();
+  }
+  // A notice taken back when what it said no longer holds.
+  function clearNotice(key) {
+    Array.prototype.forEach.call($('notice').querySelectorAll('.lt-nt'), function (n) { if (n.dataset.key === key) n.remove(); });
+    tidyNotices();
+  }
+  function tidyNotices() {
+    var stack = $('notice');
+    var count = stack.querySelectorAll('.lt-nt:not(.working)').length;
+    var all = stack.querySelector('.lt-nt-all');
+    if (count >= 2 && !all) {
+      all = document.createElement('button');
+      all.type = 'button';
+      all.className = 'lt-nt-all';
+      all.textContent = 'Close all';
+      all.addEventListener('click', function () {
+        Array.prototype.forEach.call(stack.querySelectorAll('.lt-nt:not(.working)'), function (n) { n.remove(); });
+        tidyNotices();
+      });
+      stack.appendChild(all);
+    } else if (count < 2 && all) {
+      all.remove();
+    }
+  }
+
+  // While HABO answers (S5-P16, C634): one "Working, please wait..." bar under
+  // the notices however many waits there are, and nothing else can be pressed.
+  // After 20 seconds the page lets presses through again, the bar still
+  // showing, so a slow signal never leaves it stuck.
+  var waits = 0, scrimTimer = null;
+  function workStart() {
+    waits++;
+    if (waits === 1) {
+      $('working-scrim').hidden = false;
+      clearTimeout(scrimTimer);
+      scrimTimer = setTimeout(function () { $('working-scrim').hidden = true; }, 20000);
+    }
+    showWorking();
+  }
+  function workEnd() {
+    waits = Math.max(0, waits - 1);
+    if (!waits) { clearTimeout(scrimTimer); $('working-scrim').hidden = true; }
+    showWorking();
+  }
+  function showWorking() {
+    var stack = $('notice');
+    var bar = stack.querySelector('.lt-nt.working');
+    if (waits && !bar) {
+      bar = document.createElement('div');
+      bar.className = 'lt-nt working';
+      bar.textContent = 'Working, please wait...';
+      stack.insertBefore(bar, stack.querySelector('.lt-nt-all'));
+    } else if (!waits && bar) {
+      bar.remove();
+    }
   }
 
   // Disables a button while its request runs, and shows the error under it.
@@ -175,7 +273,7 @@
       if (!h || (state.account && withToken && h === state.account.handle)) return;
       timer = setTimeout(function () {
         asked = h;
-        api('handleFree', { handle: h, token: withToken ? myToken() : '' }).then(function (d) {
+        api('handleFree', { handle: h, token: withToken ? myToken() : '' }, true).then(function (d) {
           if (asked !== $(inputId).value.trim()) return;
           msg.textContent = d.free ? '✓ No one has it yet.' : d.why;
           msg.className = 'small lt-handle ' + (d.free ? 'ok' : 'no');
@@ -475,7 +573,7 @@
     var t = myToken();
     keepToken('');
     state.account = null;
-    api('signOut', { token: t }).catch(function () { /* this phone forgets it either way */ });
+    api('signOut', { token: t }, true).catch(function () { /* this phone forgets it either way */ });
     show('v-welcome');
     notice('You\'re signed out on this phone.');
   }
@@ -483,7 +581,7 @@
   /* ── Collecting (S3-P21, collect.js) ── */
 
   var collect = window.LitterCollect({
-    $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
@@ -495,7 +593,7 @@
   /* ── The map and your collections (S3-P22, map.js) ── */
 
   var mapper = window.LitterMap({
-    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
     me: function () { return state.account; },
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.

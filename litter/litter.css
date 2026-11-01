@@ -1,5 +1,18 @@
 /* The litter page, on top of the site's shared look (assets/app.css). */
-.lt-notice { background: var(--primary-dim); color: var(--primary); font-weight: 700; font-size: 0.9rem; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; }
+/* Notices (S5-P16, C634): stacked at the top center, newest at the bottom, each until it's closed. */
+.lt-notices { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); z-index: 3100;
+  display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.lt-notices:empty { display: none; }
+.lt-nt { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 12px 12px 12px 16px; border-radius: 14px; color: #fff; font-size: 1rem; font-weight: 800;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28); background: #1c1c1e; }
+.lt-nt-text { flex: 1 1 200px; }
+.lt-nt-close { border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
+.lt-nt-btn { border: 2px solid rgba(255, 255, 255, 0.75); background: transparent; color: #fff; border-radius: 9px; font: inherit; font-size: 0.9rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
+.lt-nt.working { background: #4b5563; justify-content: center; }
+.lt-nt-all { align-self: center; border: 0; border-radius: 9px; background: rgba(28, 28, 30, 0.85); color: #fff; font: inherit; font-weight: 700; padding: 6px 12px; cursor: pointer; }
+/* While HABO answers, nothing else can be pressed (S5-P16, C634). */
+.lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.12); cursor: progress; }
+.lt-working-scrim[hidden] { display: none; }
 .lt-note { margin: -4px 0 14px; }
 .lt-handle { min-height: 1.2em; margin-top: 6px; font-weight: 600; }
 .lt-handle.ok { color: var(--accent); }

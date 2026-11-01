@@ -146,7 +146,20 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
 .st-row:last-child { border-bottom: none; }
 
 /* The litter page, on top of the site's shared look (assets/app.css). */
-.lt-notice { background: var(--primary-dim); color: var(--primary); font-weight: 700; font-size: 0.9rem; padding: 10px 12px; border-radius: var(--radius-sm); margin-bottom: 14px; }
+/* Notices (S5-P16, C634): stacked at the top center, newest at the bottom, each until it's closed. */
+.lt-notices { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px)); z-index: 3100;
+  display: flex; flex-direction: column; gap: 8px; max-height: calc(100vh - 24px); overflow-y: auto; }
+.lt-notices:empty { display: none; }
+.lt-nt { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; padding: 12px 12px 12px 16px; border-radius: 14px; color: #fff; font-size: 1rem; font-weight: 800;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.28); background: #1c1c1e; }
+.lt-nt-text { flex: 1 1 200px; }
+.lt-nt-close { border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
+.lt-nt-btn { border: 2px solid rgba(255, 255, 255, 0.75); background: transparent; color: #fff; border-radius: 9px; font: inherit; font-size: 0.9rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
+.lt-nt.working { background: #4b5563; justify-content: center; }
+.lt-nt-all { align-self: center; border: 0; border-radius: 9px; background: rgba(28, 28, 30, 0.85); color: #fff; font: inherit; font-weight: 700; padding: 6px 12px; cursor: pointer; }
+/* While HABO answers, nothing else can be pressed (S5-P16, C634). */
+.lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.12); cursor: progress; }
+.lt-working-scrim[hidden] { display: none; }
 .lt-note { margin: -4px 0 14px; }
 .lt-handle { min-height: 1.2em; margin-top: 6px; font-weight: 600; }
 .lt-handle.ok { color: var(--accent); }
@@ -348,7 +361,9 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 </header>
 
 <main>
-  <p class="lt-notice" id="notice" role="status" hidden></p>
+  <!-- Notices stack at the top, each until it's closed; the working bar sits under them while HABO answers (S5-P16, C634). -->
+  <div class="lt-notices" id="notice" role="status" aria-live="polite"></div>
+  <div class="lt-working-scrim" id="working-scrim" hidden></div>
 
   <section class="card" id="v-loading">
     <p class="muted">Opening…</p>
@@ -602,7 +617,6 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       <h2>Plan a collection</h2>
       <p class="muted small">Tap the cells you mean to cover. The app fills in along the street from the cell you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
-      <div class="lt-plan-line need" id="pl-segments" hidden></div>
       <!-- Chain plans and segments into this one (Oct 31, field first): each adds its squares, as Add the whole segment does. -->
       <div class="lt-plan-adds" id="pl-adds" hidden>
         <select id="pl-add-plan" aria-label="Add a plan"></select>
@@ -707,13 +721,15 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
   <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
   <div id="v-map" hidden>
     <section class="card">
-      <!-- The square size behind an ℹ️ (S5-P11, M593): pointing at it shows the words; a tap shows them here. -->
+      <!-- How to read the map, behind an ℹ️ (S5-P11, M593, Q565): pointing at it shows the words; a tap shows them here. -->
       <div class="lt-title-row">
         <h2>The litter map</h2>
-        <button class="lt-info" id="mp-info" type="button" aria-label="How big a square is" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side.">ℹ️</button>
+        <button class="lt-info" id="mp-info" type="button" aria-label="How to read the map" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side. A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.">ℹ️</button>
       </div>
-      <p class="muted small" id="mp-info-say" hidden>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
-      <p class="muted small">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <div class="muted small" id="mp-info-say" hidden>
+        <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
+        <p>A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      </div>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
     <div id="mp-slot">
@@ -808,6 +824,15 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
           <button class="btn btn-secondary" id="me-go-plans" type="button">Your plans</button>
         </section>
+        <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
+             It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
+        <section class="card" id="cl-sim-box" hidden>
+          <div class="lt-sim-row">
+            <label class="lt-sim"><input type="checkbox" id="cl-sim"> <span id="cl-sim-name">Admin Mode</span></label>
+            <button class="lt-info" id="cl-sim-info" type="button" aria-label="About Admin Mode" aria-expanded="false" title="While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
+          </div>
+          <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
+        </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
       </div>
     </div>
@@ -815,13 +840,6 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
-      <!-- A Head Builder's simulated walk (S5-U2). -->
-      <div class="lt-sim-row" id="cl-sim-box" hidden>
-        <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
-        <button class="lt-info" id="cl-sim-info" type="button" aria-label="About the simulated walk" aria-expanded="false" title="While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
-      </div>
-      <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
-      <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
       <!-- Pick one of your plans; Start collecting uses it (Oct 31, field first). -->
       <div class="ig lt-plan-pick" id="cl-plan-pick-box" hidden>
         <label for="cl-plan-pick">Plan</label>
@@ -1406,8 +1424,8 @@ window.LitterCollect = function (app) {
     sending = true;
     var item = c.queue[0];
     var call = item.type === 'stretch'
-      ? app.api('collectStretch', { token: app.myToken(), collectionId: c.id, stretch: item.stretch })
-      : app.api('collectEnd', { token: app.myToken(), collectionId: c.id, endedAt: item.endedAt });
+      ? app.api('collectStretch', { token: app.myToken(), collectionId: c.id, stretch: item.stretch }, true)
+      : app.api('collectEnd', { token: app.myToken(), collectionId: c.id, endedAt: item.endedAt }, true);
     return call.then(function (d) {
       sending = false;
       c.queue.shift();
@@ -1430,7 +1448,7 @@ window.LitterCollect = function (app) {
   function sendCheckins() {
     sending = true;
     var id = c.id, batch = c.ckOut.slice(0, 500);
-    return app.api('collectCheckins', { token: app.myToken(), collectionId: id, checkins: batch }).then(function () {
+    return app.api('collectCheckins', { token: app.myToken(), collectionId: id, checkins: batch }, true).then(function () {
       sending = false;
       if (c && c.id === id) { c.ckOut = c.ckOut.slice(batch.length); save(); }
     }, function (err) {
@@ -1506,6 +1524,8 @@ window.LitterCollect = function (app) {
     $('cl-hours').textContent = '';
     showPlanLine();
     $('cl-sim-box').hidden = !simAllowed();
+    // Admin Mode, named with the account's rank (S5-P13, Q563).
+    $('cl-sim-name').textContent = 'Admin Mode: ' + ((app.me && app.me() && app.me().rank) || '');
     $('cl-sim-say').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
@@ -3134,29 +3154,32 @@ window.LitterCollect = function (app) {
 
   // A plan that touches a segment building a rate says so, and offers to
   // take in the whole segment (S5-P3, Q524).
+  // The message is a notice at the top, so it can't be missed (S5-P16, C634):
+  // raised when it first applies or its words change, taken back when the
+  // plan no longer touches the segment, and when you leave the screen.
   function planSegments(st) {
-    var box = $('pl-segments');
-    box.textContent = '';
+    var said = planning.said || (planning.said = {});
     var touched = segs().filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
-    box.hidden = !touched.length;
+    var ids = touched.map(function (s) { return s.id; });
+    Object.keys(said).forEach(function (id) {
+      if (ids.indexOf(id) === -1) { app.clearNotice('plan-seg-' + id); delete said[id]; }
+    });
     touched.forEach(function (s) {
       var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
-      var p = document.createElement('p');
-      p.textContent = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
+      var text = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
         (missing.length ? 'Your plan covers only part of it; collect all of it to measure the rate.' : 'Your plan covers all of it.');
-      box.appendChild(p);
-      if (!missing.length) return;
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary pl-seg-add';
-      b.textContent = 'Add the whole segment';
-      b.addEventListener('click', function () {
+      if (said[s.id] === text) return;
+      said[s.id] = text;
+      app.notice(text, { key: 'plan-seg-' + s.id, buttons: missing.length ? [{ label: 'Add the whole segment', go: function () {
+        if (!planning) return;
         planning.history.push({ added: missing, from: st.from });
         st.cells = st.cells.concat(missing);
         drawPlanning(false);
-      });
-      box.appendChild(b);
+      } }] : [] });
     });
+  }
+  function planNoticesGone() {
+    if (planning && planning.said) Object.keys(planning.said).forEach(function (id) { app.clearNotice('plan-seg-' + id); });
   }
 
   function savePlan(button) {
@@ -3166,6 +3189,7 @@ window.LitterCollect = function (app) {
     if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
       return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
+        planNoticesGone();
         planning = null;
         account = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
         account.plan = d.plan;
@@ -3212,7 +3236,7 @@ window.LitterCollect = function (app) {
     if (g) planAdd(g.squares);
   });
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
-  $('pl-cancel').addEventListener('click', function () { planning = null; app.showAccount(); });
+  $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });
   $('cl-pulse-btn').addEventListener('click', openChooser);
   $('cl-weigh').addEventListener('click', function () { beginPulse('weigh', $('cl-weigh')); });
   $('cl-newbag').addEventListener('click', function () { beginPulse('newbag', $('cl-newbag')); });
@@ -3587,9 +3611,8 @@ window.LitterMap = function (app) {
     }
     // Measure again (Oct 31, field first): its segment rates worked out again,
     // with the Settings and each segment's Kind as they are now. A Head
-    // Builder's only (S5-P13, Q555), as with the Simulated walk switch.
-    var me = app.me && app.me();
-    if (c.track && c.track.length > 1 && me && me.rank === 'Head Builder') {
+    // Builder's, only while Admin Mode is on (S5-P13, Q555, Q564).
+    if (c.track && c.track.length > 1 && app.builderMode && app.builderMode()) {
       var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
       ma.type = 'button';
       ma.addEventListener('click', function () {
@@ -3731,7 +3754,11 @@ window.LitterMap = function (app) {
     this.setAttribute('aria-expanded', show ? 'true' : 'false');
   });
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan };
+  // Admin Mode turned on or off (S5-P13): Your collections (Measure again)
+  // and the Segments list drawn again for it, at once.
+  function redraw() { if (mine) drawMine(); drawSegments(); }
+
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw };
 };
 </script>
 <script>
@@ -3759,7 +3786,13 @@ window.LitterMap = function (app) {
 
   // Calls one backend action and resolves with its data. An error keeps the
   // backend's code, like "signed-out".
-  function api(action, data) {
+  // quiet: sent in the background (the walk's queue, check-ins, the handle
+  // check), with no working bar, so it never stops a press (S5-P16).
+  function api(action, data, quiet) {
+    if (!quiet) workStart();
+    return ask(action, data).then(function (d) { if (!quiet) workEnd(); return d; }, function (err) { if (!quiet) workEnd(); throw err; });
+  }
+  function ask(action, data) {
     var body = JSON.stringify(Object.assign({ action: action }, data || {}));
     var asked = inAppsScript
       ? new Promise(function (resolve, reject) {
@@ -3819,11 +3852,103 @@ window.LitterMap = function (app) {
     if (!state.account || state.account.rank !== 'Head Builder') return false;
     try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
   }
-  function paintMode() { document.documentElement.classList.toggle('lt-builder', builderMode()); }
+  function paintMode() {
+    document.documentElement.classList.toggle('lt-builder', builderMode());
+    if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();
+  }
 
-  function notice(text) {
-    $('notice').textContent = text || '';
-    $('notice').hidden = !text;
+  /* ── Notices (S5-P16, C634): stacked at the top, newest at the bottom, each
+     until it's closed, with Close all once there are two. The same words
+     again, or the same key, replace the one already there. opt: { key,
+     buttons: [{ label, go }] }. ── */
+
+  function notice(text, opt) {
+    if (!text) return;   // a notice stays until it's closed
+    opt = opt || {};
+    var stack = $('notice');
+    Array.prototype.forEach.call(stack.querySelectorAll('.lt-nt:not(.working)'), function (n) {
+      if (opt.key ? n.dataset.key === opt.key : n.dataset.text === text) n.remove();
+    });
+    var n = document.createElement('div');
+    n.className = 'lt-nt';
+    n.dataset.text = text;
+    if (opt.key) n.dataset.key = opt.key;
+    var t = document.createElement('span');
+    t.className = 'lt-nt-text';
+    t.textContent = text;
+    n.appendChild(t);
+    (opt.buttons || []).forEach(function (b) {
+      var go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'lt-nt-btn';
+      go.textContent = b.label;
+      go.addEventListener('click', function () { n.remove(); tidyNotices(); b.go(); });
+      n.appendChild(go);
+    });
+    var x = document.createElement('button');
+    x.type = 'button';
+    x.className = 'lt-nt-close';
+    x.textContent = '×';
+    x.setAttribute('aria-label', 'Close');
+    x.addEventListener('click', function () { n.remove(); tidyNotices(); });
+    n.appendChild(x);
+    stack.insertBefore(n, stack.querySelector('.lt-nt.working') || stack.querySelector('.lt-nt-all'));
+    tidyNotices();
+  }
+  // A notice taken back when what it said no longer holds.
+  function clearNotice(key) {
+    Array.prototype.forEach.call($('notice').querySelectorAll('.lt-nt'), function (n) { if (n.dataset.key === key) n.remove(); });
+    tidyNotices();
+  }
+  function tidyNotices() {
+    var stack = $('notice');
+    var count = stack.querySelectorAll('.lt-nt:not(.working)').length;
+    var all = stack.querySelector('.lt-nt-all');
+    if (count >= 2 && !all) {
+      all = document.createElement('button');
+      all.type = 'button';
+      all.className = 'lt-nt-all';
+      all.textContent = 'Close all';
+      all.addEventListener('click', function () {
+        Array.prototype.forEach.call(stack.querySelectorAll('.lt-nt:not(.working)'), function (n) { n.remove(); });
+        tidyNotices();
+      });
+      stack.appendChild(all);
+    } else if (count < 2 && all) {
+      all.remove();
+    }
+  }
+
+  // While HABO answers (S5-P16, C634): one "Working, please wait..." bar under
+  // the notices however many waits there are, and nothing else can be pressed.
+  // After 20 seconds the page lets presses through again, the bar still
+  // showing, so a slow signal never leaves it stuck.
+  var waits = 0, scrimTimer = null;
+  function workStart() {
+    waits++;
+    if (waits === 1) {
+      $('working-scrim').hidden = false;
+      clearTimeout(scrimTimer);
+      scrimTimer = setTimeout(function () { $('working-scrim').hidden = true; }, 20000);
+    }
+    showWorking();
+  }
+  function workEnd() {
+    waits = Math.max(0, waits - 1);
+    if (!waits) { clearTimeout(scrimTimer); $('working-scrim').hidden = true; }
+    showWorking();
+  }
+  function showWorking() {
+    var stack = $('notice');
+    var bar = stack.querySelector('.lt-nt.working');
+    if (waits && !bar) {
+      bar = document.createElement('div');
+      bar.className = 'lt-nt working';
+      bar.textContent = 'Working, please wait...';
+      stack.insertBefore(bar, stack.querySelector('.lt-nt-all'));
+    } else if (!waits && bar) {
+      bar.remove();
+    }
   }
 
   // Disables a button while its request runs, and shows the error under it.
@@ -3912,7 +4037,7 @@ window.LitterMap = function (app) {
       if (!h || (state.account && withToken && h === state.account.handle)) return;
       timer = setTimeout(function () {
         asked = h;
-        api('handleFree', { handle: h, token: withToken ? myToken() : '' }).then(function (d) {
+        api('handleFree', { handle: h, token: withToken ? myToken() : '' }, true).then(function (d) {
           if (asked !== $(inputId).value.trim()) return;
           msg.textContent = d.free ? '✓ No one has it yet.' : d.why;
           msg.className = 'small lt-handle ' + (d.free ? 'ok' : 'no');
@@ -4212,7 +4337,7 @@ window.LitterMap = function (app) {
     var t = myToken();
     keepToken('');
     state.account = null;
-    api('signOut', { token: t }).catch(function () { /* this phone forgets it either way */ });
+    api('signOut', { token: t }, true).catch(function () { /* this phone forgets it either way */ });
     show('v-welcome');
     notice('You\'re signed out on this phone.');
   }
@@ -4220,7 +4345,7 @@ window.LitterMap = function (app) {
   /* ── Collecting (S3-P21, collect.js) ── */
 
   var collect = window.LitterCollect({
-    $: $, api: api, show: show, notice: notice, busy: busy, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     showAccount: function () { showAccount(state.account); },
@@ -4232,7 +4357,7 @@ window.LitterMap = function (app) {
   /* ── The map and your collections (S3-P22, map.js) ── */
 
   var mapper = window.LitterMap({
-    $: $, api: api, show: show, notice: notice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, myToken: myToken, signedOut: signedOut, builderMode: builderMode,
     me: function () { return state.account; },
     showAccount: function () { showAccount(state.account); },
     // Back from the map with no account: the welcome screen.

@@ -131,8 +131,8 @@ window.LitterCollect = function (app) {
     sending = true;
     var item = c.queue[0];
     var call = item.type === 'stretch'
-      ? app.api('collectStretch', { token: app.myToken(), collectionId: c.id, stretch: item.stretch })
-      : app.api('collectEnd', { token: app.myToken(), collectionId: c.id, endedAt: item.endedAt });
+      ? app.api('collectStretch', { token: app.myToken(), collectionId: c.id, stretch: item.stretch }, true)
+      : app.api('collectEnd', { token: app.myToken(), collectionId: c.id, endedAt: item.endedAt }, true);
     return call.then(function (d) {
       sending = false;
       c.queue.shift();
@@ -155,7 +155,7 @@ window.LitterCollect = function (app) {
   function sendCheckins() {
     sending = true;
     var id = c.id, batch = c.ckOut.slice(0, 500);
-    return app.api('collectCheckins', { token: app.myToken(), collectionId: id, checkins: batch }).then(function () {
+    return app.api('collectCheckins', { token: app.myToken(), collectionId: id, checkins: batch }, true).then(function () {
       sending = false;
       if (c && c.id === id) { c.ckOut = c.ckOut.slice(batch.length); save(); }
     }, function (err) {
@@ -231,6 +231,8 @@ window.LitterCollect = function (app) {
     $('cl-hours').textContent = '';
     showPlanLine();
     $('cl-sim-box').hidden = !simAllowed();
+    // Admin Mode, named with the account's rank (S5-P13, Q563).
+    $('cl-sim-name').textContent = 'Admin Mode: ' + ((app.me && app.me() && app.me().rank) || '');
     $('cl-sim-say').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
@@ -1859,29 +1861,32 @@ window.LitterCollect = function (app) {
 
   // A plan that touches a segment building a rate says so, and offers to
   // take in the whole segment (S5-P3, Q524).
+  // The message is a notice at the top, so it can't be missed (S5-P16, C634):
+  // raised when it first applies or its words change, taken back when the
+  // plan no longer touches the segment, and when you leave the screen.
   function planSegments(st) {
-    var box = $('pl-segments');
-    box.textContent = '';
+    var said = planning.said || (planning.said = {});
     var touched = segs().filter(function (s) { return s.due && s.squares.some(function (q) { return st.cells.indexOf(q) !== -1; }); });
-    box.hidden = !touched.length;
+    var ids = touched.map(function (s) { return s.id; });
+    Object.keys(said).forEach(function (id) {
+      if (ids.indexOf(id) === -1) { app.clearNotice('plan-seg-' + id); delete said[id]; }
+    });
     touched.forEach(function (s) {
       var missing = s.squares.filter(function (q) { return st.cells.indexOf(q) === -1; });
-      var p = document.createElement('p');
-      p.textContent = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
+      var text = 'Your plan touches ' + s.name + ', cleaned ' + days(s.days) + ' ago: it\'s building an accumulation rate. ' +
         (missing.length ? 'Your plan covers only part of it; collect all of it to measure the rate.' : 'Your plan covers all of it.');
-      box.appendChild(p);
-      if (!missing.length) return;
-      var b = document.createElement('button');
-      b.type = 'button';
-      b.className = 'btn btn-secondary pl-seg-add';
-      b.textContent = 'Add the whole segment';
-      b.addEventListener('click', function () {
+      if (said[s.id] === text) return;
+      said[s.id] = text;
+      app.notice(text, { key: 'plan-seg-' + s.id, buttons: missing.length ? [{ label: 'Add the whole segment', go: function () {
+        if (!planning) return;
         planning.history.push({ added: missing, from: st.from });
         st.cells = st.cells.concat(missing);
         drawPlanning(false);
-      });
-      box.appendChild(b);
+      } }] : [] });
     });
+  }
+  function planNoticesGone() {
+    if (planning && planning.said) Object.keys(planning.said).forEach(function (id) { app.clearNotice('plan-seg-' + id); });
   }
 
   function savePlan(button) {
@@ -1891,6 +1896,7 @@ window.LitterCollect = function (app) {
     if (!list.length) { $('pl-err').textContent = 'Tap the cells you mean to cover first.'; return; }
     app.busy(button, 'pl-err', function () {
       return busyWhile('Saving your plan, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
+        planNoticesGone();
         planning = null;
         account = account || { plan: null, planNeeded: false, xp: 0, plans: [] };
         account.plan = d.plan;
@@ -1937,7 +1943,7 @@ window.LitterCollect = function (app) {
     if (g) planAdd(g.squares);
   });
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
-  $('pl-cancel').addEventListener('click', function () { planning = null; app.showAccount(); });
+  $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });
   $('cl-pulse-btn').addEventListener('click', openChooser);
   $('cl-weigh').addEventListener('click', function () { beginPulse('weigh', $('cl-weigh')); });
   $('cl-newbag').addEventListener('click', function () { beginPulse('newbag', $('cl-newbag')); });

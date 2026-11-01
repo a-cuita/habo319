@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=18">
+<link rel="stylesheet" href="litter.css?v=19">
 </head>
 <body>
 
@@ -16,7 +16,9 @@
 </header>
 
 <main>
-  <p class="lt-notice" id="notice" role="status" hidden></p>
+  <!-- Notices stack at the top, each until it's closed; the working bar sits under them while HABO answers (S5-P16, C634). -->
+  <div class="lt-notices" id="notice" role="status" aria-live="polite"></div>
+  <div class="lt-working-scrim" id="working-scrim" hidden></div>
 
   <section class="card" id="v-loading">
     <p class="muted">Opening…</p>
@@ -270,7 +272,6 @@
       <h2>Plan a collection</h2>
       <p class="muted small">Tap the cells you mean to cover. The app fills in along the street from the cell you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
-      <div class="lt-plan-line need" id="pl-segments" hidden></div>
       <!-- Chain plans and segments into this one (Oct 31, field first): each adds its squares, as Add the whole segment does. -->
       <div class="lt-plan-adds" id="pl-adds" hidden>
         <select id="pl-add-plan" aria-label="Add a plan"></select>
@@ -375,13 +376,15 @@
   <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
   <div id="v-map" hidden>
     <section class="card">
-      <!-- The square size behind an ℹ️ (S5-P11, M593): pointing at it shows the words; a tap shows them here. -->
+      <!-- How to read the map, behind an ℹ️ (S5-P11, M593, Q565): pointing at it shows the words; a tap shows them here. -->
       <div class="lt-title-row">
         <h2>The litter map</h2>
-        <button class="lt-info" id="mp-info" type="button" aria-label="How big a square is" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side.">ℹ️</button>
+        <button class="lt-info" id="mp-info" type="button" aria-label="How to read the map" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side. A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.">ℹ️</button>
       </div>
-      <p class="muted small" id="mp-info-say" hidden>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
-      <p class="muted small">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      <div class="muted small" id="mp-info-say" hidden>
+        <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
+        <p>A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+      </div>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
     <div id="mp-slot">
@@ -476,6 +479,15 @@
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
           <button class="btn btn-secondary" id="me-go-plans" type="button">Your plans</button>
         </section>
+        <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
+             It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
+        <section class="card" id="cl-sim-box" hidden>
+          <div class="lt-sim-row">
+            <label class="lt-sim"><input type="checkbox" id="cl-sim"> <span id="cl-sim-name">Admin Mode</span></label>
+            <button class="lt-info" id="cl-sim-info" type="button" aria-label="About Admin Mode" aria-expanded="false" title="While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
+          </div>
+          <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
+        </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
       </div>
     </div>
@@ -483,13 +495,6 @@
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
       <p class="lt-sun" id="cl-account-sun" hidden></p>
-      <!-- A Head Builder's simulated walk (S5-U2). -->
-      <div class="lt-sim-row" id="cl-sim-box" hidden>
-        <label class="lt-sim"><input type="checkbox" id="cl-sim"> Simulated walk</label>
-        <button class="lt-info" id="cl-sim-info" type="button" aria-label="About the simulated walk" aria-expanded="false" title="While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
-      </div>
-      <!-- The words show on mouse-over (C588), or on a tap where there's no mouse. -->
-      <p class="muted small" id="cl-sim-say" hidden>While this is on, Start collecting begins a simulated walk, at any time of day. You draw your walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
       <!-- Pick one of your plans; Start collecting uses it (Oct 31, field first). -->
       <div class="ig lt-plan-pick" id="cl-plan-pick-box" hidden>
         <label for="cl-plan-pick">Plan</label>
@@ -537,8 +542,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=6"></script>
-<script src="collect.js?v=27"></script>
-<script src="map.js?v=11"></script>
-<script src="litter.js?v=8"></script>
+<script src="collect.js?v=28"></script>
+<script src="map.js?v=12"></script>
+<script src="litter.js?v=9"></script>
 </body>
 </html>
