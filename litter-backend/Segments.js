@@ -323,7 +323,10 @@ function segmentSummaries_(sim) {
       rate: shows === 'Average' ? avg : med, median: med == null ? null : round_(med, 3), average: avg == null ? null : round_(avg, 3), shows: shows,
       count: recent.length, confidence: names[lv], level: lv, arrow: recent.length > earlier ? 'up' : recent.length < earlier ? 'down' : 'level',
       due: d != null && known.length >= k.cover * parts.length && d >= k.from && d <= k.to, partly: groups.length > 0,
-      days: d == null ? null : round_(d, 1), groups: groups };
+      days: d == null ? null : round_(d, 1), groups: groups,
+      // For The Priority Segment List (S5-P10): days left before it's past
+      // "Segment due until", and whether it's past it already.
+      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to };
   });
 }
 

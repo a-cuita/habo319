@@ -332,6 +332,14 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 #pl-segments .btn { margin-top: 6px; }
 .lt-seg-item.partly { border-left: 4px solid #f59e0b; padding-left: 10px; }
 .lt-seg-item.due { border-left: 4px solid var(--accent); padding-left: 10px; }
+/* The Priority Segment List (S5-P10): why each is there, and the Sort menu. */
+.lt-seg-item.past { border-left: 4px solid var(--danger); padding-left: 10px; }
+.lt-seg-need { font-weight: 800; margin: 2px 0 4px; }
+.lt-seg-item.partly .lt-seg-need { color: #b45309; }
+.lt-seg-item.past .lt-seg-need { color: var(--danger); }
+.lt-seg-sort { display: flex; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.lt-seg-sort label { margin: 0; }
+.lt-seg-sort select { width: auto; }
 .lt-pop-part { font-weight: 600; margin-top: 2px; }
 
 /* The main page (Oct 31, field first): a bar at the top with your public
@@ -854,10 +862,19 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
     </section>
 
     <!-- Segments (S5-P3, Q530): the accepted ones, partly cleaned first. -->
+    <!-- The Priority Segment List (S5-P10, M592, Q546-Q548, Q561): only the public segments that need collecting. -->
     <section class="card" id="my-segments" hidden>
-      <h2>Segments</h2>
-      <p class="muted small">Accepted segments anyone can collect again. Partly cleaned ones come first: help finish them.</p>
+      <h2>The Priority Segment List</h2>
+      <p class="muted small">The public segments that need collecting, and why.</p>
+      <div class="ig lt-seg-sort">
+        <label for="seg-sort">Sort</label>
+        <select id="seg-sort">
+          <option value="need">Greatest need</option>
+          <option value="near">Nearest to me</option>
+        </select>
+      </div>
       <div id="segments-list"></div>
+      <p class="muted small" id="segments-none" hidden>No segment needs collecting right now.</p>
     </section>
   </div>
 
@@ -3707,19 +3724,56 @@ window.LitterMap = function (app) {
     });
   }
 
-  /* ── Segments (S5-P3, Q530): partly cleaned first, then due, then the rest ── */
+  /* ── The Priority Segment List (S5-P10, M592, Q546-Q548, Q561): only the
+     public segments that need collecting. Greatest need: the least time left
+     before it's past due first, a partly covered one among them marked Finish
+     it; then past due, the longest first; then never cleaned. A segment fully
+     cleaned too recently to be due needs nothing yet, so it's left off.
+     Nearest to me: by distance from where the phone is. ── */
 
+  var sortBy = 'need', here = null;
+  function needOf(g) {
+    if (g.days == null) return 'never';
+    if (g.past) return 'past';
+    if (g.partly) return 'finish';
+    if (g.due) return 'due';
+    return '';
+  }
+  function leftWords(g) { return g.left < 1 ? 'less than a day left' : round(g.left, 1) + ' days left'; }
+  function needLine(g, need) {
+    return need === 'finish' ? 'Finish it · ' + leftWords(g) + ' to collect it for its rate'
+      : need === 'due' ? leftWords(g) + ' to collect it for its rate'
+      : need === 'past' ? 'Past due: last cleaned ' + round(g.days, 1) + ' days ago' : '';
+  }
+  // Metres from where the phone is to the segment's nearest square.
+  function awayOf(g) {
+    var me = G.xy(here.lat, here.lon);
+    return g.squares.reduce(function (m, sq) { return Math.min(m, G.dist(me, G.centerXY(sq))); }, Infinity);
+  }
   function drawSegments() {
     var list = $('segments-list');
     list.textContent = '';
-    var rank = function (g) { return g.partly ? 0 : g.due ? 1 : 2; };
-    var all = segList().slice().sort(function (a, b) { return rank(a) - rank(b) || String(a.name).localeCompare(String(b.name)); });
-    $('my-segments').hidden = !all.length;
+    var rank = { due: 0, finish: 0, past: 1, never: 2 };
+    var all = segList().filter(function (g) { return needOf(g); });
+    if (sortBy === 'near' && here) {
+      all.forEach(function (g) { g.away = awayOf(g); });
+      all.sort(function (a, b) { return a.away - b.away; });
+    } else {
+      all.sort(function (a, b) {
+        var ra = rank[needOf(a)], rb = rank[needOf(b)];
+        return ra - rb || (ra === 0 ? a.left - b.left : ra === 1 ? b.days - a.days : 0) || String(a.name).localeCompare(String(b.name));
+      });
+    }
+    $('my-segments').hidden = !segList().length;
+    $('segments-none').hidden = !!all.length;
     all.forEach(function (g) {
-      var box = el('div', 'lt-plan-item lt-seg-item' + (g.partly ? ' partly' : g.due ? ' due' : ''));
+      var need = needOf(g);
+      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'past' ? ' past' : ''));
       box.id = 'seg-' + g.id;
       // Its kind, Path or Field (Oct 31, field first).
       box.appendChild(el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi'));
+      if (needLine(g, need)) box.appendChild(el('p', 'lt-seg-need', needLine(g, need)));
+      if (sortBy === 'near' && here) box.appendChild(el('p', 'muted small lt-seg-away', round(g.away / G.MILE_M, 2) + ' mi away'));
       box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
       if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
@@ -3735,6 +3789,23 @@ window.LitterMap = function (app) {
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
+  // Sort (S5-P10, Q561): Nearest to me asks the phone where it is.
+  $('seg-sort').addEventListener('change', function () {
+    var pick = this.value;
+    if (pick === 'need') { sortBy = 'need'; return drawSegments(); }
+    if (!navigator.geolocation) { this.value = 'need'; return app.notice('This phone can\'t give its location, so the list stays by greatest need.'); }
+    var sel = this;
+    navigator.geolocation.getCurrentPosition(function (p) {
+      here = { lat: p.coords.latitude, lon: p.coords.longitude };
+      sortBy = 'near';
+      drawSegments();
+    }, function () {
+      sel.value = 'need';
+      sortBy = 'need';
+      drawSegments();
+      app.notice('Your phone didn\'t give its location, so the list stays by greatest need.');
+    }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 60000 });
+  });
   // The layer choice (S5-P11, Q549): the small button opens its menu; picking
   // a layer, a tap elsewhere or Escape closes it.
   function layersMenu(show) {

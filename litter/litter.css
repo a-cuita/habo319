@@ -185,6 +185,14 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 #pl-segments .btn { margin-top: 6px; }
 .lt-seg-item.partly { border-left: 4px solid #f59e0b; padding-left: 10px; }
 .lt-seg-item.due { border-left: 4px solid var(--accent); padding-left: 10px; }
+/* The Priority Segment List (S5-P10): why each is there, and the Sort menu. */
+.lt-seg-item.past { border-left: 4px solid var(--danger); padding-left: 10px; }
+.lt-seg-need { font-weight: 800; margin: 2px 0 4px; }
+.lt-seg-item.partly .lt-seg-need { color: #b45309; }
+.lt-seg-item.past .lt-seg-need { color: var(--danger); }
+.lt-seg-sort { display: flex; align-items: center; gap: 8px; margin: 6px 0 10px; }
+.lt-seg-sort label { margin: 0; }
+.lt-seg-sort select { width: auto; }
 .lt-pop-part { font-weight: 600; margin-top: 2px; }
 
 /* The main page (Oct 31, field first): a bar at the top with your public

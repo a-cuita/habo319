@@ -509,10 +509,19 @@
     </section>
 
     <!-- Segments (S5-P3, Q530): the accepted ones, partly cleaned first. -->
+    <!-- The Priority Segment List (S5-P10, M592, Q546-Q548, Q561): only the public segments that need collecting. -->
     <section class="card" id="my-segments" hidden>
-      <h2>Segments</h2>
-      <p class="muted small">Accepted segments anyone can collect again. Partly cleaned ones come first: help finish them.</p>
+      <h2>The Priority Segment List</h2>
+      <p class="muted small">The public segments that need collecting, and why.</p>
+      <div class="ig lt-seg-sort">
+        <label for="seg-sort">Sort</label>
+        <select id="seg-sort">
+          <option value="need">Greatest need</option>
+          <option value="near">Nearest to me</option>
+        </select>
+      </div>
       <div id="segments-list"></div>
+      <p class="muted small" id="segments-none" hidden>No segment needs collecting right now.</p>
     </section>
   </div>
 
