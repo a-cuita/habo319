@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=20">
+<link rel="stylesheet" href="litter.css?v=21">
 </head>
 <body>
 
@@ -398,7 +398,8 @@
       </div>
       <div class="muted small" id="mp-info-say" hidden>
         <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
-        <p>A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+        <!-- These words follow the layer showing (|C671). -->
+        <p id="mp-info-colour">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
       </div>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
@@ -415,6 +416,8 @@
               <button class="lt-layer-opt" data-layer="rate" type="button" aria-pressed="false">Accumulation rate</button>
             </div>
           </div>
+          <!-- On the main page, with a plan chosen: take its outline off the map to see the squares under it, and put it back (|M623). The plan stays chosen. -->
+          <button class="lt-map-plan-btn" id="mp-plan-btn" type="button" hidden>Clear plan from map</button>
         </div>
         <p class="muted small" id="mp-note"></p>
       </div>
@@ -453,10 +456,11 @@
       </button>
       <div class="lt-me-panel" id="me-panel" hidden>
         <section class="card lt-me">
-          <p class="lt-handle-big" id="me-handle"></p>
-          <p class="lt-name" id="me-name"></p>
+          <!-- A ⭐ beside the one on the public map, in place of an "On the map" row (|C665). -->
+          <p class="lt-handle-big"><span id="me-handle"></span><button class="lt-star" id="me-handle-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="lt-name"><span id="me-name"></span><button class="lt-star" id="me-name-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="muted small lt-star-say" id="me-star-say" hidden>⭐ Displayed on the public map</p>
           <dl class="lt-facts">
-            <dt>On the map</dt><dd id="me-shows"></dd>
             <dt>Email</dt><dd id="me-email"></dd>
             <dt>Waiver</dt><dd id="me-waiver"></dd>
             <dt>Volunteer record</dt><dd id="me-match"></dd>
@@ -582,8 +586,8 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=7"></script>
-<script src="collect.js?v=28"></script>
-<script src="map.js?v=12"></script>
-<script src="litter.js?v=9"></script>
+<script src="collect.js?v=29"></script>
+<script src="map.js?v=13"></script>
+<script src="litter.js?v=10"></script>
 </body>
 </html>

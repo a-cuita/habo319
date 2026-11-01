@@ -176,6 +176,9 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-layers-btn[aria-expanded="true"] { color: var(--primary); }
 .lt-layers-menu { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); padding: 4px; display: flex; flex-direction: column; min-width: 170px; }
 .lt-layers-menu[hidden] { display: none; }
+/* Clear plan from map (M623): bottom left of the main page's map, clear of the layers button and the credits. */
+.lt-map-plan-btn { position: absolute; left: 10px; bottom: 26px; z-index: 1000; padding: 6px 10px; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; background-clip: padding-box; }
+.lt-map-plan-btn[hidden] { display: none; }
 .lt-layer-opt { border: 0; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; padding: 9px 10px 9px 28px; border-radius: 6px; cursor: pointer; position: relative; }
 .lt-layer-opt:hover { background: var(--surface-2); }
 .lt-layer-opt.on { font-weight: 700; color: var(--primary); }
@@ -205,6 +208,12 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-me-toggle span:first-child { overflow-wrap: anywhere; }
 .lt-me-caret { flex: none; font-size: 1rem; color: var(--text-dim); }
 .lt-me-panel { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: 75vh; overflow-y: auto; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22); }
+/* The panel scrolls on its own to its end (Admin Mode, Sign out), and the
+   page behind it stays still (C665). Its height is set to the screen on open. */
+.lt-me-panel { max-height: calc(100vh - 90px); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+html.lt-panel-open { overflow: hidden; }
+.lt-star { border: 0; background: none; padding: 0 0 0 6px; margin: 0; font: inherit; font-size: 0.85em; line-height: 1; cursor: pointer; vertical-align: baseline; }
+.lt-star-say { margin: -4px 0 8px; }
 .lt-me-panel .card:last-of-type { margin-bottom: 8px; }
 .lt-me-panel .btn + .btn { margin-top: 8px; }
 .lt-plan-pick select { width: 100%; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); color: var(--text); }

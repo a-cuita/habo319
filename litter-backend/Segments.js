@@ -355,6 +355,6 @@ function myPlans_(accountId) {
     p.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
     var u = uses[p.id] || { n: 0, last: 0 };
     return { id: p.id, created: p.created, name: p.name, cells: cells, miles: p.miles, used: u.n, lastUsed: u.last,
-      segment: g ? { id: g.id, name: g.name, accepted: g.accepted } : null };
+      segment: g ? { id: g.id, name: g.name, accepted: g.accepted, proposed: g.proposed } : null };
   }).reverse().slice(0, 50);
 }

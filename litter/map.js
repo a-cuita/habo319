@@ -89,6 +89,8 @@ window.LitterMap = function (app) {
     back = opts.back || null;
     app.notice('');
     app.show('v-map');
+    onMain = false;
+    planButton();
     $('mp-slot').appendChild($('mp-body'));
     layersMenu(false);
     $('mp-note').textContent = 'Loading the map…';
@@ -122,6 +124,7 @@ window.LitterMap = function (app) {
   // The same map on the main page, in the Collecting card, with your picked
   // plan outlined, in place of See the map (Oct 31, field first).
   function inline() {
+    onMain = true;
     $('cl-litter-map-slot').appendChild($('mp-body'));
     layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
@@ -140,11 +143,23 @@ window.LitterMap = function (app) {
   }
 
   // The picked plan on the main page's map: outlined, and the map on it.
+  // Clear plan from map takes the outline off, to see the squares under it;
+  // the plan stays chosen, and a newly chosen plan shows again (|M623).
+  var shownPlan = [], planCleared = false, onMain = false;
   function showPlan(planCells) {
     if (!map) return;
-    outlinePlan(planCells || []);
-    var focus = (planCells || []).length ? planCells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
+    var cells = planCells || [];
+    if (cells.join(' ') !== shownPlan.join(' ')) planCleared = false;
+    shownPlan = cells.slice();
+    outlinePlan(planCleared ? [] : cells);
+    planButton();
+    var focus = cells.length ? cells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
     setTimeout(function () { map.invalidateSize(); fit(focus); }, 0);
+  }
+  function planButton() {
+    var b = $('mp-plan-btn');
+    b.hidden = !onMain || !shownPlan.length;
+    b.textContent = planCleared ? 'Show plan on map' : 'Clear plan from map';
   }
 
   // A segment's line in a pop-up: its rate, confidence and arrow, and
@@ -214,9 +229,22 @@ window.LitterMap = function (app) {
       b.setAttribute('aria-pressed', b.dataset.layer === m ? 'true' : 'false');
     });
     legend($('mp-legend'));
+    infoWords();
     if (layer) draw(lastCells);
     var n = segList().length;
     $('mp-note').textContent = m === 'rate' ? (n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
+  }
+
+  // The ℹ️'s words for the layer showing (|C671): what a square's colour means.
+  var SQUARE_SIZE = 'Each square is 1/160 of a mile (about 33 ft) on a side.';
+  var COLOUR_WORDS = {
+    index: 'A square\'s colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.',
+    rate: 'Only public segments are coloured. A square\'s colour is its segment\'s accumulation rate: the pounds of litter that build up on each mile of it each day. Grey: no recent rate. Tap a square for its segment\'s rate.'
+  };
+  function infoWords() {
+    var t = COLOUR_WORDS[mode] || COLOUR_WORDS.index;
+    $('mp-info-colour').textContent = t;
+    $('mp-info').title = SQUARE_SIZE + ' ' + t;
   }
 
   function fit(cells) {
@@ -337,11 +365,16 @@ window.LitterMap = function (app) {
     var mineBox = $('plans-list'), pubBox = $('public-list'), pubs = segList();
     mineBox.textContent = '';
     pubBox.textContent = '';
-    $('plans-none').hidden = !!myPlansList.length;
-    $('plans-count').textContent = '(' + myPlansList.length + ')';
+    // A private segment HABO's staff accepted is listed once, as a public
+    // segment, marked as yours (|C660).
+    var privates = myPlansList.filter(function (p) { return !(p.segment && p.segment.accepted); });
+    var submitted = {};
+    myPlansList.forEach(function (p) { if (p.segment && p.segment.accepted) submitted[p.segment.id] = p.segment; });
+    $('plans-none').hidden = !!privates.length;
+    $('plans-count').textContent = '(' + privates.length + ')';
     $('public-none').hidden = !!pubs.length;
     $('public-count').textContent = '(' + pubs.length + ')';
-    myPlansList.forEach(function (p) {
+    privates.forEach(function (p) {
       var facts = p.cells.length + ' square' + (p.cells.length === 1 ? '' : 's') + ' · ' + round(p.miles, 2) + ' mi · ' +
         (p.used ? 'collected ' + (p.used === 1 ? 'once' : p.used + ' times') + (p.lastUsed ? ', last ' + dayWords(p.lastUsed) : '') : 'not collected yet');
       var box = segCard({ id: p.id, kind: 'private', name: app.planLabel(p), cells: p.cells, facts: facts, plan: p });
@@ -352,7 +385,10 @@ window.LitterMap = function (app) {
     pubs.forEach(function (g) {
       var facts = (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + g.squares.length + ' squares · ' + round(g.miles, 2) + ' mi · ' +
         (g.days == null ? 'not cleaned yet' : 'last cleaned ' + (g.days < 1 ? 'less than a day ago' : round(g.days, 1) + ' days ago'));
-      pubBox.appendChild(segCard({ id: g.id, kind: 'public', name: g.name, cells: g.squares, facts: facts }));
+      var box = segCard({ id: g.id, kind: 'public', name: g.name, cells: g.squares, facts: facts });
+      var mine = submitted[g.id];
+      if (mine) box.appendChild(el('p', 'lt-plan-seg', 'Submitted by you' + (mine.proposed ? ' on ' + new Date(mine.proposed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')));
+      pubBox.appendChild(box);
     });
     $('my-plans').classList.toggle('selecting', selecting);
     $('seg-select').hidden = selecting;
@@ -549,7 +585,13 @@ window.LitterMap = function (app) {
   }
   function startSelect(ids, viaChoose) {
     selecting = true;
-    picked = (ids || []).slice();
+    // A private segment since accepted is ticked as its public one (|C660).
+    picked = [];
+    (ids || []).forEach(function (id) {
+      var p = myPlansList.filter(function (x) { return x.id === id; })[0];
+      var to = p && p.segment && p.segment.accepted ? p.segment.id : id;
+      if (picked.indexOf(to) === -1) picked.push(to);
+    });
     fromChoose = !!viaChoose;
     drawSegScreen();
   }
@@ -654,6 +696,11 @@ window.LitterMap = function (app) {
     $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
   }
   $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
+  $('mp-plan-btn').addEventListener('click', function () {
+    planCleared = !planCleared;
+    outlinePlan(planCleared ? [] : shownPlan);
+    planButton();
+  });
   Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
     b.addEventListener('click', function () { setMode(b.dataset.layer); layersMenu(false); });
   });

@@ -516,6 +516,17 @@
     $('me-panel').hidden = !open;
     $('me-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
     $('me-caret').textContent = open ? '▴' : '▾';
+    // The panel scrolls on its own, to Admin Mode and Sign out, and the page
+    // behind it stays still (|C665).
+    document.documentElement.classList.toggle('lt-panel-open', !!open);
+    if (open) fitPanel();
+    else $('me-star-say').hidden = true;
+  }
+  function fitPanel() {
+    var p = $('me-panel');
+    if (p.hidden) return;
+    var top = $('me-bar').getBoundingClientRect().bottom + 6;
+    p.style.maxHeight = Math.max(200, window.innerHeight - top - 12) + 'px';
   }
 
   function showAccount(a) {
@@ -527,7 +538,8 @@
     panel(false);
     $('me-handle').textContent = a.handle;
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
-    $('me-shows').textContent = { Handle: 'Your handle', Name: 'Your name', Neither: 'Neither your name nor your handle' }[a.mapShows] || a.mapShows;
+    $('me-handle-star').hidden = a.mapShows !== 'Handle';
+    $('me-name-star').hidden = a.mapShows !== 'Name';
     $('me-email').textContent = a.email;
     $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
     $('me-match').textContent = a.matched
@@ -616,6 +628,11 @@
   $('go-signin').addEventListener('click', startSignin);
   $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
   $('me-toggle').addEventListener('click', function () { panel($('me-panel').hidden); });
+  // The ⭐'s words show on mouse-over (its title), or on a tap (|C665).
+  ['me-handle-star', 'me-name-star'].forEach(function (id) {
+    $(id).addEventListener('click', function () { $('me-star-say').hidden = !$('me-star-say').hidden; });
+  });
+  window.addEventListener('resize', fitPanel);
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });

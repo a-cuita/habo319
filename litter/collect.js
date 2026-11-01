@@ -415,7 +415,9 @@ window.LitterCollect = function (app) {
       var open = account.open;
       return app.busy(button, 'cl-start-err', function () {
         showBusy(STARTING);
-        return startHere(open.startCell).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
+        // Picking up isn't starting: no sunset rule, and a simulated walk
+        // stays simulated (|C657).
+        return startHere(open.startCell, null, !!open.simulated, true).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
       });
     }
     // A simulated walk starts where you click on the map (S5-U2).
@@ -452,9 +454,9 @@ window.LitterCollect = function (app) {
     return startHere(cell, pos, sim).then(hideBusy, function (err) { hideBusy(); throw err; });
   }
 
-  function startHere(cell, pos, sim) {
+  function startHere(cell, pos, sim, pickingUp) {
     var s = sunAt(cell), now = Date.now();
-    if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
+    if (!sim && !pickingUp && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
     var chosen = walkPlan();

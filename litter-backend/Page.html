@@ -323,6 +323,9 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-layers-btn[aria-expanded="true"] { color: var(--primary); }
 .lt-layers-menu { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); padding: 4px; display: flex; flex-direction: column; min-width: 170px; }
 .lt-layers-menu[hidden] { display: none; }
+/* Clear plan from map (M623): bottom left of the main page's map, clear of the layers button and the credits. */
+.lt-map-plan-btn { position: absolute; left: 10px; bottom: 26px; z-index: 1000; padding: 6px 10px; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; background-clip: padding-box; }
+.lt-map-plan-btn[hidden] { display: none; }
 .lt-layer-opt { border: 0; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; padding: 9px 10px 9px 28px; border-radius: 6px; cursor: pointer; position: relative; }
 .lt-layer-opt:hover { background: var(--surface-2); }
 .lt-layer-opt.on { font-weight: 700; color: var(--primary); }
@@ -352,6 +355,12 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 .lt-me-toggle span:first-child { overflow-wrap: anywhere; }
 .lt-me-caret { flex: none; font-size: 1rem; color: var(--text-dim); }
 .lt-me-panel { position: absolute; left: 0; right: 0; top: calc(100% + 6px); max-height: 75vh; overflow-y: auto; padding: 12px; background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22); }
+/* The panel scrolls on its own to its end (Admin Mode, Sign out), and the
+   page behind it stays still (C665). Its height is set to the screen on open. */
+.lt-me-panel { max-height: calc(100vh - 90px); overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+html.lt-panel-open { overflow: hidden; }
+.lt-star { border: 0; background: none; padding: 0 0 0 6px; margin: 0; font: inherit; font-size: 0.85em; line-height: 1; cursor: pointer; vertical-align: baseline; }
+.lt-star-say { margin: -4px 0 8px; }
 .lt-me-panel .card:last-of-type { margin-bottom: 8px; }
 .lt-me-panel .btn + .btn { margin-top: 8px; }
 .lt-plan-pick select { width: 100%; padding: 12px; border: 1px solid var(--border-hi); border-radius: var(--radius-sm); font: inherit; background: var(--surface); color: var(--text); }
@@ -789,7 +798,8 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       </div>
       <div class="muted small" id="mp-info-say" hidden>
         <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
-        <p>A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+        <!-- These words follow the layer showing (|C671). -->
+        <p id="mp-info-colour">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
       </div>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
@@ -806,6 +816,8 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
               <button class="lt-layer-opt" data-layer="rate" type="button" aria-pressed="false">Accumulation rate</button>
             </div>
           </div>
+          <!-- On the main page, with a plan chosen: take its outline off the map to see the squares under it, and put it back (|M623). The plan stays chosen. -->
+          <button class="lt-map-plan-btn" id="mp-plan-btn" type="button" hidden>Clear plan from map</button>
         </div>
         <p class="muted small" id="mp-note"></p>
       </div>
@@ -844,10 +856,11 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
       </button>
       <div class="lt-me-panel" id="me-panel" hidden>
         <section class="card lt-me">
-          <p class="lt-handle-big" id="me-handle"></p>
-          <p class="lt-name" id="me-name"></p>
+          <!-- A ⭐ beside the one on the public map, in place of an "On the map" row (|C665). -->
+          <p class="lt-handle-big"><span id="me-handle"></span><button class="lt-star" id="me-handle-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="lt-name"><span id="me-name"></span><button class="lt-star" id="me-name-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="muted small lt-star-say" id="me-star-say" hidden>⭐ Displayed on the public map</p>
           <dl class="lt-facts">
-            <dt>On the map</dt><dd id="me-shows"></dd>
             <dt>Email</dt><dd id="me-email"></dd>
             <dt>Waiver</dt><dd id="me-waiver"></dd>
             <dt>Volunteer record</dt><dd id="me-match"></dd>
@@ -1824,7 +1837,9 @@ window.LitterCollect = function (app) {
       var open = account.open;
       return app.busy(button, 'cl-start-err', function () {
         showBusy(STARTING);
-        return startHere(open.startCell).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
+        // Picking up isn't starting: no sunset rule, and a simulated walk
+        // stays simulated (|C657).
+        return startHere(open.startCell, null, !!open.simulated, true).then(function () { account.open = null; hideBusy(); app.notice('Picked up from your last litter pulse.'); }, function (err) { hideBusy(); throw err; });
       });
     }
     // A simulated walk starts where you click on the map (S5-U2).
@@ -1861,9 +1876,9 @@ window.LitterCollect = function (app) {
     return startHere(cell, pos, sim).then(hideBusy, function (err) { hideBusy(); throw err; });
   }
 
-  function startHere(cell, pos, sim) {
+  function startHere(cell, pos, sim, pickingUp) {
     var s = sunAt(cell), now = Date.now();
-    if (!sim && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
+    if (!sim && !pickingUp && (now >= s.sunset - settings.noStartMin * 60000 || now < s.sunrise)) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
     var chosen = walkPlan();
@@ -3535,6 +3550,8 @@ window.LitterMap = function (app) {
     back = opts.back || null;
     app.notice('');
     app.show('v-map');
+    onMain = false;
+    planButton();
     $('mp-slot').appendChild($('mp-body'));
     layersMenu(false);
     $('mp-note').textContent = 'Loading the map…';
@@ -3568,6 +3585,7 @@ window.LitterMap = function (app) {
   // The same map on the main page, in the Collecting card, with your picked
   // plan outlined, in place of See the map (Oct 31, field first).
   function inline() {
+    onMain = true;
     $('cl-litter-map-slot').appendChild($('mp-body'));
     layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
@@ -3586,11 +3604,23 @@ window.LitterMap = function (app) {
   }
 
   // The picked plan on the main page's map: outlined, and the map on it.
+  // Clear plan from map takes the outline off, to see the squares under it;
+  // the plan stays chosen, and a newly chosen plan shows again (|M623).
+  var shownPlan = [], planCleared = false, onMain = false;
   function showPlan(planCells) {
     if (!map) return;
-    outlinePlan(planCells || []);
-    var focus = (planCells || []).length ? planCells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
+    var cells = planCells || [];
+    if (cells.join(' ') !== shownPlan.join(' ')) planCleared = false;
+    shownPlan = cells.slice();
+    outlinePlan(planCleared ? [] : cells);
+    planButton();
+    var focus = cells.length ? cells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
     setTimeout(function () { map.invalidateSize(); fit(focus); }, 0);
+  }
+  function planButton() {
+    var b = $('mp-plan-btn');
+    b.hidden = !onMain || !shownPlan.length;
+    b.textContent = planCleared ? 'Show plan on map' : 'Clear plan from map';
   }
 
   // A segment's line in a pop-up: its rate, confidence and arrow, and
@@ -3660,9 +3690,22 @@ window.LitterMap = function (app) {
       b.setAttribute('aria-pressed', b.dataset.layer === m ? 'true' : 'false');
     });
     legend($('mp-legend'));
+    infoWords();
     if (layer) draw(lastCells);
     var n = segList().length;
     $('mp-note').textContent = m === 'rate' ? (n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
+  }
+
+  // The ℹ️'s words for the layer showing (|C671): what a square's colour means.
+  var SQUARE_SIZE = 'Each square is 1/160 of a mile (about 33 ft) on a side.';
+  var COLOUR_WORDS = {
+    index: 'A square\'s colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.',
+    rate: 'Only public segments are coloured. A square\'s colour is its segment\'s accumulation rate: the pounds of litter that build up on each mile of it each day. Grey: no recent rate. Tap a square for its segment\'s rate.'
+  };
+  function infoWords() {
+    var t = COLOUR_WORDS[mode] || COLOUR_WORDS.index;
+    $('mp-info-colour').textContent = t;
+    $('mp-info').title = SQUARE_SIZE + ' ' + t;
   }
 
   function fit(cells) {
@@ -3783,11 +3826,16 @@ window.LitterMap = function (app) {
     var mineBox = $('plans-list'), pubBox = $('public-list'), pubs = segList();
     mineBox.textContent = '';
     pubBox.textContent = '';
-    $('plans-none').hidden = !!myPlansList.length;
-    $('plans-count').textContent = '(' + myPlansList.length + ')';
+    // A private segment HABO's staff accepted is listed once, as a public
+    // segment, marked as yours (|C660).
+    var privates = myPlansList.filter(function (p) { return !(p.segment && p.segment.accepted); });
+    var submitted = {};
+    myPlansList.forEach(function (p) { if (p.segment && p.segment.accepted) submitted[p.segment.id] = p.segment; });
+    $('plans-none').hidden = !!privates.length;
+    $('plans-count').textContent = '(' + privates.length + ')';
     $('public-none').hidden = !!pubs.length;
     $('public-count').textContent = '(' + pubs.length + ')';
-    myPlansList.forEach(function (p) {
+    privates.forEach(function (p) {
       var facts = p.cells.length + ' square' + (p.cells.length === 1 ? '' : 's') + ' · ' + round(p.miles, 2) + ' mi · ' +
         (p.used ? 'collected ' + (p.used === 1 ? 'once' : p.used + ' times') + (p.lastUsed ? ', last ' + dayWords(p.lastUsed) : '') : 'not collected yet');
       var box = segCard({ id: p.id, kind: 'private', name: app.planLabel(p), cells: p.cells, facts: facts, plan: p });
@@ -3798,7 +3846,10 @@ window.LitterMap = function (app) {
     pubs.forEach(function (g) {
       var facts = (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + g.squares.length + ' squares · ' + round(g.miles, 2) + ' mi · ' +
         (g.days == null ? 'not cleaned yet' : 'last cleaned ' + (g.days < 1 ? 'less than a day ago' : round(g.days, 1) + ' days ago'));
-      pubBox.appendChild(segCard({ id: g.id, kind: 'public', name: g.name, cells: g.squares, facts: facts }));
+      var box = segCard({ id: g.id, kind: 'public', name: g.name, cells: g.squares, facts: facts });
+      var mine = submitted[g.id];
+      if (mine) box.appendChild(el('p', 'lt-plan-seg', 'Submitted by you' + (mine.proposed ? ' on ' + new Date(mine.proposed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')));
+      pubBox.appendChild(box);
     });
     $('my-plans').classList.toggle('selecting', selecting);
     $('seg-select').hidden = selecting;
@@ -3995,7 +4046,13 @@ window.LitterMap = function (app) {
   }
   function startSelect(ids, viaChoose) {
     selecting = true;
-    picked = (ids || []).slice();
+    // A private segment since accepted is ticked as its public one (|C660).
+    picked = [];
+    (ids || []).forEach(function (id) {
+      var p = myPlansList.filter(function (x) { return x.id === id; })[0];
+      var to = p && p.segment && p.segment.accepted ? p.segment.id : id;
+      if (picked.indexOf(to) === -1) picked.push(to);
+    });
     fromChoose = !!viaChoose;
     drawSegScreen();
   }
@@ -4100,6 +4157,11 @@ window.LitterMap = function (app) {
     $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
   }
   $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
+  $('mp-plan-btn').addEventListener('click', function () {
+    planCleared = !planCleared;
+    outlinePlan(planCleared ? [] : shownPlan);
+    planButton();
+  });
   Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
     b.addEventListener('click', function () { setMode(b.dataset.layer); layersMenu(false); });
   });
@@ -4652,6 +4714,17 @@ window.LitterMap = function (app) {
     $('me-panel').hidden = !open;
     $('me-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
     $('me-caret').textContent = open ? '▴' : '▾';
+    // The panel scrolls on its own, to Admin Mode and Sign out, and the page
+    // behind it stays still (|C665).
+    document.documentElement.classList.toggle('lt-panel-open', !!open);
+    if (open) fitPanel();
+    else $('me-star-say').hidden = true;
+  }
+  function fitPanel() {
+    var p = $('me-panel');
+    if (p.hidden) return;
+    var top = $('me-bar').getBoundingClientRect().bottom + 6;
+    p.style.maxHeight = Math.max(200, window.innerHeight - top - 12) + 'px';
   }
 
   function showAccount(a) {
@@ -4663,7 +4736,8 @@ window.LitterMap = function (app) {
     panel(false);
     $('me-handle').textContent = a.handle;
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
-    $('me-shows').textContent = { Handle: 'Your handle', Name: 'Your name', Neither: 'Neither your name nor your handle' }[a.mapShows] || a.mapShows;
+    $('me-handle-star').hidden = a.mapShows !== 'Handle';
+    $('me-name-star').hidden = a.mapShows !== 'Name';
     $('me-email').textContent = a.email;
     $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
     $('me-match').textContent = a.matched
@@ -4752,6 +4826,11 @@ window.LitterMap = function (app) {
   $('go-signin').addEventListener('click', startSignin);
   $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
   $('me-toggle').addEventListener('click', function () { panel($('me-panel').hidden); });
+  // The ⭐'s words show on mouse-over (its title), or on a tap (|C665).
+  ['me-handle-star', 'me-name-star'].forEach(function (id) {
+    $(id).addEventListener('click', function () { $('me-star-say').hidden = !$('me-star-say').hidden; });
+  });
+  window.addEventListener('resize', fitPanel);
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });

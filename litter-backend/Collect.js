@@ -69,18 +69,20 @@ function collectStart_(req) {
   // A simulated walk (S5-U2): only a Head Builder's, at any time of day, and
   // nothing it does reaches the map, XP, volunteer hours or the grant.
   var simulated = req.simulated === true && account.rank === 'Head Builder';
-  if (!simulated && (now.getTime() >= sun.sunset - noStart * 60000 || now.getTime() < sun.sunrise)) {
-    throw coded_('too-late', 'No new collection can start from ' + noStart + ' minutes before sunset until sunrise. Sunrise is at ' +
-      clock_(now.getTime() < sun.sunrise ? sun.sunrise : sunFor_(cell, new Date(now.getTime() + 86400000)).sunrise) + '.');
-  }
+  var late = now.getTime() >= sun.sunset - noStart * 60000 || now.getTime() < sun.sunrise;
   return withLock_(function () {
     endLeftAlone_(account);
     var open = openCollection_(account.id);
     // Already open, as after signing in again (Q409): its stretches come
     // back too, so the page picks up from the last litter pulse that
-    // reached HABO, and nothing counts twice.
+    // reached HABO, and nothing counts twice. Picking one up isn't starting
+    // one, so it works after sunset too (|C657, Oct 31).
     if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: walkPlanView_(walkPlan_(account.id, open.plan, false)),
       stretches: stretchesOf_(open.id).map(stretchViewOf_) };
+    if (!simulated && late) {
+      throw coded_('too-late', 'No new collection can start from ' + noStart + ' minutes before sunset until sunrise. Sunrise is at ' +
+        clock_(now.getTime() < sun.sunrise ? sun.sunrise : sunFor_(cell, new Date(now.getTime() + 86400000)).sunrise) + '.');
+    }
     // Every collection starts from a plan (S5-P9, M590): the segments chosen
     // for this walk (Plan.js). A phone still on the page from before sends one
     // plan's id, or none for the newest; "No plan" is refused.
