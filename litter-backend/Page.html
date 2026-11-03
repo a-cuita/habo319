@@ -416,6 +416,22 @@ html.lt-panel-open { overflow: hidden; }
 .lt-sim-label { margin: 0 0 4px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; color: #92400e; }
 .lt-sim-share { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-weight: 600; }
 #cl-sim-note { background: repeating-linear-gradient(135deg, #fef9c3 0 14px, #fde68a 14px 28px); border: 2px solid #eab308; color: #1f2937; font-weight: 700; }
+
+/* The first quest (S5-P20): six steps, each ticked as it's done. */
+.lt-quest-steps { list-style: none; margin: 8px 0 0; padding: 0; }
+.lt-quest-steps li { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-quest-steps li:first-child { border-top: 0; }
+.lt-quest-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.lt-quest-n { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--primary); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; }
+.lt-quest-steps li.done .lt-quest-n { background: var(--primary); color: #fff; }
+.lt-quest-steps li.done .lt-quest-head { color: var(--text-dim); font-weight: 600; }
+.lt-quest-say { margin: 6px 0 8px 32px; color: var(--text-dim); font-size: 0.92rem; }
+.lt-quest-body { margin-left: 32px; }
+.lt-quest-gear label { display: block; padding: 5px 0; }
+.lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
+#qs-gate { margin: 10px 0 0; }
+.lt-practice-note { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-color: #0369a1; }
 </style>
 </head>
 <body>
@@ -563,6 +579,7 @@ html.lt-panel-open { overflow: hidden; }
       <p class="err" id="cl-error"></p>
     </section>
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
+    <p class="lt-pick lt-practice-note" id="cl-practice-note" role="status" hidden>Practice: nothing here is saved or sent. Press Litter pulse, then try Weigh, New bag, Pause and End. Type any number for the scale.</p>
     <p class="lt-pick" id="cl-sim-note" role="status" hidden>Simulated walk: click the map to draw where you walk. The end of your line is where you are.</p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
@@ -720,6 +737,17 @@ html.lt-panel-open { overflow: hidden; }
       <p class="lt-modal-say">Start the recording in your GPX app, then come back here. Without your GPX track, a walk gets no Litter Index and no XP.</p>
       <button class="btn btn-primary" id="cl-rec-yes" type="button">I've started recording</button>
       <div class="center"><button class="link-btn" id="cl-rec-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <!-- The first quest's safety rules (S5-P20, step 2): the waiver's, one screen at a time. -->
+  <div class="lt-scrim" id="qs-safety" role="dialog" aria-modal="true" aria-labelledby="qs-safety-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="muted small" id="qs-safety-n"></p>
+      <p class="lt-scrim-title" id="qs-safety-title">The safety rules</p>
+      <p class="lt-modal-say lt-quest-rule" id="qs-safety-rule"></p>
+      <button class="btn btn-primary" id="qs-safety-next" type="button">Next</button>
+      <button class="btn btn-secondary" id="qs-safety-back" type="button">Back</button>
+      <div class="center"><button class="link-btn" id="qs-safety-close" type="button">Close</button></div>
     </div>
   </div>
   <div class="lt-scrim" id="cl-ready" role="dialog" aria-modal="true" aria-labelledby="cl-ready-title" hidden>
@@ -919,6 +947,15 @@ html.lt-panel-open { overflow: hidden; }
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
       </div>
     </div>
+
+    <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
+         ticked as they're done, shown until they all are. Start collecting waits for them. -->
+    <section class="card lt-quest" id="qs-card" hidden>
+      <h2>Your first quest</h2>
+      <p class="muted small" id="qs-say"></p>
+      <ol class="lt-quest-steps" id="qs-steps"></ol>
+      <p class="lt-plan-line need" id="qs-gate" hidden>Start collecting waits until every step is ticked.</p>
+    </section>
 
     <section class="card" id="cl-account">
       <h2>Collecting</h2>
@@ -1508,7 +1545,8 @@ window.LitterCollect = function (app) {
   function days(n) { return n == null ? 'some time' : n === 1 ? '1 day' : n + ' days'; }
   function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
-  function save() { keep(KEY, c); }
+  // A practice walk (S5-P20) is never kept.
+  function save() { if (c && c.practice) return; keep(KEY, c); }
   function setTypes(list) {
     if (!list || !list.length) return;
     types = list;
@@ -1563,7 +1601,7 @@ window.LitterCollect = function (app) {
     save();
     $('cl-actions').hidden = false;
     $('v-collect').hidden = true;
-    showWaitingSummary();
+    if (!c.practice) showWaitingSummary();
     flush();
   }
 
@@ -1571,6 +1609,7 @@ window.LitterCollect = function (app) {
 
   // Sends the queue in order; what doesn't go waits for the next try.
   function flush() {
+    if (c && c.practice) { c.queue = []; c.ckOut = []; if (c.ended) practiceDone(); return Promise.resolve(); }
     if (sending || !c) { showQueue(); return Promise.resolve(); }
     if (c.ckOut && c.ckOut.length) return sendCheckins().then(flush, function () { if (c.ended) savedLater(); showQueue(); });
     if (!c.queue.length) { showQueue(); return Promise.resolve(); }
@@ -1620,7 +1659,7 @@ window.LitterCollect = function (app) {
     c.checkins = (c.checkins || []).concat([k]).slice(-1500);
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
-    segmentPrompt(pos);
+    if (!c.practice) segmentPrompt(pos);
   }
   // Weigh as you step onto a due segment and as you step off it, so its
   // pounds are its own (S5-P3, Q524).
@@ -1650,7 +1689,7 @@ window.LitterCollect = function (app) {
   // awake, paused or not (paused time doesn't count); they go with the next
   // litter pulse.
   setInterval(function () {
-    if (!c || c.ended || c.sim || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
+    if (!c || c.ended || c.sim || c.practice || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended) return;
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
@@ -1686,7 +1725,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
-      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [],
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
@@ -1694,6 +1733,7 @@ window.LitterCollect = function (app) {
       // A collection open here but ended there (left alone 12 hours, or ended
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
+      if (app.onQuest) app.onQuest(account.quest);
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
@@ -1775,7 +1815,10 @@ window.LitterCollect = function (app) {
       line.className = 'lt-plan-line need';
       line.textContent = 'Choose your plan first: the segments you mean to collect on this walk.';
     } else line.textContent = '';
-    $('cl-start').disabled = !going && !!account && !w.length;
+    // The first quest first (S5-P20, Q580 (a)); Admin Mode's simulated walks don't wait.
+    var q = a.quest;
+    $('cl-start').disabled = (!going && !!account && !w.length) || (!going && !simOn() && !!(q && q.needed));
+    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6);
     if (simAway()) {
       line.className = 'lt-plan-line need';
       line.textContent = SIM_AWAY;
@@ -1819,6 +1862,7 @@ window.LitterCollect = function (app) {
   // check-in. (Q168 had the page not track you; S5 keeps check-ins while a
   // collection is going and the page is open.)
   function locate() {
+    if (c && c.practice) { var h = G.cellCenter(c.lastCell); return Promise.resolve({ cell: c.lastCell, pos: { lat: h.lat, lon: h.lon, acc: 5 } }); }
     // On a simulated walk, where you are is the end of your line (S5-U2).
     if (c && c.sim && !c.ended) {
       var e = simEnd();
@@ -2007,6 +2051,7 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
+    $('cl-practice-note').hidden = !(c && c.practice);
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
     showSun($('cl-sun'), null);
@@ -2018,7 +2063,7 @@ window.LitterCollect = function (app) {
   // opens: reopening the page during a collection used to skip them, so the
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
-    return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
+    return app.api('collectLoad', { token: app.myToken(), collectionId: c && !c.practice ? c.id : '' }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       if (syncFromHabo(d)) { drawSim(); showStatus(); }
       if (!d.types || !d.types.length) return;
@@ -2034,7 +2079,7 @@ window.LitterCollect = function (app) {
   function showStatus() {
     if (!c) return;
     var t = c.totals;
-    $('cl-since').textContent = 'Collecting since ' + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
+    $('cl-since').textContent = (c.practice ? 'Practicing since ' : 'Collecting since ') + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
     $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
     // Paused, a litter pulse offers Resume and End.
     $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
@@ -2412,6 +2457,7 @@ window.LitterCollect = function (app) {
   function addType(button) {
     var name = $('pf-type-search').value.trim();
     if (!name) return;
+    if (c && c.practice) { $('pf-type-err').textContent = 'While you practice, no new litter type is added.'; return; }
     app.busy(button, 'pf-type-err', function () {
       return app.api('addLitterType', { token: app.myToken(), type: name }).then(function (d) {
         var ticked = picked();
@@ -2566,7 +2612,7 @@ window.LitterCollect = function (app) {
     if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
     else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
     else if (kind !== 'end') app.notice('Weighed. Keep filling your bag.');
-    if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
+    if (kind === 'end') { $('v-collect').hidden = true; if (!c.practice) showWaitingSummary(); }
     flush();
   }
 
@@ -3259,6 +3305,7 @@ window.LitterCollect = function (app) {
   }
   function discardCollection(button) {
     if (!c) return;
+    if (c.practice) { discardStep = 0; $('cl-discard-box').hidden = true; $('cl-actions').hidden = false; return endPractice(); }
     app.busy(button, 'cd-err', function () {
       // What the phone kept goes first, so HABO has the whole record.
       return busyWhile('Discarding your collection, please wait...', function () {
@@ -3409,6 +3456,40 @@ window.LitterCollect = function (app) {
     });
   }
 
+  /* ── The first quest's practice litter pulse (S5-P20, Q581 (a)) ── */
+
+  // The collecting screen as it is, where you are, with nothing sent to HABO
+  // or kept on the phone: Weigh, New bag, Pause and End work as on a walk.
+  // End finishes the practice and ticks the step; Back or Discard leaves it.
+  function startPractice() {
+    if (c || (account && account.open)) { app.notice('Finish the collection you have going first: the practice is for before your first one.'); return; }
+    var go = function (pos) {
+      hideBusy();
+      var cell = pos ? G.cellAt(pos.lat, pos.lon) : HOME_CELL, now = Date.now();
+      c = { id: 'practice', practice: true, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
+        current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
+      openCollect();
+      drawCells([], cell, cell);
+    };
+    showBusy('Opening your practice, please wait...');
+    if (!navigator.geolocation) return go(null);
+    navigator.geolocation.getCurrentPosition(function (p) { go({ lat: p.coords.latitude, lon: p.coords.longitude }); }, function () { go(null); },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 });
+  }
+  function practiceDone() {
+    c = null;
+    $('cl-practice-note').hidden = true;
+    app.showAccount();
+    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.');
+    if (app.questTick) app.questTick(5);
+  }
+  function endPractice() {
+    c = null;
+    $('cl-practice-note').hidden = true;
+    app.showAccount();
+    app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');
+  }
+
   /* ── Wiring ── */
 
   // A new collection asks for your GPX recording first; going back to one doesn't.
@@ -3451,7 +3532,7 @@ window.LitterCollect = function (app) {
   $('cl-chooser-cancel').addEventListener('click', closeChooser);
   $('cl-same-yes').addEventListener('click', function () { sameAnswer(true); });
   $('cl-same-no').addEventListener('click', function () { sameAnswer(false); });
-  $('cl-back').addEventListener('click', function () { app.showAccount(); });
+  $('cl-back').addEventListener('click', function () { if (c && c.practice) return endPractice(); app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
   $('pf-next').addEventListener('click', nextStep);
   $('pf-back').addEventListener('click', function () { if (pulse && pulse.step > 0) { pulse.step -= 1; showStep(); } });
@@ -3511,7 +3592,10 @@ window.LitterCollect = function (app) {
       endedElsewhere();
       return true;
     },
-    busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
+    busyHere: function () { return !!(c && !c.practice && (c.queue.length || !c.ended)); },
+    practice: startPractice,
+    // A quest step ticked (S5-P20): the XP and Start collecting with it.
+    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; showPlanLine(); },
     // The picked plan's squares, for the main page's map; and your plans after
     // one is deleted (Oct 31).
     pickedCells: walkCells,
@@ -4340,6 +4424,219 @@ window.LitterMap = function (app) {
 };
 </script>
 <script>
+// The first quest (S5-P20, Q579 to Q581, Nov 3): six steps from setting up
+// an account to the first collection, ticked as they're done, on the main
+// page until they all are. Each step ticked is kept on the account by HABO
+// (Quest.js); Start collecting waits for them (collect.js). litter.js calls
+// LitterQuest(app) with its helpers.
+window.LitterQuest = function (app) {
+  'use strict';
+
+  var $ = app.$;
+  var GEAR_KEY = 'habo-litter-gear';   // the gear ticked, kept on this phone until step 3 is done
+  var quest = null;
+  var pending = {};
+  // Gloves, bags, a vest and a scale are needed; a grabber helps (the waiver:
+  // "use a grabber when I have one").
+  var GEAR = [['gloves', 'Gloves', true], ['bags', 'Bags', true], ['vest', 'A bright safety vest', true],
+    ['scale', 'A hanging luggage scale', true], ['grabber', 'A grabber, if you have one', false]];
+  var STEPS = [
+    { n: 1, title: 'Set up your account', say: 'Your name, email, handle, how you show on the public map, and the waiver signed.' },
+    { n: 2, title: 'The safety rules', say: 'Your waiver\'s safety rules, one screen at a time.', button: 'Read the safety rules', go: openSafety },
+    { n: 3, title: 'Your gear', say: 'Tick each one you have. Gloves, bags, a vest and a scale are needed before your first walk.', gear: true },
+    { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone: any app that saves a .gpx file. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
+    { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Litter pulse, then Weigh, New bag, Pause and End, typing what a scale might show. It\'s practice: nothing is saved.',
+      button: 'Practice the litter pulse', go: function () { app.practice(); } },
+    { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan or Draw a private segment below.' }
+  ];
+
+  function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
+  function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
+  function has(n) { return !!quest && quest.steps.indexOf(n) !== -1; }
+
+  /* ── The card on the main page ── */
+
+  function show(q) {
+    quest = q || null;
+    render();
+  }
+
+  function render() {
+    var card = $('qs-card');
+    card.hidden = !quest || quest.done;
+    if (card.hidden) return;
+    $('qs-say').textContent = 'Six steps before your first collection, each ticked as you do it. Each one earns ' + quest.stepXp + ' XP, and finishing earns ' + quest.doneXp + ' more.';
+    $('qs-gate').hidden = !quest.needed;
+    var list = $('qs-steps');
+    list.textContent = '';
+    STEPS.forEach(function (s) {
+      var done = has(s.n);
+      var li = document.createElement('li');
+      li.id = 'qs-step-' + s.n;
+      li.className = done ? 'done' : '';
+      var head = document.createElement('p');
+      head.className = 'lt-quest-head';
+      var badge = document.createElement('span');
+      badge.className = 'lt-quest-n';
+      badge.setAttribute('aria-hidden', 'true');
+      badge.textContent = done ? '✓' : String(s.n);
+      head.appendChild(badge);
+      head.appendChild(document.createTextNode(s.title + (done ? ': done' : '')));
+      li.appendChild(head);
+      if (!done) {
+        var say = document.createElement('p');
+        say.className = 'lt-quest-say';
+        say.textContent = s.say;
+        li.appendChild(say);
+        var body = document.createElement('div');
+        body.className = 'lt-quest-body';
+        if (s.button) {
+          var b = document.createElement('button');
+          b.type = 'button';
+          b.className = 'btn btn-secondary';
+          b.textContent = s.button;
+          b.addEventListener('click', s.go);
+          body.appendChild(b);
+        }
+        if (s.gear) body.appendChild(gearList());
+        if (s.file) body.appendChild(gpxPicker());
+        if (body.childNodes.length) li.appendChild(body);
+      }
+      list.appendChild(li);
+    });
+  }
+
+  // A step done on the page: HABO keeps it, and the XP comes with it.
+  function tick(n) {
+    if (!quest || has(n) || pending[n]) return Promise.resolve();
+    pending[n] = true;
+    return app.api('questTick', { token: app.myToken(), step: n }).then(function (d) {
+      pending[n] = false;
+      var was = quest && quest.done;
+      quest = d.quest;
+      if (n === 3) keep(GEAR_KEY, null);
+      if (app.onQuestChanged) app.onQuestChanged(d);
+      render();
+      if (quest.done && !was) app.notice('Your first quest is done: ' + quest.doneXp + ' more XP. Ready: start your first collection.');
+    }, function (err) {
+      pending[n] = false;
+      if (err.code === 'signed-out') return app.signedOut();
+      app.notice('That step couldn\'t be ticked just now: ' + err.message);
+    });
+  }
+
+  /* ── Step 2: the safety rules ── */
+
+  // The waiver's safety rules (its part 2, a rule to a line), so they're
+  // always the words signed. A waiver without that part shows each of its
+  // paragraphs instead.
+  var rules = [], at = 0;
+  function safetyRules() {
+    var text = String((app.waiver() || {}).text || '').replace(/\r\n?/g, '\n');
+    var lines = text.split('\n'), out = [], inside = false;
+    lines.forEach(function (l) {
+      var t = l.trim();
+      if (/^\d+\.\s/.test(t)) { inside = /^2\.\s/.test(t); return; }
+      if (inside && /^[-•]\s*/.test(t) && t.replace(/^[-•]\s*/, '')) out.push(t.replace(/^[-•]\s*/, ''));
+    });
+    if (out.length) return out;
+    return text.split(/\n\s*\n/).map(function (p) { return p.trim(); }).filter(String);
+  }
+  function openSafety() {
+    rules = safetyRules();
+    if (!rules.length) { app.notice('The waiver hasn\'t loaded yet. Open the page again with signal.'); return; }
+    at = 0;
+    $('qs-safety').hidden = false;
+    showRule();
+  }
+  function showRule() {
+    $('qs-safety-n').textContent = 'Rule ' + (at + 1) + ' of ' + rules.length;
+    $('qs-safety-rule').textContent = rules[at];
+    $('qs-safety-back').hidden = at === 0;
+    $('qs-safety-next').textContent = at === rules.length - 1 ? 'I\'ll follow these rules' : 'Next';
+    $('qs-safety-next').focus();
+  }
+  $('qs-safety-next').addEventListener('click', function () {
+    if (at < rules.length - 1) { at += 1; showRule(); return; }
+    $('qs-safety').hidden = true;
+    tick(2);
+  });
+  $('qs-safety-back').addEventListener('click', function () { if (at > 0) { at -= 1; showRule(); } });
+  $('qs-safety-close').addEventListener('click', function () { $('qs-safety').hidden = true; });
+
+  /* ── Step 3: your gear ── */
+
+  function gearList() {
+    var box = document.createElement('div');
+    box.className = 'lt-quest-gear';
+    var had = load(GEAR_KEY) || {};
+    GEAR.forEach(function (g) {
+      var l = document.createElement('label');
+      var i = document.createElement('input');
+      i.type = 'checkbox';
+      i.value = g[0];
+      i.checked = !!had[g[0]];
+      i.addEventListener('change', function () {
+        var now = load(GEAR_KEY) || {};
+        now[g[0]] = i.checked;
+        keep(GEAR_KEY, now);
+        if (GEAR.every(function (x) { return !x[2] || now[x[0]]; })) tick(3);
+      });
+      l.appendChild(i);
+      l.appendChild(document.createTextNode(' ' + g[1]));
+      box.appendChild(l);
+    });
+    return box;
+  }
+
+  /* ── Step 4: your GPX recorder ── */
+
+  // The practice recording is read here, on the phone, and nothing in it is
+  // sent: a track with at least two points, each with its time, is enough.
+  function gpxPicker() {
+    var box = document.createElement('div');
+    var label = document.createElement('label');
+    label.className = 'lt-label';
+    label.htmlFor = 'qs-gpx';
+    label.textContent = 'Your practice GPX file';
+    var input = document.createElement('input');
+    input.type = 'file';
+    input.id = 'qs-gpx';
+    input.addEventListener('change', function () {
+      var file = this.files[0];
+      this.value = '';
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onerror = function () { app.notice('That file couldn\'t be read. Choose the .gpx file your GPX app saved.'); };
+      reader.onload = function () {
+        var n = timedPoints(String(reader.result));
+        if (n >= 2) { tick(4); return; }
+        app.notice(n === 1 ? 'That recording has only one point. Record a minute or two of walking around, then choose the new file.'
+          : 'That file isn\'t a GPX track with times. Choose the .gpx file your GPX app saved.');
+      };
+      reader.readAsText(file);
+    });
+    box.appendChild(label);
+    box.appendChild(input);
+    return box;
+  }
+  function timedPoints(text) {
+    var doc;
+    try { doc = new DOMParser().parseFromString(text, 'application/xml'); } catch (e) { return 0; }
+    return Array.prototype.filter.call(doc.getElementsByTagName('trkpt'), function (p) {
+      var t = p.getElementsByTagName('time')[0];
+      return isFinite(Number(p.getAttribute('lat'))) && isFinite(Number(p.getAttribute('lon'))) && p.getAttribute('lat') !== null && t && isFinite(Date.parse(t.textContent));
+    }).length;
+  }
+
+  return {
+    show: show,
+    tick: tick,
+    has: function (n) { return has(n); }
+  };
+};
+</script>
+<script>
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
 // waiver, signing in on a new phone, and the account page. Collecting
 // (S3-P21) is in collect.js; the map and your collections (S3-P22) in map.js. An account is
@@ -4943,7 +5240,19 @@ window.LitterMap = function (app) {
     planLabel: planLabel,
     onPlanPicked: function (cells) { mapper.showPlan(cells); },
     // Choose your plan (S5-P12, Q553): the Segments screen, selecting.
-    chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); }
+    chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); },
+    // The first quest (S5-P20, quest.js): its card, and a step ticked.
+    onQuest: function (q) { quest.show(q); },
+    questTick: function (n) { return quest.tick(n); }
+  });
+
+  /* ── The first quest (S5-P20, quest.js) ── */
+
+  var quest = window.LitterQuest({
+    $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
+    waiver: function () { return state.waiver; },
+    practice: function () { collect.practice(); },
+    onQuestChanged: function (d) { collect.onQuestChanged(d); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

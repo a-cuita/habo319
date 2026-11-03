@@ -62,7 +62,8 @@ window.LitterCollect = function (app) {
   function days(n) { return n == null ? 'some time' : n === 1 ? '1 day' : n + ' days'; }
   function darkColours() { return app.builderMode && app.builderMode() && settings.dark ? settings.dark : null; }
   function scale() { var k = darkColours(); return k ? k.colours : settings.colours; }
-  function save() { keep(KEY, c); }
+  // A practice walk (S5-P20) is never kept.
+  function save() { if (c && c.practice) return; keep(KEY, c); }
   function setTypes(list) {
     if (!list || !list.length) return;
     types = list;
@@ -117,7 +118,7 @@ window.LitterCollect = function (app) {
     save();
     $('cl-actions').hidden = false;
     $('v-collect').hidden = true;
-    showWaitingSummary();
+    if (!c.practice) showWaitingSummary();
     flush();
   }
 
@@ -125,6 +126,7 @@ window.LitterCollect = function (app) {
 
   // Sends the queue in order; what doesn't go waits for the next try.
   function flush() {
+    if (c && c.practice) { c.queue = []; c.ckOut = []; if (c.ended) practiceDone(); return Promise.resolve(); }
     if (sending || !c) { showQueue(); return Promise.resolve(); }
     if (c.ckOut && c.ckOut.length) return sendCheckins().then(flush, function () { if (c.ended) savedLater(); showQueue(); });
     if (!c.queue.length) { showQueue(); return Promise.resolve(); }
@@ -174,7 +176,7 @@ window.LitterCollect = function (app) {
     c.checkins = (c.checkins || []).concat([k]).slice(-1500);
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
-    segmentPrompt(pos);
+    if (!c.practice) segmentPrompt(pos);
   }
   // Weigh as you step onto a due segment and as you step off it, so its
   // pounds are its own (S5-P3, Q524).
@@ -204,7 +206,7 @@ window.LitterCollect = function (app) {
   // awake, paused or not (paused time doesn't count); they go with the next
   // litter pulse.
   setInterval(function () {
-    if (!c || c.ended || c.sim || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
+    if (!c || c.ended || c.sim || c.practice || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended) return;
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
@@ -240,7 +242,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
-      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [],
+      account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
       var h = d.hours || { collections: 0, hours: 0 };
@@ -248,6 +250,7 @@ window.LitterCollect = function (app) {
       // A collection open here but ended there (left alone 12 hours, or ended
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
+      if (app.onQuest) app.onQuest(account.quest);
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
@@ -329,7 +332,10 @@ window.LitterCollect = function (app) {
       line.className = 'lt-plan-line need';
       line.textContent = 'Choose your plan first: the segments you mean to collect on this walk.';
     } else line.textContent = '';
-    $('cl-start').disabled = !going && !!account && !w.length;
+    // The first quest first (S5-P20, Q580 (a)); Admin Mode's simulated walks don't wait.
+    var q = a.quest;
+    $('cl-start').disabled = (!going && !!account && !w.length) || (!going && !simOn() && !!(q && q.needed));
+    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6);
     if (simAway()) {
       line.className = 'lt-plan-line need';
       line.textContent = SIM_AWAY;
@@ -373,6 +379,7 @@ window.LitterCollect = function (app) {
   // check-in. (Q168 had the page not track you; S5 keeps check-ins while a
   // collection is going and the page is open.)
   function locate() {
+    if (c && c.practice) { var h = G.cellCenter(c.lastCell); return Promise.resolve({ cell: c.lastCell, pos: { lat: h.lat, lon: h.lon, acc: 5 } }); }
     // On a simulated walk, where you are is the end of your line (S5-U2).
     if (c && c.sim && !c.ended) {
       var e = simEnd();
@@ -561,6 +568,7 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
+    $('cl-practice-note').hidden = !(c && c.practice);
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
     showSun($('cl-sun'), null);
@@ -572,7 +580,7 @@ window.LitterCollect = function (app) {
   // opens: reopening the page during a collection used to skip them, so the
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
-    return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
+    return app.api('collectLoad', { token: app.myToken(), collectionId: c && !c.practice ? c.id : '' }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       if (syncFromHabo(d)) { drawSim(); showStatus(); }
       if (!d.types || !d.types.length) return;
@@ -588,7 +596,7 @@ window.LitterCollect = function (app) {
   function showStatus() {
     if (!c) return;
     var t = c.totals;
-    $('cl-since').textContent = 'Collecting since ' + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
+    $('cl-since').textContent = (c.practice ? 'Practicing since ' : 'Collecting since ') + clock(c.startedAt) + (c.current.pausedAt ? ' · Paused at ' + clock(c.current.pausedAt) : '');
     $('cl-totals').textContent = round(t.pounds, 2) + ' lb · ' + round(t.miles, 2) + ' mi · ' + Math.round(t.minutes) + ' min active';
     // Paused, a litter pulse offers Resume and End.
     $('cl-pause').textContent = c.current.pausedAt ? 'Resume' : 'Pause';
@@ -966,6 +974,7 @@ window.LitterCollect = function (app) {
   function addType(button) {
     var name = $('pf-type-search').value.trim();
     if (!name) return;
+    if (c && c.practice) { $('pf-type-err').textContent = 'While you practice, no new litter type is added.'; return; }
     app.busy(button, 'pf-type-err', function () {
       return app.api('addLitterType', { token: app.myToken(), type: name }).then(function (d) {
         var ticked = picked();
@@ -1120,7 +1129,7 @@ window.LitterCollect = function (app) {
     if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
     else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
     else if (kind !== 'end') app.notice('Weighed. Keep filling your bag.');
-    if (kind === 'end') { $('v-collect').hidden = true; showWaitingSummary(); }
+    if (kind === 'end') { $('v-collect').hidden = true; if (!c.practice) showWaitingSummary(); }
     flush();
   }
 
@@ -1813,6 +1822,7 @@ window.LitterCollect = function (app) {
   }
   function discardCollection(button) {
     if (!c) return;
+    if (c.practice) { discardStep = 0; $('cl-discard-box').hidden = true; $('cl-actions').hidden = false; return endPractice(); }
     app.busy(button, 'cd-err', function () {
       // What the phone kept goes first, so HABO has the whole record.
       return busyWhile('Discarding your collection, please wait...', function () {
@@ -1963,6 +1973,40 @@ window.LitterCollect = function (app) {
     });
   }
 
+  /* ── The first quest's practice litter pulse (S5-P20, Q581 (a)) ── */
+
+  // The collecting screen as it is, where you are, with nothing sent to HABO
+  // or kept on the phone: Weigh, New bag, Pause and End work as on a walk.
+  // End finishes the practice and ticks the step; Back or Discard leaves it.
+  function startPractice() {
+    if (c || (account && account.open)) { app.notice('Finish the collection you have going first: the practice is for before your first one.'); return; }
+    var go = function (pos) {
+      hideBusy();
+      var cell = pos ? G.cellAt(pos.lat, pos.lon) : HOME_CELL, now = Date.now();
+      c = { id: 'practice', practice: true, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
+        current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
+      openCollect();
+      drawCells([], cell, cell);
+    };
+    showBusy('Opening your practice, please wait...');
+    if (!navigator.geolocation) return go(null);
+    navigator.geolocation.getCurrentPosition(function (p) { go({ lat: p.coords.latitude, lon: p.coords.longitude }); }, function () { go(null); },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 600000 });
+  }
+  function practiceDone() {
+    c = null;
+    $('cl-practice-note').hidden = true;
+    app.showAccount();
+    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.');
+    if (app.questTick) app.questTick(5);
+  }
+  function endPractice() {
+    c = null;
+    $('cl-practice-note').hidden = true;
+    app.showAccount();
+    app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');
+  }
+
   /* ── Wiring ── */
 
   // A new collection asks for your GPX recording first; going back to one doesn't.
@@ -2005,7 +2049,7 @@ window.LitterCollect = function (app) {
   $('cl-chooser-cancel').addEventListener('click', closeChooser);
   $('cl-same-yes').addEventListener('click', function () { sameAnswer(true); });
   $('cl-same-no').addEventListener('click', function () { sameAnswer(false); });
-  $('cl-back').addEventListener('click', function () { app.showAccount(); });
+  $('cl-back').addEventListener('click', function () { if (c && c.practice) return endPractice(); app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
   $('pf-next').addEventListener('click', nextStep);
   $('pf-back').addEventListener('click', function () { if (pulse && pulse.step > 0) { pulse.step -= 1; showStep(); } });
@@ -2065,7 +2109,10 @@ window.LitterCollect = function (app) {
       endedElsewhere();
       return true;
     },
-    busyHere: function () { return !!(c && (c.queue.length || !c.ended)); },
+    busyHere: function () { return !!(c && !c.practice && (c.queue.length || !c.ended)); },
+    practice: startPractice,
+    // A quest step ticked (S5-P20): the XP and Start collecting with it.
+    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; showPlanLine(); },
     // The picked plan's squares, for the main page's map; and your plans after
     // one is deleted (Oct 31).
     pickedCells: walkCells,

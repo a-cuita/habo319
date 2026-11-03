@@ -24,12 +24,14 @@ var TABS = {
   // One row per litter tracking account (Q257, Q262): set up once, on the
   // litter page, the first time someone opens it (Q263), with an email and
   // no phone (Oct 23, in chat). The waiver columns are the latest signing.
+  // First quest (S5-P20): the steps ticked after the first; finished, when.
   accounts: {
     name: 'Accounts',
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
-      'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Signed name', 'Signature', 'Check-in volunteer', 'Updated', 'Status'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 180, 280, 130, 150, 80],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm' }
+      'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Signed name', 'Signature', 'Check-in volunteer', 'Updated', 'Status',
+      'First quest', 'First quest finished'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 180, 280, 130, 150, 80, 110, 150],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
   // words change (Oct 23, in chat), with whether their emailed copy went.
@@ -163,6 +165,7 @@ function actions_() {
     segmentPropose: segmentPropose_,
     measureAgain: measureAgain_,
     simShare: simShare_,
+    questTick: questTick_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_
@@ -472,6 +475,8 @@ function missingSettings_(ss) {
     [SETTING_RATING_XP_3, '1'],
     [SETTING_RATING_BONUS, '5'],
     [SETTING_TYPES_XP, '1'],
+    [SETTING_QUEST_STEP_XP, '1'],
+    [SETTING_QUEST_DONE_XP, '5'],
     [SETTING_START_SAYINGS, '']
   ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }

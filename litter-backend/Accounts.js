@@ -11,7 +11,7 @@
  */
 
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
-  waiver: 10, waiverPrint: 11, signedName: 12, signature: 13, volunteer: 14, updated: 15, status: 16 };
+  waiver: 10, waiverPrint: 11, signedName: 12, signature: 13, volunteer: 14, updated: 15, status: 16, quest: 17, questDone: 18 };
 var DEVICE_COL = { id: 1, account: 2, secret: 3, at: 4, used: 5, how: 6, ended: 7 };
 
 // What the public map shows for an account (Q244, Q259, Q318). The map
@@ -183,7 +183,8 @@ function readAccounts_() {
     return {
       row: i + 2, id: get('id'), first: get('first'), last: get('last'), email: get('email').toLowerCase(),
       handle: get('handle'), shows: get('shows'), signed: get('signed'), waiver: get('waiver'), waiverPrint: get('waiverPrint'),
-      volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status'))
+      volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status')),
+      quest: get('quest'), questDone: get('questDone')
     };
   }).filter(function (a) { return a.id; });
 }

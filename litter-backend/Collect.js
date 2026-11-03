@@ -84,6 +84,10 @@ function collectStart_(req) {
     }
     if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: walkPlanView_(walkPlan_(account.id, open.plan, false)),
       stretches: stretchesOf_(open.id).map(stretchViewOf_) };
+    // The first quest first (S5-P20, Q580 (a)): every step ticked.
+    if (!simulated && questView_(account).needed) {
+      throw coded_('quest-first', 'Finish your first quest first: every step on the main page ticked.');
+    }
     if (!simulated && late) {
       throw coded_('too-late', 'No new collection can start from ' + noStart + ' minutes before sunset until sunrise. Sunrise is at ' +
         clock_(now.getTime() < sun.sunrise ? sun.sunrise : sunFor_(cell, new Date(now.getTime() + 86400000)).sunrise) + '.');
@@ -301,7 +305,8 @@ function collectLoad_(req) {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id)
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
+    quest: questView_(account)
   };
 }
 

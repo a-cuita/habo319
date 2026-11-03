@@ -204,7 +204,8 @@ function setPlanXp_(collectionId) {
 
 // Your XP: each planned collection's, and each stretch's of your ended
 // collections, worked out from the stretches as they are now, so a fix or a
-// discard changes it, and your walk's counts (M410).
+// discard changes it, and your walk's counts (M410); and the first quest's
+// (S5-P20, Q579).
 function xpOf_(accountId) {
   // Only walks with their GPX track saved earn XP (Jeremy, Oct 29).
   var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && String(q.get('track')).trim() && q.get('simulated') !== 'Yes'; });
@@ -215,7 +216,8 @@ function xpOf_(accountId) {
   var stretches = readRows_(TABS.stretches).reduce(function (t, q) {
     return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) : t;
   }, 0);
-  return round_(plan + stretches, 2);
+  var me = readAccounts_().filter(function (a) { return a.id === accountId; })[0];
+  return round_(plan + stretches + (me ? questXp_(me) : 0), 2);
 }
 
 function xpSettings_() {

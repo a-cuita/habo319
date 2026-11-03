@@ -269,3 +269,19 @@ html.lt-panel-open { overflow: hidden; }
 .lt-sim-label { margin: 0 0 4px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; color: #92400e; }
 .lt-sim-share { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-weight: 600; }
 #cl-sim-note { background: repeating-linear-gradient(135deg, #fef9c3 0 14px, #fde68a 14px 28px); border: 2px solid #eab308; color: #1f2937; font-weight: 700; }
+
+/* The first quest (S5-P20): six steps, each ticked as it's done. */
+.lt-quest-steps { list-style: none; margin: 8px 0 0; padding: 0; }
+.lt-quest-steps li { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-quest-steps li:first-child { border-top: 0; }
+.lt-quest-head { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.lt-quest-n { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--primary); color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem; font-weight: 800; }
+.lt-quest-steps li.done .lt-quest-n { background: var(--primary); color: #fff; }
+.lt-quest-steps li.done .lt-quest-head { color: var(--text-dim); font-weight: 600; }
+.lt-quest-say { margin: 6px 0 8px 32px; color: var(--text-dim); font-size: 0.92rem; }
+.lt-quest-body { margin-left: 32px; }
+.lt-quest-gear label { display: block; padding: 5px 0; }
+.lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
+#qs-gate { margin: 10px 0 0; }
+.lt-practice-note { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
+html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-color: #0369a1; }

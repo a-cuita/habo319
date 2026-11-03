@@ -601,7 +601,19 @@
     planLabel: planLabel,
     onPlanPicked: function (cells) { mapper.showPlan(cells); },
     // Choose your plan (S5-P12, Q553): the Segments screen, selecting.
-    chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); }
+    chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); },
+    // The first quest (S5-P20, quest.js): its card, and a step ticked.
+    onQuest: function (q) { quest.show(q); },
+    questTick: function (n) { return quest.tick(n); }
+  });
+
+  /* ── The first quest (S5-P20, quest.js) ── */
+
+  var quest = window.LitterQuest({
+    $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
+    waiver: function () { return state.waiver; },
+    practice: function () { collect.practice(); },
+    onQuestChanged: function (d) { collect.onQuestChanged(d); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
