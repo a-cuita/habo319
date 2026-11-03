@@ -55,8 +55,8 @@ var TABS = {
     name: 'Collections',
     header: ['Collection ID', 'Account ID', 'Handle', 'Started', 'Start cell', 'Ended', 'End cell', 'Status', 'Stretches',
       'Pounds', 'Miles', 'Active minutes', 'Volunteer hours', 'Hours note', 'Last pressed', 'Updated', 'Key', 'Hidden from the map', 'Hidden by',
-      'Plan', 'XP', 'Discard reason', 'GPX track', 'Check-ins', 'Recording started', 'Simulated'],
-    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220, 200, 200, 150, 90],
+      'Plan', 'XP', 'Discard reason', 'GPX track', 'Check-ins', 'Recording started', 'Simulated', 'Shared with admins'],
+    widths: [100, 90, 140, 150, 130, 150, 130, 120, 80, 80, 80, 100, 110, 260, 150, 150, 120, 150, 220, 90, 60, 220, 200, 200, 150, 90, 130],
     formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 15: 'yyyy-mm-dd h:mm', 16: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 20: '@', 23: '@', 24: '@', 25: 'yyyy-mm-dd h:mm:ss' }
   },
   // Turnarounds (Oct 24, in chat): where the stretch turned back, with no
@@ -109,6 +109,15 @@ var TABS = {
     widths: [260, 90, 160, 150],
     formats: { 4: 'yyyy-mm-dd h:mm' }
   },
+  // Simulated walks (S5-U2, Nov 3): one row per simulated walk, with the ids
+  // of its rows on the other tabs, which are coloured orange so they're easy
+  // to find and delete by hand. Kept up to date by the app.
+  simulations: {
+    name: 'Simulations',
+    header: ['Collection ID', 'Account ID', 'Started', 'Status', 'Shared with admins', 'Stretches', 'Segment rates', 'Changes rows', 'Updated'],
+    widths: [100, 90, 150, 100, 130, 260, 200, 120, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -153,6 +162,7 @@ function actions_() {
     planDelete: planDelete_,
     segmentPropose: segmentPropose_,
     measureAgain: measureAgain_,
+    simShare: simShare_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_
@@ -234,7 +244,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -254,6 +264,7 @@ function ensureSchema_(force) {
     // A new bound Sheet starts with an empty "Sheet1".
     var first = ss.getSheetByName('Sheet1');
     if (first && ss.getSheets().length > 1 && first.getLastRow() === 0) ss.deleteSheet(first);
+    renameAdminSettings_(ss);
     var missing = missingSettings_(ss);
     if (missing.length) {
       var sheet = ss.getSheetByName(TABS.settings.name);
@@ -267,6 +278,7 @@ function ensureSchema_(force) {
     // 10 m squares (S5-P1, Q516): each square kept so far becomes its 64.
     regridOnce_(ss, 'GRID_10M', 8, LitterGeo.MILE_M / 160);
     trackOnlyOnce_(ss);
+    simulationsOnce_();
   });
   cache.put(cacheKey, '1', 600);
 }
@@ -452,6 +464,7 @@ function missingSettings_(ss) {
     [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],
     [SETTING_PAUSED_COLOUR, DEFAULT_PAUSED_COLOUR],
+    [SETTING_PLAN_COLOUR, DEFAULT_PLAN_COLOUR],
     [SETTING_BREAK_AFTER, '10'],
     [SETTING_PLAN_XP, '1'],
     [SETTING_RATING_XP_1, '3'],

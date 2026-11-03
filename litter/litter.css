@@ -8,14 +8,16 @@
 .lt-nt-text { flex: 1 1 200px; }
 .lt-nt-close { border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
 .lt-nt-btn { border: 2px solid rgba(255, 255, 255, 0.75); background: transparent; color: #fff; border-radius: 9px; font: inherit; font-size: 0.9rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
-.lt-nt.working { background: #4b5563; justify-content: center; }
+.lt-nt.working { background: #4b5563; justify-content: center; animation: lt-work-pulse 1.4s ease-in-out infinite alternate; }
+/* The working bar pulses like the Build Board's (S5-P16, M641): the words on grey, fading to a plain orange bar with no words. */
+@keyframes lt-work-pulse { 0%, 35% { background: #4b5563; color: #fff; } 65%, 100% { background: #f97316; color: transparent; } }
 .lt-nt-all { align-self: center; border: 0; border-radius: 9px; background: rgba(28, 28, 30, 0.85); color: #fff; font: inherit; font-weight: 700; padding: 6px 12px; cursor: pointer; }
 /* While HABO answers, nothing else can be pressed (S5-P16, C634). */
 .lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.12); cursor: progress; }
 .lt-working-scrim[hidden] { display: none; }
 /* In Admin Mode's dark look, the notices stand out from the page. */
 html.lt-builder .lt-nt { background: #3f4654; border: 1px solid #6b7280; }
-html.lt-builder .lt-nt.working { background: #4b5563; }
+html.lt-builder .lt-nt.working { background: #4b5563; animation: lt-work-pulse 1.4s ease-in-out infinite alternate; }
 .lt-note { margin: -4px 0 14px; }
 .lt-handle { min-height: 1.2em; margin-top: 6px; font-weight: 600; }
 .lt-handle.ok { color: var(--accent); }
@@ -260,3 +262,10 @@ html.lt-panel-open { overflow: hidden; }
 .lt-seg-modal-box { width: min(640px, calc(100vw - 32px)); }
 .lt-seg-modal-map { height: 60vh; min-height: 280px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin-bottom: 10px; }
 #sm-offplan { margin-top: 12px; }
+
+/* Simulated walks (S5-U2, C697): striped like the Build Board's test cards, wherever they're listed. */
+.lt-sim-walk { background: repeating-linear-gradient(135deg, #fef9c3 0 14px, #fde68a 14px 28px) !important; border: 2px solid #eab308 !important; color: #1f2937; border-radius: var(--radius-sm); padding: 10px; }
+.lt-sim-walk .muted, .lt-sim-walk .lt-col-facts { color: #374151; }
+.lt-sim-label { margin: 0 0 4px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; font-size: .8rem; color: #92400e; }
+.lt-sim-share { display: flex; align-items: center; gap: 6px; margin: 6px 0; font-weight: 600; }
+#cl-sim-note { background: repeating-linear-gradient(135deg, #fef9c3 0 14px, #fde68a 14px 28px); border: 2px solid #eab308; color: #1f2937; font-weight: 700; }

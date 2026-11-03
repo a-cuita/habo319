@@ -107,7 +107,7 @@ function measureAgain_(req) {
     segmentsAll_().forEach(function (g) { names[g.id] = g.name; });
     logChange_(account.email, 'Segment rates', col.id, 'Measured again', '', made.map(function (m) { return m.segment + ' ' + m.rate; }).join(', ') || 'none');
     return { measured: made.map(function (m) { return { segment: m.segment, name: names[m.segment] || m.segment, rate: m.rate }; }),
-      segments: segmentSummaries_(false), simSegments: segmentSummaries_(true) };
+      segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id) };
   });
 }
 
@@ -132,11 +132,13 @@ function ratesAll_() {
 }
 
 // The collections of one world (Q529): real ones, or simulated ones; ended
-// or saved, not discarded.
-function rateCollections_(sim) {
+// or saved, not discarded. A simulated world is one admin's own (S5-U2,
+// Nov 3): their simulated walks, and any another admin shared.
+function rateCollections_(sim, accountId) {
   var out = {};
   readRows_(TABS.collections).forEach(function (q) {
-    if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && (q.get('simulated') === 'Yes') === !!sim) out[q.get('id')] = q;
+    if (q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED) return;
+    if (!sim ? q.get('simulated') !== 'Yes' : simAllowed_(accountId, q)) out[q.get('id')] = q;
   });
   return out;
 }
@@ -212,7 +214,7 @@ function measureRates_(collectionId) {
   var q = readRows_(TABS.collections).filter(function (x) { return x.get('id') === collectionId; })[0];
   if (!q || q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED) return [];
   var sim = q.get('simulated') === 'Yes';
-  var counted = rateCollections_(sim);
+  var counted = rateCollections_(sim, q.get('account'));
   var started = q.get('started') instanceof Date ? q.get('started').getTime() : 0;
   var mine = readRows_(TABS.stretches).filter(function (s) { return s.get('collection') === collectionId && s.get('discarded') !== 'Yes'; });
   var walked = {}, collected = 0;
@@ -290,10 +292,12 @@ function measureRates_(collectionId) {
 // how it was partly cleaned, in one world: { id, name, kind, squares, miles,
 // rate, median, average, shows, count, confidence, level, arrow, due, partly,
 // days, groups: [{ pct, dir, days }] }.
-function segmentSummaries_(sim) {
+function segmentSummaries_(sim, accountId) {
+  if (sim && !accountId) return [];   // a simulated world is always someone's
   var now = Date.now();
-  var cleaned = cleanedTimes_(rateCollections_(sim), '', 0);
-  var rates = ratesAll_().filter(function (r) { return r.simulated === !!sim; });
+  var counted = rateCollections_(sim, accountId);
+  var cleaned = cleanedTimes_(counted, '', 0);
+  var rates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]); });
   var k = segmentRules_();
   var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
   var low = minutesSetting_(SETTING_CONF_LOW, 2), moderate = minutesSetting_(SETTING_CONF_MODERATE, 5);

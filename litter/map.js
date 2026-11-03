@@ -19,6 +19,7 @@ window.LitterMap = function (app) {
   var mine = null, showAll = false;
   // Accepted segments and their rates (S5-P3): a layer of their own, and a
   // line in every square's pop-up (Q482).
+  var planColour = '#7c3aed';
   var realSegs = [], simSegs = [], rateTop = 5, mode = 'index', lastCells = [];
   // In Head Builder mode, the simulated world's segments (Q529).
   function segList() { return app.builderMode && app.builderMode() ? simSegs : realSegs; }
@@ -58,6 +59,8 @@ window.LitterMap = function (app) {
     map = L.map('mp-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     layer = L.layerGroup().addTo(map);
+    // A chosen plan sits above the colour layers (S5-P9, |C685).
+    map.createPane('ltPlan').style.zIndex = 450;
     planLayer = L.layerGroup().addTo(map);
     var h = G.cellCenter(HOME_CELL);
     map.setView([h.lat, h.lon], 13);
@@ -67,6 +70,7 @@ window.LitterMap = function (app) {
     loaded = d; loadedAt = Date.now();
     colours = d.colours || colours;
     dark = d.dark || dark;
+    planColour = d.planColour || planColour;
     realSegs = d.segments || [];
     simSegs = d.simSegments || [];
     rateTop = d.rateTop || rateTop;
@@ -78,8 +82,10 @@ window.LitterMap = function (app) {
   function outlinePlan(cells) {
     if (!planLayer) return;
     planLayer.clearLayers();
-    var pc = darkColours() ? darkColours().plan : '#7c3aed';
-    (cells || []).forEach(function (cell) { L.rectangle(G.cellBounds(cell), { color: pc, weight: 2, dashArray: '5 4', fill: false, interactive: false, className: 'lt-plan-square' }).addTo(planLayer); });
+    // One line around the outside of the whole plan (S5-P9, |Q573), in the
+    // Settings tab's plan colour (|C684).
+    var pc = darkColours() ? darkColours().plan : (planColour || '#7c3aed');
+    if ((cells || []).length) L.polyline(G.outline(cells), { color: pc, weight: 3, opacity: 1, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
   }
 
   // opts: { focus: [cells] to show first, back: what Back does, track: a
@@ -97,7 +103,7 @@ window.LitterMap = function (app) {
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
-    return app.api('mapLoad', {}).then(function (d) {
+    return app.api('mapLoad', { token: app.myToken ? app.myToken() : '' }).then(function (d) {
       useLoad(d);
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       lastCells = (d.cells || []).concat(opts.own || []);
@@ -125,6 +131,7 @@ window.LitterMap = function (app) {
   // plan outlined, in place of See the map (Oct 31, field first).
   function inline() {
     onMain = true;
+    setTimeout(function () { drawSmallMaps($('segments-list')); }, 0);
     $('cl-litter-map-slot').appendChild($('mp-body'));
     layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
@@ -132,7 +139,7 @@ window.LitterMap = function (app) {
     setTimeout(function () { map.invalidateSize(); }, 0);
     var fresh = loaded && Date.now() - loadedAt < 120000;
     if (!fresh) $('mp-note').textContent = 'Loading the map…';
-    return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', {})).then(function (d) {
+    return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', { token: app.myToken ? app.myToken() : '' })).then(function (d) {
       useLoad(d);
       lastCells = d.cells || [];
       draw(lastCells);
@@ -279,13 +286,16 @@ window.LitterMap = function (app) {
     list.textContent = '';
     var cols = mine.collections;
     (showAll ? cols : cols.slice(0, SHOW_FIRST)).forEach(function (c) { list.appendChild(collectionItem(c)); });
+    setTimeout(function () { drawSmallMaps(list); }, 0);
     $('my-more').hidden = showAll || cols.length <= SHOW_FIRST;
     $('my-more').textContent = 'Show all ' + cols.length;
   }
 
   function collectionItem(c) {
-    var box = el('div', 'lt-col');
+    // A simulated walk is striped like the Build Board's test cards (S5-U2, |C697).
+    var box = el('div', 'lt-col' + (c.simulated ? ' lt-sim-walk' : ''));
     box.id = 'my-' + c.id;
+    if (c.simulated) box.appendChild(el('p', 'lt-sim-label', 'Simulated walk'));
     box.appendChild(el('p', 'lt-col-head', when(c.started) + (c.ended ? ' to ' + clock(c.ended) : '')));
     box.appendChild(el('p', 'lt-col-facts', round(c.pounds, 2) + ' lb · ' + round(c.miles, 2) + ' mi · ' + Math.round(c.active) + ' min active · ' +
       c.hours + ' volunteer hour' + (c.hours === 1 ? '' : 's')));
@@ -301,19 +311,34 @@ window.LitterMap = function (app) {
       ul.appendChild(li);
     });
     box.appendChild(ul);
-    if (c.track && c.track.length > 1) box.appendChild(el('p', 'muted small', 'Your GPX track is saved: See it on the map shows it.'));
+    if (c.track && c.track.length > 1) box.appendChild(el('p', 'muted small', 'Your GPX track is saved: its small map shows it.'));
     if (c.hidden) box.appendChild(el('p', 'lt-col-hidden', 'HABO\'s staff have taken this collection off the public map. It\'s still kept, with your hours.'));
+    // Your simulated walks are your own until you share them (S5-U2, |M665).
+    if (c.simulated) {
+      var share = el('label', 'lt-sim-share');
+      var cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!c.shared;
+      share.appendChild(cb);
+      share.appendChild(document.createTextNode(' Share with the other admins'));
+      cb.addEventListener('change', function () {
+        cb.disabled = true;
+        app.api('simShare', { token: app.myToken(), collectionId: c.id, shared: cb.checked }).then(function () {
+          cb.disabled = false;
+          c.shared = cb.checked;
+          app.notice(cb.checked ? 'Shared with the other admins.' : 'No longer shared: only you see it.');
+        }, function (err) { cb.disabled = false; cb.checked = !cb.checked; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+      });
+      box.appendChild(share);
+    }
     var row = el('div', 'lt-col-row');
     var cells = [];
     c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (cells.indexOf(x) === -1) cells.push(x); }); });
-    if (cells.length && !c.hidden) {
-      var m = el('button', 'btn btn-secondary lt-col-map', 'See it on the map');
-      m.type = 'button';
-      // A simulated walk is off the public map (S5-U2), so its own squares come with it.
-      var own = c.simulated ? [].concat.apply([], c.stretchList.filter(function (s) { return !s.discarded && s.index != null; })
-        .map(function (s) { return s.cells.map(function (x) { return [x, s.index, '', 'Simulated walk']; }); })) : null;
-      m.addEventListener('click', function () { open({ focus: cells, back: app.showCollections, track: c.track, own: own }); });
-      row.appendChild(m);
+    if (cells.length) {
+      // Its small map, tapped to open larger, with your GPX track (S5-P11, |C691).
+      var colourOf = {};
+      c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { colourOf[x] = s.index == null ? '#9ca3af' : G.indexColour(s.index, scale()); }); });
+      box.appendChild(smallMap(when(c.started), cells, { kind: 'walk', track: c.track, colourOf: colourOf }));
     }
     // Measure again (Oct 31, field first): its segment rates worked out again,
     // with the Settings and each segment's Kind as they are now. A Head
@@ -522,8 +547,51 @@ window.LitterMap = function (app) {
     });
   }
 
+  // A small map, tapped to open larger (S5-P11, |C691): The Priority Segment
+  // List and Your collections, as on the Segments screen. opts: { kind:
+  // 'public' | 'walk', track: [[lat, lon], …], colourOf: { square: colour } }.
+  function smallMap(title, cells, opts) {
+    var div = el('div', 'lt-seg-thumb lt-small-map');
+    div.setAttribute('role', 'button');
+    div.setAttribute('aria-label', 'See ' + title + ' on a larger map');
+    div.tabIndex = 0;
+    div._cells = cells;
+    div._opts = opts || {};
+    var go = function () { openModal(title, cells, div._opts.kind, div._opts); };
+    div.addEventListener('click', function (e) { e.stopPropagation(); go(); });
+    div.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+    return div;
+  }
+  function squaresOn(m, cells, opts, weight) {
+    var b = L.latLngBounds([]);
+    var base = opts.kind === 'public' ? '#0e7490' : opts.kind === 'walk' ? '#c2410c' : (darkColours() ? darkColours().plan : '#7c3aed');
+    cells.forEach(function (c) {
+      var col = (opts.colourOf && opts.colourOf[c]) || base;
+      L.rectangle(G.cellBounds(c), { color: col, weight: weight, fillColor: col, fillOpacity: 0.45, interactive: false, className: 'lt-modal-square' }).addTo(m);
+      b.extend(G.cellBounds(c));
+    });
+    if (opts.track && opts.track.length > 1) {
+      G.trackRuns(opts.track).forEach(function (run) { L.polyline(run.pts, { color: '#111827', weight: 2, opacity: run.paused ? 0.4 : 0.85, interactive: false, className: 'lt-modal-track' }).addTo(m); });
+      opts.track.forEach(function (p) { b.extend([p[0], p[1]]); });
+    }
+    return b;
+  }
+  function drawSmallMaps(root) {
+    if (!window.L || !root) return;
+    Array.prototype.forEach.call(root.querySelectorAll('.lt-small-map'), function (div) {
+      if (div._map || !div.offsetWidth) return;
+      var m = L.map(div, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false,
+        boxZoom: false, keyboard: false, touchZoom: false, tap: false });
+      L.control.attribution({ prefix: false }).addAttribution('&copy; OpenStreetMap').addTo(m);
+      L.tileLayer(TILES, { maxZoom: 19 }).addTo(m);
+      var b = squaresOn(m, div._cells || [], div._opts || {}, 1);
+      if (b.isValid()) m.fitBounds(b, { maxZoom: 17, padding: [8, 8] });
+      div._map = m;
+    });
+  }
+
   // A segment's map, larger, over the page.
-  function openModal(title, cells, kind) {
+  function openModal(title, cells, kind, opts) {
     $('seg-modal-title').textContent = title;
     $('seg-modal').hidden = false;
     if (!window.L) return;
@@ -533,9 +601,7 @@ window.LitterMap = function (app) {
       modalLayer = L.layerGroup().addTo(modalMap);
     }
     modalLayer.clearLayers();
-    var colour = kind === 'public' ? '#0e7490' : (darkColours() ? darkColours().plan : '#7c3aed');
-    var b = L.latLngBounds([]);
-    cells.forEach(function (c) { L.rectangle(G.cellBounds(c), { color: colour, weight: 2, fillColor: colour, fillOpacity: 0.35, className: 'lt-modal-square' }).addTo(modalLayer); b.extend(G.cellBounds(c)); });
+    var b = squaresOn(modalLayer, cells, Object.assign({ kind: kind }, opts || {}), 2);
     setTimeout(function () { modalMap.invalidateSize(); if (b.isValid()) modalMap.fitBounds(b, { maxZoom: 18, padding: [20, 20] }); }, 0);
   }
   function closeModal() { $('seg-modal').hidden = true; }
@@ -660,12 +726,11 @@ window.LitterMap = function (app) {
       box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
       if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
-      var m = el('button', 'btn btn-secondary lt-seg-map', 'See it on the map');
-      m.type = 'button';
-      m.addEventListener('click', function () { open({ focus: g.squares, back: app.showAccount, layer: 'rate' }); });
-      box.appendChild(m);
+      // Its small map, tapped to open larger (S5-P11, |C691), in place of See it on the map.
+      box.appendChild(smallMap(g.name, g.squares, { kind: 'public' }));
       list.appendChild(box);
     });
+    setTimeout(function () { drawSmallMaps(list); }, 0);
   }
 
   /* ── Wiring ── */

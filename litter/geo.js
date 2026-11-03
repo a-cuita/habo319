@@ -63,6 +63,21 @@ var LitterGeo = (function () {
     var c = rowCol(id), sw = toLatLon({ x: c.j * CELL_M, y: c.i * CELL_M }), ne = toLatLon({ x: (c.j + 1) * CELL_M, y: (c.i + 1) * CELL_M });
     return [[sw.lat, sw.lon], [ne.lat, ne.lon]];
   }
+  // The outside edge of a set of squares (S5-P9, |Q573): each square's sides
+  // that no other square in the set shares, as [[lat, lon], [lat, lon]] pieces.
+  function outline(cells) {
+    var has = {};
+    (cells || []).forEach(function (id) { has[id] = true; });
+    var out = [];
+    Object.keys(has).forEach(function (id) {
+      var c = rowCol(id), b = cellBounds(id), s = b[0][0], w = b[0][1], n = b[1][0], e = b[1][1];
+      if (!has[(c.i + 1) + '_' + c.j]) out.push([[n, w], [n, e]]);
+      if (!has[(c.i - 1) + '_' + c.j]) out.push([[s, w], [s, e]]);
+      if (!has[c.i + '_' + (c.j + 1)]) out.push([[s, e], [n, e]]);
+      if (!has[c.i + '_' + (c.j - 1)]) out.push([[s, w], [n, w]]);
+    });
+    return out;
+  }
   function inCell(p, id) {
     var c = rowCol(id);
     return p.x >= c.j * CELL_M && p.x <= (c.j + 1) * CELL_M && p.y >= c.i * CELL_M && p.y <= (c.i + 1) * CELL_M;
@@ -427,7 +442,7 @@ var LitterGeo = (function () {
   return {
     trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
-    cellBounds: cellBounds, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    cellBounds: cellBounds, outline: outline, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

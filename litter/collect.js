@@ -305,6 +305,12 @@ window.LitterCollect = function (app) {
     return worst / G.MILE_M;
   }
 
+  // A simulated walk opens only in Admin Mode (S5-U2, |C697).
+  var SIM_AWAY = 'Your simulated walk is still open. Turn Admin Mode on to go back to it, or to end it.';
+  function simAway() {
+    var a = account || {};
+    return !simOn() && (!!(c && !c.ended && c.sim) || !!(!c && a.open && a.open.simulated));
+  }
   function showPlanLine() {
     var a = account || { xp: 0, plans: [] };
     var going = !!(c && !c.ended) || !!(!c && a.open);
@@ -324,6 +330,12 @@ window.LitterCollect = function (app) {
       line.textContent = 'Choose your plan first: the segments you mean to collect on this walk.';
     } else line.textContent = '';
     $('cl-start').disabled = !going && !!account && !w.length;
+    if (simAway()) {
+      line.className = 'lt-plan-line need';
+      line.textContent = SIM_AWAY;
+      $('cl-start').textContent = 'Start collecting';
+      $('cl-start').disabled = true;
+    }
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -408,6 +420,7 @@ window.LitterCollect = function (app) {
   }
 
   function start(button) {
+    if (simAway()) { app.notice(SIM_AWAY); return; }
     if (c && !c.ended) return openCollect();
     // Your collection is open on HABO, not on this phone: pick it up from the
     // last litter pulse that reached HABO (Q409).
@@ -423,6 +436,10 @@ window.LitterCollect = function (app) {
     // A simulated walk starts where you click on the map (S5-U2).
     if (simOn()) {
       openCollect();
+      // On your plan, drawn, so you click where you start (|C646).
+      var planned = walkCells();
+      drawPlan({ stretches: [{ cells: planned }] });
+      fitCells(planned);
       beginPick(null, 'sim', function (cell) { return startAt(cell, lastTap, true); });
       return;
     }
@@ -474,6 +491,8 @@ window.LitterCollect = function (app) {
         plan: d.plan || null, checkins: [], ckOut: [], sim: !!col.simulated, line: [] };
       if (d.already && col.started) c.current.startedAt = col.started;
       if (d.already && d.stretches && d.stretches.length) pickUp(d.stretches);
+      // The line drawn on another device, from its check-ins (S5-U2, |C697).
+      if (d.already) { c.checkins = col.checkins || []; if (c.sim) c.line = lineOf(col.checkins); }
       save();
       if (pos && !d.already) checkin(pos, 's');
       if (c.sim && pos && !d.already) { c.line.push([pos.lat, pos.lon]); save(); }
@@ -503,6 +522,33 @@ window.LitterCollect = function (app) {
     c.ckOut = c.ckOut || [];
   }
 
+  // Another phone or computer may have gone on with this walk (S5-U2,
+  // |C697): its weighings, and on a simulated walk its drawn line, come back
+  // here. Nothing waiting to go from this device is overwritten.
+  function syncFromHabo(d) {
+    if (!c || c.ended || !d || !d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting') return false;
+    var changed = false;
+    if (!c.queue.length && d.stretches && d.stretches.length > c.n - 1) { pickUp(d.stretches); changed = true; }
+    if (c.sim && !(c.ckOut || []).length) {
+      var line = lineOf(d.collection.checkins);
+      if (line.length > (c.line || []).length) { c.line = line; c.checkins = d.collection.checkins; changed = true; }
+    }
+    if (changed) save();
+    return changed;
+  }
+  // A walk's check-ins as a line, in time order (a simulated walk's drawn points).
+  function lineOf(checkins) {
+    return (checkins || []).filter(function (k) { return (k[3] || 0) < 999; }).sort(function (a, b) { return a[0] - b[0]; }).map(function (k) { return [k[1], k[2]]; });
+  }
+  // The map fitted to squares and points.
+  function fitCells(cells, pts) {
+    if (!map) return;
+    var b = L.latLngBounds([]);
+    (cells || []).filter(isCell).forEach(function (x) { b.extend(G.cellBounds(x)); });
+    (pts || []).forEach(function (p) { b.extend(p); });
+    if (b.isValid()) setTimeout(function () { map.invalidateSize(); map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
+  }
+
   /* ── The collecting screen ── */
 
   function openCollect() {
@@ -515,6 +561,7 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
+    if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
     showSun($('cl-sun'), null);
     refreshTypes();
@@ -527,6 +574,7 @@ window.LitterCollect = function (app) {
   function refreshTypes() {
     return app.api('collectLoad', { token: app.myToken(), collectionId: c && c.id }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
+      if (syncFromHabo(d)) { drawSim(); showStatus(); }
       if (!d.types || !d.types.length) return;
       var ticked = pulse ? picked() : [];
       setTypes(d.types);
@@ -556,6 +604,7 @@ window.LitterCollect = function (app) {
     if (map || !window.L) { if (!window.L) $('cl-map-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return; }
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+    map.createPane('ltPlan').style.zIndex = 450;   // the plan above everything else (S5-P9, |C685)
     layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
     map.on('click', function (e) {
       lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
@@ -603,11 +652,11 @@ window.LitterCollect = function (app) {
   function drawPlan(plan) {
     if (!map) return;
     layers.plan.clearLayers();
-    var colour = darkColours() ? darkColours().plan : '#7c3aed';
+    var colour = darkColours() ? darkColours().plan : (settings.planColour || '#7c3aed');
+    // One line around the outside of the whole plan (S5-P9, |Q573).
+    var cells = planCells(plan);
+    if (cells.length) L.polyline(G.outline(cells), { color: colour, weight: 3, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
     (plan && plan.stretches || []).forEach(function (s) {
-      (s.cells || []).filter(isCell).forEach(function (cell) {
-        L.rectangle(G.cellBounds(cell), { color: colour, weight: 2, dashArray: '5 4', fill: false, interactive: false }).addTo(layers.plan);
-      });
       (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
     });
   }
@@ -627,10 +676,15 @@ window.LitterCollect = function (app) {
     var p = lastPlace();   // picked up on another computer: from the last check-in
     return p ? { lat: p.lat, lon: p.lon, acc: 5 } : null;
   }
+  var simSendSoon = null;
   function simAdd(p) {
     if (!c.line.length) { var e = simEnd(); if (e) c.line.push([e.lat, e.lon]); }
     c.line.push([p.lat, p.lon]);
     checkin(p, 'm');
+    // Each point reaches HABO within moments, so another device in Admin
+    // Mode picks up the whole line (S5-U2, |C697).
+    clearTimeout(simSendSoon);
+    simSendSoon = setTimeout(flush, 1500);
     drawSim();
     drawCells([], G.cellAt(p.lat, p.lon), null);
   }
@@ -1978,7 +2032,7 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
-  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); });
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;
@@ -2004,6 +2058,7 @@ window.LitterCollect = function (app) {
     resume: function () {
       if (!c) return false;
       if (c.ended) { showWaitingSummary(); flush(); return true; }
+      if (simAway()) return false;   // a simulated walk opens only in Admin Mode (S5-U2)
       var last = c.queue.length ? c.queue[c.queue.length - 1].stretch.endedAt : c.current.startedAt;
       if (Date.now() - last > settings.autoEndHours * 3600000 && !c.queue.length) return false;
       openCollect();

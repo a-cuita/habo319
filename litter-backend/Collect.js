@@ -17,7 +17,7 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26, shared: 27 };
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -77,6 +77,11 @@ function collectStart_(req) {
     // back too, so the page picks up from the last litter pulse that
     // reached HABO, and nothing counts twice. Picking one up isn't starting
     // one, so it works after sunset too (|C657, Oct 31).
+    // A simulated walk opens only in Admin Mode (S5-U2, |C697): a phone in
+    // player mode can't pick it up, or start a real walk while it's open.
+    if (open && open.simulated && !simulated) {
+      throw coded_('sim-open', 'Your simulated walk is still open. Turn Admin Mode on to go back to it, or to end it.');
+    }
     if (open) return { collection: collectionView_(open), settings: collectSettings_(), pace: paceOf_(account.id), already: true, plan: walkPlanView_(walkPlan_(account.id, open.plan, false)),
       stretches: stretchesOf_(open.id).map(stretchViewOf_) };
     if (!simulated && late) {
@@ -116,6 +121,7 @@ function collectStart_(req) {
     row[COLLECTION_COL.simulated - 1] = simulated ? 'Yes' : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     markWalkPlan_(plan.id, id);
+    if (simulated) refreshSimulations_();
     return { collection: collectionView_(readCollection_(id)), settings: collectSettings_(), pace: paceOf_(account.id), already: false, plan: plan };
   });
 }
@@ -159,6 +165,7 @@ function collectStretch_(req) {
     var cs = getDb_().getSheetByName(TABS.collections.name);
     cs.getRange(col.row, COLLECTION_COL.lastPressed).setValue(new Date(x.ended));
     retotal_(col.id);
+    if (col.simulated) refreshSimulations_();
     return { stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('key') === key; })[0]), collection: collectionView_(readCollection_(col.id)) };
   });
 }
@@ -182,6 +189,7 @@ function collectEnd_(req) {
     cs.getRange(col.row, COLLECTION_COL.status).setValue('Ended');
     retotal_(col.id);
     setPlanXp_(col.id);
+    if (col.simulated) refreshSimulations_();
     return { collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
   });
 }
@@ -208,6 +216,7 @@ function collectDiscard_(req) {
     retotal_(col.id);
     if (col.plan) markWalkPlan_(col.plan, '');
     logChange_(account.first + ' ' + account.last, 'Discarded', col.id, 'Status', 'Collecting', COLLECTION_DISCARDED);
+    if (col.simulated) refreshSimulations_();
     return { collection: collectionView_(readCollection_(col.id)), hours: hoursOf_(account.id), plan: planView_(openPlan_(account.id)),
       planNeeded: planNeeded_(account.id), xp: xpOf_(account.id) };
   });
@@ -292,7 +301,7 @@ function collectLoad_(req) {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true)
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id)
   };
 }
 
@@ -419,7 +428,7 @@ function collectionOf_(r) {
     ended: t('ended'), endCell: t('endCell'), status: t('status'), stretches: Number(t('stretches')) || 0, pounds: Number(t('pounds')) || 0,
     miles: Number(t('miles')) || 0, active: Number(t('active')) || 0, hours: Number(t('hours')) || 0, hoursNote: t('hoursNote'), lastPressed: t('lastPressed'),
     hidden: !!t('hidden'), plan: t('plan'), xp: Number(t('xp')) || 0, track: parseTrack_(t('track')), checkins: parseCheckins_(t('checkins')),
-    recordingAt: Number(t('recording')) || null, simulated: t('simulated') === 'Yes' };
+    recordingAt: Number(t('recording')) || null, simulated: t('simulated') === 'Yes', shared: /^\s*y/i.test(t('shared')) };
 }
 
 // GPS check-ins (S5, Oct 29, in chat): where the phone was and when, at
@@ -503,6 +512,7 @@ function collectTrack_(req) {
     }
     setPlanXp_(col.id);   // XP comes with the GPX track
     measureRates_(col.id);   // and a rate for each due segment it collected (S5-P3)
+    if (col.simulated) refreshSimulations_();
     return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
   });
 }
@@ -661,7 +671,7 @@ function minutesSetting_(name, fallback) {
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
-    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(),
+    breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(),
     sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
 }
 

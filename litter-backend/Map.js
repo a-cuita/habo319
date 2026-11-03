@@ -25,27 +25,46 @@ var SETTING_BREAK_AFTER = 'Break question after (collections)';
 // The paused part of a GPX track, drawn faded in this colour (S5-P1, Q507, M545).
 var SETTING_PAUSED_COLOUR = 'Paused track colour';
 var DEFAULT_PAUSED_COLOUR = '#9ca3af';
+// A chosen plan's outline, in the usual look (S5-P9, |C684, Nov 3).
+var SETTING_PLAN_COLOUR = 'Map colour: plan';
+var DEFAULT_PLAN_COLOUR = '#7c3aed';
 // MoCiSN's index colours (Coalition Builder, M127): blue, sand, brown.
 var MOCISN_COLOURS = ['#2c7bb6', '#f6e8c3', '#8c510a'];
 // Head Builder mode's own colours (S5-U2 round 3, Q528): the page goes dark
 // while the Simulated walk switch is on, so the map's lines and the Litter
 // Index scale have lighter versions, each a row in the Settings tab.
+// Named "Admin Mode: …" since Nov 3 (S5-P9, |C684); a row still under its
+// old "Head Builder mode: …" name is renamed, keeping its value.
 var DARK_SETTINGS = [
-  ['track', 'Head Builder mode: track colour', '#f3f4f6'],
-  ['paused', 'Head Builder mode: paused track colour', '#9ca3af'],
-  ['sim', 'Head Builder mode: simulated walk colour', '#4ade80'],
-  ['plan', 'Head Builder mode: plan colour', '#c4b5fd'],
-  ['streets', 'Head Builder mode: streets colour', '#d1d5db'],
-  ['colour0', 'Head Builder mode: map colour at 0', '#5aa9e6'],
-  ['colour5', 'Head Builder mode: map colour at 5', '#f6e8c3'],
-  ['colour10', 'Head Builder mode: map colour at 10', '#e08f3c']
+  ['track', 'Admin Mode: track colour', '#f3f4f6'],
+  ['paused', 'Admin Mode: paused track colour', '#9ca3af'],
+  ['sim', 'Admin Mode: simulated walk colour', '#4ade80'],
+  ['plan', 'Admin Mode: plan colour', '#c4b5fd'],
+  ['streets', 'Admin Mode: streets colour', '#d1d5db'],
+  ['colour0', 'Admin Mode: map colour at 0', '#5aa9e6'],
+  ['colour5', 'Admin Mode: map colour at 5', '#f6e8c3'],
+  ['colour10', 'Admin Mode: map colour at 10', '#e08f3c']
 ];
+// Before the settings are checked: each old name becomes its new one.
+function renameAdminSettings_(ss) {
+  var sheet = ss.getSheetByName(TABS.settings.name);
+  if (!sheet || sheet.getLastRow() < 2) return;
+  var names = sheet.getRange(1, 1, sheet.getLastRow(), 1).getValues().map(function (r) { return String(r[0]).trim(); });
+  DARK_SETTINGS.forEach(function (d) {
+    var old = d[1].replace(/^Admin Mode: /, 'Head Builder mode: ');
+    var at = names.indexOf(old);
+    if (at !== -1 && names.indexOf(d[1]) === -1) { sheet.getRange(at + 1, 1).setValue(d[1]); names[at] = d[1]; }
+  });
+}
 
 /* ── Called from the page ── */
 
 // The public map, for anyone: no account needed.
-function mapLoad_() {
+function mapLoad_(req) {
   ensureSchema_();
+  // Signed in, an admin also gets their own simulated world (S5-U2, Nov 3).
+  var viewer = null;
+  try { if (req && req.token) viewer = requireAccount_(req.token); } catch (e) { viewer = null; }
   var shown = {};
   readAccounts_().forEach(function (a) {
     shown[a.id] = a.shows === 'Name' ? (a.first + ' ' + a.last).trim() : a.shows === 'Neither' ? '' : a.handle;
@@ -70,8 +89,8 @@ function mapLoad_() {
     var x = latest[cell];
     return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
   });
-  return { colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), cells: cells,
-    segments: segmentSummaries_(false), simSegments: segmentSummaries_(true), rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+  return { colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
+    segments: segmentSummaries_(false), simSegments: viewer ? segmentSummaries_(true, viewer.id) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
 }
 
 // This account's collections, newest first, each with its stretches.
@@ -95,7 +114,7 @@ function myCollections_(req) {
     })
     .sort(function (a, b) { return b.started - a.started; });
   return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true) };
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id) };
 }
 
 /* ── The colours ── */
@@ -107,6 +126,10 @@ function mapColours_() {
     var v = String(getSetting_(name) || '').trim().toLowerCase();
     return /^#[0-9a-f]{6}$/.test(v) ? v : MOCISN_COLOURS[i];
   });
+}
+function planColour_() {
+  var v = String(getSetting_(SETTING_PLAN_COLOUR) || '').trim().toLowerCase();
+  return /^#[0-9a-f]{6}$/.test(v) ? v : DEFAULT_PLAN_COLOUR;
 }
 function pausedColour_() {
   var v = String(getSetting_(SETTING_PAUSED_COLOUR) || '').trim().toLowerCase();
