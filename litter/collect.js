@@ -323,7 +323,8 @@ window.LitterCollect = function (app) {
     $('cl-choose').hidden = going;
     $('cl-xp').hidden = !account;
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
-    $('cl-xp').textContent = 'Your XP: ' + a.xp + '.';
+    var lw = levelWords(a.xp);
+    $('cl-xp').textContent = 'Your XP: ' + a.xp + '.' + (lw ? ' ' + lw : '');
     var w = walkPlan(), line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
@@ -343,6 +344,29 @@ window.LitterCollect = function (app) {
       $('cl-start').textContent = 'Start collecting';
       $('cl-start').disabled = true;
     }
+  }
+
+  // Your level, from your XP and the Levels tab's ranges (S5-P4, |Q595): the
+  // XP each level needs adds up, level by level.
+  function levelOf(xp, ranges) {
+    var level = 0, need = 0;
+    if (!ranges || !ranges.length) return { level: 0, next: null };
+    for (var n = 1; n < 1000; n++) {
+      // The range this level is in; else the nearest range below it.
+      var r = null, below = null;
+      ranges.forEach(function (x) { if (x[0] <= n && (x[1] == null || n <= x[1])) r = x; if (x[0] <= n) below = x; });
+      r = r || below;
+      if (!r) break;
+      need += r[2];
+      if (xp < need) return { level: level, next: need };
+      level = n;
+    }
+    return { level: level, next: null };
+  }
+  function levelWords(xp) {
+    var l = levelOf(Number(xp) || 0, settings.levels);
+    if (!settings.levels || !settings.levels.length) return '';
+    return 'Level ' + l.level + (l.next != null ? ' (' + round(l.next - (Number(xp) || 0), 2) + ' XP to Level ' + (l.level + 1) + ')' : '') + '.';
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }

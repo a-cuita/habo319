@@ -120,6 +120,13 @@ var TABS = {
     widths: [100, 90, 150, 100, 130, 260, 200, 120, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
   },
+  // Levels for the litter class (S5-P4, |Q595): one row for each range of
+  // levels, with its XP for each level. Rows are added and deleted by hand.
+  levels: {
+    name: 'Levels',
+    header: ['From level', 'To level', 'XP per level'],
+    widths: [100, 100, 110]
+  },
   // Quests (S5-P20, |C722): one row for each player's quest: when it
   // started, the steps ticked, when it finished, and the XP it gave.
   quests: {
@@ -255,7 +262,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -291,6 +298,7 @@ function ensureSchema_(force) {
     trackOnlyOnce_(ss);
     simulationsOnce_();
     questsOnce_();
+    levelsOnce_();
   });
   cache.put(cacheKey, '1', 600);
 }
