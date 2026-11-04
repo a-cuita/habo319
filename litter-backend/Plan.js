@@ -217,7 +217,7 @@ function xpOf_(accountId) {
     return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) : t;
   }, 0);
   var me = readAccounts_().filter(function (a) { return a.id === accountId; })[0];
-  return round_(plan + stretches + (me ? questXp_(me) : 0), 2);
+  return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId), 2);
 }
 
 function xpSettings_() {

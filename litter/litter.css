@@ -360,3 +360,15 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
 .lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
 .lt-set-save { margin-top: 10px; }
+
+/* Reviews in Admin Mode (S5-P19 B). */
+.lt-review-state { font-weight: 700; margin: 2px 0; }
+.lt-review.approved .lt-review-state { color: var(--accent); }
+.lt-review.declined .lt-review-state { color: var(--danger); }
+.lt-review-moves { margin: 8px 0; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.lt-review-move { margin: 2px 0; }
+.lt-review-form { margin-top: 8px; }
+.lt-review-xp { width: 110px; }
+.lt-review-note { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-review-buttons { display: flex; gap: 8px; }
+.lt-review-buttons .btn { margin: 0; flex: 1; }

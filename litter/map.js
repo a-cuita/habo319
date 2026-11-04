@@ -404,6 +404,7 @@ window.LitterMap = function (app) {
         (p.used ? 'collected ' + (p.used === 1 ? 'once' : p.used + ' times') + (p.lastUsed ? ', last ' + dayWords(p.lastUsed) : '') : 'not collected yet');
       var box = segCard({ id: p.id, kind: 'private', name: app.planLabel(p), cells: p.cells, facts: facts, plan: p });
       if (p.segment) box.appendChild(el('p', 'lt-plan-seg', p.segment.accepted ? 'Public segment ' + p.segment.id + ': ' + p.segment.name
+        : p.segment.declined ? 'Not made public (' + p.segment.id + ')' + (p.segment.review && p.segment.review.note ? ': ' + p.segment.review.note.replace(/[.!?]+\s*$/, '') : '') + '. You can submit it again.'
         : 'Submitted as a public segment (' + p.segment.id + ': ' + p.segment.name + '), waiting for HABO\'s staff'));
       mineBox.appendChild(box);
     });
@@ -500,7 +501,7 @@ window.LitterMap = function (app) {
     b.setAttribute('aria-expanded', 'false');
     var menu = el('div', 'lt-seg-menu');
     menu.hidden = true;
-    if (!p.segment) {
+    if (!p.segment || p.segment.declined) {
       var s = el('button', 'lt-seg-menu-item lt-plan-propose', 'Submit as Public Segment');
       s.type = 'button';
       s.addEventListener('click', function () { closeMenus(); submitForm(p, box); });
@@ -908,5 +909,5 @@ window.LitterMap = function (app) {
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeModal(); closeMenus(); } });
   document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.lt-seg-more-wrap'))) closeMenus(); });
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments };
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps };
 };

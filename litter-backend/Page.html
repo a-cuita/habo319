@@ -507,6 +507,18 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
 .lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
 .lt-set-save { margin-top: 10px; }
+
+/* Reviews in Admin Mode (S5-P19 B). */
+.lt-review-state { font-weight: 700; margin: 2px 0; }
+.lt-review.approved .lt-review-state { color: var(--accent); }
+.lt-review.declined .lt-review-state { color: var(--danger); }
+.lt-review-moves { margin: 8px 0; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.lt-review-move { margin: 2px 0; }
+.lt-review-form { margin-top: 8px; }
+.lt-review-xp { width: 110px; }
+.lt-review-note { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-review-buttons { display: flex; gap: 8px; }
+.lt-review-buttons .btn { margin: 0; flex: 1; }
 </style>
 </head>
 <body>
@@ -1025,6 +1037,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
           <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
           <!-- Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a)): the groups your rank may change. -->
           <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
+          <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
+          <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -1091,6 +1105,16 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
     </section>
     <div id="settings-list"></div>
     <button class="btn btn-secondary lt-back-main" id="settings-back" type="button">Back</button>
+  </div>
+
+  <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
+  <div id="v-reviews" hidden>
+    <section class="card">
+      <h2>Reviews</h2>
+      <p class="muted small" id="reviews-note"></p>
+    </section>
+    <div id="reviews-list"></div>
+    <button class="btn btn-secondary lt-back-main" id="reviews-back" type="button">Back</button>
   </div>
 
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
@@ -4386,6 +4410,7 @@ window.LitterMap = function (app) {
         (p.used ? 'collected ' + (p.used === 1 ? 'once' : p.used + ' times') + (p.lastUsed ? ', last ' + dayWords(p.lastUsed) : '') : 'not collected yet');
       var box = segCard({ id: p.id, kind: 'private', name: app.planLabel(p), cells: p.cells, facts: facts, plan: p });
       if (p.segment) box.appendChild(el('p', 'lt-plan-seg', p.segment.accepted ? 'Public segment ' + p.segment.id + ': ' + p.segment.name
+        : p.segment.declined ? 'Not made public (' + p.segment.id + ')' + (p.segment.review && p.segment.review.note ? ': ' + p.segment.review.note.replace(/[.!?]+\s*$/, '') : '') + '. You can submit it again.'
         : 'Submitted as a public segment (' + p.segment.id + ': ' + p.segment.name + '), waiting for HABO\'s staff'));
       mineBox.appendChild(box);
     });
@@ -4482,7 +4507,7 @@ window.LitterMap = function (app) {
     b.setAttribute('aria-expanded', 'false');
     var menu = el('div', 'lt-seg-menu');
     menu.hidden = true;
-    if (!p.segment) {
+    if (!p.segment || p.segment.declined) {
       var s = el('button', 'lt-seg-menu-item lt-plan-propose', 'Submit as Public Segment');
       s.type = 'button';
       s.addEventListener('click', function () { closeMenus(); submitForm(p, box); });
@@ -4890,7 +4915,7 @@ window.LitterMap = function (app) {
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeModal(); closeMenus(); } });
   document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.lt-seg-more-wrap'))) closeMenus(); });
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments };
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps };
 };
 </script>
 <script>
@@ -5380,6 +5405,118 @@ window.LitterSettings = function (app) {
 };
 </script>
 <script>
+// Reviews in Admin Mode (S5-P19 B, |Q584, |Q593 (a)): each segment
+// submitted to be public, on its map, with every move on it. An Apprentice
+// recommends Approve or Decline, with the XP it should earn and a note; a
+// Builder or above approves or declines it. Approve makes it public and gives
+// the player that XP; Decline needs a note, which the player sees.
+window.LitterReviews = function (app) {
+  'use strict';
+  var $ = app.$;
+  var view = null;
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function when(ms) {
+    return new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+
+  function open() {
+    app.show('v-reviews');
+    window.scrollTo(0, 0);
+    $('reviews-list').textContent = '';
+    $('reviews-note').textContent = 'Loading the reviews…';
+    return app.api('reviewsLoad', { token: app.myToken() }).then(use, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      $('reviews-note').textContent = err.message;
+    });
+  }
+  function use(d) {
+    view = d;
+    var box = $('reviews-list');
+    box.textContent = '';
+    var waiting = d.reviews.filter(function (r) { return r.open; }).length;
+    $('reviews-note').textContent = (waiting ? (waiting === 1 ? '1 segment waits' : waiting + ' segments wait') + ' for a review.' : 'No segment waits for a review.') +
+      (d.canDecide ? ' As a ' + d.rank + ', you approve or decline.' : ' As an ' + d.rank + ', you recommend; a Builder or above decides.');
+    d.reviews.forEach(function (r) { box.appendChild(card(r)); });
+    setTimeout(function () { if (app.drawSmallMaps) app.drawSmallMaps(box); }, 0);
+  }
+
+  function moveLine(m) {
+    return when(m.time) + ' · ' + m.by + ' (' + m.rank + '): ' + m.move + (m.xp != null && m.move !== 'Declined' && m.move !== 'Recommends Decline' ? ', ' + m.xp + ' XP' : '') + (m.note ? '. "' + m.note + '"' : '');
+  }
+
+  function card(r) {
+    var box = el('section', 'card lt-review ' + r.state.toLowerCase());
+    box.id = 'rv-' + r.id;
+    box.appendChild(el('p', 'lt-col-head', r.name));
+    box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + r.kind + ' · ' + r.squares.length + ' squares · ' + Math.round(r.miles * 100) / 100 + ' mi'));
+    box.appendChild(el('p', 'muted small', 'Submitted by ' + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
+    if (app.smallMap) box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    if (r.moves.length) {
+      var list = el('div', 'lt-review-moves');
+      r.moves.forEach(function (m) { list.appendChild(el('p', 'small lt-review-move', moveLine(m))); });
+      box.appendChild(list);
+    }
+    if (r.open) box.appendChild(form(r));
+    return box;
+  }
+
+  // What this admin can do: recommend, or approve or decline.
+  function form(r) {
+    var f = el('div', 'lt-review-form');
+    var xpRow = el('div', 'ig'), xpLabel = el('label', null, 'XP for ' + r.by + ' (0 to ' + view.maxXp + ')'), xp = el('input', 'lt-review-xp');
+    xp.type = 'number'; xp.min = 0; xp.max = view.maxXp; xp.step = 1; xp.inputMode = 'numeric'; xp.id = 'rv-xp-' + r.id; xpLabel.htmlFor = xp.id;
+    if (r.recommendedXp != null) xp.value = r.recommendedXp;
+    xpRow.appendChild(xpLabel); xpRow.appendChild(xp);
+    var noteRow = el('div', 'ig'), noteLabel = el('label', null, 'Note' + (view.canDecide ? ' (the player sees it if you decline)' : '')), note = el('textarea', 'lt-review-note');
+    note.id = 'rv-note-' + r.id; noteLabel.htmlFor = note.id; note.rows = 2; note.maxLength = 1000;
+    noteRow.appendChild(noteLabel); noteRow.appendChild(note);
+    f.appendChild(xpRow); f.appendChild(noteRow);
+    var err = el('p', 'err');
+    err.id = 'rv-err-' + r.id;
+    err.setAttribute('role', 'alert');
+    var go = function (b, body, done) {
+      app.busy(b, err.id, function () {
+        return app.api('reviewMove', Object.assign({ token: app.myToken(), segmentId: r.id, xp: xp.value, note: note.value }, body)).then(function (d) {
+          use(d);
+          app.notice(done);
+        });
+      });
+    };
+    var row = el('div', 'lt-review-buttons');
+    if (view.canDecide) {
+      var yes = el('button', 'btn btn-primary lt-review-approve', 'Approve'), no = el('button', 'btn btn-secondary lt-review-decline', 'Decline');
+      yes.type = 'button'; no.type = 'button';
+      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
+      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
+      row.appendChild(yes); row.appendChild(no);
+    } else {
+      var ry = el('button', 'btn btn-primary lt-review-rec-approve', 'Recommend Approve'), rn = el('button', 'btn btn-secondary lt-review-rec-decline', 'Recommend Decline');
+      ry.type = 'button'; rn.type = 'button';
+      ry.addEventListener('click', function () { go(ry, { move: 'recommend', recommend: 'Approve' }, 'Recommended: approve ' + r.name + '. A Builder or above decides.'); });
+      rn.addEventListener('click', function () { go(rn, { move: 'recommend', recommend: 'Decline' }, 'Recommended: decline ' + r.name + '. A Builder or above decides.'); });
+      row.appendChild(ry); row.appendChild(rn);
+    }
+    f.appendChild(row);
+    f.appendChild(err);
+    return f;
+  }
+
+  // The Reviews button, in the Admin Mode box while Admin Mode is on.
+  function sync() { $('me-go-reviews').hidden = !$('cl-sim').checked; }
+  $('cl-sim').addEventListener('change', sync);
+  $('me-go-reviews').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
+  $('reviews-back').addEventListener('click', function () { if (app.back) app.back(); });
+
+  return { open: open, sync: sync };
+};
+</script>
+<script>
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
 // waiver, signing in on a new phone, and the account page. Collecting
 // (S3-P21) is in collect.js; the map and your collections (S3-P22) in map.js. An account is
@@ -5449,7 +5586,7 @@ window.LitterSettings = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -5988,7 +6125,7 @@ window.LitterSettings = function (app) {
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -6008,6 +6145,16 @@ window.LitterSettings = function (app) {
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }
+  });
+
+  /* ── Reviews in Admin Mode (S5-P19 B, reviews.js) ── */
+
+  var reviews = window.LitterReviews({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); },
+    smallMap: function (title, cells, opts) { return mapper.smallMap(title, cells, opts); },
+    drawSmallMaps: function (root) { mapper.drawSmallMaps(root); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

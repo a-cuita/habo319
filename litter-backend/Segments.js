@@ -94,7 +94,8 @@ function segmentPropose_(req) {
   // Path or Field, asked when proposing (Oct 31, field first); HABO's staff can change it in the Sheet.
   var kind = /^\s*f/i.test(String(req.kind || '')) ? 'Field' : 'Path';
   return withLock_(function () {
-    var had = segmentsAll_().filter(function (s) { return s.plan === plan.id; })[0];
+    // A plan declined in a review can be submitted again (S5-P19 B).
+    var had = segmentsAll_().filter(function (s) { return s.plan === plan.id && !s.declined; })[0];
     if (had) throw new Error('That plan is already proposed, as ' + had.id + '.');
     var squares = [];
     plan.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (squares.indexOf(c) === -1) squares.push(c); }); });
@@ -155,7 +156,7 @@ function segmentsAll_() {
     var p = r.get('proposed');
     return { row: r.row, id: r.get('id'), name: r.get('name'), by: r.get('by'), proposed: p instanceof Date ? p.getTime() : 0, plan: r.get('plan'),
       squares: String(r.get('squares')).split(/\s+/).filter(function (c) { return /^-?\d+_-?\d+$/.test(c); }),
-      miles: Number(r.get('miles')) || 0, accepted: /^\s*y/i.test(r.get('accepted')), note: r.get('note'),
+      miles: Number(r.get('miles')) || 0, accepted: /^\s*y/i.test(r.get('accepted')), declined: /^\s*d/i.test(r.get('accepted')), note: r.get('note'),
       kind: /^\s*f/i.test(r.get('kind')) ? 'Field' : 'Path', outline: parseOutline_(r.get('outline')) };
   });
 }
@@ -592,11 +593,12 @@ function myPlans_(accountId) {
   });
   return readRows_(TABS.plans).filter(function (r) { return r.get('account') === accountId && !r.get('deleted'); }).map(function (r) {
     var p = planOf_(r);
-    var g = segs.filter(function (s) { return s.plan === p.id; })[0];
+    // Its latest submission: one declined is shown until it's submitted again.
+    var g = segs.filter(function (s) { return s.plan === p.id; }).pop();
     var cells = [];
     p.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
     var u = uses[p.id] || { n: 0, last: 0 };
     return { id: p.id, created: p.created, name: p.name, cells: cells, miles: p.miles, used: u.n, lastUsed: u.last,
-      segment: g ? { id: g.id, name: g.name, accepted: g.accepted, proposed: g.proposed } : null };
+      segment: g ? { id: g.id, name: g.name, accepted: g.accepted, proposed: g.proposed, declined: g.declined, review: reviewOutcome_(g.id) } : null };
   }).reverse().slice(0, 50);
 }

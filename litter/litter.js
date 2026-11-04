@@ -67,7 +67,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -606,7 +606,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -626,6 +626,16 @@
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }
+  });
+
+  /* ── Reviews in Admin Mode (S5-P19 B, reviews.js) ── */
+
+  var reviews = window.LitterReviews({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); },
+    smallMap: function (title, cells, opts) { return mapper.smallMap(title, cells, opts); },
+    drawSmallMaps: function (root) { mapper.drawSmallMaps(root); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

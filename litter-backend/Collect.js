@@ -409,12 +409,13 @@ function cleanRating_(v) {
 
 /* ── Reading and totals ── */
 
-function readRows_(tab) {
+// `colMap`: a tab's columns, for a tab not named below (S5-P19 B).
+function readRows_(tab, colMap) {
   var sheet = getDb_().getSheetByName(tab.name);
   var last = lastRowWith_(sheet, 1);
   if (last < 2) return [];
-  var cols = tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL :
-    tab === TABS.segments ? SEGMENT_COL : tab === TABS.rates ? RATE_COL : TYPE_COL;
+  var cols = colMap || (tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL :
+    tab === TABS.segments ? SEGMENT_COL : tab === TABS.rates ? RATE_COL : TYPE_COL);
   return sheet.getRange(2, 1, last - 1, tab.header.length).getValues().map(function (values, i) {
     return { row: i + 2, values: values, get: function (k) { var v = values[cols[k] - 1]; return v instanceof Date ? v : String(v == null ? '' : v).trim(); } };
   }).filter(function (r) { return String(r.values[0]).trim(); });

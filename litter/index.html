@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=29">
+<link rel="stylesheet" href="litter.css?v=30">
 </head>
 <body>
 
@@ -525,6 +525,8 @@
           <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
           <!-- Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a)): the groups your rank may change. -->
           <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
+          <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
+          <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -593,6 +595,16 @@
     <button class="btn btn-secondary lt-back-main" id="settings-back" type="button">Back</button>
   </div>
 
+  <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
+  <div id="v-reviews" hidden>
+    <section class="card">
+      <h2>Reviews</h2>
+      <p class="muted small" id="reviews-note"></p>
+    </section>
+    <div id="reviews-list"></div>
+    <button class="btn btn-secondary lt-back-main" id="reviews-back" type="button">Back</button>
+  </div>
+
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
   <div id="v-quests" hidden>
     <section class="card lt-quest" id="my-quests">
@@ -638,9 +650,10 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=10"></script>
 <script src="collect.js?v=36"></script>
-<script src="map.js?v=17"></script>
+<script src="map.js?v=18"></script>
 <script src="quest.js?v=3"></script>
 <script src="settings.js?v=1"></script>
-<script src="litter.js?v=14"></script>
+<script src="reviews.js?v=1"></script>
+<script src="litter.js?v=15"></script>
 </body>
 </html>

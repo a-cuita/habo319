@@ -135,6 +135,14 @@ var TABS = {
     widths: [90, 140, 150, 110, 150, 60, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 4: '@', 5: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm' }
   },
+  // Reviews of segments submitted to be public (S5-P19 B): every move, who
+  // made it with their rank, the XP and the note.
+  reviews: {
+    name: 'Reviews',
+    header: ['Time', 'Segment ID', 'By', 'Rank', 'Move', 'XP', 'Note'],
+    widths: [150, 90, 200, 100, 160, 50, 420],
+    formats: { 1: 'yyyy-mm-dd h:mm', 2: '@', 7: '@' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -182,6 +190,8 @@ function actions_() {
     fieldOutline: fieldOutline_,
     settingsLoad: settingsLoad_,
     settingsSave: settingsSave_,
+    reviewsLoad: reviewsLoad_,
+    reviewMove: reviewMove_,
     simShare: simShare_,
     questTick: questTick_,
     addLitterType: addLitterType_,
@@ -499,6 +509,7 @@ function missingSettings_(ss) {
     [SETTING_TYPES_XP, '1'],
     [SETTING_QUEST_STEP_XP, '1'],
     [SETTING_QUEST_DONE_XP, '5'],
+    [SETTING_REVIEW_XP, '15'],
     [SETTING_START_SAYINGS, '']
   ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
