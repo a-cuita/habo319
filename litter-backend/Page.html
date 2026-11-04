@@ -491,6 +491,22 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-corners-row { display: flex; gap: 8px; }
 .lt-corners-row .btn { flex: 1; min-height: 40px; padding: 8px 10px; margin: 0; }
 .lt-field-redraw { margin-top: 8px; }
+
+/* Settings in Admin Mode (S5-P19 A): a section at a time, each setting with its words and its box. */
+.lt-set-group summary { font-weight: 800; font-size: 1.05rem; cursor: pointer; padding: 2px 0; }
+.lt-set-group[open] summary { margin-bottom: 6px; }
+.lt-set-item { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-set-label { display: block; font-weight: 700; }
+.lt-set-say { margin: 2px 0 6px; }
+.lt-set-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lt-set-number { width: 110px; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-set-names, .lt-set-line-text { flex: 1 1 200px; min-width: 0; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-set-choice { padding: 8px 10px; font: inherit; border-radius: var(--radius-sm); }
+.lt-set-colour { width: 52px; height: 40px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.lt-set-unit { color: var(--text-dim); font-size: 0.92rem; }
+.lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
+.lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
+.lt-set-save { margin-top: 10px; }
 </style>
 </head>
 <body>
@@ -1007,6 +1023,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
           </div>
           <!-- The first quest again, for a training workshop (S5-P20, |C717). -->
           <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
+          <!-- Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a)): the groups your rank may change. -->
+          <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -1063,6 +1081,16 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
     </section>
     <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+  </div>
+
+  <!-- Settings (S5-P19 A, |M676): in Admin Mode, the Settings tab's groups your rank may change, a section at a time. -->
+  <div id="v-settings" hidden>
+    <section class="card">
+      <h2>Settings</h2>
+      <p class="muted small" id="settings-note"></p>
+    </section>
+    <div id="settings-list"></div>
+    <button class="btn btn-secondary lt-back-main" id="settings-back" type="button">Back</button>
   </div>
 
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
@@ -5204,6 +5232,154 @@ window.LitterQuest = function (app) {
 };
 </script>
 <script>
+// Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a), |M676): the
+// Settings tab's groups your rank may change, each a section opened one at a
+// time. Each setting in plain words, with a line on what it does: a number in
+// a box with its unit, a colour with a colour picker, a choice, names, or the
+// sayings as a list to add to and remove from. Save on each section; HABO
+// checks each value and records every change in the Changes tab.
+window.LitterSettings = function (app) {
+  'use strict';
+  var $ = app.$;
+  var groups = [], openKey = '';
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function open() {
+    app.show('v-settings');
+    window.scrollTo(0, 0);
+    $('settings-list').textContent = '';
+    $('settings-note').textContent = 'Loading your settings…';
+    return app.api('settingsLoad', { token: app.myToken() }).then(function (d) {
+      groups = d.groups || [];
+      draw();
+    }, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      $('settings-note').textContent = err.message;
+    });
+  }
+
+  function draw() {
+    var box = $('settings-list');
+    box.textContent = '';
+    $('settings-note').textContent = groups.length ? 'Open a section, change what you need, and press its Save.' : 'Your rank has no settings to change yet.';
+    groups.forEach(function (g) { box.appendChild(section(g)); });
+  }
+
+  function section(g) {
+    var d = el('details', 'card lt-set-group');
+    d.id = 'set-' + g.key;
+    d.open = g.key === openKey;
+    d.appendChild(el('summary', 'lt-set-head', g.title));
+    d.appendChild(el('p', 'muted small', 'Changed by a ' + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
+    // One section open at a time.
+    d.addEventListener('toggle', function () {
+      if (!d.open) { if (openKey === g.key) openKey = ''; return; }
+      openKey = g.key;
+      Array.prototype.forEach.call(document.querySelectorAll('.lt-set-group'), function (o) { if (o !== d) o.open = false; });
+    });
+    var rows = g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
+    var err = el('p', 'err');
+    err.id = 'set-err-' + g.key;
+    err.setAttribute('role', 'alert');
+    var save = el('button', 'btn btn-primary lt-set-save', 'Save');
+    save.type = 'button';
+    save.addEventListener('click', function () {
+      var values = {};
+      rows.forEach(function (r) { values[r.name] = r.value(); });
+      app.busy(save, err.id, function () {
+        return app.api('settingsSave', { token: app.myToken(), group: g.key, values: values }).then(function (res) {
+          groups = res.groups || groups;
+          openKey = g.key;
+          draw();
+          app.notice(res.changed ? g.title + ': ' + (res.changed === 1 ? '1 setting' : res.changed + ' settings') + ' saved. The page uses ' + (res.changed === 1 ? 'it' : 'them') + ' from when you go back.' : g.title + ': nothing had changed.');
+        });
+      });
+    });
+    d.appendChild(save);
+    d.appendChild(err);
+    return d;
+  }
+
+  // One setting: its words and its box. Returns { box, name, value() }.
+  function item(g, it) {
+    var box = el('div', 'lt-set-item');
+    var id = 'set-' + g.key + '-' + String(it.name).replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+    var label = el('label', 'lt-set-label', it.label);
+    label.htmlFor = id;
+    box.appendChild(label);
+    box.appendChild(el('p', 'muted small lt-set-say', it.say));
+    var row = el('div', 'lt-set-row'), value;
+    if (it.kind === 'number') {
+      var n = el('input', 'lt-set-number');
+      n.type = 'number'; n.inputMode = 'decimal'; n.step = 'any'; n.id = id; n.value = it.value;
+      if (it.min != null) n.min = it.min;
+      if (it.max != null) n.max = it.max;
+      row.appendChild(n);
+      if (it.unit) row.appendChild(el('span', 'lt-set-unit', it.unit));
+      value = function () { return n.value; };
+    } else if (it.kind === 'colour') {
+      var c = el('input', 'lt-set-colour'), hex = el('span', 'lt-set-unit lt-set-hex');
+      c.type = 'color'; c.id = id;
+      c.value = /^#[0-9a-f]{6}$/i.test(it.value) ? it.value.toLowerCase() : '#000000';
+      hex.textContent = c.value;
+      c.addEventListener('input', function () { hex.textContent = c.value; });
+      row.appendChild(c); row.appendChild(hex);
+      value = function () { return c.value; };
+    } else if (it.kind === 'choice') {
+      var s = el('select', 'lt-set-choice');
+      s.id = id;
+      (it.choices || []).forEach(function (o) { var opt = el('option', null, o); opt.value = o; s.appendChild(opt); });
+      s.value = it.value;
+      row.appendChild(s);
+      value = function () { return s.value; };
+    } else if (it.kind === 'names') {
+      var t = el('input', 'lt-set-names');
+      t.id = id; t.value = it.value; t.autocomplete = 'off';
+      row.appendChild(t);
+      value = function () { return t.value; };
+    } else {
+      // The sayings: a list to add to and remove from.
+      var list = el('div', 'lt-set-lines');
+      var add = function (text) {
+        var line = el('div', 'lt-set-line');
+        var inp = el('input', 'lt-set-line-text');
+        inp.value = text || ''; inp.maxLength = 300; inp.setAttribute('aria-label', 'A saying');
+        var rm = el('button', 'btn btn-secondary lt-set-remove', 'Remove');
+        rm.type = 'button';
+        rm.addEventListener('click', function () { line.remove(); });
+        line.appendChild(inp); line.appendChild(rm);
+        list.appendChild(line);
+        return inp;
+      };
+      (it.value || []).forEach(function (x) { add(x); });
+      var more = el('button', 'btn btn-secondary lt-set-add', 'Add a saying');
+      more.type = 'button';
+      more.id = id;
+      more.addEventListener('click', function () { add('').focus(); });
+      box.appendChild(list);
+      row.appendChild(more);
+      value = function () { return Array.prototype.map.call(list.querySelectorAll('.lt-set-line-text'), function (x) { return x.value; }).filter(function (x) { return x.trim(); }); };
+    }
+    box.appendChild(row);
+    return { box: box, name: it.name, value: value };
+  }
+
+  // The Settings button, in the Admin Mode box while Admin Mode is on.
+  function sync() { $('me-go-settings').hidden = !$('cl-sim').checked; }
+  $('cl-sim').addEventListener('change', sync);
+  $('me-go-settings').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
+  $('settings-back').addEventListener('click', function () { if (app.back) app.back(); });
+
+  return { open: open, sync: sync };
+};
+</script>
+<script>
 // HABO's litter page, step 1 (S3-P20): setting up an account with the
 // waiver, signing in on a new phone, and the account page. Collecting
 // (S3-P21) is in collect.js; the map and your collections (S3-P22) in map.js. An account is
@@ -5273,7 +5449,7 @@ window.LitterQuest = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -5812,7 +5988,7 @@ window.LitterQuest = function (app) {
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -5824,6 +6000,14 @@ window.LitterQuest = function (app) {
     onQuestChanged: function (d) { collect.onQuestChanged(d); },
     chooseWalkPlan: function () { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(collect.walkIds(), true); },
     closePanel: function () { panel(false); }
+  });
+
+  /* ── Settings in Admin Mode (S5-P19 A, settings.js) ── */
+
+  var settings = window.LitterSettings({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

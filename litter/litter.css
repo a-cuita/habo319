@@ -344,3 +344,19 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-corners-row { display: flex; gap: 8px; }
 .lt-corners-row .btn { flex: 1; min-height: 40px; padding: 8px 10px; margin: 0; }
 .lt-field-redraw { margin-top: 8px; }
+
+/* Settings in Admin Mode (S5-P19 A): a section at a time, each setting with its words and its box. */
+.lt-set-group summary { font-weight: 800; font-size: 1.05rem; cursor: pointer; padding: 2px 0; }
+.lt-set-group[open] summary { margin-bottom: 6px; }
+.lt-set-item { border-top: 1px solid var(--border); padding: 10px 0; }
+.lt-set-label { display: block; font-weight: 700; }
+.lt-set-say { margin: 2px 0 6px; }
+.lt-set-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lt-set-number { width: 110px; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-set-names, .lt-set-line-text { flex: 1 1 200px; min-width: 0; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-set-choice { padding: 8px 10px; font: inherit; border-radius: var(--radius-sm); }
+.lt-set-colour { width: 52px; height: 40px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
+.lt-set-unit { color: var(--text-dim); font-size: 0.92rem; }
+.lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
+.lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
+.lt-set-save { margin-top: 10px; }

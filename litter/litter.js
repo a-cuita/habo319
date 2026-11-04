@@ -67,7 +67,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -606,7 +606,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -618,6 +618,14 @@
     onQuestChanged: function (d) { collect.onQuestChanged(d); },
     chooseWalkPlan: function () { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(collect.walkIds(), true); },
     closePanel: function () { panel(false); }
+  });
+
+  /* ── Settings in Admin Mode (S5-P19 A, settings.js) ── */
+
+  var settings = window.LitterSettings({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

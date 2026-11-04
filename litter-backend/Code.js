@@ -180,6 +180,8 @@ function actions_() {
     segmentPropose: segmentPropose_,
     measureAgain: measureAgain_,
     fieldOutline: fieldOutline_,
+    settingsLoad: settingsLoad_,
+    settingsSave: settingsSave_,
     simShare: simShare_,
     questTick: questTick_,
     addLitterType: addLitterType_,
