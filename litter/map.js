@@ -227,6 +227,11 @@ window.LitterMap = function (app) {
           box.appendChild(el('strong', null, 'Accumulation rate'));
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+          // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
+          (g.walks || []).forEach(function (w) {
+            box.appendChild(el('div', 'lt-pop-walk', dayWords(w.collected) + ' · ' + w.by + ' · ' + round(w.rate, 2) + ' lb per mile per day'));
+          });
+          if (g.notCounted) box.appendChild(el('div', 'lt-pop-part', g.notCounted + (g.notCounted === 1 ? ' more walk wasn\'t' : ' more walks weren\'t') + ' counted: too soon after the last, or a Rate Reset.'));
           return box;
         });
         r.addTo(layer);
@@ -251,7 +256,7 @@ window.LitterMap = function (app) {
   var SQUARE_SIZE = 'Each square is 1/160 of a mile (about 33 ft) on a side.';
   var COLOUR_WORDS = {
     index: 'A square\'s colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.',
-    rate: 'Only public segments are coloured. A square\'s colour is its segment\'s accumulation rate: the pounds of litter that build up on each mile of it each day. Grey: no recent rate. Tap a square for its segment\'s rate.'
+    rate: 'Only public segments are coloured. A square\'s colour is its segment\'s accumulation rate: the pounds of litter that build up on each mile of it each day. A field\'s miles are the walk it takes to scan all of it. Some of it may be litter that was hidden last time, under leaves or in the grass. Grey: no recent rate. Tap a square for its segment\'s rate and the walks that gave it.'
   };
   function infoWords() {
     var t = COLOUR_WORDS[mode] || COLOUR_WORDS.index;
@@ -819,6 +824,8 @@ window.LitterMap = function (app) {
       });
     }
     $('my-segments').hidden = !segList().length;
+    // In Admin Mode, the list is your simulated world (S5-P10, |Q570 (a); S5-U2).
+    $('segments-admin').hidden = !(app.builderMode && app.builderMode());
     $('segments-none').hidden = !!all.length;
     all.forEach(function (g) {
       var need = needOf(g);

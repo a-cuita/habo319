@@ -524,7 +524,11 @@ function segmentSummaries_(sim, accountId) {
   var cleaned = cleanedTimes_(counted, '', 0, rows);
   var walks = worldWalks_(counted, rows);
   // Rates the 24-hour rule doesn't give are kept, but not counted (S5-P13).
-  var rates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]) && !r.notCounted; });
+  var allRates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]); });
+  var rates = allRates.filter(function (r) { return !r.notCounted; });
+  // Who collected each walk, as the public map shows them (S5-P10, |M650).
+  var shown = {};
+  readAccounts_().forEach(function (a) { shown[a.id] = a.shows === 'Name' ? (a.first + ' ' + a.last).trim() : a.shows === 'Neither' ? '' : a.handle; });
   var k = segmentRules_();
   var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
   var low = minutesSetting_(SETTING_CONF_LOW, 2), moderate = minutesSetting_(SETTING_CONF_MODERATE, 5);
@@ -534,7 +538,15 @@ function segmentSummaries_(sim, accountId) {
   var level = function (n) { return n === 0 ? 0 : n <= low ? 1 : n <= moderate ? 2 : 3; };
   return segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).map(function (g) {
     var own = rates.filter(function (r) { return r.segment === g.id; });
-    var recent = own.filter(function (r) { return now - r.collected <= win; }).map(function (r) { return r.rate; });
+    var recentRows = own.filter(function (r) { return now - r.collected <= win; });
+    var recent = recentRows.map(function (r) { return r.rate; });
+    // The walks that gave it a rate in the window, newest first, for the map's pop-up (|M650);
+    // and how many there were not counted (S5-P13).
+    var walksGave = recentRows.slice().sort(function (a, b) { return b.collected - a.collected; }).map(function (r) {
+      var q = counted[r.collection], who = q ? shown[q.get('account')] : '';
+      return { collected: r.collected, rate: r.rate, by: who || 'a volunteer' };
+    });
+    var notCountedN = allRates.filter(function (r) { return r.segment === g.id && r.notCounted && now - r.collected <= win; }).length;
     // Two weeks ago, over the same length of window: the arrow's comparison.
     var then = now - 14 * DAY_MS;
     var earlier = own.filter(function (r) { return r.collected <= then && then - r.collected <= win; }).length;
@@ -571,7 +583,7 @@ function segmentSummaries_(sim, accountId) {
       days: d == null ? null : round_(d, 1), groups: groups,
       // For The Priority Segment List (S5-P10): days left before it's past
       // "Segment due until", and whether it's past it already.
-      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to };
+      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to, walks: walksGave, notCounted: notCountedN };
   });
 }
 
