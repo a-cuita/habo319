@@ -430,10 +430,9 @@ html.lt-panel-open { overflow: hidden; }
 .lt-quest-gear label { display: block; padding: 5px 0; }
 .lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
 #qs-gate { margin: 10px 0 0; }
-/* S5-P20 round 2 (|C719): the practice's note and quest notices in the check marks' blue. */
-.lt-practice-note { background: var(--primary); color: #fff; }
-html.lt-builder .lt-practice-note { background: #1d4ed8; color: #fff; }
+/* S5-P20 (|C719, |C743): quest notices, the practice's steps among them, in the check marks' blue, in Admin Mode too. */
 .lt-nt.quest { background: var(--primary); }
+html.lt-builder .lt-nt.quest { background: #1d4ed8; border-color: #3b82f6; }
 #cl-chooser .btn:disabled { opacity: 0.35; filter: grayscale(1); }
 /* The quest card's own look: parchment, like an old map. */
 .lt-quest { background-color: #fbf4df; border-color: #e3cf9d;
@@ -447,9 +446,20 @@ html.lt-builder .lt-quest { background-color: #2a2418; border-color: #5c4a22;
     repeating-linear-gradient(0deg, rgba(255, 220, 150, 0.03) 0 1px, transparent 1px 6px); }
 html.lt-builder .lt-quest h2 { color: #f3d58a; }
 html.lt-builder .lt-quest-steps li { border-top-color: #4a3d1f; }
-.lt-quest-workshop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin: -6px 0 8px;
-  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.9rem; }
-.lt-quest-workshop .link-btn { color: #fff; text-decoration: underline; }
+/* The quest card on the main page stays light in Admin Mode, for a room to read at a workshop (|C740):
+   its own parchment, with Player mode's colours inside it. */
+html.lt-builder #qs-card { color-scheme: light;
+  --bg: #f2f2f7; --surface: #fff; --surface-2: #f0f0f5; --border: #d1d1d6; --border-hi: #c7c7cc;
+  --primary: #2563eb; --primary-dim: #dbeafe; --accent: #2c8a3d; --accent-dim: #d4f1dc; --danger: #dc2626;
+  --text: #1c1c1e; --text-dim: #6e6e73; --text-label: #8e8e93;
+  color: var(--text); background-color: #fbf4df; border-color: #e3cf9d;
+  background-image: repeating-linear-gradient(90deg, rgba(150, 110, 40, 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(150, 110, 40, 0.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.7), transparent 60%); }
+html.lt-builder #qs-card h2 { color: #6b4e16; }
+html.lt-builder #qs-card .lt-quest-steps li { border-top-color: #e8d9b0; }
+html.lt-builder #qs-card .btn-primary { color: #fff; }
+html.lt-builder #qs-card .lt-plan-line.need { color: #92400e; background: #fef3c7; }
 .lt-quest-apps .btn { margin-top: 6px; display: block; text-align: center; text-decoration: none; }
 .lt-quest-apps p { margin: 4px 0 8px; }
 .lt-quest-row { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid #e8d9b0; background: none; font: inherit; font-weight: 700;
@@ -618,7 +628,6 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <p class="err" id="cl-error"></p>
     </section>
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
-    <p class="lt-pick lt-practice-note" id="cl-practice-note" role="status" hidden>Practice: nothing here is saved or sent. Press Litter pulse, then try Weigh, New bag, Pause and End. Type any number for the scale.</p>
     <p class="lt-pick" id="cl-sim-note" role="status" hidden>Simulated walk: click the map to draw where you walk. The end of your line is where you are.</p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
@@ -993,12 +1002,12 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->
     <section class="card lt-quest" id="qs-card" hidden>
-      <!-- A workshop run in Admin Mode (|C717): nothing saved, no XP. -->
-      <div class="lt-quest-workshop" id="qs-workshop-bar" hidden><span>Workshop run · nothing is saved</span><button class="link-btn" id="qs-workshop-end" type="button">End the workshop run</button></div>
       <h2 id="qs-title">Your first quest</h2>
       <p class="muted small" id="qs-say"></p>
       <ol class="lt-quest-steps" id="qs-steps"></ol>
       <p class="lt-plan-line need" id="qs-gate" hidden>Start collecting waits until every step is ticked.</p>
+      <!-- A workshop run in Admin Mode (|C717): nothing saved, no XP. It says so in a notice (|C745). -->
+      <button class="btn btn-secondary" id="qs-workshop-end" type="button" hidden>End the workshop run</button>
     </section>
 
     <section class="card" id="cl-account">
@@ -2140,7 +2149,6 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
-    $('cl-practice-note').hidden = !(c && c.practice);
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
@@ -3565,6 +3573,7 @@ window.LitterCollect = function (app) {
         current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
       openCollect();
       drawCells([], cell, cell);
+      drillSay();
     };
     showBusy('Opening your practice, please wait...');
     if (!navigator.geolocation) return go(null);
@@ -3573,16 +3582,18 @@ window.LitterCollect = function (app) {
   }
   function practiceDone() {
     c = null;
-    $('cl-practice-note').hidden = true;
+    app.clearNotice('practice');
     drill();
     app.showAccount();
     app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.', { cls: 'quest' });
     if (app.questTick) app.questTick(5);
   }
-  // The practice takes you through each in turn (|C719): a note in the
+  // The practice takes you through each in turn (|C719): a notice in the
   // quest's blue says what to press, and the other buttons are greyed out.
+  // It's one of the stacking notices, closed with ×, never a box on the
+  // screen (|C743): each step's notice takes the place of the one before.
   var DRILL = [
-    ['cl-weigh', 'Practice, 1 of 5: press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
+    ['cl-weigh', 'Practice, 1 of 5: nothing here is saved or sent. Press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
     ['cl-newbag', 'Practice, 2 of 5: press Litter pulse, then New bag. Weigh the full bag (a bigger number than before); on a walk you\'d then start an empty one.'],
     ['cl-pause', 'Practice, 3 of 5: press Litter pulse, then Pause. Your time stops while you\'re paused.'],
     ['cl-pause', 'Practice, 4 of 5: press Litter pulse, then Resume.'],
@@ -3592,13 +3603,15 @@ window.LitterCollect = function (app) {
   function drill() {
     if (!c || !c.practice) { DRILL_BUTTONS.forEach(function (id) { $(id).disabled = false; }); return; }
     var k = Math.min(c.drill || 0, DRILL.length - 1);
-    $('cl-practice-note').textContent = DRILL[k][1];
     DRILL_BUTTONS.forEach(function (id) { $(id).disabled = id !== DRILL[k][0]; });
   }
-  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); } }
+  function drillSay() {
+    if (c && c.practice) app.notice(DRILL[Math.min(c.drill || 0, DRILL.length - 1)][1], { cls: 'quest', key: 'practice' });
+  }
+  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); drillSay(); } }
   function endPractice() {
     c = null;
-    $('cl-practice-note').hidden = true;
+    app.clearNotice('practice');
     drill();
     app.showAccount();
     app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');
@@ -4593,7 +4606,7 @@ window.LitterQuest = function (app) {
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
   function shown() { return workshop || quest; }
   function has(n) { var q = shown(); return !!q && q.steps.indexOf(n) !== -1; }
-  function blue(text) { app.notice(text, { cls: 'quest' }); }
+  function blue(text, key) { app.notice(text, { cls: 'quest', key: key }); }
 
   /* ── HABO's answers ── */
 
@@ -4621,7 +4634,7 @@ window.LitterQuest = function (app) {
     var card = $('qs-card'), q = shown();
     card.hidden = !q || (q.done && !workshop);
     card.classList.toggle('workshop', !!workshop);
-    $('qs-workshop-bar').hidden = !workshop;
+    $('qs-workshop-end').hidden = !workshop;
     if (card.hidden) return;
     $('qs-title').textContent = workshop ? 'Your first quest · workshop run' : 'Your first quest';
     $('qs-say').textContent = workshop ? 'A run for a room to follow, from the start. Nothing is saved, and no XP.'
@@ -4676,7 +4689,7 @@ window.LitterQuest = function (app) {
       workshop.steps.push(n);
       workshop.steps.sort(function (a, b) { return a - b; });
       render();
-      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.');
+      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.', 'workshop');
       return Promise.resolve();
     }
     if (!quest || has(n) || pending[n]) return Promise.resolve();
@@ -4704,12 +4717,13 @@ window.LitterQuest = function (app) {
     if (app.closePanel) app.closePanel();
     render();
     $('qs-card').scrollIntoView({ block: 'start' });
-    blue('Workshop run: the first quest from the start, for a room to follow. Nothing is saved, and no XP.');
+    blue('Workshop run: the first quest from the start, for a room to follow. Nothing is saved, and no XP.', 'workshop');
   }
   function endWorkshop() {
     if (!workshop) return;
     workshop = null;
     render();
+    app.clearNotice('workshop');
     app.notice('Workshop run ended. Your own quest is as it was.');
   }
   function syncWorkshopButton() {
@@ -5511,7 +5525,7 @@ window.LitterQuest = function (app) {
   /* ── The first quest (S5-P20, quest.js) ── */
 
   var quest = window.LitterQuest({
-    $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, notice: notice, clearNotice: clearNotice, myToken: myToken, signedOut: signedOut,
     waiver: function () { return state.waiver; },
     practice: function () { collect.practice(); },
     onQuestChanged: function (d) { collect.onQuestChanged(d); },

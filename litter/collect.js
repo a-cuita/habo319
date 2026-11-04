@@ -593,7 +593,6 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
-    $('cl-practice-note').hidden = !(c && c.practice);
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
@@ -2018,6 +2017,7 @@ window.LitterCollect = function (app) {
         current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
       openCollect();
       drawCells([], cell, cell);
+      drillSay();
     };
     showBusy('Opening your practice, please wait...');
     if (!navigator.geolocation) return go(null);
@@ -2026,16 +2026,18 @@ window.LitterCollect = function (app) {
   }
   function practiceDone() {
     c = null;
-    $('cl-practice-note').hidden = true;
+    app.clearNotice('practice');
     drill();
     app.showAccount();
     app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.', { cls: 'quest' });
     if (app.questTick) app.questTick(5);
   }
-  // The practice takes you through each in turn (|C719): a note in the
+  // The practice takes you through each in turn (|C719): a notice in the
   // quest's blue says what to press, and the other buttons are greyed out.
+  // It's one of the stacking notices, closed with ×, never a box on the
+  // screen (|C743): each step's notice takes the place of the one before.
   var DRILL = [
-    ['cl-weigh', 'Practice, 1 of 5: press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
+    ['cl-weigh', 'Practice, 1 of 5: nothing here is saved or sent. Press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
     ['cl-newbag', 'Practice, 2 of 5: press Litter pulse, then New bag. Weigh the full bag (a bigger number than before); on a walk you\'d then start an empty one.'],
     ['cl-pause', 'Practice, 3 of 5: press Litter pulse, then Pause. Your time stops while you\'re paused.'],
     ['cl-pause', 'Practice, 4 of 5: press Litter pulse, then Resume.'],
@@ -2045,13 +2047,15 @@ window.LitterCollect = function (app) {
   function drill() {
     if (!c || !c.practice) { DRILL_BUTTONS.forEach(function (id) { $(id).disabled = false; }); return; }
     var k = Math.min(c.drill || 0, DRILL.length - 1);
-    $('cl-practice-note').textContent = DRILL[k][1];
     DRILL_BUTTONS.forEach(function (id) { $(id).disabled = id !== DRILL[k][0]; });
   }
-  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); } }
+  function drillSay() {
+    if (c && c.practice) app.notice(DRILL[Math.min(c.drill || 0, DRILL.length - 1)][1], { cls: 'quest', key: 'practice' });
+  }
+  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); drillSay(); } }
   function endPractice() {
     c = null;
-    $('cl-practice-note').hidden = true;
+    app.clearNotice('practice');
     drill();
     app.showAccount();
     app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');

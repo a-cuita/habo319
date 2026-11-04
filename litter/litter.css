@@ -283,10 +283,9 @@ html.lt-panel-open { overflow: hidden; }
 .lt-quest-gear label { display: block; padding: 5px 0; }
 .lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
 #qs-gate { margin: 10px 0 0; }
-/* S5-P20 round 2 (|C719): the practice's note and quest notices in the check marks' blue. */
-.lt-practice-note { background: var(--primary); color: #fff; }
-html.lt-builder .lt-practice-note { background: #1d4ed8; color: #fff; }
+/* S5-P20 (|C719, |C743): quest notices, the practice's steps among them, in the check marks' blue, in Admin Mode too. */
 .lt-nt.quest { background: var(--primary); }
+html.lt-builder .lt-nt.quest { background: #1d4ed8; border-color: #3b82f6; }
 #cl-chooser .btn:disabled { opacity: 0.35; filter: grayscale(1); }
 /* The quest card's own look: parchment, like an old map. */
 .lt-quest { background-color: #fbf4df; border-color: #e3cf9d;
@@ -300,9 +299,20 @@ html.lt-builder .lt-quest { background-color: #2a2418; border-color: #5c4a22;
     repeating-linear-gradient(0deg, rgba(255, 220, 150, 0.03) 0 1px, transparent 1px 6px); }
 html.lt-builder .lt-quest h2 { color: #f3d58a; }
 html.lt-builder .lt-quest-steps li { border-top-color: #4a3d1f; }
-.lt-quest-workshop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin: -6px 0 8px;
-  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.9rem; }
-.lt-quest-workshop .link-btn { color: #fff; text-decoration: underline; }
+/* The quest card on the main page stays light in Admin Mode, for a room to read at a workshop (|C740):
+   its own parchment, with Player mode's colours inside it. */
+html.lt-builder #qs-card { color-scheme: light;
+  --bg: #f2f2f7; --surface: #fff; --surface-2: #f0f0f5; --border: #d1d1d6; --border-hi: #c7c7cc;
+  --primary: #2563eb; --primary-dim: #dbeafe; --accent: #2c8a3d; --accent-dim: #d4f1dc; --danger: #dc2626;
+  --text: #1c1c1e; --text-dim: #6e6e73; --text-label: #8e8e93;
+  color: var(--text); background-color: #fbf4df; border-color: #e3cf9d;
+  background-image: repeating-linear-gradient(90deg, rgba(150, 110, 40, 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(150, 110, 40, 0.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.7), transparent 60%); }
+html.lt-builder #qs-card h2 { color: #6b4e16; }
+html.lt-builder #qs-card .lt-quest-steps li { border-top-color: #e8d9b0; }
+html.lt-builder #qs-card .btn-primary { color: #fff; }
+html.lt-builder #qs-card .lt-plan-line.need { color: #92400e; background: #fef3c7; }
 .lt-quest-apps .btn { margin-top: 6px; display: block; text-align: center; text-decoration: none; }
 .lt-quest-apps p { margin: 4px 0 8px; }
 .lt-quest-row { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid #e8d9b0; background: none; font: inherit; font-weight: 700;

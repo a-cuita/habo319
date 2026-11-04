@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=25">
+<link rel="stylesheet" href="litter.css?v=26">
 </head>
 <body>
 
@@ -154,7 +154,6 @@
       <p class="err" id="cl-error"></p>
     </section>
     <p class="lt-pick" id="cl-pick" role="status" hidden></p>
-    <p class="lt-pick lt-practice-note" id="cl-practice-note" role="status" hidden>Practice: nothing here is saved or sent. Press Litter pulse, then try Weigh, New bag, Pause and End. Type any number for the scale.</p>
     <p class="lt-pick" id="cl-sim-note" role="status" hidden>Simulated walk: click the map to draw where you walk. The end of your line is where you are.</p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
@@ -529,12 +528,12 @@
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->
     <section class="card lt-quest" id="qs-card" hidden>
-      <!-- A workshop run in Admin Mode (|C717): nothing saved, no XP. -->
-      <div class="lt-quest-workshop" id="qs-workshop-bar" hidden><span>Workshop run · nothing is saved</span><button class="link-btn" id="qs-workshop-end" type="button">End the workshop run</button></div>
       <h2 id="qs-title">Your first quest</h2>
       <p class="muted small" id="qs-say"></p>
       <ol class="lt-quest-steps" id="qs-steps"></ol>
       <p class="lt-plan-line need" id="qs-gate" hidden>Start collecting waits until every step is ticked.</p>
+      <!-- A workshop run in Admin Mode (|C717): nothing saved, no XP. It says so in a notice (|C745). -->
+      <button class="btn btn-secondary" id="qs-workshop-end" type="button" hidden>End the workshop run</button>
     </section>
 
     <section class="card" id="cl-account">
@@ -622,9 +621,9 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=9"></script>
-<script src="collect.js?v=33"></script>
+<script src="collect.js?v=34"></script>
 <script src="map.js?v=16"></script>
-<script src="quest.js?v=2"></script>
-<script src="litter.js?v=12"></script>
+<script src="quest.js?v=3"></script>
+<script src="litter.js?v=13"></script>
 </body>
 </html>

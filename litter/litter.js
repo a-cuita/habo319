@@ -612,7 +612,7 @@
   /* ── The first quest (S5-P20, quest.js) ── */
 
   var quest = window.LitterQuest({
-    $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, notice: notice, clearNotice: clearNotice, myToken: myToken, signedOut: signedOut,
     waiver: function () { return state.waiver; },
     practice: function () { collect.practice(); },
     onQuestChanged: function (d) { collect.onQuestChanged(d); },

@@ -31,7 +31,7 @@ window.LitterQuest = function (app) {
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
   function shown() { return workshop || quest; }
   function has(n) { var q = shown(); return !!q && q.steps.indexOf(n) !== -1; }
-  function blue(text) { app.notice(text, { cls: 'quest' }); }
+  function blue(text, key) { app.notice(text, { cls: 'quest', key: key }); }
 
   /* ── HABO's answers ── */
 
@@ -59,7 +59,7 @@ window.LitterQuest = function (app) {
     var card = $('qs-card'), q = shown();
     card.hidden = !q || (q.done && !workshop);
     card.classList.toggle('workshop', !!workshop);
-    $('qs-workshop-bar').hidden = !workshop;
+    $('qs-workshop-end').hidden = !workshop;
     if (card.hidden) return;
     $('qs-title').textContent = workshop ? 'Your first quest · workshop run' : 'Your first quest';
     $('qs-say').textContent = workshop ? 'A run for a room to follow, from the start. Nothing is saved, and no XP.'
@@ -114,7 +114,7 @@ window.LitterQuest = function (app) {
       workshop.steps.push(n);
       workshop.steps.sort(function (a, b) { return a - b; });
       render();
-      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.');
+      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.', 'workshop');
       return Promise.resolve();
     }
     if (!quest || has(n) || pending[n]) return Promise.resolve();
@@ -142,12 +142,13 @@ window.LitterQuest = function (app) {
     if (app.closePanel) app.closePanel();
     render();
     $('qs-card').scrollIntoView({ block: 'start' });
-    blue('Workshop run: the first quest from the start, for a room to follow. Nothing is saved, and no XP.');
+    blue('Workshop run: the first quest from the start, for a room to follow. Nothing is saved, and no XP.', 'workshop');
   }
   function endWorkshop() {
     if (!workshop) return;
     workshop = null;
     render();
+    app.clearNotice('workshop');
     app.notice('Workshop run ended. Your own quest is as it was.');
   }
   function syncWorkshopButton() {
