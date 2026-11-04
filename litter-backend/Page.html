@@ -430,8 +430,40 @@ html.lt-panel-open { overflow: hidden; }
 .lt-quest-gear label { display: block; padding: 5px 0; }
 .lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
 #qs-gate { margin: 10px 0 0; }
-.lt-practice-note { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
-html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-color: #0369a1; }
+/* S5-P20 round 2 (|C719): the practice's note and quest notices in the check marks' blue. */
+.lt-practice-note { background: var(--primary); color: #fff; }
+html.lt-builder .lt-practice-note { background: #1d4ed8; color: #fff; }
+.lt-nt.quest { background: var(--primary); }
+#cl-chooser .btn:disabled { opacity: 0.35; filter: grayscale(1); }
+/* The quest card's own look: parchment, like an old map. */
+.lt-quest { background-color: #fbf4df; border-color: #e3cf9d;
+  background-image: repeating-linear-gradient(90deg, rgba(150, 110, 40, 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(150, 110, 40, 0.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.7), transparent 60%); }
+.lt-quest h2 { color: #6b4e16; }
+.lt-quest-steps li { border-top-color: #e8d9b0; }
+html.lt-builder .lt-quest { background-color: #2a2418; border-color: #5c4a22;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 220, 150, 0.04) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(255, 220, 150, 0.03) 0 1px, transparent 1px 6px); }
+html.lt-builder .lt-quest h2 { color: #f3d58a; }
+html.lt-builder .lt-quest-steps li { border-top-color: #4a3d1f; }
+.lt-quest-workshop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin: -6px 0 8px;
+  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.9rem; }
+.lt-quest-workshop .link-btn { color: #fff; text-decoration: underline; }
+.lt-quest-apps .btn { margin-top: 6px; display: block; text-align: center; text-decoration: none; }
+.lt-quest-apps p { margin: 4px 0 8px; }
+.lt-quest-row { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid #e8d9b0; background: none; font: inherit; font-weight: 700;
+  padding: 10px 2px; color: inherit; cursor: pointer; }
+.lt-quest-item:first-child .lt-quest-row { border-top: 0; }
+.lt-quest-more { padding: 0 2px 10px; color: var(--text-dim); font-size: 0.92rem; }
+.lt-quest-more p { margin: 2px 0; }
+
+/* × on the larger map, in place of Close (S5-P11, |C705). */
+.lt-seg-modal-box { position: relative; }
+.lt-modal-x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--surface-2, #eef1f6);
+  color: var(--text); font-size: 1.5rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.lt-seg-modal-box .lt-scrim-title { padding: 0 40px; }
+html.lt-builder .lt-modal-x { background: #374151; color: #f3f4f6; }
 </style>
 </head>
 <body>
@@ -715,9 +747,9 @@ html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-
   <!-- A segment's map, larger, over the page (S5-P9, M590): from its small map on its card. -->
   <div class="lt-scrim" id="seg-modal" role="dialog" aria-modal="true" aria-labelledby="seg-modal-title" hidden>
     <div class="lt-scrim-box lt-seg-modal-box">
+      <button class="lt-modal-x" id="seg-modal-close" type="button" aria-label="Close" title="Close">×</button>
       <p class="lt-scrim-title" id="seg-modal-title"></p>
       <div class="lt-seg-modal-map" id="seg-modal-map"></div>
-      <button class="btn btn-secondary" id="seg-modal-close" type="button">Close</button>
     </div>
   </div>
 
@@ -934,6 +966,7 @@ html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-
           <p class="lt-xp" id="cl-xp" hidden></p>
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
           <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
+          <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
         </section>
         <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
              It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
@@ -942,6 +975,8 @@ html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-
             <label class="lt-sim"><input type="checkbox" id="cl-sim"> <span id="cl-sim-name">Admin Mode</span></label>
             <button class="lt-info" id="cl-sim-info" type="button" aria-label="About Admin Mode" aria-expanded="false" title="While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
           </div>
+          <!-- The first quest again, for a training workshop (S5-P20, |C717). -->
+          <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -951,7 +986,9 @@ html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->
     <section class="card lt-quest" id="qs-card" hidden>
-      <h2>Your first quest</h2>
+      <!-- A workshop run in Admin Mode (|C717): nothing saved, no XP. -->
+      <div class="lt-quest-workshop" id="qs-workshop-bar" hidden><span>Workshop run · nothing is saved</span><button class="link-btn" id="qs-workshop-end" type="button">End the workshop run</button></div>
+      <h2 id="qs-title">Your first quest</h2>
       <p class="muted small" id="qs-say"></p>
       <ol class="lt-quest-steps" id="qs-steps"></ol>
       <p class="lt-plan-line need" id="qs-gate" hidden>Start collecting waits until every step is ticked.</p>
@@ -996,6 +1033,16 @@ html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-
       <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
     </section>
     <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+  </div>
+
+  <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
+  <div id="v-quests" hidden>
+    <section class="card lt-quest" id="my-quests">
+      <h2>Your quests</h2>
+      <p class="muted small" id="quests-none" hidden>No quest finished yet. Your first quest is on the main page.</p>
+      <div id="quests-list"></div>
+    </section>
+    <button class="btn btn-secondary lt-back-main" id="quests-back" type="button">Back</button>
   </div>
 
   <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
@@ -1110,6 +1157,16 @@ var LitterGeo = (function () {
       if (!has[c.i + '_' + (c.j - 1)]) out.push([[s, w], [n, w]]);
     });
     return out;
+  }
+  // The squares and every square touching them: a plan's general area, one
+  // square out (S5-P9, |C700).
+  function grow(cells) {
+    var has = {};
+    (cells || []).forEach(function (id) {
+      var c = rowCol(id);
+      for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) has[(c.i + di) + '_' + (c.j + dj)] = true;
+    });
+    return Object.keys(has);
   }
   function inCell(p, id) {
     var c = rowCol(id);
@@ -1475,7 +1532,7 @@ var LitterGeo = (function () {
   return {
     trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
-    cellBounds: cellBounds, outline: outline, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();
@@ -1721,6 +1778,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-say').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
+    if (app.syncWorkshop) app.syncWorkshop();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
@@ -1733,7 +1791,7 @@ window.LitterCollect = function (app) {
       // A collection open here but ended there (left alone 12 hours, or ended
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
-      if (app.onQuest) app.onQuest(account.quest);
+      if (app.onQuest) app.onQuest(account.quest, d.quests);
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
@@ -1818,7 +1876,7 @@ window.LitterCollect = function (app) {
     // The first quest first (S5-P20, Q580 (a)); Admin Mode's simulated walks don't wait.
     var q = a.quest;
     $('cl-start').disabled = (!going && !!account && !w.length) || (!going && !simOn() && !!(q && q.needed));
-    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6);
+    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6, true);
     if (simAway()) {
       line.className = 'lt-plan-line need';
       line.textContent = SIM_AWAY;
@@ -2052,6 +2110,7 @@ window.LitterCollect = function (app) {
     drawCells([], c && c.lastCell, null);
     drawSim();
     $('cl-practice-note').hidden = !(c && c.practice);
+    drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
     showSun($('cl-sun'), null);
@@ -2144,9 +2203,10 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.plan.clearLayers();
     var colour = darkColours() ? darkColours().plan : (settings.planColour || '#7c3aed');
-    // One line around the outside of the whole plan (S5-P9, |Q573).
+    // Around the whole plan, one square out, as a wide see-through band: its
+    // general area, with the squares under it in their colours (S5-P9, |Q573, |C700).
     var cells = planCells(plan);
-    if (cells.length) L.polyline(G.outline(cells), { color: colour, weight: 3, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
+    if (cells.length) L.polyline(G.outline(G.grow(cells)), { color: colour, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
     (plan && plan.stretches || []).forEach(function (s) {
       (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
     });
@@ -2249,6 +2309,7 @@ window.LitterCollect = function (app) {
   function openChooser() {
     if (!c) return;
     showStatus();
+    drill();
     $('cl-chooser').hidden = !$('cl-chooser').hidden;
   }
   function closeChooser() { $('cl-chooser').hidden = true; }
@@ -2609,6 +2670,7 @@ window.LitterCollect = function (app) {
     closePulse();
     drawCells([], c.lastCell, c.lastCell);
     showStatus();
+    if (c && c.practice && !discard) drillNext(kind === 'weigh' ? 0 : kind === 'newbag' ? 1 : -1);
     if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
     else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
     else if (kind !== 'end') app.notice('Weighed. Keep filling your bag.');
@@ -2645,10 +2707,12 @@ window.LitterCollect = function (app) {
           cur.pausedAt = Date.now();
           cur.pauseCell = loc.cell || loc.near || c.lastCell;
           app.notice('Paused. Your time stops until you press Litter pulse, then Resume.');
+          drillNext(2);
         } else {
           cur.pausedMin = (cur.pausedMin || 0) + (Date.now() - cur.pausedAt) / 60000;
           delete cur.pausedAt; delete cur.pauseCell;
           app.notice('Resumed.');
+          drillNext(3);
         }
         save();
         closeChooser();
@@ -3466,7 +3530,7 @@ window.LitterCollect = function (app) {
     var go = function (pos) {
       hideBusy();
       var cell = pos ? G.cellAt(pos.lat, pos.lon) : HOME_CELL, now = Date.now();
-      c = { id: 'practice', practice: true, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
+      c = { id: 'practice', practice: true, drill: 0, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
       openCollect();
       drawCells([], cell, cell);
@@ -3479,13 +3543,32 @@ window.LitterCollect = function (app) {
   function practiceDone() {
     c = null;
     $('cl-practice-note').hidden = true;
+    drill();
     app.showAccount();
-    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.');
+    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.', { cls: 'quest' });
     if (app.questTick) app.questTick(5);
   }
+  // The practice takes you through each in turn (|C719): a note in the
+  // quest's blue says what to press, and the other buttons are greyed out.
+  var DRILL = [
+    ['cl-weigh', 'Practice, 1 of 5: press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
+    ['cl-newbag', 'Practice, 2 of 5: press Litter pulse, then New bag. Weigh the full bag (a bigger number than before); on a walk you\'d then start an empty one.'],
+    ['cl-pause', 'Practice, 3 of 5: press Litter pulse, then Pause. Your time stops while you\'re paused.'],
+    ['cl-pause', 'Practice, 4 of 5: press Litter pulse, then Resume.'],
+    ['cl-end', 'Practice, 5 of 5: press Litter pulse, then End, and weigh your last bag. Nothing is saved.']
+  ];
+  var DRILL_BUTTONS = ['cl-weigh', 'cl-newbag', 'cl-pause', 'cl-end'];
+  function drill() {
+    if (!c || !c.practice) { DRILL_BUTTONS.forEach(function (id) { $(id).disabled = false; }); return; }
+    var k = Math.min(c.drill || 0, DRILL.length - 1);
+    $('cl-practice-note').textContent = DRILL[k][1];
+    DRILL_BUTTONS.forEach(function (id) { $(id).disabled = id !== DRILL[k][0]; });
+  }
+  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); } }
   function endPractice() {
     c = null;
     $('cl-practice-note').hidden = true;
+    drill();
     app.showAccount();
     app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');
   }
@@ -3559,7 +3642,7 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
-  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); });
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); if (map) drawPlan(c && c.plan); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;
@@ -3610,6 +3693,7 @@ window.LitterCollect = function (app) {
     setWalkPlan: function (ids) {
       setWalkPlan(ids);
       var w = walkPlan();
+      if (w.length && app.questTick) app.questTick(6);   // the first quest's last step, a workshop run's too
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       // Segments far apart (Q545, Q558): a loud notice while the plan can still change.
@@ -3706,10 +3790,10 @@ window.LitterMap = function (app) {
   function outlinePlan(cells) {
     if (!planLayer) return;
     planLayer.clearLayers();
-    // One line around the outside of the whole plan (S5-P9, |Q573), in the
-    // Settings tab's plan colour (|C684).
+    // Around the whole plan, one square out, as a wide see-through band (S5-P9,
+    // |Q573, |C700), in the Settings tab's plan colour (|C684).
     var pc = darkColours() ? darkColours().plan : (planColour || '#7c3aed');
-    if ((cells || []).length) L.polyline(G.outline(cells), { color: pc, weight: 3, opacity: 1, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
+    if ((cells || []).length) L.polyline(G.outline(G.grow(cells)), { color: pc, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
   }
 
   // opts: { focus: [cells] to show first, back: what Back does, track: a
@@ -4404,7 +4488,7 @@ window.LitterMap = function (app) {
 
   // Admin Mode turned on or off (S5-P13): Your collections (Measure again)
   // and the Segments list drawn again for it, at once.
-  function redraw() { if (mine) drawMine(); drawSegments(); drawSegScreen(); }
+  function redraw() { if (mine) drawMine(); drawSegments(); drawSegScreen(); outlinePlan(planCleared ? [] : shownPlan); }
 
   $('seg-select').addEventListener('click', function () { startSelect(app.walkIds ? app.walkIds() : [], false); });
   $('seg-use').addEventListener('click', function () {
@@ -4426,49 +4510,73 @@ window.LitterMap = function (app) {
 <script>
 // The first quest (S5-P20, Q579 to Q581, Nov 3): six steps from setting up
 // an account to the first collection, ticked as they're done, on the main
-// page until they all are. Each step ticked is kept on the account by HABO
-// (Quest.js); Start collecting waits for them (collect.js). litter.js calls
+// page until they all are. Each step ticked is kept by HABO (Quest.js, the
+// Quests tab); Start collecting waits for them (collect.js). litter.js calls
 // LitterQuest(app) with its helpers.
+// Round 2 (|C717 to |C722): every piece of gear counts; the GPX step's app
+// buttons; an Admin Mode workshop run that saves nothing; quest notices in
+// the check marks' blue; Your quests; and an older answer from HABO never
+// takes a step back.
 window.LitterQuest = function (app) {
   'use strict';
 
   var $ = app.$;
   var GEAR_KEY = 'habo-litter-gear';   // the gear ticked, kept on this phone until step 3 is done
-  var quest = null;
+  var quest = null;      // the player's quest, as HABO last said
+  var list = [];         // the player's quests, for Your quests
+  var workshop = null;   // a workshop run in Admin Mode: { steps, gear }, nothing saved
   var pending = {};
-  // Gloves, bags, a vest and a scale are needed; a grabber helps (the waiver:
-  // "use a grabber when I have one").
-  var GEAR = [['gloves', 'Gloves', true], ['bags', 'Bags', true], ['vest', 'A bright safety vest', true],
-    ['scale', 'A hanging luggage scale', true], ['grabber', 'A grabber, if you have one', false]];
+  var GEAR = [['gloves', 'Gloves'], ['bags', 'Bags'], ['vest', 'A bright safety vest'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
   var STEPS = [
     { n: 1, title: 'Set up your account', say: 'Your name, email, handle, how you show on the public map, and the waiver signed.' },
     { n: 2, title: 'The safety rules', say: 'Your waiver\'s safety rules, one screen at a time.', button: 'Read the safety rules', go: openSafety },
-    { n: 3, title: 'Your gear', say: 'Tick each one you have. Gloves, bags, a vest and a scale are needed before your first walk.', gear: true },
-    { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone: any app that saves a .gpx file. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
-    { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Litter pulse, then Weigh, New bag, Pause and End, typing what a scale might show. It\'s practice: nothing is saved.',
+    { n: 3, title: 'Your gear', say: 'Tick each one you have. All five are needed before your first walk.', gear: true },
+    { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
+    { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Weigh, New bag, Pause, Resume and End, in turn, typing what a scale might show. It\'s practice: nothing is saved.',
       button: 'Practice the litter pulse', go: function () { app.practice(); } },
     { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan or Draw a private segment below.' }
   ];
 
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
   function keep(k, v) { try { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* this visit only */ } }
-  function has(n) { return !!quest && quest.steps.indexOf(n) !== -1; }
+  function shown() { return workshop || quest; }
+  function has(n) { var q = shown(); return !!q && q.steps.indexOf(n) !== -1; }
+  function blue(text) { app.notice(text, { cls: 'quest' }); }
 
-  /* ── The card on the main page ── */
+  /* ── HABO's answers ── */
 
-  function show(q) {
-    quest = q || null;
+  // A step once ticked stays ticked: an answer read before a save (the main
+  // page reloading while a step was being saved) never takes it back (|C719).
+  function merge(old, q) {
+    if (!q || !old || old.account !== q.account) return q || null;
+    var steps = old.steps.slice();
+    q.steps.forEach(function (n) { if (steps.indexOf(n) === -1) steps.push(n); });
+    steps.sort(function (a, b) { return a - b; });
+    var out = Object.assign({}, q, { steps: steps, done: q.done || old.done || steps.length === STEPS.length, xp: Math.max(q.xp, old.xp), finished: q.finished || old.finished });
+    if (out.done) out.needed = false;
+    return out;
+  }
+
+  function show(q, quests) {
+    quest = merge(quest, q);
+    if (quests) list = quests.map(function (x) { return x.name === (quest && quest.name) && x.account === quest.account ? quest : x; });
     render();
   }
 
+  /* ── The card on the main page ── */
+
   function render() {
-    var card = $('qs-card');
-    card.hidden = !quest || quest.done;
+    var card = $('qs-card'), q = shown();
+    card.hidden = !q || (q.done && !workshop);
+    card.classList.toggle('workshop', !!workshop);
+    $('qs-workshop-bar').hidden = !workshop;
     if (card.hidden) return;
-    $('qs-say').textContent = 'Six steps before your first collection, each ticked as you do it. Each one earns ' + quest.stepXp + ' XP, and finishing earns ' + quest.doneXp + ' more.';
-    $('qs-gate').hidden = !quest.needed;
-    var list = $('qs-steps');
-    list.textContent = '';
+    $('qs-title').textContent = workshop ? 'Your first quest · workshop run' : 'Your first quest';
+    $('qs-say').textContent = workshop ? 'A run for a room to follow, from the start. Nothing is saved, and no XP.'
+      : 'Six steps before your first collection, each ticked as you do it. Each one earns ' + q.stepXp + ' XP, and finishing earns ' + q.doneXp + ' more.';
+    $('qs-gate').hidden = !!workshop || !q.needed;
+    var box = $('qs-steps');
+    box.textContent = '';
     STEPS.forEach(function (s) {
       var done = has(s.n);
       var li = document.createElement('li');
@@ -4490,40 +4598,76 @@ window.LitterQuest = function (app) {
         li.appendChild(say);
         var body = document.createElement('div');
         body.className = 'lt-quest-body';
-        if (s.button) {
-          var b = document.createElement('button');
-          b.type = 'button';
-          b.className = 'btn btn-secondary';
-          b.textContent = s.button;
-          b.addEventListener('click', s.go);
-          body.appendChild(b);
-        }
+        if (s.button) body.appendChild(button(s.button, s.go));
         if (s.gear) body.appendChild(gearList());
-        if (s.file) body.appendChild(gpxPicker());
+        if (s.file) { body.appendChild(gpxApps()); body.appendChild(gpxPicker()); }
+        if (s.n === 6 && workshop) body.appendChild(button('Choose your plan', function () { app.chooseWalkPlan(); }));
         if (body.childNodes.length) li.appendChild(body);
       }
-      list.appendChild(li);
+      box.appendChild(li);
     });
   }
+  function button(label, go) {
+    var b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'btn btn-secondary';
+    b.textContent = label;
+    b.addEventListener('click', go);
+    return b;
+  }
 
-  // A step done on the page: HABO keeps it, and the XP comes with it.
-  function tick(n) {
+  // A step done on the page. `auto`: ticked by the page itself (a plan
+  // already chosen), which a workshop run waits to see done.
+  function tick(n, auto) {
+    if (workshop) {
+      if (auto || has(n)) return Promise.resolve();
+      workshop.steps.push(n);
+      workshop.steps.sort(function (a, b) { return a - b; });
+      render();
+      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.');
+      return Promise.resolve();
+    }
     if (!quest || has(n) || pending[n]) return Promise.resolve();
     pending[n] = true;
     return app.api('questTick', { token: app.myToken(), step: n }).then(function (d) {
       pending[n] = false;
       var was = quest && quest.done;
-      quest = d.quest;
+      quest = merge(quest, d.quest);
+      list = [quest];
       if (n === 3) keep(GEAR_KEY, null);
-      if (app.onQuestChanged) app.onQuestChanged(d);
+      if (app.onQuestChanged) app.onQuestChanged({ quest: quest, xp: d.xp });
       render();
-      if (quest.done && !was) app.notice('Your first quest is done: ' + quest.doneXp + ' more XP. Ready: start your first collection.');
+      if (quest.done && !was) blue('Your first quest is done: ' + quest.doneXp + ' more XP. Ready: start your first collection.');
     }, function (err) {
       pending[n] = false;
       if (err.code === 'signed-out') return app.signedOut();
       app.notice('That step couldn\'t be ticked just now: ' + err.message);
     });
   }
+
+  /* ── A workshop run (|C717): Admin Mode, nothing saved ── */
+
+  function startWorkshop() {
+    workshop = { steps: [1], gear: {} };
+    if (app.closePanel) app.closePanel();
+    render();
+    $('qs-card').scrollIntoView({ block: 'start' });
+    blue('Workshop run: the first quest from the start, for a room to follow. Nothing is saved, and no XP.');
+  }
+  function endWorkshop() {
+    if (!workshop) return;
+    workshop = null;
+    render();
+    app.notice('Workshop run ended. Your own quest is as it was.');
+  }
+  function syncWorkshopButton() {
+    var on = !!$('cl-sim').checked;
+    $('qs-workshop').hidden = !on;
+    if (!on) endWorkshop();
+  }
+  $('qs-workshop').addEventListener('click', startWorkshop);
+  $('qs-workshop-end').addEventListener('click', endWorkshop);
+  $('cl-sim').addEventListener('change', syncWorkshopButton);
 
   /* ── Step 2: the safety rules ── */
 
@@ -4533,8 +4677,8 @@ window.LitterQuest = function (app) {
   var rules = [], at = 0;
   function safetyRules() {
     var text = String((app.waiver() || {}).text || '').replace(/\r\n?/g, '\n');
-    var lines = text.split('\n'), out = [], inside = false;
-    lines.forEach(function (l) {
+    var out = [], inside = false;
+    text.split('\n').forEach(function (l) {
       var t = l.trim();
       if (/^\d+\.\s/.test(t)) { inside = /^2\.\s/.test(t); return; }
       if (inside && /^[-•]\s*/.test(t) && t.replace(/^[-•]\s*/, '')) out.push(t.replace(/^[-•]\s*/, ''));
@@ -4564,12 +4708,12 @@ window.LitterQuest = function (app) {
   $('qs-safety-back').addEventListener('click', function () { if (at > 0) { at -= 1; showRule(); } });
   $('qs-safety-close').addEventListener('click', function () { $('qs-safety').hidden = true; });
 
-  /* ── Step 3: your gear ── */
+  /* ── Step 3: your gear (all five, |C717) ── */
 
   function gearList() {
     var box = document.createElement('div');
     box.className = 'lt-quest-gear';
-    var had = load(GEAR_KEY) || {};
+    var had = workshop ? workshop.gear : (load(GEAR_KEY) || {});
     GEAR.forEach(function (g) {
       var l = document.createElement('label');
       var i = document.createElement('input');
@@ -4577,10 +4721,10 @@ window.LitterQuest = function (app) {
       i.value = g[0];
       i.checked = !!had[g[0]];
       i.addEventListener('change', function () {
-        var now = load(GEAR_KEY) || {};
+        var now = workshop ? workshop.gear : (load(GEAR_KEY) || {});
         now[g[0]] = i.checked;
-        keep(GEAR_KEY, now);
-        if (GEAR.every(function (x) { return !x[2] || now[x[0]]; })) tick(3);
+        if (!workshop) keep(GEAR_KEY, now);
+        if (GEAR.every(function (x) { return now[x[0]]; })) tick(3);
       });
       l.appendChild(i);
       l.appendChild(document.createTextNode(' ' + g[1]));
@@ -4590,6 +4734,30 @@ window.LitterQuest = function (app) {
   }
 
   /* ── Step 4: your GPX recorder ── */
+
+  // The apps (|C718): on an iPhone, Open GPX Tracker, by its App Store page,
+  // where Open starts it, or Get installs it (as at Start before S5); on
+  // Android, Garmin Connect, with a Garmin watch. More to come.
+  function gpxApps() {
+    var box = document.createElement('div');
+    box.className = 'lt-quest-apps';
+    var add = function (label, href, say) {
+      var a = document.createElement('a');
+      a.className = 'btn btn-primary';
+      a.href = href;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      a.textContent = label;
+      box.appendChild(a);
+      var p = document.createElement('p');
+      p.className = 'muted small';
+      p.textContent = say;
+      box.appendChild(p);
+    };
+    add('iPhone: Open GPX Tracker', 'https://apps.apple.com/us/app/open-gpx-tracker/id984503772', 'It opens the App Store: press Open there, or Get if you don\'t have it yet.');
+    add('Android: Garmin Connect', 'https://play.google.com/store/apps/details?id=com.garmin.android.apps.connectmobile', 'With a Garmin watch. It opens Google Play: press Open, or Install.');
+    return box;
+  }
 
   // The practice recording is read here, on the phone, and nothing in it is
   // sent: a track with at least two points, each with its time, is enough.
@@ -4625,14 +4793,54 @@ window.LitterQuest = function (app) {
     try { doc = new DOMParser().parseFromString(text, 'application/xml'); } catch (e) { return 0; }
     return Array.prototype.filter.call(doc.getElementsByTagName('trkpt'), function (p) {
       var t = p.getElementsByTagName('time')[0];
-      return isFinite(Number(p.getAttribute('lat'))) && isFinite(Number(p.getAttribute('lon'))) && p.getAttribute('lat') !== null && t && isFinite(Date.parse(t.textContent));
+      return p.getAttribute('lat') !== null && isFinite(Number(p.getAttribute('lat'))) && isFinite(Number(p.getAttribute('lon'))) && t && isFinite(Date.parse(t.textContent));
     }).length;
+  }
+
+  /* ── Your quests (|C719): each quest done, with its XP; tap for more ── */
+
+  function when(ms) { return new Date(ms).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  function took(ms) {
+    var m = Math.max(1, Math.round(ms / 60000));
+    if (m < 60) return m + ' minute' + (m === 1 ? '' : 's');
+    var h = Math.round(m / 6) / 10;
+    if (h < 48) return h + ' hours';
+    return Math.round(h / 24) + ' days';
+  }
+  function showQuests() {
+    var box = $('quests-list');
+    box.textContent = '';
+    var done = list.filter(function (q) { return q.done; });
+    $('quests-none').hidden = done.length > 0;
+    done.forEach(function (q) {
+      var item = document.createElement('div');
+      item.className = 'lt-quest-item';
+      var head = document.createElement('button');
+      head.type = 'button';
+      head.className = 'lt-quest-row';
+      head.setAttribute('aria-expanded', 'false');
+      head.textContent = q.name + ' · ' + q.xp + ' XP';
+      var more = document.createElement('div');
+      more.className = 'lt-quest-more';
+      more.hidden = true;
+      var line = function (t) { var p = document.createElement('p'); p.textContent = t; more.appendChild(p); };
+      if (q.finished) line('Finished ' + when(q.finished) + '.');
+      if (q.started) line('Started ' + when(q.started) + '.');
+      if (q.started && q.finished) line('It took ' + took(q.finished - q.started) + '.');
+      line('Rewards: ' + q.xp + ' XP (' + q.stepXp + ' for each of its ' + q.steps.length + ' steps, and ' + q.doneXp + ' for finishing).');
+      head.addEventListener('click', function () { more.hidden = !more.hidden; head.setAttribute('aria-expanded', String(!more.hidden)); });
+      item.appendChild(head);
+      item.appendChild(more);
+      box.appendChild(item);
+    });
   }
 
   return {
     show: show,
     tick: tick,
-    has: function (n) { return has(n); }
+    showQuests: showQuests,
+    workshopOn: function () { return !!workshop; },
+    syncWorkshopButton: syncWorkshopButton
   };
 };
 </script>
@@ -4706,7 +4914,7 @@ window.LitterQuest = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -4745,7 +4953,7 @@ window.LitterQuest = function (app) {
       if (opt.key ? n.dataset.key === opt.key : n.dataset.text === text) n.remove();
     });
     var n = document.createElement('div');
-    n.className = 'lt-nt';
+    n.className = 'lt-nt' + (opt.cls ? ' ' + opt.cls : '');   // cls: 'quest', in the quest's blue (S5-P20, |C719)
     n.dataset.text = text;
     if (opt.key) n.dataset.key = opt.key;
     var t = document.createElement('span');
@@ -5241,9 +5449,11 @@ window.LitterQuest = function (app) {
     onPlanPicked: function (cells) { mapper.showPlan(cells); },
     // Choose your plan (S5-P12, Q553): the Segments screen, selecting.
     chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); },
-    // The first quest (S5-P20, quest.js): its card, and a step ticked.
-    onQuest: function (q) { quest.show(q); },
-    questTick: function (n) { return quest.tick(n); }
+    // The first quest (S5-P20, quest.js): its card, a step ticked, and a workshop run.
+    onQuest: function (q, list) { quest.show(q, list); },
+    questTick: function (n, auto) { return quest.tick(n, auto); },
+    questWorkshop: function () { return quest.workshopOn(); },
+    syncWorkshop: function () { quest.syncWorkshopButton(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -5252,7 +5462,9 @@ window.LitterQuest = function (app) {
     $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
     waiver: function () { return state.waiver; },
     practice: function () { collect.practice(); },
-    onQuestChanged: function (d) { collect.onQuestChanged(d); }
+    onQuestChanged: function (d) { collect.onQuestChanged(d); },
+    chooseWalkPlan: function () { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(collect.walkIds(), true); },
+    closePanel: function () { panel(false); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
@@ -5289,6 +5501,8 @@ window.LitterQuest = function (app) {
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
   $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
+  $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); });
+  $('quests-back').addEventListener('click', function () { showAccount(state.account); });
   $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {

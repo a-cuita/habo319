@@ -82,10 +82,10 @@ window.LitterMap = function (app) {
   function outlinePlan(cells) {
     if (!planLayer) return;
     planLayer.clearLayers();
-    // One line around the outside of the whole plan (S5-P9, |Q573), in the
-    // Settings tab's plan colour (|C684).
+    // Around the whole plan, one square out, as a wide see-through band (S5-P9,
+    // |Q573, |C700), in the Settings tab's plan colour (|C684).
     var pc = darkColours() ? darkColours().plan : (planColour || '#7c3aed');
-    if ((cells || []).length) L.polyline(G.outline(cells), { color: pc, weight: 3, opacity: 1, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
+    if ((cells || []).length) L.polyline(G.outline(G.grow(cells)), { color: pc, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
   }
 
   // opts: { focus: [cells] to show first, back: what Back does, track: a
@@ -780,7 +780,7 @@ window.LitterMap = function (app) {
 
   // Admin Mode turned on or off (S5-P13): Your collections (Measure again)
   // and the Segments list drawn again for it, at once.
-  function redraw() { if (mine) drawMine(); drawSegments(); drawSegScreen(); }
+  function redraw() { if (mine) drawMine(); drawSegments(); drawSegScreen(); outlinePlan(planCleared ? [] : shownPlan); }
 
   $('seg-select').addEventListener('click', function () { startSelect(app.walkIds ? app.walkIds() : [], false); });
   $('seg-use').addEventListener('click', function () {

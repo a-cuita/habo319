@@ -67,7 +67,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -106,7 +106,7 @@
       if (opt.key ? n.dataset.key === opt.key : n.dataset.text === text) n.remove();
     });
     var n = document.createElement('div');
-    n.className = 'lt-nt';
+    n.className = 'lt-nt' + (opt.cls ? ' ' + opt.cls : '');   // cls: 'quest', in the quest's blue (S5-P20, |C719)
     n.dataset.text = text;
     if (opt.key) n.dataset.key = opt.key;
     var t = document.createElement('span');
@@ -602,9 +602,11 @@
     onPlanPicked: function (cells) { mapper.showPlan(cells); },
     // Choose your plan (S5-P12, Q553): the Segments screen, selecting.
     chooseWalkPlan: function (ids) { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(ids, true); },
-    // The first quest (S5-P20, quest.js): its card, and a step ticked.
-    onQuest: function (q) { quest.show(q); },
-    questTick: function (n) { return quest.tick(n); }
+    // The first quest (S5-P20, quest.js): its card, a step ticked, and a workshop run.
+    onQuest: function (q, list) { quest.show(q, list); },
+    questTick: function (n, auto) { return quest.tick(n, auto); },
+    questWorkshop: function () { return quest.workshopOn(); },
+    syncWorkshop: function () { quest.syncWorkshopButton(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -613,7 +615,9 @@
     $: $, api: api, notice: notice, myToken: myToken, signedOut: signedOut,
     waiver: function () { return state.waiver; },
     practice: function () { collect.practice(); },
-    onQuestChanged: function (d) { collect.onQuestChanged(d); }
+    onQuestChanged: function (d) { collect.onQuestChanged(d); },
+    chooseWalkPlan: function () { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(collect.walkIds(), true); },
+    closePanel: function () { panel(false); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */
@@ -650,6 +654,8 @@
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
   $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
+  $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); });
+  $('quests-back').addEventListener('click', function () { showAccount(state.account); });
   $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);
   Array.prototype.forEach.call(document.querySelectorAll('[data-back]'), function (b) {

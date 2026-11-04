@@ -283,5 +283,37 @@ html.lt-panel-open { overflow: hidden; }
 .lt-quest-gear label { display: block; padding: 5px 0; }
 .lt-quest-rule { text-align: left; font-size: 1rem; color: var(--text); }
 #qs-gate { margin: 10px 0 0; }
-.lt-practice-note { background: #e0f2fe; color: #075985; border-color: #7dd3fc; }
-html.lt-builder .lt-practice-note { background: #0c2d48; color: #bae6fd; border-color: #0369a1; }
+/* S5-P20 round 2 (|C719): the practice's note and quest notices in the check marks' blue. */
+.lt-practice-note { background: var(--primary); color: #fff; }
+html.lt-builder .lt-practice-note { background: #1d4ed8; color: #fff; }
+.lt-nt.quest { background: var(--primary); }
+#cl-chooser .btn:disabled { opacity: 0.35; filter: grayscale(1); }
+/* The quest card's own look: parchment, like an old map. */
+.lt-quest { background-color: #fbf4df; border-color: #e3cf9d;
+  background-image: repeating-linear-gradient(90deg, rgba(150, 110, 40, 0.05) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(150, 110, 40, 0.04) 0 1px, transparent 1px 6px),
+    radial-gradient(ellipse at 20% 0%, rgba(255, 255, 255, 0.7), transparent 60%); }
+.lt-quest h2 { color: #6b4e16; }
+.lt-quest-steps li { border-top-color: #e8d9b0; }
+html.lt-builder .lt-quest { background-color: #2a2418; border-color: #5c4a22;
+  background-image: repeating-linear-gradient(90deg, rgba(255, 220, 150, 0.04) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(0deg, rgba(255, 220, 150, 0.03) 0 1px, transparent 1px 6px); }
+html.lt-builder .lt-quest h2 { color: #f3d58a; }
+html.lt-builder .lt-quest-steps li { border-top-color: #4a3d1f; }
+.lt-quest-workshop { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px; margin: -6px 0 8px;
+  padding: 6px 10px; border-radius: var(--radius-sm); background: var(--primary); color: #fff; font-weight: 700; font-size: 0.9rem; }
+.lt-quest-workshop .link-btn { color: #fff; text-decoration: underline; }
+.lt-quest-apps .btn { margin-top: 6px; display: block; text-align: center; text-decoration: none; }
+.lt-quest-apps p { margin: 4px 0 8px; }
+.lt-quest-row { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid #e8d9b0; background: none; font: inherit; font-weight: 700;
+  padding: 10px 2px; color: inherit; cursor: pointer; }
+.lt-quest-item:first-child .lt-quest-row { border-top: 0; }
+.lt-quest-more { padding: 0 2px 10px; color: var(--text-dim); font-size: 0.92rem; }
+.lt-quest-more p { margin: 2px 0; }
+
+/* × on the larger map, in place of Close (S5-P11, |C705). */
+.lt-seg-modal-box { position: relative; }
+.lt-modal-x { position: absolute; top: 8px; right: 8px; width: 36px; height: 36px; border: 0; border-radius: 50%; background: var(--surface-2, #eef1f6);
+  color: var(--text); font-size: 1.5rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+.lt-seg-modal-box .lt-scrim-title { padding: 0 40px; }
+html.lt-builder .lt-modal-x { background: #374151; color: #f3f4f6; }

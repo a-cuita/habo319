@@ -120,6 +120,14 @@ var TABS = {
     widths: [100, 90, 150, 100, 130, 260, 200, 120, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
   },
+  // Quests (S5-P20, |C722): one row for each player's quest: when it
+  // started, the steps ticked, when it finished, and the XP it gave.
+  quests: {
+    name: 'Quests',
+    header: ['Account ID', 'Quest', 'Started', 'Steps', 'Finished', 'XP', 'Updated'],
+    widths: [90, 140, 150, 110, 150, 60, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm', 4: '@', 5: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -247,7 +255,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -282,6 +290,7 @@ function ensureSchema_(force) {
     regridOnce_(ss, 'GRID_10M', 8, LitterGeo.MILE_M / 160);
     trackOnlyOnce_(ss);
     simulationsOnce_();
+    questsOnce_();
   });
   cache.put(cacheKey, '1', 600);
 }

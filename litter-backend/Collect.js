@@ -301,12 +301,13 @@ function collectLoad_(req) {
   var id = clean_(req.collectionId, 20);
   var col = id ? readCollection_(id) : openCollection_(account.id);
   if (col && col.account !== account.id) col = null;
+  var quest = questView_(account);
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
     plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
-    quest: questView_(account)
+    quest: quest, quests: [quest]
   };
 }
 

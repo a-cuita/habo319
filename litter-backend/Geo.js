@@ -79,6 +79,16 @@ var LitterGeo = (function () {
     });
     return out;
   }
+  // The squares and every square touching them: a plan's general area, one
+  // square out (S5-P9, |C700).
+  function grow(cells) {
+    var has = {};
+    (cells || []).forEach(function (id) {
+      var c = rowCol(id);
+      for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) has[(c.i + di) + '_' + (c.j + dj)] = true;
+    });
+    return Object.keys(has);
+  }
   function inCell(p, id) {
     var c = rowCol(id);
     return p.x >= c.j * CELL_M && p.x <= (c.j + 1) * CELL_M && p.y >= c.i * CELL_M && p.y <= (c.i + 1) * CELL_M;
@@ -443,7 +453,7 @@ var LitterGeo = (function () {
   return {
     trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
-    cellBounds: cellBounds, outline: outline, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

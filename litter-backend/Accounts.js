@@ -91,6 +91,7 @@ function setUp_(req) {
     if (volunteer) logChange_(name, 'Matched', id + ' ' + a.handle, 'Check-in volunteer', '', volunteer);
     var account = readAccounts_().filter(function (x) { return x.id === id; })[0];
     var signing = recordSignature_(account, w, signature, now);
+    questStart_(id, now);   // the first quest starts at sign-up (S5-P20)
     return { account: account, signing: signing, token: newDevice_(id, 'Set up', now) };
   });
   var copy = emailWaiverCopy_(made.account, made.signing);

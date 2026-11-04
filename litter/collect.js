@@ -238,6 +238,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-say').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = simOn();
+    if (app.syncWorkshop) app.syncWorkshop();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
@@ -250,7 +251,7 @@ window.LitterCollect = function (app) {
       // A collection open here but ended there (left alone 12 hours, or ended
       // or discarded on another phone, C540): forget it.
       if (c && !c.ended && !c.queue.length && (!d.collection || d.collection.id !== c.id || d.collection.status !== 'Collecting')) { c = null; save(); keep(STREETS_KEY, null); }
-      if (app.onQuest) app.onQuest(account.quest);
+      if (app.onQuest) app.onQuest(account.quest, d.quests);
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
@@ -335,7 +336,7 @@ window.LitterCollect = function (app) {
     // The first quest first (S5-P20, Q580 (a)); Admin Mode's simulated walks don't wait.
     var q = a.quest;
     $('cl-start').disabled = (!going && !!account && !w.length) || (!going && !simOn() && !!(q && q.needed));
-    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6);
+    if (w.length && q && !q.done && q.steps.indexOf(6) === -1 && app.questTick) app.questTick(6, true);
     if (simAway()) {
       line.className = 'lt-plan-line need';
       line.textContent = SIM_AWAY;
@@ -569,6 +570,7 @@ window.LitterCollect = function (app) {
     drawCells([], c && c.lastCell, null);
     drawSim();
     $('cl-practice-note').hidden = !(c && c.practice);
+    drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
     showSun($('cl-sun'), null);
@@ -661,9 +663,10 @@ window.LitterCollect = function (app) {
     if (!map) return;
     layers.plan.clearLayers();
     var colour = darkColours() ? darkColours().plan : (settings.planColour || '#7c3aed');
-    // One line around the outside of the whole plan (S5-P9, |Q573).
+    // Around the whole plan, one square out, as a wide see-through band: its
+    // general area, with the squares under it in their colours (S5-P9, |Q573, |C700).
     var cells = planCells(plan);
-    if (cells.length) L.polyline(G.outline(cells), { color: colour, weight: 3, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
+    if (cells.length) L.polyline(G.outline(G.grow(cells)), { color: colour, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
     (plan && plan.stretches || []).forEach(function (s) {
       (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
     });
@@ -766,6 +769,7 @@ window.LitterCollect = function (app) {
   function openChooser() {
     if (!c) return;
     showStatus();
+    drill();
     $('cl-chooser').hidden = !$('cl-chooser').hidden;
   }
   function closeChooser() { $('cl-chooser').hidden = true; }
@@ -1126,6 +1130,7 @@ window.LitterCollect = function (app) {
     closePulse();
     drawCells([], c.lastCell, c.lastCell);
     showStatus();
+    if (c && c.practice && !discard) drillNext(kind === 'weigh' ? 0 : kind === 'newbag' ? 1 : -1);
     if (discard) app.notice('Weighing discarded. Start a new bag now, so your next weighing has only new litter.');
     else if (kind === 'newbag') app.notice('Weighed. Drop the full bag in any bin, and start an empty one.');
     else if (kind !== 'end') app.notice('Weighed. Keep filling your bag.');
@@ -1162,10 +1167,12 @@ window.LitterCollect = function (app) {
           cur.pausedAt = Date.now();
           cur.pauseCell = loc.cell || loc.near || c.lastCell;
           app.notice('Paused. Your time stops until you press Litter pulse, then Resume.');
+          drillNext(2);
         } else {
           cur.pausedMin = (cur.pausedMin || 0) + (Date.now() - cur.pausedAt) / 60000;
           delete cur.pausedAt; delete cur.pauseCell;
           app.notice('Resumed.');
+          drillNext(3);
         }
         save();
         closeChooser();
@@ -1983,7 +1990,7 @@ window.LitterCollect = function (app) {
     var go = function (pos) {
       hideBusy();
       var cell = pos ? G.cellAt(pos.lat, pos.lon) : HOME_CELL, now = Date.now();
-      c = { id: 'practice', practice: true, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
+      c = { id: 'practice', practice: true, drill: 0, grid: 160, startedAt: now, startCell: cell, n: 1, lastCell: cell, queue: [], scalePrev: 0, bagReset: false,
         current: { startedAt: now, startCell: cell, pausedMin: 0 }, totals: { pounds: 0, miles: 0, minutes: 0 }, ended: false, plan: null, checkins: [], ckOut: [], sim: false, line: [] };
       openCollect();
       drawCells([], cell, cell);
@@ -1996,13 +2003,32 @@ window.LitterCollect = function (app) {
   function practiceDone() {
     c = null;
     $('cl-practice-note').hidden = true;
+    drill();
     app.showAccount();
-    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.');
+    app.notice('Practice done, and nothing was saved. That\'s how a litter pulse goes on a walk.', { cls: 'quest' });
     if (app.questTick) app.questTick(5);
   }
+  // The practice takes you through each in turn (|C719): a note in the
+  // quest's blue says what to press, and the other buttons are greyed out.
+  var DRILL = [
+    ['cl-weigh', 'Practice, 1 of 5: press Litter pulse, then Weigh. Type any number a scale might show, like 1, and go through the steps.'],
+    ['cl-newbag', 'Practice, 2 of 5: press Litter pulse, then New bag. Weigh the full bag (a bigger number than before); on a walk you\'d then start an empty one.'],
+    ['cl-pause', 'Practice, 3 of 5: press Litter pulse, then Pause. Your time stops while you\'re paused.'],
+    ['cl-pause', 'Practice, 4 of 5: press Litter pulse, then Resume.'],
+    ['cl-end', 'Practice, 5 of 5: press Litter pulse, then End, and weigh your last bag. Nothing is saved.']
+  ];
+  var DRILL_BUTTONS = ['cl-weigh', 'cl-newbag', 'cl-pause', 'cl-end'];
+  function drill() {
+    if (!c || !c.practice) { DRILL_BUTTONS.forEach(function (id) { $(id).disabled = false; }); return; }
+    var k = Math.min(c.drill || 0, DRILL.length - 1);
+    $('cl-practice-note').textContent = DRILL[k][1];
+    DRILL_BUTTONS.forEach(function (id) { $(id).disabled = id !== DRILL[k][0]; });
+  }
+  function drillNext(from) { if (c && c.practice && (c.drill || 0) === from) { c.drill = from + 1; drill(); } }
   function endPractice() {
     c = null;
     $('cl-practice-note').hidden = true;
+    drill();
     app.showAccount();
     app.notice('Practice ended, with nothing saved. Press Practice the litter pulse to try again.');
   }
@@ -2076,7 +2102,7 @@ window.LitterCollect = function (app) {
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
-  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); });
+  $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); if (map) drawPlan(c && c.plan); });
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;
@@ -2127,6 +2153,7 @@ window.LitterCollect = function (app) {
     setWalkPlan: function (ids) {
       setWalkPlan(ids);
       var w = walkPlan();
+      if (w.length && app.questTick) app.questTick(6);   // the first quest's last step, a workshop run's too
       showPlanLine();
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       // Segments far apart (Q545, Q558): a loud notice while the plan can still change.
