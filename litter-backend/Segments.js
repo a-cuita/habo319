@@ -24,6 +24,21 @@
  *   (Q519, Q523).
  * - Partly cleaned (Q532): its parts grouped by the day they were cleaned,
  *   each group's share, its direction from the segment's middle, and days.
+ * - Your 24-hour rule (S5-P13, |M710, |Q598 (a), Nov 3): a path segment
+ *   has a clock. The first walk that collects it starts it. A walk under 24
+ *   hours later (a setting) is a pickup: no rate, the clock runs on, and its
+ *   pounds go into the next rate. A walk from 24 hours to "Segment due
+ *   until" measures a rate over the whole time since the clock started, and
+ *   starts it again. Later than that is a Rate Reset: no rate, and the clock
+ *   starts again. Every walk's rates were measured again by this rule once;
+ *   a rate it doesn't give is kept, marked Not counted, and left out of the
+ *   median. "Segment due from" now only puts a segment on the Priority list.
+ *   Pieces (Q537, Q540 (a)): walks that each clean part of a path, each
+ *   within 24 hours of the one before (a setting), add up to one full
+ *   collection when together they cover it, at the last piece's time, with
+ *   all their pounds. "Finish it" shows a piece still adding up, once it's
+ *   25% of the segment (a setting).
+ *   Fields keep the rule below until they become areas.
  * - Real walks and simulated walks are two worlds (Q529): a Head Builder's
  *   simulated walks clean and measure only among themselves, their rates
  *   marked Simulated, shown only in Head Builder mode. Discarded walks never
@@ -31,7 +46,7 @@
  */
 
 var SEGMENT_COL = { id: 1, name: 2, by: 3, proposed: 4, plan: 5, squares: 6, miles: 7, accepted: 8, note: 9, kind: 10 };
-var RATE_COL = { segment: 1, collection: 2, collected: 3, pounds: 4, miles: 5, days: 6, rate: 7, covered: 8, simulated: 9 };
+var RATE_COL = { segment: 1, collection: 2, collected: 3, pounds: 4, miles: 5, days: 6, rate: 7, covered: 8, simulated: 9, notCounted: 10 };
 
 var SETTING_DUE_FROM = 'Segment due from (days since cleaned)';
 var SETTING_DUE_TO = 'Segment due until (days since cleaned)';
@@ -47,10 +62,13 @@ var SETTING_INSIDE = 'A weighing counts for a segment when inside (%)';
 var SETTING_NEAR = 'Near enough to a segment (m)';
 // A walk's plan with segments farther apart than this gets a notice (S5-P9, Q545, Q558).
 var SETTING_APART = 'Plan segments far apart (mi)';
+var SETTING_MIN_GAP = 'Shortest gap for a rate (hours)';   // S5-P13, Q598 (a)
+var SETTING_PIECES = 'Pieces add up within (hours)';       // S5-P13, Q537, Q540 (a)
+var SETTING_FINISH = 'Finish it shows from (% cleaned)';   // S5-P13: smaller brushes don't show
 var SEGMENT_SETTINGS = [
   [SETTING_DUE_FROM, '1'], [SETTING_DUE_TO, '4'], [SETTING_RATE_WINDOW, '60'], [SETTING_RATE_SHOWS, 'Median'],
   [SETTING_CONF_LOW, '2'], [SETTING_CONF_MODERATE, '5'], [SETTING_CONF_NAMES, 'No recent rate, Low, Moderate, Established'],
-  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15'], [SETTING_APART, '1']
+  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15'], [SETTING_APART, '1'], [SETTING_MIN_GAP, '24'], [SETTING_PIECES, '24'], [SETTING_FINISH, '25']
 ];
 var DAY_MS = 86400000;
 var COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -127,7 +145,8 @@ function ratesAll_() {
   return readRows_(TABS.rates).map(function (r) {
     var t = r.get('collected');
     return { row: r.row, segment: r.get('segment'), collection: r.get('collection'), collected: t instanceof Date ? t.getTime() : 0,
-      pounds: Number(r.get('pounds')) || 0, days: Number(r.get('days')) || 0, rate: Number(r.get('rate')) || 0, simulated: /^\s*y/i.test(r.get('simulated')) };
+      pounds: Number(r.get('pounds')) || 0, days: Number(r.get('days')) || 0, rate: Number(r.get('rate')) || 0, simulated: /^\s*y/i.test(r.get('simulated')),
+      notCounted: String(r.get('notCounted') || '').trim() };
   });
 }
 
@@ -145,9 +164,9 @@ function rateCollections_(sim, accountId) {
 
 // When each square was last cleaned: { square: ms }, from those collections'
 // weighings, leaving one collection out, and only before a time.
-function cleanedTimes_(counted, except, before) {
+function cleanedTimes_(counted, except, before, rows) {
   var out = {};
-  readRows_(TABS.stretches).forEach(function (q) {
+  (rows || readRows_(TABS.stretches)).forEach(function (q) {
     if (!counted[q.get('collection')] || q.get('collection') === except || q.get('discarded') === 'Yes') return;
     var t = q.get('ended') instanceof Date ? q.get('ended').getTime() : 0;
     if (!t || (before && t >= before)) return;
@@ -159,7 +178,8 @@ function cleanedTimes_(counted, except, before) {
 // The rules, from the Settings tab.
 function segmentRules_() {
   var cell = LitterGeo.CELL_M;
-  return { from: minutesSetting_(SETTING_DUE_FROM, 1), to: minutesSetting_(SETTING_DUE_TO, 4),
+  return { from: minutesSetting_(SETTING_DUE_FROM, 1), to: minutesSetting_(SETTING_DUE_TO, 4), minGapH: minutesSetting_(SETTING_MIN_GAP, 24),
+    piecesH: minutesSetting_(SETTING_PIECES, 24), finishFrom: Math.min(100, minutesSetting_(SETTING_FINISH, 25)) / 100,
     part: Math.max(1, Math.round(minutesSetting_(SETTING_PART_M, 10) / cell)),
     cover: Math.min(100, minutesSetting_(SETTING_COVER, 90)) / 100, inside: Math.min(100, minutesSetting_(SETTING_INSIDE, 80)) / 100,
     near: Math.max(0, Math.round(minutesSetting_(SETTING_NEAR, 15) / cell)) };
@@ -208,82 +228,186 @@ function directionOf_(all, some) {
 
 /* ── Measuring a rate, once a walk's GPX track is saved ── */
 
-// Each accepted segment this collection collected while it was due gets a
-// rate from it (or the one it had, measured again), in its own world.
+// The walks of one world, from their weighings: { id: { id, t (its last
+// weighing's end), walked: { square }, weighings: [{ cells, lbs, miles }] } }.
+function worldWalks_(counted, rows) {
+  var out = {};
+  rows.forEach(function (s) {
+    var id = s.get('collection');
+    if (!counted[id] || s.get('discarded') === 'Yes') return;
+    var w = out[id] = out[id] || { id: id, t: 0, walked: {}, weighings: [] };
+    var cells = String(s.get('cells')).split(/\s+/).filter(String);
+    cells.forEach(function (c) { w.walked[c] = true; });
+    var t = s.get('ended') instanceof Date ? s.get('ended').getTime() : 0;
+    if (t > w.t) w.t = t;
+    w.weighings.push({ cells: cells, lbs: s.get('pounds') === '' ? null : Number(s.get('pounds')) || 0,
+      miles: (Number(s.get('streetMi')) || 0) + (Number(s.get('offMi')) || 0) });
+  });
+  return out;
+}
+
+// What a walk did on a path segment: collected it, when it came near enough
+// to its covered share (90% to start), with the pounds of its weighings
+// inside it (80% inside); `known` when those weighings cover it too. Or null.
+function pathEvent_(g, w, k, inSeg, piece) {
+  var covered = g.squares.filter(function (c) { return isNear_(w.walked, c, k.near); }).length / g.squares.length;
+  if (!w.t || !covered || (covered < k.cover && !piece)) return null;
+  var lbs = 0, weighed = {};
+  w.weighings.forEach(function (x) {
+    if (!x.cells.length || x.lbs == null) return;
+    if (x.cells.filter(function (c) { return isNear_(inSeg, c, k.near); }).length / x.cells.length < k.inside) return;
+    lbs += x.lbs;
+    x.cells.forEach(function (c) { weighed[c] = true; });
+  });
+  var known = g.squares.filter(function (c) { return isNear_(weighed, c, k.near); }).length / g.squares.length >= k.cover;
+  return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, walked: w.walked, weighed: weighed };
+}
+
+// The walks that collected a path, in time order: full ones, and pieces
+// that add up to one (Q540 (a)): each piece within "Pieces add up within" of
+// the one before, together covering it, at the last piece's time, with all
+// their pounds. Also the pieces still adding up: { events, pending }.
+function pathCollections_(g, walks, k, inSeg) {
+  var all = Object.keys(walks).map(function (id) { return pathEvent_(g, walks[id], k, inSeg, true); }).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+  var out = [], group = [];
+  var share = function (list, key) {
+    return g.squares.filter(function (c) { return list.some(function (e) { return isNear_(e[key], c, k.near); }); }).length / g.squares.length;
+  };
+  all.forEach(function (e) {
+    if (e.covered >= k.cover) { group = []; out.push(e); return; }
+    if (group.length && e.t - group[group.length - 1].t > k.piecesH * 3600000) group = [];
+    group.push(e);
+    var covered = share(group, 'walked');
+    if (covered >= k.cover) {
+      out.push({ id: e.id, t: e.t, lbs: group.reduce(function (s, x) { return s + x.lbs; }, 0), known: share(group, 'weighed') >= k.cover,
+        covered: covered, pieces: group.map(function (x) { return x.id; }) });
+      group = [];
+    }
+  });
+  return { events: out, pending: group, pendingShare: group.length ? share(group, 'walked') : 0 };
+}
+
+// A path segment's walks in time order, through its clock (S5-P13, |Q598):
+// each marked start, pickup (into: the walk its pounds went to), rate,
+// unknown (no rate: some pounds weren't weighed inside it) or reset.
+function pathSequence_(g, walks, k) {
+  var inSeg = {};
+  g.squares.forEach(function (c) { inSeg[c] = true; });
+  var found = pathCollections_(g, walks, k, inSeg);
+  var events = found.events;
+  var clock = null, carry = 0, carryKnown = true, waiting = [];
+  var settle = function (into) { waiting.forEach(function (e) { e.into = into; }); waiting = []; carry = 0; carryKnown = true; };
+  events.forEach(function (e) {
+    if (clock == null) { e.result = 'start'; clock = e.t; settle(null); return; }
+    var days = (e.t - clock) / DAY_MS;
+    e.since = days;
+    if (days > k.to) { e.result = 'reset'; settle(e.id); clock = e.t; return; }
+    if (days * 24 < k.minGapH) { e.result = 'pickup'; carry += e.lbs; carryKnown = carryKnown && e.known; waiting.push(e); return; }
+    if (e.known && carryKnown && g.miles > 0) { e.result = 'rate'; e.days = days; e.pounds = carry + e.lbs; e.rate = e.pounds / g.miles / days; }
+    else e.result = 'unknown';
+    settle(e.id);
+    clock = e.t;
+  });
+  return { events: events, clock: clock, pending: found.pending, pendingShare: found.pendingShare };
+}
+
+// Why a walk gives a path segment no rate, for the Not counted column.
+function notCountedWhy_(e, k) {
+  var h = Math.round(k.minGapH);
+  if (e.result === 'pickup') return 'Under ' + h + ' hours after the clock started' + (e.into ? ': its pounds went into ' + e.into + '.' : ': its pounds go into the next rate.');
+  if (e.result === 'start') return 'It started the clock: the first collection, with no earlier one to measure from.';
+  if (e.result === 'reset') return 'Rate Reset: more than ' + k.to + ' days after the clock started, so it started the clock again.';
+  if (e.result === 'unknown') return 'Not all its pounds were weighed inside the segment.';
+  return 'No rate by the ' + h + '-hour rule.';
+}
+
+// A field's rate from one walk: the ground searched both times (Q533), as
+// before; fields become areas next (S5-P13, |Q600).
+function fieldRate_(g, w, counted, rows, k) {
+  var inSeg = {};
+  g.squares.forEach(function (c) { inSeg[c] = true; });
+  var lbs = 0, miles = 0, any = false;
+  w.weighings.forEach(function (x) {
+    if (!x.cells.length || x.lbs == null) return;
+    if (x.cells.filter(function (c) { return isNear_(inSeg, c, k.near); }).length / x.cells.length < k.inside) return;
+    lbs += x.lbs; miles += x.miles; any = true;
+  });
+  if (!any || !(miles > 0)) return null;
+  var started = counted[w.id] && counted[w.id].get('started') instanceof Date ? counted[w.id].get('started').getTime() : 0;
+  var before = cleanedTimes_(counted, w.id, started, rows);
+  var days = [], parts = partsOf_(g, k.part);
+  parts.forEach(function (p) {
+    var t = partTime_(before, p, k.near), age = (w.t - t) / DAY_MS;
+    if (t && p.every(function (c) { return isNear_(w.walked, c, k.near); }) && age >= k.from && age <= k.to) days.push(age);
+  });
+  if (!days.length) return null;
+  var d = mean_(days);
+  return { segment: g.id, collection: w.id, collected: w.t, pounds: round_(lbs, 2), miles: round_(miles, 3), days: round_(d, 2), rate: round_(lbs / miles / d, 3),
+    covered: Math.round(days.length / parts.length * 100) };
+}
+
+// Every rate in one world, measured again by the rules as they are now, and
+// written to the Segment rates tab: one row for each segment and walk, and a
+// walk that gives a segment no rate keeps its row, marked Not counted, with
+// why. A simulated world writes only its own walks' rows. Returns the rates.
+function measureWorld_(sim, owner) {
+  var counted = rateCollections_(sim, owner);
+  var rows = readRows_(TABS.stretches);
+  var walks = worldWalks_(counted, rows);
+  var k = segmentRules_();
+  var made = [], why = {};
+  segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).forEach(function (g) {
+    if (g.kind === 'Field') {
+      Object.keys(walks).forEach(function (id) { var m = fieldRate_(g, walks[id], counted, rows, k); if (m) made.push(m); });
+      return;
+    }
+    pathSequence_(g, walks, k).events.forEach(function (e) {
+      (e.pieces || []).forEach(function (pid) { if (pid !== e.id) why[g.id + '|' + pid] = 'A piece: it adds up with the others to one collection, ending with ' + e.id + ', which holds its pounds.'; });
+      if (e.result === 'rate') made.push({ segment: g.id, collection: e.id, collected: e.t, pounds: round_(e.pounds, 2), miles: round_(g.miles, 3), days: round_(e.days, 2), rate: round_(e.rate, 3), covered: Math.round(e.covered * 100) });
+      else why[g.id + '|' + e.id] = notCountedWhy_(e, k);
+    });
+  });
+  var own = function (id) { return !!counted[id] && (!sim || counted[id].get('account') === owner); };
+  var sheet = getDb_().getSheetByName(TABS.rates.name);
+  var had = ratesAll_().filter(function (r) { return r.simulated === !!sim && own(r.collection); });
+  var key = function (seg, col) { return seg + '|' + col; };
+  var given = {};
+  made.filter(function (m) { return own(m.collection); }).forEach(function (m) {
+    given[key(m.segment, m.collection)] = true;
+    var row = blankRow_(TABS.rates);
+    row[RATE_COL.segment - 1] = m.segment; row[RATE_COL.collection - 1] = m.collection; row[RATE_COL.collected - 1] = new Date(m.collected);
+    row[RATE_COL.pounds - 1] = m.pounds; row[RATE_COL.miles - 1] = m.miles; row[RATE_COL.days - 1] = m.days; row[RATE_COL.rate - 1] = m.rate;
+    row[RATE_COL.covered - 1] = m.covered; row[RATE_COL.simulated - 1] = sim ? 'Yes' : ''; row[RATE_COL.notCounted - 1] = '';
+    var old = had.filter(function (r) { return r.segment === m.segment && r.collection === m.collection; })[0];
+    sheet.getRange(old ? old.row : lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
+  });
+  had.forEach(function (r) {
+    if (given[key(r.segment, r.collection)]) return;
+    var text = why[key(r.segment, r.collection)] || 'No rate by the rules as they are now.';
+    if (r.notCounted !== text) sheet.getRange(r.row, RATE_COL.notCounted).setValue(text);
+  });
+  return made;
+}
+
+// Each accepted segment this collection collected gets its rate, if it gives
+// one, by the rules as they are now, with every other walk in its world
+// measured again so pickups and clocks line up. Returns this walk's rates.
 function measureRates_(collectionId) {
   var q = readRows_(TABS.collections).filter(function (x) { return x.get('id') === collectionId; })[0];
   if (!q || q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED) return [];
-  var sim = q.get('simulated') === 'Yes';
-  var counted = rateCollections_(sim, q.get('account'));
-  var started = q.get('started') instanceof Date ? q.get('started').getTime() : 0;
-  var mine = readRows_(TABS.stretches).filter(function (s) { return s.get('collection') === collectionId && s.get('discarded') !== 'Yes'; });
-  var walked = {}, collected = 0;
-  mine.forEach(function (s) {
-    String(s.get('cells')).split(/\s+/).filter(String).forEach(function (c) { walked[c] = true; });
-    var t = s.get('ended') instanceof Date ? s.get('ended').getTime() : 0;
-    if (t > collected) collected = t;
-  });
-  if (!collected) return [];
-  var before = cleanedTimes_(counted, collectionId, started);
-  var k = segmentRules_();
-  var made = [];
-  segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).forEach(function (g) {
-    var inSeg = {};
-    g.squares.forEach(function (c) { inSeg[c] = true; });
-    // The weighings inside the segment: its own pounds (Q524).
-    var lbs = 0, miles = 0, weighed = {}, any = false;
-    mine.forEach(function (s) {
-      var cells = String(s.get('cells')).split(/\s+/).filter(String);
-      if (!cells.length || s.get('pounds') === '') return;
-      if (cells.filter(function (c) { return isNear_(inSeg, c, k.near); }).length / cells.length < k.inside) return;
-      lbs += Number(s.get('pounds')) || 0;
-      miles += (Number(s.get('streetMi')) || 0) + (Number(s.get('offMi')) || 0);
-      any = true;
-      cells.forEach(function (c) { weighed[c] = true; });
-    });
-    if (!any) return;
-    var parts = partsOf_(g, k.part);
-    var nearWalk = function (part) { return part.every(function (c) { return isNear_(walked, c, k.near); }); };
-    var days = [], covered, rate;
-    if (g.kind === 'Field') {
-      // The ground searched both times (Q533): this walk's parts of the field
-      // that were cleaned 1 to 4 days before.
-      parts.forEach(function (p) {
-        var t = partTime_(before, p, k.near), age = (collected - t) / DAY_MS;
-        if (t && nearWalk(p) && age >= k.from && age <= k.to) days.push(age);
-      });
-      if (!days.length || !(miles > 0)) return;
-      covered = days.length / parts.length;
-    } else {
-      covered = g.squares.filter(function (c) { return isNear_(walked, c, k.near); }).length / g.squares.length;
-      if (covered < k.cover || !(g.miles > 0)) return;
-      if (g.squares.filter(function (c) { return isNear_(weighed, c, k.near); }).length / g.squares.length < k.cover) return;
-      parts.forEach(function (p) { var t = partTime_(before, p, k.near); if (t) days.push((collected - t) / DAY_MS); });
-      if (days.length < k.cover * parts.length) return;
-    }
-    var d = mean_(days);
-    if (d < k.from || d > k.to) return;
-    rate = lbs / (g.kind === 'Field' ? miles : g.miles) / d;
-    made.push({ segment: g.id, pounds: round_(lbs, 2), miles: round_(g.kind === 'Field' ? miles : g.miles, 3), days: round_(d, 2), rate: round_(rate, 3),
-      covered: Math.round(covered * 100) });
-  });
-  var sheet = getDb_().getSheetByName(TABS.rates.name);
-  var had = ratesAll_();
-  made.forEach(function (m) {
-    var row = blankRow_(TABS.rates);
-    row[RATE_COL.segment - 1] = m.segment;
-    row[RATE_COL.collection - 1] = collectionId;
-    row[RATE_COL.collected - 1] = new Date(collected);
-    row[RATE_COL.pounds - 1] = m.pounds;
-    row[RATE_COL.miles - 1] = m.miles;
-    row[RATE_COL.days - 1] = m.days;
-    row[RATE_COL.rate - 1] = m.rate;
-    row[RATE_COL.covered - 1] = m.covered;
-    row[RATE_COL.simulated - 1] = sim ? 'Yes' : '';
-    var old = had.filter(function (r) { return r.segment === m.segment && r.collection === collectionId; })[0];
-    sheet.getRange(old ? old.row : lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
-  });
-  return made;
+  return measureWorld_(q.get('simulated') === 'Yes', q.get('account')).filter(function (m) { return m.collection === collectionId; });
+}
+
+// Once (S5-P13, |Q598 (a), your "(a)" Nov 3): every walk's rates measured
+// again by the 24-hour rule, in the real world and each admin's simulated one.
+function ratesRuleOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('RATES_24H')) return;
+  measureWorld_(false, '');
+  var owners = {};
+  readRows_(TABS.collections).forEach(function (q) { if (q.get('simulated') === 'Yes') owners[q.get('account')] = true; });
+  Object.keys(owners).forEach(function (a) { measureWorld_(true, a); });
+  props.setProperty('RATES_24H', new Date().toISOString());
 }
 
 /* ── What the page shows ── */
@@ -296,8 +420,11 @@ function segmentSummaries_(sim, accountId) {
   if (sim && !accountId) return [];   // a simulated world is always someone's
   var now = Date.now();
   var counted = rateCollections_(sim, accountId);
-  var cleaned = cleanedTimes_(counted, '', 0);
-  var rates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]); });
+  var rows = readRows_(TABS.stretches);
+  var cleaned = cleanedTimes_(counted, '', 0, rows);
+  var walks = worldWalks_(counted, rows);
+  // Rates the 24-hour rule doesn't give are kept, but not counted (S5-P13).
+  var rates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]) && !r.notCounted; });
   var k = segmentRules_();
   var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
   var low = minutesSetting_(SETTING_CONF_LOW, 2), moderate = minutesSetting_(SETTING_CONF_MODERATE, 5);
@@ -316,6 +443,19 @@ function segmentSummaries_(sim, accountId) {
     var ages = parts.map(function (p) { var t = partTime_(cleaned, p, k.near); return t ? (now - t) / DAY_MS : null; });
     var known = ages.filter(function (a) { return a != null; });
     var d = mean_(known);
+    // A path: days since its clock started (S5-P13), not the parts' average;
+    // Finish it: the share cleaned since then by walks that didn't collect all of it.
+    var finish = 0, finishLeft = null;
+    if (g.kind !== 'Field') {
+      var seq = pathSequence_(g, walks, k);
+      d = seq.clock ? (now - seq.clock) / DAY_MS : null;
+      // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
+      var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;
+      if (lastPiece && now - lastPiece <= k.piecesH * 3600000 && seq.pendingShare >= k.finishFrom) {
+        finish = Math.round(seq.pendingShare * 100);
+        finishLeft = round_((k.piecesH * 3600000 - (now - lastPiece)) / 3600000, 1);
+      }
+    }
     // Partly cleaned (Q532): the parts grouped by the day they were cleaned.
     var byDay = {};
     ages.forEach(function (a, i) { var key = a == null ? 'never' : String(Math.floor(a)); (byDay[key] = byDay[key] || []).push(parts[i]); });
@@ -328,7 +468,7 @@ function segmentSummaries_(sim, accountId) {
     return { id: g.id, name: g.name, kind: g.kind, squares: g.squares, miles: g.miles,
       rate: shows === 'Average' ? avg : med, median: med == null ? null : round_(med, 3), average: avg == null ? null : round_(avg, 3), shows: shows,
       count: recent.length, confidence: names[lv], level: lv, arrow: recent.length > earlier ? 'up' : recent.length < earlier ? 'down' : 'level',
-      due: d != null && known.length >= k.cover * parts.length && d >= k.from && d <= k.to, partly: groups.length > 0,
+      due: d != null && (g.kind !== 'Field' || known.length >= k.cover * parts.length) && d >= k.from && d <= k.to, partly: groups.length > 0, finish: finish, finishLeft: finishLeft,
       days: d == null ? null : round_(d, 1), groups: groups,
       // For The Priority Segment List (S5-P10): days left before it's past
       // "Segment due until", and whether it's past it already.

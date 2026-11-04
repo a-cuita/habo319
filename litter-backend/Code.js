@@ -94,8 +94,8 @@ var TABS = {
   },
   rates: {
     name: 'Segment rates',
-    header: ['Segment ID', 'Collection ID', 'Collected', 'Pounds', 'Miles', 'Days', 'Rate (lb per mile per day)', 'Squares covered (%)', 'Simulated'],
-    widths: [90, 100, 150, 70, 70, 60, 170, 130, 90],
+    header: ['Segment ID', 'Collection ID', 'Collected', 'Pounds', 'Miles', 'Days', 'Rate (lb per mile per day)', 'Squares covered (%)', 'Simulated', 'Not counted'],
+    widths: [90, 100, 150, 70, 70, 60, 170, 130, 90, 360],
     formats: { 3: 'yyyy-mm-dd h:mm' }
   },
   // The published work our decisions lean on (S5-P3, Q520), kept so it can
@@ -262,7 +262,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('RATES_24H');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -299,6 +299,7 @@ function ensureSchema_(force) {
     simulationsOnce_();
     questsOnce_();
     levelsOnce_();
+    ratesRuleOnce_();
   });
   cache.put(cacheKey, '1', 600);
 }

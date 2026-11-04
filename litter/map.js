@@ -680,19 +680,27 @@ window.LitterMap = function (app) {
      cleaned too recently to be due needs nothing yet, so it's left off.
      Nearest to me: by distance from where the phone is. ── */
 
+  // One short line each (S5-P13, |Q599 (a)), with the longer words behind its ℹ️.
   var sortBy = 'need', here = null;
   function needOf(g) {
+    if (g.finish) return 'finish';
     if (g.days == null) return 'never';
-    if (g.past) return 'past';
-    if (g.partly) return 'finish';
+    if (g.past) return 'reset';
     if (g.due) return 'due';
     return '';
   }
   function leftWords(g) { return g.left < 1 ? 'less than a day left' : round(g.left, 1) + ' days left'; }
   function needLine(g, need) {
-    return need === 'finish' ? 'Finish it · ' + leftWords(g) + ' to collect it for its rate'
-      : need === 'due' ? leftWords(g) + ' to collect it for its rate'
-      : need === 'past' ? 'Past due: last cleaned ' + round(g.days, 1) + ' days ago' : '';
+    return need === 'finish' ? 'Finish it · ' + g.finish + '% cleaned · ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' h left'
+      : need === 'due' ? 'Due · ' + leftWords(g)
+      : need === 'reset' ? 'Rate Reset · collect to restart'
+      : need === 'never' ? 'Not cleaned yet' : '';
+  }
+  function needWhy(g, need) {
+    return need === 'finish' ? 'Part of it was cleaned in the last day. Collect the rest within ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' hours and the pieces add up to one full collection.'
+      : need === 'due' ? 'Collect all of it in the next ' + leftWords(g).replace(' left', '') + ', and your walk measures its rate: the pounds since its clock started, for its miles, over those days. A walk under 24 hours after the clock started adds its pounds to the next rate instead.'
+      : need === 'reset' ? 'More than a week since its clock started, so collecting it now starts the clock again, with no rate. The walk after that measures one.'
+      : need === 'never' ? 'No walk has collected all of it yet. The first one starts its clock.' : '';
   }
   // Metres from where the phone is to the segment's nearest square.
   function awayOf(g) {
@@ -702,7 +710,7 @@ window.LitterMap = function (app) {
   function drawSegments() {
     var list = $('segments-list');
     list.textContent = '';
-    var rank = { due: 0, finish: 0, past: 1, never: 2 };
+    var rank = { due: 0, finish: 0, reset: 1, never: 2 };
     var all = segList().filter(function (g) { return needOf(g); });
     if (sortBy === 'near' && here) {
       all.forEach(function (g) { g.away = awayOf(g); });
@@ -717,15 +725,28 @@ window.LitterMap = function (app) {
     $('segments-none').hidden = !!all.length;
     all.forEach(function (g) {
       var need = needOf(g);
-      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'past' ? ' past' : ''));
+      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : ''));
       box.id = 'seg-' + g.id;
       // Its kind, Path or Field (Oct 31, field first).
       box.appendChild(el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi'));
-      if (needLine(g, need)) box.appendChild(el('p', 'lt-seg-need', needLine(g, need)));
+      var line = el('div', 'lt-seg-need-row');
+      line.appendChild(el('p', 'lt-seg-need', needLine(g, need)));
+      var info = el('button', 'lt-info', 'ℹ️');
+      info.type = 'button';
+      info.setAttribute('aria-label', 'About ' + g.name);
+      info.setAttribute('aria-expanded', 'false');
+      line.appendChild(info);
+      box.appendChild(line);
       if (sortBy === 'near' && here) box.appendChild(el('p', 'muted small lt-seg-away', round(g.away / G.MILE_M, 2) + ' mi away'));
-      box.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
-      partialLines(g).forEach(function (t) { box.appendChild(el('p', 'lt-plan-seg', t)); });
-      if (!g.partly) box.appendChild(el('p', 'muted small', g.days == null ? 'Not cleaned yet.' : 'Last cleaned ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
+      // Behind the ℹ️: what the line means, its rate, when it was last fully collected, and its parts.
+      var more = el('div', 'lt-seg-more');
+      more.hidden = true;
+      more.appendChild(el('p', 'small', needWhy(g, need)));
+      more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
+      if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
+      partialLines(g).forEach(function (t) { more.appendChild(el('p', 'lt-plan-seg', t)); });
+      box.appendChild(more);
+      info.addEventListener('click', function (e) { e.stopPropagation(); more.hidden = !more.hidden; info.setAttribute('aria-expanded', String(!more.hidden)); });
       // Its small map, tapped to open larger (S5-P11, |C691), in place of See it on the map.
       box.appendChild(smallMap(g.name, g.squares, { kind: 'public' }));
       list.appendChild(box);

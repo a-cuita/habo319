@@ -317,3 +317,10 @@ html.lt-builder .lt-quest-steps li { border-top-color: #4a3d1f; }
   color: var(--text); font-size: 1.5rem; line-height: 1; cursor: pointer; display: flex; align-items: center; justify-content: center; }
 .lt-seg-modal-box .lt-scrim-title { padding: 0 40px; }
 html.lt-builder .lt-modal-x { background: #374151; color: #f3f4f6; }
+
+/* The Priority list's one short line, and its ℹ️ (S5-P13, |Q599). */
+.lt-seg-need-row { display: flex; align-items: center; gap: 6px; }
+.lt-seg-need-row .lt-seg-need { margin: 0; }
+.lt-seg-more { margin: 4px 0 6px; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
+.lt-seg-more p { margin: 2px 0; }
+html.lt-builder .lt-seg-more { background: #1f2937; }
