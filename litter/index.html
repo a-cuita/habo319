@@ -157,6 +157,8 @@
     <p class="lt-pick" id="cl-sim-note" role="status" hidden>Simulated walk: click the map to draw where you walk. The end of your line is where you are.</p>
     <div class="lt-map-box" id="cl-map-box"><div class="lt-map" id="cl-map"></div></div>
     <p class="muted small" id="cl-map-note"></p>
+    <!-- While you walk (S5-P13 part 2): each field you've scanned part of, or that your plan holds, shaded on the map above. -->
+    <div class="lt-scans" id="cl-fields" hidden></div>
     <!-- The End question in the same cell, as a pop-up (S5, round 2): it was easy to miss. -->
     <div class="lt-scrim" id="cl-same" role="dialog" aria-modal="true" aria-labelledby="cl-same-q" hidden>
       <div class="lt-scrim-box">
@@ -623,7 +625,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=10"></script>
-<script src="collect.js?v=35"></script>
+<script src="collect.js?v=36"></script>
 <script src="map.js?v=17"></script>
 <script src="quest.js?v=3"></script>
 <script src="litter.js?v=13"></script>

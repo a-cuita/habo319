@@ -176,7 +176,7 @@ window.LitterCollect = function (app) {
     c.checkins = (c.checkins || []).concat([k]).slice(-1500);
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
-    if (!c.practice) segmentPrompt(pos);
+    if (!c.practice) { segmentPrompt(pos); drawLiveFields(); }
   }
   // Weigh as you step onto a due segment and as you step off it, so its
   // pounds are its own (S5-P3, Q524).
@@ -204,14 +204,18 @@ window.LitterCollect = function (app) {
   }
   // About once a minute while the collecting screen is open and the phone
   // awake, paused or not (paused time doesn't count); they go with the next
-  // litter pulse.
+  // litter pulse. Inside a field, every 15 seconds, so its shading follows
+  // you closely (S5-P13 part 2).
+  var ckTick = 0;
   setInterval(function () {
+    ckTick++;
     if (!c || c.ended || c.sim || c.practice || $('v-collect').hidden || document.hidden || !navigator.geolocation) return;
+    if (ckTick % 4 && !inField()) return;
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended) return;
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
     }, function () { /* no fix this minute */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
-  }, 60000);
+  }, 15000);
 
   function showQueue() {
     var n = c ? c.queue.filter(function (q) { return q.type === 'stretch'; }).length : 0;
@@ -593,6 +597,7 @@ window.LitterCollect = function (app) {
     drawPlan(c && c.plan);
     drawCells([], c && c.lastCell, null);
     drawSim();
+    drawLiveFields();
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
@@ -638,7 +643,7 @@ window.LitterCollect = function (app) {
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     map.createPane('ltPlan').style.zIndex = 450;   // the plan above everything else (S5-P9, |C685)
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
     map.on('click', function (e) {
       lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
       if (simDraws()) return simAdd(lastTap);
@@ -1353,10 +1358,11 @@ window.LitterCollect = function (app) {
     }
     return summary.fields || [];
   }
-  // Scanned ground in green, missed in orange, a square of shading for each point.
+  // Scanned ground in green, missed in pink (the squares you walk are
+  // orange), a square of shading for each point.
   function shadeField(f, layer) {
     f.pts.forEach(function (p, i) {
-      L.rectangle(G.stepBounds(p), { stroke: false, fillColor: f.scan[i] ? '#16a34a' : '#f97316', fillOpacity: f.scan[i] ? 0.3 : 0.5, interactive: false,
+      L.rectangle(G.stepBounds(p), { stroke: false, fillColor: f.scan[i] ? '#16a34a' : '#db2777', fillOpacity: f.scan[i] ? 0.3 : 0.35, interactive: false,
         className: f.scan[i] ? 'lt-scan-hit' : 'lt-scan-miss' }).addTo(layer);
     });
   }
@@ -1369,7 +1375,57 @@ window.LitterCollect = function (app) {
     box.textContent = '';
     box.hidden = !fields.length;
     fields.forEach(function (f) { var p = document.createElement('p'); p.className = 'lt-scan-line'; p.textContent = scanLine(f); box.appendChild(p); });
-    if (fields.length) { var k = document.createElement('p'); k.className = 'muted small'; k.textContent = 'On the map: green is the ground you scanned, orange what you missed.'; box.appendChild(k); }
+    if (fields.length) box.appendChild(scanKey());
+  }
+  function scanKey() { var k = document.createElement('p'); k.className = 'muted small'; k.textContent = 'On the map: green is the ground you scanned, pink what you missed.'; return k; }
+
+  // While you walk: each field you've scanned part of, or that your plan
+  // holds, shaded on the map as you go, from the page's own check-ins (a
+  // simulated walk's drawn line). The GPX track is what counts, after.
+  function liveTrack() {
+    if (!c) return [];
+    if (c.sim) return (c.line || []).map(function (p) { return [p[0], p[1]]; });
+    var paused = false, out = [];
+    (c.checkins || []).slice().sort(function (a, b) { return a[0] - b[0]; }).forEach(function (k) {
+      if ((k[3] || 0) >= 999) return;   // a place guessed, not a fix
+      if (k[4] === 'z') { out.push([k[1], k[2]]); paused = true; return; }
+      if (k[4] === 'r') paused = false;
+      out.push(paused ? [k[1], k[2], 1] : [k[1], k[2]]);
+    });
+    return out;
+  }
+  var grounds = {};
+  function groundOf(g) {
+    var key = g.id + '|' + (g.outline || []).map(String).join(';') + '|' + g.squares.length;
+    return grounds[key] = grounds[key] || G.fieldPoints({ outline: g.outline, squares: g.squares });
+  }
+  function liveFields() {
+    if (!c || c.practice || c.ended) return [];
+    var track = liveTrack(), reach = settings.reach || 15, cover = (settings.fieldCover || 70) / 100, mine = planCells(c.plan);
+    return segs().filter(function (g) { return g.kind === 'Field'; }).map(function (g) {
+      var pts = groundOf(g), scan = track.length ? G.fieldScan(pts, track, reach) : pts.map(function () { return 0; });
+      return { g: g, pts: pts, scan: scan, share: G.scanShare(scan), cover: cover, planned: g.squares.some(function (x) { return mine.indexOf(x) !== -1; }) };
+    }).filter(function (f) { return f.share > 0 || f.planned; });
+  }
+  function drawLiveFields() {
+    var fields = liveFields(), box = $('cl-fields');
+    if (map && layers) { layers.fields.clearLayers(); fields.forEach(function (f) { shadeField(f, layers.fields); }); }
+    box.textContent = '';
+    box.hidden = !fields.length;
+    fields.forEach(function (f) {
+      var p = document.createElement('p');
+      p.className = 'lt-scan-line';
+      p.textContent = f.g.name + ': ' + Math.round(f.share * 100) + '% scanned' + (f.share >= f.cover ? ', collected.' : ', ' + Math.round(f.cover * 100) + '% collects it.');
+      box.appendChild(p);
+    });
+    if (fields.length) box.appendChild(scanKey());
+  }
+  // Whether where you last checked in is inside a field, or within reach of one.
+  function inField() {
+    var k = c && c.checkins && c.checkins[c.checkins.length - 1];
+    if (!k || (k[3] || 0) >= 999) return false;
+    var reach = settings.reach || 15;
+    return segs().some(function (g) { return g.kind === 'Field' && G.fieldScan(groundOf(g), [[k[1], k[2]]], reach).some(Boolean); });
   }
 
   function allCells() {
