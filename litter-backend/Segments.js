@@ -38,14 +38,20 @@
  *   collection when together they cover it, at the last piece's time, with
  *   all their pounds. "Finish it" shows a piece still adding up, once it's
  *   25% of the segment (a setting).
- *   Fields keep the rule below until they become areas.
+ * - Fields as areas (S5-P13 part 2, |Q600 (a), Nov 3): a field is the ground
+ *   inside its outline (corners drawn on the map), or inside its squares
+ *   when it has none. Your track scans 15 m each side (a setting), and a walk
+ *   collects the field when it scans 70% of it (a setting). Walking past
+ *   outside scans almost none of it. Fields then go by the same clock and
+ *   pieces as paths. A field's miles are the walk it takes to scan all of it:
+ *   its area ÷ twice the reach.
  * - Real walks and simulated walks are two worlds (Q529): a Head Builder's
  *   simulated walks clean and measure only among themselves, their rates
  *   marked Simulated, shown only in Head Builder mode. Discarded walks never
  *   count.
  */
 
-var SEGMENT_COL = { id: 1, name: 2, by: 3, proposed: 4, plan: 5, squares: 6, miles: 7, accepted: 8, note: 9, kind: 10 };
+var SEGMENT_COL = { id: 1, name: 2, by: 3, proposed: 4, plan: 5, squares: 6, miles: 7, accepted: 8, note: 9, kind: 10, outline: 11 };
 var RATE_COL = { segment: 1, collection: 2, collected: 3, pounds: 4, miles: 5, days: 6, rate: 7, covered: 8, simulated: 9, notCounted: 10 };
 
 var SETTING_DUE_FROM = 'Segment due from (days since cleaned)';
@@ -65,10 +71,13 @@ var SETTING_APART = 'Plan segments far apart (mi)';
 var SETTING_MIN_GAP = 'Shortest gap for a rate (hours)';   // S5-P13, Q598 (a)
 var SETTING_PIECES = 'Pieces add up within (hours)';       // S5-P13, Q537, Q540 (a)
 var SETTING_FINISH = 'Finish it shows from (% cleaned)';   // S5-P13: smaller brushes don't show
+var SETTING_REACH = 'A track scans each side (m)';         // S5-P13 part 2, |Q600 (a)
+var SETTING_FIELD_COVER = 'Field collected when scanned (%)';
 var SEGMENT_SETTINGS = [
   [SETTING_DUE_FROM, '1'], [SETTING_DUE_TO, '4'], [SETTING_RATE_WINDOW, '60'], [SETTING_RATE_SHOWS, 'Median'],
   [SETTING_CONF_LOW, '2'], [SETTING_CONF_MODERATE, '5'], [SETTING_CONF_NAMES, 'No recent rate, Low, Moderate, Established'],
-  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15'], [SETTING_APART, '1'], [SETTING_MIN_GAP, '24'], [SETTING_PIECES, '24'], [SETTING_FINISH, '25']
+  [SETTING_RATE_TOP, '5'], [SETTING_PART_M, '10'], [SETTING_COVER, '90'], [SETTING_INSIDE, '80'], [SETTING_NEAR, '15'], [SETTING_APART, '1'], [SETTING_MIN_GAP, '24'], [SETTING_PIECES, '24'], [SETTING_FINISH, '25'],
+  [SETTING_REACH, '15'], [SETTING_FIELD_COVER, '70']
 ];
 var DAY_MS = 86400000;
 var COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
@@ -89,6 +98,15 @@ function segmentPropose_(req) {
     if (had) throw new Error('That plan is already proposed, as ' + had.id + '.');
     var squares = [];
     plan.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (squares.indexOf(c) === -1) squares.push(c); }); });
+    // A field's corners, drawn on the map (S5-P13 part 2, |Q600 (a)): its
+    // ground is inside them, and its squares are the ones that ground is in.
+    var corners = kind === 'Field' ? fieldCorners_(req.outline) : [];
+    var miles = plan.miles;
+    if (corners.length) {
+      var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
+      squares = Object.keys(ground.cells);
+      miles = ground.miles;
+    }
     var sheet = getDb_().getSheetByName(TABS.segments.name);
     var id = nextId_('SG', segmentsAll_().map(function (s) { return s.id; }));
     var row = blankRow_(TABS.segments);
@@ -98,8 +116,9 @@ function segmentPropose_(req) {
     row[SEGMENT_COL.proposed - 1] = new Date();
     row[SEGMENT_COL.plan - 1] = plan.id;
     row[SEGMENT_COL.squares - 1] = squares.join(' ');
-    row[SEGMENT_COL.miles - 1] = round_(plan.miles, 2);
+    row[SEGMENT_COL.miles - 1] = round_(miles, 2);
     row[SEGMENT_COL.kind - 1] = kind;
+    row[SEGMENT_COL.outline - 1] = corners.length ? outlineText_(corners) : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     logChange_(account.email, 'Segment', id, 'Proposed', '', name + ' (from ' + plan.id + ', ' + kind + ')');
     return { plans: myPlans_(account.id) };
@@ -137,9 +156,16 @@ function segmentsAll_() {
     return { row: r.row, id: r.get('id'), name: r.get('name'), by: r.get('by'), proposed: p instanceof Date ? p.getTime() : 0, plan: r.get('plan'),
       squares: String(r.get('squares')).split(/\s+/).filter(function (c) { return /^-?\d+_-?\d+$/.test(c); }),
       miles: Number(r.get('miles')) || 0, accepted: /^\s*y/i.test(r.get('accepted')), note: r.get('note'),
-      kind: /^\s*f/i.test(r.get('kind')) ? 'Field' : 'Path' };
+      kind: /^\s*f/i.test(r.get('kind')) ? 'Field' : 'Path', outline: parseOutline_(r.get('outline')) };
   });
 }
+
+// A field's outline, "lat,lon;lat,lon;…", as its corners in order.
+function parseOutline_(v) {
+  return String(v || '').split(';').map(function (p) { var a = p.split(','); return [Number(a[0]), Number(a[1])]; })
+    .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]) && p[0] !== 0 && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180; });
+}
+function outlineText_(corners) { return corners.map(function (c) { return Number(c[0]).toFixed(6) + ',' + Number(c[1]).toFixed(6); }).join(';'); }
 
 function ratesAll_() {
   return readRows_(TABS.rates).map(function (r) {
@@ -182,7 +208,17 @@ function segmentRules_() {
     piecesH: minutesSetting_(SETTING_PIECES, 24), finishFrom: Math.min(100, minutesSetting_(SETTING_FINISH, 25)) / 100,
     part: Math.max(1, Math.round(minutesSetting_(SETTING_PART_M, 10) / cell)),
     cover: Math.min(100, minutesSetting_(SETTING_COVER, 90)) / 100, inside: Math.min(100, minutesSetting_(SETTING_INSIDE, 80)) / 100,
-    near: Math.max(0, Math.round(minutesSetting_(SETTING_NEAR, 15) / cell)) };
+    near: Math.max(0, Math.round(minutesSetting_(SETTING_NEAR, 15) / cell)),
+    reach: Math.max(1, minutesSetting_(SETTING_REACH, 15)), fieldCover: Math.min(100, minutesSetting_(SETTING_FIELD_COVER, 70)) / 100 };
+}
+
+// A field's ground (S5-P13 part 2): its points, the squares they fall in,
+// and its miles: the walk it takes to scan all of it.
+function fieldGround_(g, k) {
+  var pts = LitterGeo.fieldPoints({ outline: g.outline, squares: g.squares });
+  var cells = {};
+  pts.forEach(function (p) { cells[LitterGeo.cellOfXY(p)] = true; });
+  return { pts: pts, cells: cells, miles: LitterGeo.fieldMiles(pts, k.reach) };
 }
 
 // A square and those within `r` squares of it.
@@ -235,7 +271,7 @@ function worldWalks_(counted, rows) {
   rows.forEach(function (s) {
     var id = s.get('collection');
     if (!counted[id] || s.get('discarded') === 'Yes') return;
-    var w = out[id] = out[id] || { id: id, t: 0, walked: {}, weighings: [] };
+    var w = out[id] = out[id] || { id: id, t: 0, walked: {}, weighings: [], track: parseTrack_(counted[id].get('track')), scans: {} };
     var cells = String(s.get('cells')).split(/\s+/).filter(String);
     cells.forEach(function (c) { w.walked[c] = true; });
     var t = s.get('ended') instanceof Date ? s.get('ended').getTime() : 0;
@@ -263,23 +299,58 @@ function pathEvent_(g, w, k, inSeg, piece) {
   return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, walked: w.walked, weighed: weighed };
 }
 
-// The walks that collected a path, in time order: full ones, and pieces
+// What a walk did on a field (S5-P13 part 2, |Q600 (a)): the share of its
+// ground the walk's track scanned, `reach` metres each side, and the pounds of
+// its weighings inside the field (80% inside, or near enough to it, as for a
+// path). `known` as for a path: those
+// weighings' squares, scanning the same reach, cover as much of it as
+// collects it. A walk with no saved track scans from the squares it walked.
+// Or null.
+function fieldEvent_(g, w, k, ground, piece) {
+  if (!w.scans[g.id]) {
+    var track = w.track && w.track.length > 1 ? w.track : null;
+    w.scans[g.id] = track ? LitterGeo.fieldScan(ground.pts, track, k.reach) : ground.pts.map(function (p) {
+      return Object.keys(w.walked).some(function (c) { var m = LitterGeo.centerXY(c); return LitterGeo.dist(p, m) <= k.reach; }) ? 1 : 0;
+    });
+  }
+  var scan = w.scans[g.id], covered = LitterGeo.scanShare(scan);
+  if (!w.t || !covered || (covered < k.fieldCover && !piece)) return null;
+  var lbs = 0, weighed = [];
+  w.weighings.forEach(function (x) {
+    if (!x.cells.length || x.lbs == null) return;
+    if (x.cells.filter(function (c) { return isNear_(ground.cells, c, k.near); }).length / x.cells.length < k.inside) return;
+    lbs += x.lbs;
+    x.cells.forEach(function (c) { weighed.push(LitterGeo.centerXY(c)); });
+  });
+  // A weighed square scans from anywhere in it: its middle, plus half its diagonal.
+  var r = k.reach + LitterGeo.CELL_M * 0.71;
+  var wscan = ground.pts.map(function (p) { return weighed.some(function (m) { return LitterGeo.dist(p, m) <= r; }) ? 1 : 0; });
+  var known = LitterGeo.scanShare(wscan) >= k.fieldCover;
+  return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, scan: scan, wscan: wscan };
+}
+
+// The walks that collected a segment, in time order: full ones, and pieces
 // that add up to one (Q540 (a)): each piece within "Pieces add up within" of
 // the one before, together covering it, at the last piece's time, with all
-// their pounds. Also the pieces still adding up: { events, pending }.
-function pathCollections_(g, walks, k, inSeg) {
-  var all = Object.keys(walks).map(function (id) { return pathEvent_(g, walks[id], k, inSeg, true); }).filter(Boolean).sort(function (a, b) { return a.t - b.t; });
+// their pounds. A path is covered square by square; a field by the share of
+// its ground scanned. Also the pieces still adding up: { events, pending }.
+function segmentCollections_(g, walks, k, ground) {
+  var field = g.kind === 'Field', cover = field ? k.fieldCover : k.cover, inSeg = {};
+  g.squares.forEach(function (c) { inSeg[c] = true; });
+  var all = Object.keys(walks).map(function (id) { return field ? fieldEvent_(g, walks[id], k, ground, true) : pathEvent_(g, walks[id], k, inSeg, true); })
+    .filter(Boolean).sort(function (a, b) { return a.t - b.t; });
   var out = [], group = [];
   var share = function (list, key) {
+    if (field) return LitterGeo.scanShare(list.map(function (e) { return key === 'walked' ? e.scan : e.wscan; }));
     return g.squares.filter(function (c) { return list.some(function (e) { return isNear_(e[key], c, k.near); }); }).length / g.squares.length;
   };
   all.forEach(function (e) {
-    if (e.covered >= k.cover) { group = []; out.push(e); return; }
+    if (e.covered >= cover) { group = []; out.push(e); return; }
     if (group.length && e.t - group[group.length - 1].t > k.piecesH * 3600000) group = [];
     group.push(e);
     var covered = share(group, 'walked');
-    if (covered >= k.cover) {
-      out.push({ id: e.id, t: e.t, lbs: group.reduce(function (s, x) { return s + x.lbs; }, 0), known: share(group, 'weighed') >= k.cover,
+    if (covered >= cover) {
+      out.push({ id: e.id, t: e.t, lbs: group.reduce(function (s, x) { return s + x.lbs; }, 0), known: share(group, 'weighed') >= cover,
         covered: covered, pieces: group.map(function (x) { return x.id; }) });
       group = [];
     }
@@ -287,13 +358,14 @@ function pathCollections_(g, walks, k, inSeg) {
   return { events: out, pending: group, pendingShare: group.length ? share(group, 'walked') : 0 };
 }
 
-// A path segment's walks in time order, through its clock (S5-P13, |Q598):
-// each marked start, pickup (into: the walk its pounds went to), rate,
-// unknown (no rate: some pounds weren't weighed inside it) or reset.
+// A segment's walks in time order, through its clock (S5-P13, |Q598): each
+// marked start, pickup (into: the walk its pounds went to), rate, unknown (no
+// rate: some pounds weren't weighed inside it) or reset. A field's miles are
+// the walk it takes to scan all of it.
 function pathSequence_(g, walks, k) {
-  var inSeg = {};
-  g.squares.forEach(function (c) { inSeg[c] = true; });
-  var found = pathCollections_(g, walks, k, inSeg);
+  var ground = g.kind === 'Field' ? fieldGround_(g, k) : null;
+  var miles = ground ? ground.miles : g.miles;
+  var found = segmentCollections_(g, walks, k, ground);
   var events = found.events;
   var clock = null, carry = 0, carryKnown = true, waiting = [];
   var settle = function (into) { waiting.forEach(function (e) { e.into = into; }); waiting = []; carry = 0; carryKnown = true; };
@@ -303,12 +375,12 @@ function pathSequence_(g, walks, k) {
     e.since = days;
     if (days > k.to) { e.result = 'reset'; settle(e.id); clock = e.t; return; }
     if (days * 24 < k.minGapH) { e.result = 'pickup'; carry += e.lbs; carryKnown = carryKnown && e.known; waiting.push(e); return; }
-    if (e.known && carryKnown && g.miles > 0) { e.result = 'rate'; e.days = days; e.pounds = carry + e.lbs; e.rate = e.pounds / g.miles / days; }
+    if (e.known && carryKnown && miles > 0) { e.result = 'rate'; e.days = days; e.pounds = carry + e.lbs; e.rate = e.pounds / miles / days; }
     else e.result = 'unknown';
     settle(e.id);
     clock = e.t;
   });
-  return { events: events, clock: clock, pending: found.pending, pendingShare: found.pendingShare };
+  return { events: events, clock: clock, pending: found.pending, pendingShare: found.pendingShare, miles: miles, ground: ground };
 }
 
 // Why a walk gives a path segment no rate, for the Not counted column.
@@ -319,31 +391,6 @@ function notCountedWhy_(e, k) {
   if (e.result === 'reset') return 'Rate Reset: more than ' + k.to + ' days after the clock started, so it started the clock again.';
   if (e.result === 'unknown') return 'Not all its pounds were weighed inside the segment.';
   return 'No rate by the ' + h + '-hour rule.';
-}
-
-// A field's rate from one walk: the ground searched both times (Q533), as
-// before; fields become areas next (S5-P13, |Q600).
-function fieldRate_(g, w, counted, rows, k) {
-  var inSeg = {};
-  g.squares.forEach(function (c) { inSeg[c] = true; });
-  var lbs = 0, miles = 0, any = false;
-  w.weighings.forEach(function (x) {
-    if (!x.cells.length || x.lbs == null) return;
-    if (x.cells.filter(function (c) { return isNear_(inSeg, c, k.near); }).length / x.cells.length < k.inside) return;
-    lbs += x.lbs; miles += x.miles; any = true;
-  });
-  if (!any || !(miles > 0)) return null;
-  var started = counted[w.id] && counted[w.id].get('started') instanceof Date ? counted[w.id].get('started').getTime() : 0;
-  var before = cleanedTimes_(counted, w.id, started, rows);
-  var days = [], parts = partsOf_(g, k.part);
-  parts.forEach(function (p) {
-    var t = partTime_(before, p, k.near), age = (w.t - t) / DAY_MS;
-    if (t && p.every(function (c) { return isNear_(w.walked, c, k.near); }) && age >= k.from && age <= k.to) days.push(age);
-  });
-  if (!days.length) return null;
-  var d = mean_(days);
-  return { segment: g.id, collection: w.id, collected: w.t, pounds: round_(lbs, 2), miles: round_(miles, 3), days: round_(d, 2), rate: round_(lbs / miles / d, 3),
-    covered: Math.round(days.length / parts.length * 100) };
 }
 
 // Every rate in one world, measured again by the rules as they are now, and
@@ -357,13 +404,10 @@ function measureWorld_(sim, owner) {
   var k = segmentRules_();
   var made = [], why = {};
   segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).forEach(function (g) {
-    if (g.kind === 'Field') {
-      Object.keys(walks).forEach(function (id) { var m = fieldRate_(g, walks[id], counted, rows, k); if (m) made.push(m); });
-      return;
-    }
-    pathSequence_(g, walks, k).events.forEach(function (e) {
+    var seq = pathSequence_(g, walks, k);
+    seq.events.forEach(function (e) {
       (e.pieces || []).forEach(function (pid) { if (pid !== e.id) why[g.id + '|' + pid] = 'A piece: it adds up with the others to one collection, ending with ' + e.id + ', which holds its pounds.'; });
-      if (e.result === 'rate') made.push({ segment: g.id, collection: e.id, collected: e.t, pounds: round_(e.pounds, 2), miles: round_(g.miles, 3), days: round_(e.days, 2), rate: round_(e.rate, 3), covered: Math.round(e.covered * 100) });
+      if (e.result === 'rate') made.push({ segment: g.id, collection: e.id, collected: e.t, pounds: round_(e.pounds, 2), miles: round_(seq.miles, 3), days: round_(e.days, 2), rate: round_(e.rate, 3), covered: Math.round(e.covered * 100) });
       else why[g.id + '|' + e.id] = notCountedWhy_(e, k);
     });
   });
@@ -410,6 +454,61 @@ function ratesRuleOnce_() {
   props.setProperty('RATES_24H', new Date().toISOString());
 }
 
+// A field's corners from the page: 3 to 60 of them, making ground of at
+// least one point and at most about a square mile. Throws if not.
+function fieldCorners_(list) {
+  var corners = (Array.isArray(list) ? list : []).filter(function (p) {
+    return Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]) && Math.abs(p[0]) <= 90 && Math.abs(p[1]) <= 180 && p[0] !== 0;
+  }).map(function (p) { return [Number(p[0]), Number(p[1])]; });
+  if (!corners.length) return [];
+  if (corners.length < 3) throw new Error('A field needs at least 3 corners.');
+  if (corners.length > 60) throw new Error('A field can have at most 60 corners.');
+  var pts = LitterGeo.fieldPoints({ outline: corners });
+  if (!pts.length) throw new Error('Those corners hold no ground: spread them out a little.');
+  if (LitterGeo.fieldArea(pts) > LitterGeo.MILE_M * LitterGeo.MILE_M) throw new Error('That field is bigger than a square mile: draw a smaller one.');
+  return corners;
+}
+
+// A Head Builder, in Admin Mode, draws a field's corners again (S5-P13 part
+// 2): its ground, squares and miles follow, and every walk's rates are
+// measured again by the new ground.
+function fieldOutline_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (account.rank !== 'Head Builder') throw new Error('Only a Head Builder can draw a field again.');
+  var corners = fieldCorners_(req.outline);
+  if (!corners.length) throw new Error('Draw the field\'s corners first.');
+  return withLock_(function () {
+    var g = segmentsAll_().filter(function (x) { return x.id === clean_(req.segmentId, 20); })[0];
+    if (!g || g.kind !== 'Field') throw new Error('That isn\'t a field, or isn\'t here any more.');
+    var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
+    var sheet = getDb_().getSheetByName(TABS.segments.name);
+    sheet.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(Object.keys(ground.cells).join(' '));
+    sheet.getRange(g.row, SEGMENT_COL.miles).setValue(round_(ground.miles, 2));
+    sheet.getRange(g.row, SEGMENT_COL.outline).setNumberFormat('@').setValue(outlineText_(corners));
+    logChange_(account.email, 'Segment', g.id, 'Outline', g.outline.length ? g.outline.length + ' corners' : g.squares.length + ' squares', corners.length + ' corners');
+    measureWorld_(false, '');
+    return { segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id) };
+  });
+}
+
+// Once (S5-P13 part 2): each field's miles become the walk it takes to scan
+// all of it, and every walk's rates are measured again with fields as areas.
+function fieldsAreaOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('FIELDS_AREA')) return;
+  var k = segmentRules_(), sheet = getDb_().getSheetByName(TABS.segments.name);
+  segmentsAll_().filter(function (g) { return g.kind === 'Field' && g.squares.length; }).forEach(function (g) {
+    var miles = round_(fieldGround_(g, k).miles, 2);
+    if (miles !== g.miles) { sheet.getRange(g.row, SEGMENT_COL.miles).setValue(miles); logChange_('Fields as areas', 'Segment', g.id, 'Miles', g.miles, miles); }
+  });
+  measureWorld_(false, '');
+  var owners = {};
+  readRows_(TABS.collections).forEach(function (q) { if (q.get('simulated') === 'Yes') owners[q.get('account')] = true; });
+  Object.keys(owners).forEach(function (a) { measureWorld_(true, a); });
+  props.setProperty('FIELDS_AREA', new Date().toISOString());
+}
+
 /* ── What the page shows ── */
 
 // Every accepted segment with its rate, confidence, whether it's due, and
@@ -443,18 +542,17 @@ function segmentSummaries_(sim, accountId) {
     var ages = parts.map(function (p) { var t = partTime_(cleaned, p, k.near); return t ? (now - t) / DAY_MS : null; });
     var known = ages.filter(function (a) { return a != null; });
     var d = mean_(known);
-    // A path: days since its clock started (S5-P13), not the parts' average;
-    // Finish it: the share cleaned since then by walks that didn't collect all of it.
+    // Days since its clock started (S5-P13), not the parts' average, for a
+    // path and, as an area, a field (part 2). Finish it: the share cleaned
+    // (a field: scanned) since then by walks that didn't collect all of it.
     var finish = 0, finishLeft = null;
-    if (g.kind !== 'Field') {
-      var seq = pathSequence_(g, walks, k);
-      d = seq.clock ? (now - seq.clock) / DAY_MS : null;
-      // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
-      var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;
-      if (lastPiece && now - lastPiece <= k.piecesH * 3600000 && seq.pendingShare >= k.finishFrom) {
-        finish = Math.round(seq.pendingShare * 100);
-        finishLeft = round_((k.piecesH * 3600000 - (now - lastPiece)) / 3600000, 1);
-      }
+    var seq = pathSequence_(g, walks, k);
+    d = seq.clock ? (now - seq.clock) / DAY_MS : null;
+    // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
+    var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;
+    if (lastPiece && now - lastPiece <= k.piecesH * 3600000 && seq.pendingShare >= k.finishFrom) {
+      finish = Math.round(seq.pendingShare * 100);
+      finishLeft = round_((k.piecesH * 3600000 - (now - lastPiece)) / 3600000, 1);
     }
     // Partly cleaned (Q532): the parts grouped by the day they were cleaned.
     var byDay = {};
@@ -465,10 +563,10 @@ function segmentSummaries_(sim, accountId) {
       return { pct: Math.round(byDay[key].length / parts.length * 100), dir: directionOf_(g.squares, sq), days: key === 'never' ? null : Number(key) };
     }).sort(function (a, b) { return (a.days == null ? 1e9 : a.days) - (b.days == null ? 1e9 : b.days); });
     var lv = level(recent.length);
-    return { id: g.id, name: g.name, kind: g.kind, squares: g.squares, miles: g.miles,
+    return { id: g.id, name: g.name, kind: g.kind, squares: g.squares, miles: round_(seq.miles, 3), outline: g.kind === 'Field' ? g.outline : [],
       rate: shows === 'Average' ? avg : med, median: med == null ? null : round_(med, 3), average: avg == null ? null : round_(avg, 3), shows: shows,
       count: recent.length, confidence: names[lv], level: lv, arrow: recent.length > earlier ? 'up' : recent.length < earlier ? 'down' : 'level',
-      due: d != null && (g.kind !== 'Field' || known.length >= k.cover * parts.length) && d >= k.from && d <= k.to, partly: groups.length > 0, finish: finish, finishLeft: finishLeft,
+      due: d != null && d >= k.from && d <= k.to, partly: groups.length > 0, finish: finish, finishLeft: finishLeft,
       days: d == null ? null : round_(d, 1), groups: groups,
       // For The Priority Segment List (S5-P10): days left before it's past
       // "Segment due until", and whether it's past it already.

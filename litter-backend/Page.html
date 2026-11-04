@@ -1189,6 +1189,89 @@ var LitterGeo = (function () {
     return p.x >= c.j * CELL_M && p.x <= (c.j + 1) * CELL_M && p.y >= c.i * CELL_M && p.y <= (c.i + 1) * CELL_M;
   }
 
+  /* ── Fields as areas (S5-P13 part 2, |Q600 (a)) ── */
+
+  // A field's ground, as points about 5 m apart (half a square): inside its
+  // outline, [[lat, lon], …] with the corners in order, when it has one; or
+  // else inside its squares, 4 to a square. Points are { x, y } in metres.
+  var FIELD_STEP = CELL_M / 2;
+  function inPolygon(p, poly) {
+    var inside = false;
+    for (var i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      var a = poly[i], b = poly[j];
+      if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  }
+  function fieldPoints(field) {
+    var out = [];
+    var poly = (field.outline || []).map(function (c) { return xy(c[0], c[1]); });
+    if (poly.length >= 3) {
+      var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+      poly.forEach(function (p) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); });
+      // On the same half-square grid everywhere, so a field's points never move.
+      for (var i = Math.floor(y0 / FIELD_STEP); i * FIELD_STEP <= y1; i++) {
+        for (var j = Math.floor(x0 / FIELD_STEP); j * FIELD_STEP <= x1; j++) {
+          var p = { x: (j + 0.5) * FIELD_STEP, y: (i + 0.5) * FIELD_STEP };
+          if (inPolygon(p, poly)) out.push(p);
+        }
+      }
+      return out;
+    }
+    (field.squares || []).forEach(function (id) {
+      var c = rowCol(id);
+      for (var di = 0; di < 2; di++) for (var dj = 0; dj < 2; dj++) out.push({ x: (c.j * 2 + dj + 0.5) * FIELD_STEP, y: (c.i * 2 + di + 0.5) * FIELD_STEP });
+    });
+    return out;
+  }
+  // A field's area in square metres, and the miles a walk takes to scan all
+  // of it, scanning `reach` metres each side (its area ÷ twice the reach).
+  function fieldArea(points) { return points.length * FIELD_STEP * FIELD_STEP; }
+  function fieldMiles(points, reach) { return reach > 0 ? fieldArea(points) / (2 * reach) / MILE_M : 0; }
+  // Metres from p to the line a-b.
+  function segDist(p, a, b) {
+    var dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
+    var t = len ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len)) : 0;
+    var x = a.x + t * dx - p.x, y = a.y + t * dy - p.y;
+    return Math.sqrt(x * x + y * y);
+  }
+  // Which of a field's points a walk scanned: those within `reach` metres of
+  // its track while walking ([lat, lon] points; a paused stretch, [lat, lon,
+  // 1], scans nothing). Returns an array of 1s and 0s, one for each point.
+  function fieldScan(points, track, reach) {
+    var out = points.map(function () { return 0; });
+    if (!points.length) return out;
+    var x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    points.forEach(function (p) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); });
+    x0 -= reach; x1 += reach; y0 -= reach; y1 += reach;
+    var lines = [];
+    trackRuns(track).forEach(function (run) {
+      if (run.paused) return;
+      for (var k = 1; k < run.pts.length; k++) {
+        var a = xy(run.pts[k - 1][0], run.pts[k - 1][1]), b = xy(run.pts[k][0], run.pts[k][1]);
+        if (Math.max(a.x, b.x) < x0 || Math.min(a.x, b.x) > x1 || Math.max(a.y, b.y) < y0 || Math.min(a.y, b.y) > y1) continue;
+        lines.push([a, b]);
+      }
+    });
+    if (!lines.length && track && track.length === 1) { var q = xy(track[0][0], track[0][1]); lines.push([q, q]); }
+    points.forEach(function (p, i) {
+      for (var k = 0; k < lines.length; k++) if (segDist(p, lines[k][0], lines[k][1]) <= reach) { out[i] = 1; return; }
+    });
+    return out;
+  }
+  // The share of a field scanned by one or more scans: 0 to 1.
+  function scanShare(scans) {
+    var list = scans.length && Array.isArray(scans[0]) ? scans : [scans];
+    var n = list[0] ? list[0].length : 0, hit = 0;
+    for (var i = 0; i < n; i++) if (list.some(function (s) { return s[i]; })) hit++;
+    return n ? hit / n : 0;
+  }
+  // A point back as a square of ground, [[south, west], [north, east]], for shading.
+  function stepBounds(p) {
+    var h = FIELD_STEP / 2, sw = toLatLon({ x: p.x - h, y: p.y - h }), ne = toLatLon({ x: p.x + h, y: p.y + h });
+    return [[sw.lat, sw.lon], [ne.lat, ne.lon]];
+  }
+
   // The cells a straight line passes through, in order.
   function lineCells(a, b) {
     var out = [], n = Math.max(1, Math.ceil(dist(a, b) / 10));
@@ -1548,7 +1631,9 @@ var LitterGeo = (function () {
   return {
     trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
-    cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, cellOfXY: cellOfXY,
+    FIELD_STEP: FIELD_STEP, inPolygon: inPolygon, fieldPoints: fieldPoints, fieldArea: fieldArea, fieldMiles: fieldMiles, segDist: segDist,
+    fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

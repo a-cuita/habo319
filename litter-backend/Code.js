@@ -88,9 +88,9 @@ var TABS = {
   // rates in the next tab, a simulated walk's marked Simulated (Q529).
   segments: {
     name: 'Segments',
-    header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note', 'Kind'],
-    widths: [90, 220, 90, 150, 80, 420, 70, 80, 260, 70],
-    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@' }
+    header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note', 'Kind', 'Outline'],
+    widths: [90, 220, 90, 150, 80, 420, 70, 80, 260, 70, 420],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 11: '@' }
   },
   rates: {
     name: 'Segment rates',
@@ -179,6 +179,7 @@ function actions_() {
     planDelete: planDelete_,
     segmentPropose: segmentPropose_,
     measureAgain: measureAgain_,
+    fieldOutline: fieldOutline_,
     simShare: simShare_,
     questTick: questTick_,
     addLitterType: addLitterType_,
@@ -262,7 +263,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('RATES_24H');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -300,6 +301,7 @@ function ensureSchema_(force) {
     questsOnce_();
     levelsOnce_();
     ratesRuleOnce_();
+    fieldsAreaOnce_();
   });
   cache.put(cacheKey, '1', 600);
 }
