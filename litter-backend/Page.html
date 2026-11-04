@@ -5549,7 +5549,7 @@ window.LitterSettings = function (app) {
     d.id = 'set-' + g.key;
     d.open = g.key === openKey;
     d.appendChild(el('summary', 'lt-set-head', g.title));
-    d.appendChild(el('p', 'muted small', 'Changed by a ' + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
+    d.appendChild(el('p', 'muted small', 'Changed by ' + (/^[AEIOU]/.test(g.rank) ? 'an ' : 'a ') + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
     // One section open at a time.
     d.addEventListener('toggle', function () {
       if (!d.open) { if (openKey === g.key) openKey = ''; return; }

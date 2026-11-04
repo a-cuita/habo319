@@ -63,6 +63,7 @@ function settingGroups_() {
   ];
 }
 
+function aRank_(rank) { return (/^[AEIOU]/.test(rank) ? 'an ' : 'a ') + rank; }
 function rankAtLeast_(rank, need) { return RANKS.indexOf(rank) >= 0 && RANKS.indexOf(rank) >= RANKS.indexOf(need); }
 
 // The groups this account may change, with each setting's value now.
@@ -91,7 +92,7 @@ function settingsSave_(req) {
   var account = requireAccount_(req.token);
   var g = settingGroups_().filter(function (x) { return x.key === String(req.group || ''); })[0];
   if (!g) throw new Error('That isn\'t a group of settings.');
-  if (!rankAtLeast_(account.rank, g.rank)) throw new Error(g.title + ' can be changed by a ' + g.rank + (g.rank === 'Head Builder' ? '' : ' or above') + '.');
+  if (!rankAtLeast_(account.rank, g.rank)) throw new Error(g.title + ' can be changed by ' + aRank_(g.rank) + (g.rank === 'Head Builder' ? '' : ' or above') + '.');
   var values = req.values && typeof req.values === 'object' ? req.values : {};
   var out = [];
   g.items.forEach(function (it) {
@@ -143,4 +144,40 @@ function settingValue_(it, v) {
     return lines.join('\n');
   }
   throw new Error(label + ' can\'t be changed here.');
+}
+
+// What it does (S5-P13, |C762, Nov 4): a third column in the Settings tab,
+// explaining each setting in plain words, with where it's changed. Filled
+// in only where the cell is blank, so a note of your own is kept.
+function settingNotes_() {
+  var out = {};
+  var sheetOnly = ' Changed here in the Sheet only.';
+  [[SETTING_WAIVER_TITLE, 'The waiver\'s title, above its words at sign-up and on each signed copy.'],
+   [SETTING_WAIVER_TEXT, 'The waiver\'s words, which every player signs at sign-up. A change to them, or to the title, asks every player to sign again.'],
+   [SETTING_EMAILS_FROM, 'The address the sign-up codes and the signed waivers are emailed from.'],
+   [SETTING_CHECKIN_SHEET, 'The volunteer check-in\'s Sheet: a new account is matched to its volunteer there by email, and a collection to the event it was during.'],
+   [SETTING_SIGNATURES_FOLDER, 'The Drive folder each signed waiver is saved to. Blank: one is made the first time.'],
+   [SETTING_PUBLIC_URL, 'The litter page\'s public address, for HABO\'s records. Nothing in the app reads it today.']
+  ].forEach(function (x) { out[x[0]] = x[1] + sheetOnly; });
+  settingGroups_().forEach(function (g) {
+    g.items.forEach(function (it) {
+      var unit = it[3] === 'number' && it[4] ? ' In ' + it[4] + '.' : '';
+      out[it[0]] = it[2] + unit + ' In Admin Mode: Settings, ' + g.title + ', by ' + aRank_(g.rank) + (g.rank === 'Head Builder' ? '' : ' or above') + '.';
+    });
+  });
+  return out;
+}
+
+function fillSettingNotes_(ss) {
+  var sheet = ss.getSheetByName(TABS.settings.name);
+  var last = sheet.getLastRow();
+  if (last < 2) return;
+  var rows = sheet.getRange(2, 1, last - 1, 3).getValues(), notes = settingNotes_(), changed = false;
+  var col = rows.map(function (r) {
+    var note = notes[String(r[0]).trim()];
+    if (note && !String(r[2]).trim()) { changed = true; return [note]; }
+    return [r[2]];
+  });
+  if (changed) sheet.getRange(2, 3, col.length, 1).setWrap(true).setValues(col);
+  settingsMemo_ = null;
 }

@@ -18,8 +18,9 @@ var SERVICE_NAME = 'HABO litter page';
 var TABS = {
   settings: {
     name: 'Settings',
-    header: ['Setting', 'Value'],
-    widths: [220, 640]
+    // What it does (S5-P13, |C762): each setting explained, filled in where it's blank.
+    header: ['Setting', 'Value', 'What it does'],
+    widths: [220, 640, 420]
   },
   // One row per litter tracking account (Q257, Q262): set up once, on the
   // litter page, the first time someone opens it (Q263), with an email and
@@ -323,6 +324,7 @@ function ensureSchema_(force) {
     levelsOnce_();
     ratesRuleOnce_();
     fieldsAreaOnce_();
+    fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
 }
