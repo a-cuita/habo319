@@ -485,6 +485,12 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 /* Fields as areas (S5-P13 part 2, |Q600 (a)): how much of each field your track scanned. */
 .lt-scans { margin: 10px 0 14px; }
 .lt-scan-line { font-weight: 700; margin: 2px 0; }
+/* A field's corners, tapped on a map (S5-P13 part 2). */
+.lt-corners { margin: 8px 0; }
+.lt-corners-map { height: 280px; border-radius: var(--radius-sm); border: 1px solid var(--border); margin: 6px 0; }
+.lt-corners-row { display: flex; gap: 8px; }
+.lt-corners-row .btn { flex: 1; min-height: 40px; padding: 8px 10px; margin: 0; }
+.lt-field-redraw { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -4303,6 +4309,8 @@ window.LitterMap = function (app) {
       var box = segCard({ id: g.id, kind: 'public', name: g.name, cells: g.squares, facts: facts });
       var mine = submitted[g.id];
       if (mine) box.appendChild(el('p', 'lt-plan-seg', 'Submitted by you' + (mine.proposed ? ' on ' + new Date(mine.proposed).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '')));
+      // A field's corners drawn again, by a Head Builder in Admin Mode (S5-P13 part 2).
+      if (g.kind === 'Field' && app.builderMode && app.builderMode() && !selecting) box.appendChild(redrawButton(g, box));
       pubBox.appendChild(box);
     });
     $('my-plans').classList.toggle('selecting', selecting);
@@ -4311,6 +4319,38 @@ window.LitterMap = function (app) {
     showBar();
     // The small maps and the street names only while the screen is open.
     if (!$('v-plans').hidden) { setTimeout(drawThumbs, 0); describeStreets(); }
+  }
+
+  function redrawButton(g, box) {
+    var b = el('button', 'btn btn-secondary lt-field-redraw', 'Draw this field again');
+    b.type = 'button';
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      if (box.querySelector('.lt-redraw')) return;
+      var f = el('div', 'lt-redraw lt-propose');
+      var drawer = cornerDrawer(g.squares, g.outline || []);
+      f.appendChild(drawer.box);
+      var save = el('button', 'btn btn-primary lt-redraw-save', 'Save'), no = el('button', 'btn btn-secondary lt-redraw-cancel', 'Cancel');
+      save.type = 'button'; no.type = 'button';
+      no.addEventListener('click', function () { f.parentNode.removeChild(f); b.hidden = false; });
+      save.addEventListener('click', function () {
+        var corners = drawer.corners();
+        if (corners.length < 3) return app.notice('Tap at least 3 corners of the field on the map first.');
+        save.disabled = true;
+        app.api('fieldOutline', { token: app.myToken(), segmentId: g.id, outline: corners }).then(function (d) {
+          realSegs = d.segments || realSegs;
+          simSegs = d.simSegments || simSegs;
+          drawSegScreen();
+          drawSegments();
+          app.notice(g.name + ' is drawn again, with ' + corners.length + ' corners. Every walk\'s rates were measured again on its new ground.');
+        }, function (err) { save.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+      });
+      f.appendChild(save); f.appendChild(no);
+      b.hidden = true;
+      box.appendChild(f);
+      drawer.open();
+    });
+    return b;
   }
 
   function segCard(x) {
@@ -4390,7 +4430,58 @@ window.LitterMap = function (app) {
     Array.prototype.forEach.call(document.querySelectorAll('.lt-seg-more'), function (m) { m.setAttribute('aria-expanded', 'false'); });
   }
 
-  // Submit as Public Segment: its name, and Path or Field (Oct 31, field first).
+  /* ── A field's corners (S5-P13 part 2, |Q600 (a)) ── */
+
+  // A map to tap a field's corners on, in order around it; the shape closes
+  // itself. `guide`: squares shown faintly to draw around; `start`: corners
+  // already drawn. Returns { box, open, corners }.
+  function cornerDrawer(guide, start) {
+    var box = el('div', 'lt-corners');
+    box.appendChild(el('p', 'small', 'Tap each corner of the field on the map, in order around it. The shape closes itself.'));
+    var div = el('div', 'lt-corners-map');
+    box.appendChild(div);
+    var row = el('div', 'lt-corners-row');
+    var undo = el('button', 'btn btn-secondary lt-corners-undo', 'Undo corner'), clear = el('button', 'btn btn-secondary lt-corners-clear', 'Clear');
+    undo.type = 'button'; clear.type = 'button';
+    row.appendChild(undo); row.appendChild(clear);
+    box.appendChild(row);
+    var count = el('p', 'muted small lt-corners-count', '');
+    box.appendChild(count);
+    var corners = (start || []).map(function (c) { return [c[0], c[1]]; }), m = null, shape = null, dots = null;
+    var colour = darkColours() ? darkColours().plan : '#0e7490';
+    function redraw() {
+      count.textContent = !corners.length ? 'No corners yet.' : corners.length + (corners.length === 1 ? ' corner' : ' corners') + (corners.length < 3 ? ': 3 or more make a field.' : '.');
+      undo.disabled = clear.disabled = !corners.length;
+      if (!m) return;
+      dots.clearLayers();
+      if (shape) { shape.remove(); shape = null; }
+      if (corners.length >= 3) shape = L.polygon(corners, { color: colour, weight: 3, fillColor: colour, fillOpacity: 0.25, interactive: false, className: 'lt-corners-shape' }).addTo(m);
+      else if (corners.length === 2) shape = L.polyline(corners, { color: colour, weight: 3, interactive: false }).addTo(m);
+      corners.forEach(function (c) { L.circleMarker(c, { radius: 6, color: colour, weight: 2, fillColor: '#fff', fillOpacity: 1, interactive: false, className: 'lt-corner' }).addTo(dots); });
+    }
+    function open() {
+      if (m || !window.L || !div.offsetWidth) return;
+      m = L.map(div, { attributionControl: false });
+      L.tileLayer(TILES, { maxZoom: 19 }).addTo(m);
+      var b = L.latLngBounds([]);
+      (guide || []).forEach(function (c) {
+        L.rectangle(G.cellBounds(c), { stroke: false, fillColor: '#6b7280', fillOpacity: 0.25, interactive: false, className: 'lt-corners-guide' }).addTo(m);
+        b.extend(G.cellBounds(c));
+      });
+      corners.forEach(function (c) { b.extend(c); });
+      dots = L.layerGroup().addTo(m);
+      if (b.isValid()) m.fitBounds(b, { maxZoom: 19, padding: [20, 20] }); else m.setView([32.3668, -86.3], 16);
+      m.on('click', function (e) { if (corners.length >= 60) return; corners.push([e.latlng.lat, e.latlng.lng]); redraw(); });
+      redraw();
+    }
+    undo.addEventListener('click', function () { corners.pop(); redraw(); });
+    clear.addEventListener('click', function () { corners = []; redraw(); });
+    redraw();
+    return { box: box, open: function () { setTimeout(open, 0); }, corners: function () { return corners.slice(); } };
+  }
+
+  // Submit as Public Segment: its name, and Path or Field (Oct 31, field
+  // first); a field's corners drawn on a map (S5-P13 part 2).
   function submitForm(p, box) {
     if (box.querySelector('.lt-propose')) return;
     var f = el('div', 'lt-propose');
@@ -4402,12 +4493,18 @@ window.LitterMap = function (app) {
     ['Path', 'Field'].forEach(function (k) { var o = el('option', null, k); o.value = k; sel.appendChild(o); });
     n2.appendChild(l2); n2.appendChild(sel); f.appendChild(n2);
     f.appendChild(el('p', 'muted small', 'Path: a street, sidewalk or trail. Field: open ground, like a lawn or a park.'));
+    var drawer = cornerDrawer(p.cells, []);
+    drawer.box.hidden = true;
+    f.appendChild(drawer.box);
+    sel.addEventListener('change', function () { drawer.box.hidden = sel.value !== 'Field'; if (sel.value === 'Field') drawer.open(); });
     var go = el('button', 'btn btn-primary lt-propose-go', 'Submit'), no = el('button', 'btn btn-secondary lt-propose-cancel', 'Cancel');
     go.type = 'button'; no.type = 'button';
     no.addEventListener('click', function () { f.parentNode.removeChild(f); });
     go.addEventListener('click', function () {
+      var corners = sel.value === 'Field' ? drawer.corners() : [];
+      if (sel.value === 'Field' && corners.length < 3) return app.notice('Tap at least 3 corners of the field on the map first.');
       go.disabled = true;
-      app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: inp.value, kind: sel.value }).then(function (d) {
+      app.api('segmentPropose', { token: app.myToken(), planId: p.id, name: inp.value, kind: sel.value, outline: corners }).then(function (d) {
         drawPlans(d.plans);
         app.notice('Submitted. Once HABO\'s staff accept it, it\'s a public segment: anyone can collect it again, and its accumulation rate builds.');
       }, function (err) { go.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
