@@ -217,6 +217,34 @@ window.LitterCollect = function (app) {
     }, function () { /* no fix this minute */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   }, 15000);
 
+  // The live dot (S5-U17, |Q541 (a)): while the collecting screen is open and
+  // the phone awake, where you are, following its GPS; and the app knows the
+  // moment you step onto a due segment. Off the rest of the time, to save
+  // the battery.
+  var dotWatch = null, dotFirst = true;
+  function dotWanted() { return !!(c && !c.ended && !c.sim && !c.practice && !$('v-collect').hidden && !document.hidden && navigator.geolocation && map); }
+  function syncDot() {
+    if (dotWanted()) {
+      if (dotWatch != null) return;
+      dotFirst = true;
+      dotWatch = navigator.geolocation.watchPosition(function (p) {
+        if (!dotWanted()) return syncDot();
+        var at = [p.coords.latitude, p.coords.longitude];
+        layers.here.clearLayers();
+        if (p.coords.accuracy < 200) L.circle(at, { radius: p.coords.accuracy, stroke: false, fillColor: '#2563eb', fillOpacity: 0.12, interactive: false }).addTo(layers.here);
+        L.circleMarker(at, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false, className: 'lt-here-dot' }).addTo(layers.here);
+        if (dotFirst) { dotFirst = false; map.setView(at, Math.max(map.getZoom(), 17)); }
+        segmentPrompt({ lat: at[0], lon: at[1], acc: p.coords.accuracy });
+      }, function () { /* no fix just now */ }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+    } else if (dotWatch != null) {
+      navigator.geolocation.clearWatch(dotWatch);
+      dotWatch = null;
+      if (layers) layers.here.clearLayers();
+    }
+  }
+  setInterval(syncDot, 3000);
+  document.addEventListener('visibilitychange', syncDot);
+
   function showQueue() {
     var n = c ? c.queue.filter(function (q) { return q.type === 'stretch'; }).length : 0;
     $('cl-queue').textContent = n ? (n === 1 ? '1 litter pulse is' : n + ' litter pulses are') + ' kept on this phone, waiting for signal.' : '';
@@ -598,6 +626,7 @@ window.LitterCollect = function (app) {
     drawCells([], c && c.lastCell, null);
     drawSim();
     drawLiveFields();
+    syncDot();
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
@@ -643,7 +672,7 @@ window.LitterCollect = function (app) {
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     map.createPane('ltPlan').style.zIndex = 450;   // the plan above everything else (S5-P9, |C685)
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map), here: L.layerGroup().addTo(map) };
     map.on('click', function (e) {
       lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
       if (simDraws()) return simAdd(lastTap);
@@ -697,6 +726,12 @@ window.LitterCollect = function (app) {
     if (cells.length) L.polyline(G.outline(G.grow(cells)), { color: colour, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
     (plan && plan.stretches || []).forEach(function (s) {
       (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
+    });
+    // Weigh-in pins at each end of every due segment in it (S5-U17, |Q566 (a)).
+    G.weighPins(segs(), cells).forEach(function (pin) {
+      var at = G.cellCenter(pin.cell);
+      // Taps go through it to the map, as a simulated walk draws by tapping (its words are on it).
+      L.marker([at.lat, at.lon], { icon: G.pinIcon(), interactive: false, keyboard: false, title: 'Weigh-in location: ' + pin.name }).addTo(layers.plan);
     });
   }
   function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
@@ -1272,31 +1307,198 @@ window.LitterCollect = function (app) {
     drawReadings();
   }
 
-  // Ground you collected off your plan (S5-P9, Q545, Q560): right after the
-  // walk, an offer to keep it as a private segment, to use again. Three
-  // squares or more, a square away from the plan's squares.
+  // Ground you collected off your plan (S5-P9, Q545, Q560), in pieces (S5-U17,
+  // |C698, |Q587, |M711): from the GPX track, or the squares walked without
+  // one, the ground a square or more off the plan, split where the track
+  // turned around, paused, or where a weighing ended, with no set distance.
+  // A piece walked back along itself is one piece. Each piece: keep it as a
+  // private segment, with its own name, or ask an admin to add it to a
+  // public segment it touches; or leave it. Tap Split, then the map, to split
+  // one; tick two or more and Join them.
   function offPlanCells() {
     var plan = summary && summary.planCells || [];
     if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
     return allCells().filter(function (x) { return !nearSquare(plan, x); });
   }
-  function showOffPlan() {
-    var off = offPlanCells();
-    $('sm-offplan').hidden = off.length < 3 || !!summary.offSaved;
-    $('sm-offplan-err').textContent = '';
-    if (off.length >= 3) $('sm-offplan-say').textContent = 'You collected ' + off.length + ' squares off your plan. Keep them as a private segment, to put in a plan again?';
+  function planCellsOf(plan) {
+    var out = [];
+    String(plan || '').split(/\s+/).filter(String).forEach(function (id) {
+      var g = (segments || []).filter(function (x) { return x.id === id; })[0];
+      var p = !g && account && (account.plans || []).filter(function (x) { return x.id === id; })[0];
+      ((g && g.squares) || (p && p.cells) || []).forEach(function (x) { if (out.indexOf(x) === -1) out.push(x); });
+    });
+    return out;
   }
-  function saveOffPlan(button) {
-    var off = offPlanCells();
-    if (off.length < 3) return;
-    app.busy(button, 'sm-offplan-err', function () {
-      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: off, turns: [], miles: planMiles({ cells: off }) }], name: $('sm-offplan-name').value } }).then(function (d) {
-        summary.offSaved = true;
+  var PIECE_COLOURS = ['#c2410c', '#0e7490', '#7c3aed', '#15803d', '#be123c', '#a16207'];
+  function offPieces() {
+    var plan = summary && summary.planCells || [];
+    if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
+    var off = function (cell) { return !nearSquare(plan, cell); };
+    var track = summary.track && summary.track.length > 1 ? summary.track : null;
+    if (!track) { var all = offPlanCells(); return all.length >= 3 ? [{ cells: all }] : []; }
+    var weighEnds = {};
+    summary.stretches.forEach(function (st) { if (!st.discarded && st.cells.length) weighEnds[st.cells[st.cells.length - 1]] = true; });
+    var pts = track.map(function (p) { return { xy: G.xy(p[0], p[1]), paused: !!p[2] }; });
+    var runs = [], run = null, lastSplit = null;
+    var close = function () { if (run && run.cells.length) runs.push(run); run = null; };
+    var add = function (cell) { if (off(cell) && run.cells[run.cells.length - 1] !== cell && run.cells.indexOf(cell) === -1) run.cells.push(cell); };
+    for (var i = 0; i < pts.length; i++) {
+      var cell = G.cellOfXY(pts[i].xy);
+      if (pts[i].paused || !off(cell)) { close(); continue; }
+      if (run && turnsAround(pts, i) && (!lastSplit || G.dist(lastSplit, pts[i].xy) > 30)) { close(); lastSplit = pts[i].xy; }
+      if (!run) run = { cells: [] };
+      if (i > 0 && !pts[i - 1].paused && run.cells.length) G.lineCells(pts[i - 1].xy, pts[i].xy).forEach(add); else add(cell);
+      if (weighEnds[cell] && run.cells.length > 1) close();
+    }
+    close();
+    // A piece walked back along an earlier one (most of it within a square of it) is part of it.
+    var pieces = [];
+    runs.forEach(function (r) {
+      var back = pieces.filter(function (q) { return r.cells.filter(function (x) { return nearSquare(q.cells, x); }).length >= 0.6 * r.cells.length; })[0];
+      if (back) r.cells.forEach(function (x) { if (back.cells.indexOf(x) === -1) back.cells.push(x); });
+      else pieces.push({ cells: r.cells.slice() });
+    });
+    return pieces.filter(function (q) { return q.cells.length >= 3; });
+  }
+  // Whether the track turns around at point i: its way over the 20 m before
+  // and the 20 m after point the opposite way (more than 135 degrees apart).
+  function turnsAround(pts, i) {
+    var a = null, b = null, k;
+    for (k = i - 1; k >= 0; k--) if (G.dist(pts[k].xy, pts[i].xy) >= 20) { a = pts[k].xy; break; }
+    for (k = i + 1; k < pts.length; k++) if (G.dist(pts[k].xy, pts[i].xy) >= 20) { b = pts[k].xy; break; }
+    if (!a || !b) return false;
+    var ux = pts[i].xy.x - a.x, uy = pts[i].xy.y - a.y, vx = b.x - pts[i].xy.x, vy = b.y - pts[i].xy.y;
+    var cos = (ux * vx + uy * vy) / Math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy));
+    return cos < Math.cos(135 * Math.PI / 180);
+  }
+  // The public segments a piece touches (a square or less from it).
+  function touching(cells) {
+    return (segments || []).filter(function (g) { return g.squares && g.squares.some(function (x) { return nearSquare(cells, x); }); });
+  }
+  function piecesNow() {
+    if (summary.piecesFor !== summary.track) { summary.piecesFor = summary.track; summary.pieces = offPieces(); summary.splitting = -1; }
+    return summary.pieces || [];
+  }
+  function showOffPlan() {
+    var pieces = piecesNow();
+    var open = pieces.filter(function (q) { return !q.done; });
+    $('sm-offplan').hidden = !pieces.length;
+    $('sm-offplan-err').textContent = '';
+    if (!pieces.length) return;
+    $('sm-offplan-say').textContent = pieces.length === 1 ? 'You walked 1 piece of ground off your plan. Keep it as a private segment, to put in a plan again?'
+      : 'You walked ' + pieces.length + ' pieces of ground off your plan, split where your track turned around, paused, or where you weighed. Keep each as a private segment, to put in a plan again?';
+    $('sm-pieces-hint').textContent = summary.splitting >= 0 ? 'Tap the map where piece ' + (summary.splitting + 1) + ' should split.' : open.length > 1 ? 'Tick two or more to join them into one.' : '';
+    var list = $('sm-pieces');
+    list.textContent = '';
+    pieces.forEach(function (q, n) { list.appendChild(pieceCard(q, n)); });
+    $('sm-pieces-join').hidden = pieces.filter(function (q) { return q.ticked && !q.done; }).length < 2;
+    drawPieces();
+  }
+  function pieceCard(q, n) {
+    var colour = PIECE_COLOURS[n % PIECE_COLOURS.length];
+    var box = document.createElement('div');
+    box.className = 'lt-piece' + (q.done ? ' done' : '');
+    box.id = 'sm-piece-' + n;
+    box.style.borderLeftColor = colour;
+    var head = document.createElement('label');
+    head.className = 'lt-piece-head';
+    if (!q.done) {
+      var tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.className = 'lt-piece-tick'; tick.checked = !!q.ticked;
+      tick.addEventListener('change', function () { q.ticked = tick.checked; $('sm-pieces-join').hidden = piecesNow().filter(function (x) { return x.ticked && !x.done; }).length < 2; });
+      head.appendChild(tick);
+    }
+    head.appendChild(document.createTextNode(' Piece ' + (n + 1) + ' · ' + q.cells.length + ' squares · ' + round(planMiles({ cells: q.cells }), 2) + ' mi'));
+    box.appendChild(head);
+    if (q.done) { var d = document.createElement('p'); d.className = 'small lt-piece-done'; d.textContent = q.done; box.appendChild(d); return box; }
+    var name = document.createElement('input');
+    name.className = 'lt-piece-name'; name.maxLength = 60; name.placeholder = 'Name it (optional), like the street it runs along'; name.value = q.name || '';
+    name.setAttribute('aria-label', 'Name piece ' + (n + 1));
+    name.addEventListener('input', function () { q.name = name.value; });
+    box.appendChild(name);
+    var row = document.createElement('div');
+    row.className = 'lt-piece-buttons';
+    var keep = button('Keep as a private segment', 'btn btn-primary lt-piece-keep', function () { keepPiece(q, keep); });
+    var split = button(summary.splitting === n ? 'Cancel split' : 'Split', 'btn btn-secondary lt-piece-split', function () { summary.splitting = summary.splitting === n ? -1 : n; showOffPlan(); });
+    row.appendChild(keep); row.appendChild(split);
+    box.appendChild(row);
+    // A piece touching a public segment: part of it, or new (|M711)?
+    touching(q.cells).forEach(function (g) {
+      var t = document.createElement('p');
+      t.className = 'small lt-piece-touch';
+      t.textContent = 'It touches ' + g.name + '. Part of it, or new? If it\'s part of it, ask an admin to add it.';
+      box.appendChild(t);
+      box.appendChild(button('Ask an admin to add it to ' + g.name, 'btn btn-secondary lt-piece-ask', function (e) { askPiece(q, g, e.currentTarget); }));
+    });
+    return box;
+  }
+  function button(label, cls, go) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.textContent = label;
+    b.addEventListener('click', go);
+    return b;
+  }
+  function keepPiece(q, b) {
+    app.busy(b, 'sm-offplan-err', function () {
+      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: q.cells, turns: [], miles: planMiles({ cells: q.cells }) }], name: q.name || '' } }).then(function (d) {
         if (account && d.plans) account.plans = d.plans;
-        $('sm-offplan').hidden = true;
+        q.done = 'Kept as a private segment' + (q.name ? ': ' + q.name : '') + '. It\'s in Segments.';
+        showOffPlan();
         app.notice('Saved as a private segment. It\'s in Segments, to put in a plan again.');
       });
     });
+  }
+  function askPiece(q, g, b) {
+    app.busy(b, 'sm-offplan-err', function () {
+      return app.api('additionAsk', { token: app.myToken(), segmentId: g.id, cells: q.cells, miles: planMiles({ cells: q.cells }), note: q.name || '' }).then(function () {
+        q.done = 'Asked: an admin reviews adding it to ' + g.name + '.';
+        showOffPlan();
+        app.notice('Asked. An admin reviews adding it to ' + g.name + '; once it\'s approved, it\'s part of it.');
+      });
+    });
+  }
+  function joinPieces() {
+    var pieces = piecesNow(), picked = pieces.filter(function (q) { return q.ticked && !q.done; });
+    if (picked.length < 2) return;
+    var into = picked[0];
+    picked.slice(1).forEach(function (q) { q.cells.forEach(function (x) { if (into.cells.indexOf(x) === -1) into.cells.push(x); }); });
+    summary.pieces = pieces.filter(function (q) { return picked.indexOf(q) <= 0; });
+    into.ticked = false;
+    showOffPlan();
+  }
+  // Split piece n at the square nearest where the map was tapped.
+  function splitAt(latlng) {
+    var pieces = piecesNow(), n = summary.splitting, q = pieces[n];
+    if (!q) return;
+    var p = G.xy(latlng.lat, latlng.lng), best = 0, bd = Infinity;
+    q.cells.forEach(function (x, k) { var d = G.dist(p, G.centerXY(x)); if (d < bd) { bd = d; best = k; } });
+    summary.splitting = -1;
+    if (best < 1 || best > q.cells.length - 2) { showOffPlan(); return app.notice('Tap nearer the middle of the piece: each part needs 2 squares or more.'); }
+    pieces.splice(n, 1, { cells: q.cells.slice(0, best + 1), name: q.name }, { cells: q.cells.slice(best + 1) });
+    showOffPlan();
+  }
+  var piecesMap = null, piecesLayer = null;
+  function drawPieces() {
+    if (!window.L) return;
+    if (!piecesMap) {
+      piecesMap = L.map('sm-pieces-map', { attributionControl: true });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(piecesMap);
+      piecesLayer = L.layerGroup().addTo(piecesMap);
+      piecesMap.on('click', function (e) { if (summary && summary.splitting >= 0) splitAt(e.latlng); });
+    }
+    piecesLayer.clearLayers();
+    var b = L.latLngBounds([]);
+    (summary.planCells || []).forEach(function (x) { L.rectangle(G.cellBounds(x), { stroke: false, fillColor: '#6b7280', fillOpacity: 0.2, interactive: false }).addTo(piecesLayer); });
+    piecesNow().forEach(function (q, n) {
+      var colour = PIECE_COLOURS[n % PIECE_COLOURS.length];
+      q.cells.forEach(function (x) {
+        L.rectangle(G.cellBounds(x), { color: colour, weight: 1, fillColor: colour, fillOpacity: q.done ? 0.2 : 0.55, interactive: false, className: 'lt-piece-square' }).addTo(piecesLayer);
+        b.extend(G.cellBounds(x));
+      });
+      var at = G.cellCenter(q.cells[Math.floor(q.cells.length / 2)]);
+      L.marker([at.lat, at.lon], { icon: L.divIcon({ className: 'lt-piece-n', html: '<span style="background:' + colour + '">' + (n + 1) + '</span>', iconSize: null }), interactive: false }).addTo(piecesLayer);
+    });
+    setTimeout(function () { piecesMap.invalidateSize(); if (b.isValid()) piecesMap.fitBounds(b, { maxZoom: 18, padding: [20, 20] }); }, 0);
   }
 
   // After you save, your stretches on the map with their readings (Q245),
@@ -1441,7 +1643,8 @@ window.LitterCollect = function (app) {
         settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
         setTypes(d.types);
         pace = d.pace || pace;
-        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
+        // Its plan's squares, from the segments it lists, so ground off it is offered in pieces again (S5-U17).
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), planCells: planCellsOf(d.collection && d.collection.plan) };
         showSummary();
       });
     });
@@ -2184,7 +2387,7 @@ window.LitterCollect = function (app) {
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
   $('pl-undo').addEventListener('click', planUndo);
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
-  $('sm-offplan-save').addEventListener('click', function () { saveOffPlan($('sm-offplan-save')); });
+  $('sm-pieces-join').addEventListener('click', joinPieces);
   // Back on the app during a walk, off your plan's segments (S5-P9, Q559): a
   // notice to pause while you travel, unless you're collecting on the way.
   document.addEventListener('visibilitychange', function () {
@@ -2194,7 +2397,8 @@ window.LitterCollect = function (app) {
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended || c.current.pausedAt) return;
       if (nearSquare(cells, G.cellAt(p.coords.latitude, p.coords.longitude))) { app.clearNotice('off-plan'); return; }
-      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way.', { key: 'off-plan' });
+      // And a new segment, weighed at each end (S5-U17, |C698): the weighings split the ground off your plan into pieces at the end.
+      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way. Collecting here? Weigh now to start a new segment, and weigh again at its end.', { key: 'off-plan' });
     }, function () { /* no fix: nothing to say */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   });
   $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });

@@ -33,7 +33,7 @@ window.LitterReviews = function (app) {
     var box = $('reviews-list');
     box.textContent = '';
     var waiting = d.reviews.filter(function (r) { return r.open; }).length;
-    $('reviews-note').textContent = (waiting ? (waiting === 1 ? '1 segment waits' : waiting + ' segments wait') + ' for a review.' : 'No segment waits for a review.') +
+    $('reviews-note').textContent = (waiting ? (waiting === 1 ? '1 waits' : waiting + ' wait') + ' for a review.' : 'Nothing waits for a review.') +
       (d.canDecide ? ' As a ' + d.rank + ', you approve or decline.' : ' As an ' + d.rank + ', you recommend; a Builder or above decides.');
     d.reviews.forEach(function (r) { box.appendChild(card(r)); });
     setTimeout(function () { if (app.drawSmallMaps) app.drawSmallMaps(box); }, 0);
@@ -48,8 +48,17 @@ window.LitterReviews = function (app) {
     box.id = 'rv-' + r.id;
     box.appendChild(el('p', 'lt-col-head', r.name));
     box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + r.kind + ' · ' + r.squares.length + ' squares · ' + Math.round(r.miles * 100) / 100 + ' mi'));
-    box.appendChild(el('p', 'muted small', 'Submitted by ' + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
-    if (app.smallMap) box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    box.appendChild(el('p', 'muted small', (r.addition ? 'Asked by ' : 'Submitted by ') + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
+    if (r.addition && r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
+    if (app.smallMap) {
+      // An addition (S5-U17, |M711): the segment in its colour, the piece to add in orange.
+      if (r.addition) {
+        var colourOf = {};
+        r.squares.forEach(function (x) { colourOf[x] = '#c2410c'; });
+        box.appendChild(app.smallMap(r.name, (r.targetSquares || []).concat(r.squares), { kind: 'public', colourOf: colourOf }));
+        box.appendChild(el('p', 'muted small', 'Orange: the piece to add.'));
+      } else box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    }
     if (r.moves.length) {
       var list = el('div', 'lt-review-moves');
       r.moves.forEach(function (m) { list.appendChild(el('p', 'small lt-review-move', moveLine(m))); });
@@ -85,8 +94,8 @@ window.LitterReviews = function (app) {
     if (view.canDecide) {
       var yes = el('button', 'btn btn-primary lt-review-approve', 'Approve'), no = el('button', 'btn btn-secondary lt-review-decline', 'Decline');
       yes.type = 'button'; no.type = 'button';
-      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
-      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
+      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
+      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
       row.appendChild(yes); row.appendChild(no);
     } else {
       var ry = el('button', 'btn btn-primary lt-review-rec-approve', 'Recommend Approve'), rn = el('button', 'btn btn-secondary lt-review-rec-decline', 'Recommend Decline');

@@ -86,6 +86,11 @@ window.LitterMap = function (app) {
     // |Q573, |C700), in the Settings tab's plan colour (|C684).
     var pc = darkColours() ? darkColours().plan : (planColour || '#7c3aed');
     if ((cells || []).length) L.polyline(G.outline(G.grow(cells)), { color: pc, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
+    // Weigh-in pins at each end of every due segment in it (S5-U17, |Q566 (a)).
+    G.weighPins(segList(), cells).forEach(function (pin) {
+      var at = G.cellCenter(pin.cell);
+      L.marker([at.lat, at.lon], { icon: G.pinIcon(), interactive: false, keyboard: false, title: 'Weigh-in location: ' + pin.name }).addTo(planLayer);
+    });
   }
 
   // opts: { focus: [cells] to show first, back: what Back does, track: a

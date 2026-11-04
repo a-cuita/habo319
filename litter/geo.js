@@ -176,6 +176,21 @@ var LitterGeo = (function () {
     return [[sw.lat, sw.lon], [ne.lat, ne.lon]];
   }
 
+  // Weigh-in pins (S5-U17, |Q566 (a)): each end of every due path segment in
+  // a plan, [{ cell, name }]. A field has no ends, so no pins.
+  function weighPins(segs, planCells) {
+    var inPlan = {};
+    (planCells || []).forEach(function (x) { inPlan[x] = true; });
+    var out = [];
+    (segs || []).forEach(function (g) {
+      if (!g.due || g.kind === 'Field' || !g.squares || g.squares.length < 2) return;
+      if (!g.squares.some(function (x) { return inPlan[x]; })) return;
+      out.push({ cell: g.squares[0], name: g.name }, { cell: g.squares[g.squares.length - 1], name: g.name });
+    });
+    return out;
+  }
+  function pinIcon() { return L.divIcon({ className: 'lt-weigh-pin', html: '<span>⚖️ Weigh-in</span>', iconSize: null, iconAnchor: [12, 30] }); }
+
   // The cells a straight line passes through, in order.
   function lineCells(a, b) {
     var out = [], n = Math.max(1, Math.ceil(dist(a, b) / 10));
@@ -537,7 +552,7 @@ var LitterGeo = (function () {
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, cellOfXY: cellOfXY,
     FIELD_STEP: FIELD_STEP, inPolygon: inPolygon, fieldPoints: fieldPoints, fieldArea: fieldArea, fieldMiles: fieldMiles, segDist: segDist,
-    fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, weighPins: weighPins, pinIcon: pinIcon, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();

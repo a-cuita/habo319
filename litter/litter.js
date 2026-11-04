@@ -73,6 +73,8 @@
 
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
+    document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));
     paintMode();
     window.scrollTo(0, 0);
     // A signature box can only be measured once it's showing.

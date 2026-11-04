@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=30">
+<link rel="stylesheet" href="litter.css?v=35">
 </head>
 <body>
 
@@ -101,7 +101,7 @@
 
     <button class="btn btn-accent" id="su-submit" type="submit">Set up my account</button>
     <p class="err" id="su-err" role="alert"></p>
-    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+    <button class="lt-fab-back" type="button" data-back aria-label="Back" title="Back">←</button>
   </form>
 
   <!-- Setting up: the code sent to their email, before the account is made. -->
@@ -361,13 +361,14 @@
     <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
     <!-- Ground you collected off your plan, kept as a private segment if you like (S5-P9, Q560). -->
+    <!-- Ground off your plan, in pieces (S5-U17, |C698, |Q587, |M711): each kept as a private segment, or asked to be added to a public one. -->
     <section class="card" id="sm-offplan" hidden>
+      <h2>Ground off your plan</h2>
       <p id="sm-offplan-say"></p>
-      <div class="ig">
-        <label for="sm-offplan-name">Name it (optional)</label>
-        <input id="sm-offplan-name" maxlength="60" autocomplete="off" placeholder="Like the street it runs along">
-      </div>
-      <button class="btn btn-secondary" id="sm-offplan-save" type="button">Save as a private segment</button>
+      <div class="lt-map-box"><div class="lt-pieces-map" id="sm-pieces-map"></div></div>
+      <p class="muted small" id="sm-pieces-hint"></p>
+      <div id="sm-pieces"></div>
+      <button class="btn btn-secondary" id="sm-pieces-join" type="button" hidden>Join the ticked pieces</button>
       <p class="err" id="sm-offplan-err" role="alert"></p>
     </section>
     <form class="card" id="sm-fix" novalidate hidden>
@@ -437,7 +438,7 @@
         <p class="muted small" id="mp-note"></p>
       </div>
     </div>
-    <button class="btn btn-secondary" id="mp-back" type="button">Back</button>
+    <button class="lt-fab-back" id="mp-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- On a new phone (item 5). -->
@@ -459,7 +460,7 @@
     <button class="btn btn-primary" id="si-submit" type="submit">Continue</button>
     <p class="err" id="si-err" role="alert"></p>
     <div class="center" id="si-resend-row" hidden><button class="link-btn" id="si-resend" type="button">Send a new code</button></div>
-    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+    <button class="lt-fab-back" type="button" data-back aria-label="Back" title="Back">←</button>
   </form>
 
   <!-- The main page (Oct 31, field first): a panel at the top with your
@@ -582,7 +583,7 @@
       <div id="my-list"></div>
       <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+    <button class="lt-fab-back" id="my-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Settings (S5-P19 A, |M676): in Admin Mode, the Settings tab's groups your rank may change, a section at a time. -->
@@ -592,7 +593,7 @@
       <p class="muted small" id="settings-note"></p>
     </section>
     <div id="settings-list"></div>
-    <button class="btn btn-secondary lt-back-main" id="settings-back" type="button">Back</button>
+    <button class="lt-fab-back" id="settings-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
@@ -602,7 +603,7 @@
       <p class="muted small" id="reviews-note"></p>
     </section>
     <div id="reviews-list"></div>
-    <button class="btn btn-secondary lt-back-main" id="reviews-back" type="button">Back</button>
+    <button class="lt-fab-back" id="reviews-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
@@ -612,7 +613,7 @@
       <p class="muted small" id="quests-none" hidden>No quest finished yet. Your first quest is on the main page.</p>
       <div id="quests-list"></div>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="quests-back" type="button">Back</button>
+    <button class="lt-fab-back" id="quests-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
@@ -636,7 +637,7 @@
         <div id="public-list"></div>
       </details>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="plans-back" type="button">Back</button>
+    <button class="lt-fab-back" id="plans-back" type="button" aria-label="Back" title="Back">←</button>
     <!-- While selecting: how many, their miles, Use as my plan and Cancel (Q562). -->
     <div class="lt-select-bar" id="seg-bar" hidden>
       <span id="seg-bar-say"></span>
@@ -648,12 +649,12 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
-<script src="geo.js?v=10"></script>
-<script src="collect.js?v=36"></script>
-<script src="map.js?v=18"></script>
+<script src="geo.js?v=11"></script>
+<script src="collect.js?v=40"></script>
+<script src="map.js?v=20"></script>
 <script src="quest.js?v=3"></script>
 <script src="settings.js?v=1"></script>
-<script src="reviews.js?v=1"></script>
-<script src="litter.js?v=15"></script>
+<script src="reviews.js?v=2"></script>
+<script src="litter.js?v=16"></script>
 </body>
 </html>

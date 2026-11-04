@@ -519,6 +519,29 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-review-note { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
 .lt-review-buttons { display: flex; gap: 8px; }
 .lt-review-buttons .btn { margin: 0; flex: 1; }
+
+/* Back: a small round button floating at the top left of each screen that has one (S5-U17, |M642). */
+.lt-fab-back { position: fixed; top: 6px; left: 6px; z-index: 1150; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; font-size: 1.2rem; font-weight: 800; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); }
+.lt-fab-back:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+[hidden] .lt-fab-back { display: none; }
+/* Weigh-in pins (S5-U17, |Q566 (a)). */
+.lt-weigh-pin span { display: inline-block; white-space: nowrap; padding: 2px 6px; border-radius: 9px; background: #fff; color: #111827; border: 2px solid #111827;
+  font-size: 0.78rem; font-weight: 800; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+/* Ground off your plan, in pieces (S5-U17). */
+.lt-pieces-map { height: 260px; border-radius: var(--radius-sm); }
+.lt-piece { border-left: 6px solid #c2410c; padding: 8px 0 8px 10px; margin: 10px 0; }
+.lt-piece-head { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.lt-piece-name { width: 100%; margin: 6px 0; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-piece-buttons { display: flex; gap: 8px; }
+.lt-piece-buttons .btn { margin: 0; }
+.lt-piece-buttons .lt-piece-split { flex: 0 0 auto; width: auto; }
+.lt-piece-touch { margin: 8px 0 4px; }
+.lt-piece.done { opacity: 0.75; }
+.lt-piece-n span { display: inline-block; min-width: 22px; padding: 1px 5px; border-radius: 11px; color: #fff; font-weight: 800; font-size: 0.8rem; text-align: center; border: 2px solid #fff; }
+body.lt-has-back .lt-notices { top: 48px; }
+.lt-weigh-pin { pointer-events: none; }
 </style>
 </head>
 <body>
@@ -613,7 +636,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 
     <button class="btn btn-accent" id="su-submit" type="submit">Set up my account</button>
     <p class="err" id="su-err" role="alert"></p>
-    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+    <button class="lt-fab-back" type="button" data-back aria-label="Back" title="Back">←</button>
   </form>
 
   <!-- Setting up: the code sent to their email, before the account is made. -->
@@ -873,13 +896,14 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
     <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
     <!-- Ground you collected off your plan, kept as a private segment if you like (S5-P9, Q560). -->
+    <!-- Ground off your plan, in pieces (S5-U17, |C698, |Q587, |M711): each kept as a private segment, or asked to be added to a public one. -->
     <section class="card" id="sm-offplan" hidden>
+      <h2>Ground off your plan</h2>
       <p id="sm-offplan-say"></p>
-      <div class="ig">
-        <label for="sm-offplan-name">Name it (optional)</label>
-        <input id="sm-offplan-name" maxlength="60" autocomplete="off" placeholder="Like the street it runs along">
-      </div>
-      <button class="btn btn-secondary" id="sm-offplan-save" type="button">Save as a private segment</button>
+      <div class="lt-map-box"><div class="lt-pieces-map" id="sm-pieces-map"></div></div>
+      <p class="muted small" id="sm-pieces-hint"></p>
+      <div id="sm-pieces"></div>
+      <button class="btn btn-secondary" id="sm-pieces-join" type="button" hidden>Join the ticked pieces</button>
       <p class="err" id="sm-offplan-err" role="alert"></p>
     </section>
     <form class="card" id="sm-fix" novalidate hidden>
@@ -949,7 +973,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
         <p class="muted small" id="mp-note"></p>
       </div>
     </div>
-    <button class="btn btn-secondary" id="mp-back" type="button">Back</button>
+    <button class="lt-fab-back" id="mp-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- On a new phone (item 5). -->
@@ -971,7 +995,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
     <button class="btn btn-primary" id="si-submit" type="submit">Continue</button>
     <p class="err" id="si-err" role="alert"></p>
     <div class="center" id="si-resend-row" hidden><button class="link-btn" id="si-resend" type="button">Send a new code</button></div>
-    <button class="btn btn-secondary lt-back" type="button" data-back>Back</button>
+    <button class="lt-fab-back" type="button" data-back aria-label="Back" title="Back">←</button>
   </form>
 
   <!-- The main page (Oct 31, field first): a panel at the top with your
@@ -1094,7 +1118,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <div id="my-list"></div>
       <div class="center"><button class="link-btn" id="my-more" type="button" hidden>Show all</button></div>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="my-back" type="button">Back</button>
+    <button class="lt-fab-back" id="my-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Settings (S5-P19 A, |M676): in Admin Mode, the Settings tab's groups your rank may change, a section at a time. -->
@@ -1104,7 +1128,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <p class="muted small" id="settings-note"></p>
     </section>
     <div id="settings-list"></div>
-    <button class="btn btn-secondary lt-back-main" id="settings-back" type="button">Back</button>
+    <button class="lt-fab-back" id="settings-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
@@ -1114,7 +1138,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <p class="muted small" id="reviews-note"></p>
     </section>
     <div id="reviews-list"></div>
-    <button class="btn btn-secondary lt-back-main" id="reviews-back" type="button">Back</button>
+    <button class="lt-fab-back" id="reviews-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
@@ -1124,7 +1148,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <p class="muted small" id="quests-none" hidden>No quest finished yet. Your first quest is on the main page.</p>
       <div id="quests-list"></div>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="quests-back" type="button">Back</button>
+    <button class="lt-fab-back" id="quests-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
   <!-- Your plans (S5-P3, Q517), on a screen of its own (Oct 31): each opens on the map, can be proposed as a segment (M565), or deleted. -->
@@ -1148,7 +1172,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
         <div id="public-list"></div>
       </details>
     </section>
-    <button class="btn btn-secondary lt-back-main" id="plans-back" type="button">Back</button>
+    <button class="lt-fab-back" id="plans-back" type="button" aria-label="Back" title="Back">←</button>
     <!-- While selecting: how many, their miles, Use as my plan and Cancel (Q562). -->
     <div class="lt-select-bar" id="seg-bar" hidden>
       <span id="seg-bar-say"></span>
@@ -1337,6 +1361,21 @@ var LitterGeo = (function () {
     var h = FIELD_STEP / 2, sw = toLatLon({ x: p.x - h, y: p.y - h }), ne = toLatLon({ x: p.x + h, y: p.y + h });
     return [[sw.lat, sw.lon], [ne.lat, ne.lon]];
   }
+
+  // Weigh-in pins (S5-U17, |Q566 (a)): each end of every due path segment in
+  // a plan, [{ cell, name }]. A field has no ends, so no pins.
+  function weighPins(segs, planCells) {
+    var inPlan = {};
+    (planCells || []).forEach(function (x) { inPlan[x] = true; });
+    var out = [];
+    (segs || []).forEach(function (g) {
+      if (!g.due || g.kind === 'Field' || !g.squares || g.squares.length < 2) return;
+      if (!g.squares.some(function (x) { return inPlan[x]; })) return;
+      out.push({ cell: g.squares[0], name: g.name }, { cell: g.squares[g.squares.length - 1], name: g.name });
+    });
+    return out;
+  }
+  function pinIcon() { return L.divIcon({ className: 'lt-weigh-pin', html: '<span>⚖️ Weigh-in</span>', iconSize: null, iconAnchor: [12, 30] }); }
 
   // The cells a straight line passes through, in order.
   function lineCells(a, b) {
@@ -1699,7 +1738,7 @@ var LitterGeo = (function () {
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, cellOfXY: cellOfXY,
     FIELD_STEP: FIELD_STEP, inPolygon: inPolygon, fieldPoints: fieldPoints, fieldArea: fieldArea, fieldMiles: fieldMiles, segDist: segDist,
-    fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
+    fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, weighPins: weighPins, pinIcon: pinIcon, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };
 })();
@@ -1923,6 +1962,34 @@ window.LitterCollect = function (app) {
       checkin({ lat: p.coords.latitude, lon: p.coords.longitude, acc: p.coords.accuracy }, 'm');
     }, function () { /* no fix this minute */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   }, 15000);
+
+  // The live dot (S5-U17, |Q541 (a)): while the collecting screen is open and
+  // the phone awake, where you are, following its GPS; and the app knows the
+  // moment you step onto a due segment. Off the rest of the time, to save
+  // the battery.
+  var dotWatch = null, dotFirst = true;
+  function dotWanted() { return !!(c && !c.ended && !c.sim && !c.practice && !$('v-collect').hidden && !document.hidden && navigator.geolocation && map); }
+  function syncDot() {
+    if (dotWanted()) {
+      if (dotWatch != null) return;
+      dotFirst = true;
+      dotWatch = navigator.geolocation.watchPosition(function (p) {
+        if (!dotWanted()) return syncDot();
+        var at = [p.coords.latitude, p.coords.longitude];
+        layers.here.clearLayers();
+        if (p.coords.accuracy < 200) L.circle(at, { radius: p.coords.accuracy, stroke: false, fillColor: '#2563eb', fillOpacity: 0.12, interactive: false }).addTo(layers.here);
+        L.circleMarker(at, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false, className: 'lt-here-dot' }).addTo(layers.here);
+        if (dotFirst) { dotFirst = false; map.setView(at, Math.max(map.getZoom(), 17)); }
+        segmentPrompt({ lat: at[0], lon: at[1], acc: p.coords.accuracy });
+      }, function () { /* no fix just now */ }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
+    } else if (dotWatch != null) {
+      navigator.geolocation.clearWatch(dotWatch);
+      dotWatch = null;
+      if (layers) layers.here.clearLayers();
+    }
+  }
+  setInterval(syncDot, 3000);
+  document.addEventListener('visibilitychange', syncDot);
 
   function showQueue() {
     var n = c ? c.queue.filter(function (q) { return q.type === 'stretch'; }).length : 0;
@@ -2305,6 +2372,7 @@ window.LitterCollect = function (app) {
     drawCells([], c && c.lastCell, null);
     drawSim();
     drawLiveFields();
+    syncDot();
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
     showStatus();
@@ -2350,7 +2418,7 @@ window.LitterCollect = function (app) {
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     map.createPane('ltPlan').style.zIndex = 450;   // the plan above everything else (S5-P9, |C685)
-    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map) };
+    layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map), here: L.layerGroup().addTo(map) };
     map.on('click', function (e) {
       lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
       if (simDraws()) return simAdd(lastTap);
@@ -2404,6 +2472,12 @@ window.LitterCollect = function (app) {
     if (cells.length) L.polyline(G.outline(G.grow(cells)), { color: colour, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(layers.plan);
     (plan && plan.stretches || []).forEach(function (s) {
       (s.turns || []).filter(isCell).forEach(function (cell) { turnDot(cell, colour).addTo(layers.plan); });
+    });
+    // Weigh-in pins at each end of every due segment in it (S5-U17, |Q566 (a)).
+    G.weighPins(segs(), cells).forEach(function (pin) {
+      var at = G.cellCenter(pin.cell);
+      // Taps go through it to the map, as a simulated walk draws by tapping (its words are on it).
+      L.marker([at.lat, at.lon], { icon: G.pinIcon(), interactive: false, keyboard: false, title: 'Weigh-in location: ' + pin.name }).addTo(layers.plan);
     });
   }
   function isCell(x) { return /^-?\d+_-?\d+$/.test(String(x)); }
@@ -2979,31 +3053,198 @@ window.LitterCollect = function (app) {
     drawReadings();
   }
 
-  // Ground you collected off your plan (S5-P9, Q545, Q560): right after the
-  // walk, an offer to keep it as a private segment, to use again. Three
-  // squares or more, a square away from the plan's squares.
+  // Ground you collected off your plan (S5-P9, Q545, Q560), in pieces (S5-U17,
+  // |C698, |Q587, |M711): from the GPX track, or the squares walked without
+  // one, the ground a square or more off the plan, split where the track
+  // turned around, paused, or where a weighing ended, with no set distance.
+  // A piece walked back along itself is one piece. Each piece: keep it as a
+  // private segment, with its own name, or ask an admin to add it to a
+  // public segment it touches; or leave it. Tap Split, then the map, to split
+  // one; tick two or more and Join them.
   function offPlanCells() {
     var plan = summary && summary.planCells || [];
     if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
     return allCells().filter(function (x) { return !nearSquare(plan, x); });
   }
-  function showOffPlan() {
-    var off = offPlanCells();
-    $('sm-offplan').hidden = off.length < 3 || !!summary.offSaved;
-    $('sm-offplan-err').textContent = '';
-    if (off.length >= 3) $('sm-offplan-say').textContent = 'You collected ' + off.length + ' squares off your plan. Keep them as a private segment, to put in a plan again?';
+  function planCellsOf(plan) {
+    var out = [];
+    String(plan || '').split(/\s+/).filter(String).forEach(function (id) {
+      var g = (segments || []).filter(function (x) { return x.id === id; })[0];
+      var p = !g && account && (account.plans || []).filter(function (x) { return x.id === id; })[0];
+      ((g && g.squares) || (p && p.cells) || []).forEach(function (x) { if (out.indexOf(x) === -1) out.push(x); });
+    });
+    return out;
   }
-  function saveOffPlan(button) {
-    var off = offPlanCells();
-    if (off.length < 3) return;
-    app.busy(button, 'sm-offplan-err', function () {
-      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: off, turns: [], miles: planMiles({ cells: off }) }], name: $('sm-offplan-name').value } }).then(function (d) {
-        summary.offSaved = true;
+  var PIECE_COLOURS = ['#c2410c', '#0e7490', '#7c3aed', '#15803d', '#be123c', '#a16207'];
+  function offPieces() {
+    var plan = summary && summary.planCells || [];
+    if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
+    var off = function (cell) { return !nearSquare(plan, cell); };
+    var track = summary.track && summary.track.length > 1 ? summary.track : null;
+    if (!track) { var all = offPlanCells(); return all.length >= 3 ? [{ cells: all }] : []; }
+    var weighEnds = {};
+    summary.stretches.forEach(function (st) { if (!st.discarded && st.cells.length) weighEnds[st.cells[st.cells.length - 1]] = true; });
+    var pts = track.map(function (p) { return { xy: G.xy(p[0], p[1]), paused: !!p[2] }; });
+    var runs = [], run = null, lastSplit = null;
+    var close = function () { if (run && run.cells.length) runs.push(run); run = null; };
+    var add = function (cell) { if (off(cell) && run.cells[run.cells.length - 1] !== cell && run.cells.indexOf(cell) === -1) run.cells.push(cell); };
+    for (var i = 0; i < pts.length; i++) {
+      var cell = G.cellOfXY(pts[i].xy);
+      if (pts[i].paused || !off(cell)) { close(); continue; }
+      if (run && turnsAround(pts, i) && (!lastSplit || G.dist(lastSplit, pts[i].xy) > 30)) { close(); lastSplit = pts[i].xy; }
+      if (!run) run = { cells: [] };
+      if (i > 0 && !pts[i - 1].paused && run.cells.length) G.lineCells(pts[i - 1].xy, pts[i].xy).forEach(add); else add(cell);
+      if (weighEnds[cell] && run.cells.length > 1) close();
+    }
+    close();
+    // A piece walked back along an earlier one (most of it within a square of it) is part of it.
+    var pieces = [];
+    runs.forEach(function (r) {
+      var back = pieces.filter(function (q) { return r.cells.filter(function (x) { return nearSquare(q.cells, x); }).length >= 0.6 * r.cells.length; })[0];
+      if (back) r.cells.forEach(function (x) { if (back.cells.indexOf(x) === -1) back.cells.push(x); });
+      else pieces.push({ cells: r.cells.slice() });
+    });
+    return pieces.filter(function (q) { return q.cells.length >= 3; });
+  }
+  // Whether the track turns around at point i: its way over the 20 m before
+  // and the 20 m after point the opposite way (more than 135 degrees apart).
+  function turnsAround(pts, i) {
+    var a = null, b = null, k;
+    for (k = i - 1; k >= 0; k--) if (G.dist(pts[k].xy, pts[i].xy) >= 20) { a = pts[k].xy; break; }
+    for (k = i + 1; k < pts.length; k++) if (G.dist(pts[k].xy, pts[i].xy) >= 20) { b = pts[k].xy; break; }
+    if (!a || !b) return false;
+    var ux = pts[i].xy.x - a.x, uy = pts[i].xy.y - a.y, vx = b.x - pts[i].xy.x, vy = b.y - pts[i].xy.y;
+    var cos = (ux * vx + uy * vy) / Math.sqrt((ux * ux + uy * uy) * (vx * vx + vy * vy));
+    return cos < Math.cos(135 * Math.PI / 180);
+  }
+  // The public segments a piece touches (a square or less from it).
+  function touching(cells) {
+    return (segments || []).filter(function (g) { return g.squares && g.squares.some(function (x) { return nearSquare(cells, x); }); });
+  }
+  function piecesNow() {
+    if (summary.piecesFor !== summary.track) { summary.piecesFor = summary.track; summary.pieces = offPieces(); summary.splitting = -1; }
+    return summary.pieces || [];
+  }
+  function showOffPlan() {
+    var pieces = piecesNow();
+    var open = pieces.filter(function (q) { return !q.done; });
+    $('sm-offplan').hidden = !pieces.length;
+    $('sm-offplan-err').textContent = '';
+    if (!pieces.length) return;
+    $('sm-offplan-say').textContent = pieces.length === 1 ? 'You walked 1 piece of ground off your plan. Keep it as a private segment, to put in a plan again?'
+      : 'You walked ' + pieces.length + ' pieces of ground off your plan, split where your track turned around, paused, or where you weighed. Keep each as a private segment, to put in a plan again?';
+    $('sm-pieces-hint').textContent = summary.splitting >= 0 ? 'Tap the map where piece ' + (summary.splitting + 1) + ' should split.' : open.length > 1 ? 'Tick two or more to join them into one.' : '';
+    var list = $('sm-pieces');
+    list.textContent = '';
+    pieces.forEach(function (q, n) { list.appendChild(pieceCard(q, n)); });
+    $('sm-pieces-join').hidden = pieces.filter(function (q) { return q.ticked && !q.done; }).length < 2;
+    drawPieces();
+  }
+  function pieceCard(q, n) {
+    var colour = PIECE_COLOURS[n % PIECE_COLOURS.length];
+    var box = document.createElement('div');
+    box.className = 'lt-piece' + (q.done ? ' done' : '');
+    box.id = 'sm-piece-' + n;
+    box.style.borderLeftColor = colour;
+    var head = document.createElement('label');
+    head.className = 'lt-piece-head';
+    if (!q.done) {
+      var tick = document.createElement('input');
+      tick.type = 'checkbox'; tick.className = 'lt-piece-tick'; tick.checked = !!q.ticked;
+      tick.addEventListener('change', function () { q.ticked = tick.checked; $('sm-pieces-join').hidden = piecesNow().filter(function (x) { return x.ticked && !x.done; }).length < 2; });
+      head.appendChild(tick);
+    }
+    head.appendChild(document.createTextNode(' Piece ' + (n + 1) + ' · ' + q.cells.length + ' squares · ' + round(planMiles({ cells: q.cells }), 2) + ' mi'));
+    box.appendChild(head);
+    if (q.done) { var d = document.createElement('p'); d.className = 'small lt-piece-done'; d.textContent = q.done; box.appendChild(d); return box; }
+    var name = document.createElement('input');
+    name.className = 'lt-piece-name'; name.maxLength = 60; name.placeholder = 'Name it (optional), like the street it runs along'; name.value = q.name || '';
+    name.setAttribute('aria-label', 'Name piece ' + (n + 1));
+    name.addEventListener('input', function () { q.name = name.value; });
+    box.appendChild(name);
+    var row = document.createElement('div');
+    row.className = 'lt-piece-buttons';
+    var keep = button('Keep as a private segment', 'btn btn-primary lt-piece-keep', function () { keepPiece(q, keep); });
+    var split = button(summary.splitting === n ? 'Cancel split' : 'Split', 'btn btn-secondary lt-piece-split', function () { summary.splitting = summary.splitting === n ? -1 : n; showOffPlan(); });
+    row.appendChild(keep); row.appendChild(split);
+    box.appendChild(row);
+    // A piece touching a public segment: part of it, or new (|M711)?
+    touching(q.cells).forEach(function (g) {
+      var t = document.createElement('p');
+      t.className = 'small lt-piece-touch';
+      t.textContent = 'It touches ' + g.name + '. Part of it, or new? If it\'s part of it, ask an admin to add it.';
+      box.appendChild(t);
+      box.appendChild(button('Ask an admin to add it to ' + g.name, 'btn btn-secondary lt-piece-ask', function (e) { askPiece(q, g, e.currentTarget); }));
+    });
+    return box;
+  }
+  function button(label, cls, go) {
+    var b = document.createElement('button');
+    b.type = 'button'; b.className = cls; b.textContent = label;
+    b.addEventListener('click', go);
+    return b;
+  }
+  function keepPiece(q, b) {
+    app.busy(b, 'sm-offplan-err', function () {
+      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: q.cells, turns: [], miles: planMiles({ cells: q.cells }) }], name: q.name || '' } }).then(function (d) {
         if (account && d.plans) account.plans = d.plans;
-        $('sm-offplan').hidden = true;
+        q.done = 'Kept as a private segment' + (q.name ? ': ' + q.name : '') + '. It\'s in Segments.';
+        showOffPlan();
         app.notice('Saved as a private segment. It\'s in Segments, to put in a plan again.');
       });
     });
+  }
+  function askPiece(q, g, b) {
+    app.busy(b, 'sm-offplan-err', function () {
+      return app.api('additionAsk', { token: app.myToken(), segmentId: g.id, cells: q.cells, miles: planMiles({ cells: q.cells }), note: q.name || '' }).then(function () {
+        q.done = 'Asked: an admin reviews adding it to ' + g.name + '.';
+        showOffPlan();
+        app.notice('Asked. An admin reviews adding it to ' + g.name + '; once it\'s approved, it\'s part of it.');
+      });
+    });
+  }
+  function joinPieces() {
+    var pieces = piecesNow(), picked = pieces.filter(function (q) { return q.ticked && !q.done; });
+    if (picked.length < 2) return;
+    var into = picked[0];
+    picked.slice(1).forEach(function (q) { q.cells.forEach(function (x) { if (into.cells.indexOf(x) === -1) into.cells.push(x); }); });
+    summary.pieces = pieces.filter(function (q) { return picked.indexOf(q) <= 0; });
+    into.ticked = false;
+    showOffPlan();
+  }
+  // Split piece n at the square nearest where the map was tapped.
+  function splitAt(latlng) {
+    var pieces = piecesNow(), n = summary.splitting, q = pieces[n];
+    if (!q) return;
+    var p = G.xy(latlng.lat, latlng.lng), best = 0, bd = Infinity;
+    q.cells.forEach(function (x, k) { var d = G.dist(p, G.centerXY(x)); if (d < bd) { bd = d; best = k; } });
+    summary.splitting = -1;
+    if (best < 1 || best > q.cells.length - 2) { showOffPlan(); return app.notice('Tap nearer the middle of the piece: each part needs 2 squares or more.'); }
+    pieces.splice(n, 1, { cells: q.cells.slice(0, best + 1), name: q.name }, { cells: q.cells.slice(best + 1) });
+    showOffPlan();
+  }
+  var piecesMap = null, piecesLayer = null;
+  function drawPieces() {
+    if (!window.L) return;
+    if (!piecesMap) {
+      piecesMap = L.map('sm-pieces-map', { attributionControl: true });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(piecesMap);
+      piecesLayer = L.layerGroup().addTo(piecesMap);
+      piecesMap.on('click', function (e) { if (summary && summary.splitting >= 0) splitAt(e.latlng); });
+    }
+    piecesLayer.clearLayers();
+    var b = L.latLngBounds([]);
+    (summary.planCells || []).forEach(function (x) { L.rectangle(G.cellBounds(x), { stroke: false, fillColor: '#6b7280', fillOpacity: 0.2, interactive: false }).addTo(piecesLayer); });
+    piecesNow().forEach(function (q, n) {
+      var colour = PIECE_COLOURS[n % PIECE_COLOURS.length];
+      q.cells.forEach(function (x) {
+        L.rectangle(G.cellBounds(x), { color: colour, weight: 1, fillColor: colour, fillOpacity: q.done ? 0.2 : 0.55, interactive: false, className: 'lt-piece-square' }).addTo(piecesLayer);
+        b.extend(G.cellBounds(x));
+      });
+      var at = G.cellCenter(q.cells[Math.floor(q.cells.length / 2)]);
+      L.marker([at.lat, at.lon], { icon: L.divIcon({ className: 'lt-piece-n', html: '<span style="background:' + colour + '">' + (n + 1) + '</span>', iconSize: null }), interactive: false }).addTo(piecesLayer);
+    });
+    setTimeout(function () { piecesMap.invalidateSize(); if (b.isValid()) piecesMap.fitBounds(b, { maxZoom: 18, padding: [20, 20] }); }, 0);
   }
 
   // After you save, your stretches on the map with their readings (Q245),
@@ -3148,7 +3389,8 @@ window.LitterCollect = function (app) {
         settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
         setTypes(d.types);
         pace = d.pace || pace;
-        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection) };
+        // Its plan's squares, from the segments it lists, so ground off it is offered in pieces again (S5-U17).
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), planCells: planCellsOf(d.collection && d.collection.plan) };
         showSummary();
       });
     });
@@ -3891,7 +4133,7 @@ window.LitterCollect = function (app) {
   $('cd-yes').addEventListener('click', function () { if (discardStep === 1) askDiscard(2); else if (discardStep === 2) discardCollection($('cd-yes')); });
   $('pl-undo').addEventListener('click', planUndo);
   $('pl-save').addEventListener('click', function () { savePlan($('pl-save')); });
-  $('sm-offplan-save').addEventListener('click', function () { saveOffPlan($('sm-offplan-save')); });
+  $('sm-pieces-join').addEventListener('click', joinPieces);
   // Back on the app during a walk, off your plan's segments (S5-P9, Q559): a
   // notice to pause while you travel, unless you're collecting on the way.
   document.addEventListener('visibilitychange', function () {
@@ -3901,7 +4143,8 @@ window.LitterCollect = function (app) {
     navigator.geolocation.getCurrentPosition(function (p) {
       if (!c || c.ended || c.current.pausedAt) return;
       if (nearSquare(cells, G.cellAt(p.coords.latitude, p.coords.longitude))) { app.clearNotice('off-plan'); return; }
-      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way.', { key: 'off-plan' });
+      // And a new segment, weighed at each end (S5-U17, |C698): the weighings split the ground off your plan into pieces at the end.
+      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way. Collecting here? Weigh now to start a new segment, and weigh again at its end.', { key: 'off-plan' });
     }, function () { /* no fix: nothing to say */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   });
   $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });
@@ -4092,6 +4335,11 @@ window.LitterMap = function (app) {
     // |Q573, |C700), in the Settings tab's plan colour (|C684).
     var pc = darkColours() ? darkColours().plan : (planColour || '#7c3aed');
     if ((cells || []).length) L.polyline(G.outline(G.grow(cells)), { color: pc, weight: 10, opacity: 0.45, interactive: false, pane: 'ltPlan', className: 'lt-plan-outline' }).addTo(planLayer);
+    // Weigh-in pins at each end of every due segment in it (S5-U17, |Q566 (a)).
+    G.weighPins(segList(), cells).forEach(function (pin) {
+      var at = G.cellCenter(pin.cell);
+      L.marker([at.lat, at.lon], { icon: G.pinIcon(), interactive: false, keyboard: false, title: 'Weigh-in location: ' + pin.name }).addTo(planLayer);
+    });
   }
 
   // opts: { focus: [cells] to show first, back: what Back does, track: a
@@ -5440,7 +5688,7 @@ window.LitterReviews = function (app) {
     var box = $('reviews-list');
     box.textContent = '';
     var waiting = d.reviews.filter(function (r) { return r.open; }).length;
-    $('reviews-note').textContent = (waiting ? (waiting === 1 ? '1 segment waits' : waiting + ' segments wait') + ' for a review.' : 'No segment waits for a review.') +
+    $('reviews-note').textContent = (waiting ? (waiting === 1 ? '1 waits' : waiting + ' wait') + ' for a review.' : 'Nothing waits for a review.') +
       (d.canDecide ? ' As a ' + d.rank + ', you approve or decline.' : ' As an ' + d.rank + ', you recommend; a Builder or above decides.');
     d.reviews.forEach(function (r) { box.appendChild(card(r)); });
     setTimeout(function () { if (app.drawSmallMaps) app.drawSmallMaps(box); }, 0);
@@ -5455,8 +5703,17 @@ window.LitterReviews = function (app) {
     box.id = 'rv-' + r.id;
     box.appendChild(el('p', 'lt-col-head', r.name));
     box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + r.kind + ' · ' + r.squares.length + ' squares · ' + Math.round(r.miles * 100) / 100 + ' mi'));
-    box.appendChild(el('p', 'muted small', 'Submitted by ' + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
-    if (app.smallMap) box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    box.appendChild(el('p', 'muted small', (r.addition ? 'Asked by ' : 'Submitted by ') + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
+    if (r.addition && r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
+    if (app.smallMap) {
+      // An addition (S5-U17, |M711): the segment in its colour, the piece to add in orange.
+      if (r.addition) {
+        var colourOf = {};
+        r.squares.forEach(function (x) { colourOf[x] = '#c2410c'; });
+        box.appendChild(app.smallMap(r.name, (r.targetSquares || []).concat(r.squares), { kind: 'public', colourOf: colourOf }));
+        box.appendChild(el('p', 'muted small', 'Orange: the piece to add.'));
+      } else box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    }
     if (r.moves.length) {
       var list = el('div', 'lt-review-moves');
       r.moves.forEach(function (m) { list.appendChild(el('p', 'small lt-review-move', moveLine(m))); });
@@ -5492,8 +5749,8 @@ window.LitterReviews = function (app) {
     if (view.canDecide) {
       var yes = el('button', 'btn btn-primary lt-review-approve', 'Approve'), no = el('button', 'btn btn-secondary lt-review-decline', 'Decline');
       yes.type = 'button'; no.type = 'button';
-      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
-      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
+      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
+      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
       row.appendChild(yes); row.appendChild(no);
     } else {
       var ry = el('button', 'btn btn-primary lt-review-rec-approve', 'Recommend Approve'), rn = el('button', 'btn btn-secondary lt-review-rec-decline', 'Recommend Decline');
@@ -5592,6 +5849,8 @@ window.LitterReviews = function (app) {
 
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
+    document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));
     paintMode();
     window.scrollTo(0, 0);
     // A signature box can only be measured once it's showing.

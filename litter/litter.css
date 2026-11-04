@@ -372,3 +372,26 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-review-note { width: 100%; font: inherit; padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
 .lt-review-buttons { display: flex; gap: 8px; }
 .lt-review-buttons .btn { margin: 0; flex: 1; }
+
+/* Back: a small round button floating at the top left of each screen that has one (S5-U17, |M642). */
+.lt-fab-back { position: fixed; top: 6px; left: 6px; z-index: 1150; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface); color: var(--text); font: inherit; font-size: 1.2rem; font-weight: 800; line-height: 1; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18); }
+.lt-fab-back:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
+[hidden] .lt-fab-back { display: none; }
+/* Weigh-in pins (S5-U17, |Q566 (a)). */
+.lt-weigh-pin span { display: inline-block; white-space: nowrap; padding: 2px 6px; border-radius: 9px; background: #fff; color: #111827; border: 2px solid #111827;
+  font-size: 0.78rem; font-weight: 800; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); }
+/* Ground off your plan, in pieces (S5-U17). */
+.lt-pieces-map { height: 260px; border-radius: var(--radius-sm); }
+.lt-piece { border-left: 6px solid #c2410c; padding: 8px 0 8px 10px; margin: 10px 0; }
+.lt-piece-head { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.lt-piece-name { width: 100%; margin: 6px 0; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-piece-buttons { display: flex; gap: 8px; }
+.lt-piece-buttons .btn { margin: 0; }
+.lt-piece-buttons .lt-piece-split { flex: 0 0 auto; width: auto; }
+.lt-piece-touch { margin: 8px 0 4px; }
+.lt-piece.done { opacity: 0.75; }
+.lt-piece-n span { display: inline-block; min-width: 22px; padding: 1px 5px; border-radius: 11px; color: #fff; font-weight: 800; font-size: 0.8rem; text-align: center; border: 2px solid #fff; }
+body.lt-has-back .lt-notices { top: 48px; }
+.lt-weigh-pin { pointer-events: none; }

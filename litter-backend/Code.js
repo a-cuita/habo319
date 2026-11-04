@@ -143,6 +143,14 @@ var TABS = {
     widths: [150, 90, 200, 100, 160, 50, 420],
     formats: { 1: 'yyyy-mm-dd h:mm', 2: '@', 7: '@' }
   },
+  // Ground off a plan a player asked to add to a public segment (S5-U17,
+  // |M711): reviewed like a segment submitted to be public.
+  additions: {
+    name: 'Segment additions',
+    header: ['Addition ID', 'Segment ID', 'Asked by', 'Asked', 'Squares', 'Miles', 'Note', 'State'],
+    widths: [90, 90, 90, 150, 420, 60, 300, 90],
+    formats: { 1: '@', 2: '@', 4: 'yyyy-mm-dd h:mm', 5: '@', 7: '@' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -192,6 +200,7 @@ function actions_() {
     settingsSave: settingsSave_,
     reviewsLoad: reviewsLoad_,
     reviewMove: reviewMove_,
+    additionAsk: additionAsk_,
     simShare: simShare_,
     questTick: questTick_,
     addLitterType: addLitterType_,
