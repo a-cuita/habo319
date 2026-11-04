@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=26">
+<link rel="stylesheet" href="litter.css?v=27">
 </head>
 <body>
 
@@ -354,6 +354,8 @@
       <button class="btn btn-primary" id="sm-sim-line" type="button" hidden>Use the drawn line</button>
     </section>
     <div class="lt-map-box" id="sm-view-box" hidden></div>
+    <!-- Fields as areas (S5-P13 part 2, |Q600 (a)): how much of each field your track scanned, shaded on the map above. -->
+    <div class="lt-scans" id="sm-fields" hidden></div>
     <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
     <!-- Ground you collected off your plan, kept as a private segment if you like (S5-P9, Q560). -->
@@ -620,8 +622,8 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
-<script src="geo.js?v=9"></script>
-<script src="collect.js?v=34"></script>
+<script src="geo.js?v=10"></script>
+<script src="collect.js?v=35"></script>
 <script src="map.js?v=16"></script>
 <script src="quest.js?v=3"></script>
 <script src="litter.js?v=13"></script>

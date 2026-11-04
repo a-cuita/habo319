@@ -334,3 +334,7 @@ html.lt-builder .lt-modal-x { background: #374151; color: #f3f4f6; }
 .lt-seg-more { margin: 4px 0 6px; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .lt-seg-more p { margin: 2px 0; }
 html.lt-builder .lt-seg-more { background: #1f2937; }
+
+/* Fields as areas (S5-P13 part 2, |Q600 (a)): how much of each field your track scanned. */
+.lt-scans { margin: 10px 0 14px; }
+.lt-scan-line { font-weight: 700; margin: 2px 0; }

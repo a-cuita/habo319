@@ -481,6 +481,10 @@ html.lt-builder .lt-modal-x { background: #374151; color: #f3f4f6; }
 .lt-seg-more { margin: 4px 0 6px; padding: 6px 8px; border-radius: var(--radius-sm); background: var(--surface-2); }
 .lt-seg-more p { margin: 2px 0; }
 html.lt-builder .lt-seg-more { background: #1f2937; }
+
+/* Fields as areas (S5-P13 part 2, |Q600 (a)): how much of each field your track scanned. */
+.lt-scans { margin: 10px 0 14px; }
+.lt-scan-line { font-weight: 700; margin: 2px 0; }
 </style>
 </head>
 <body>
@@ -828,6 +832,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
       <button class="btn btn-primary" id="sm-sim-line" type="button" hidden>Use the drawn line</button>
     </section>
     <div class="lt-map-box" id="sm-view-box" hidden></div>
+    <!-- Fields as areas (S5-P13 part 2, |Q600 (a)): how much of each field your track scanned, shaded on the map above. -->
+    <div class="lt-scans" id="sm-fields" hidden></div>
     <button class="btn btn-secondary" id="sm-map-open" type="button">See it on the public map</button>
     <div id="sm-list"></div>
     <!-- Ground you collected off your plan, kept as a private segment if you like (S5-P9, Q560). -->
@@ -2958,12 +2964,59 @@ window.LitterCollect = function (app) {
     Object.keys(summary.stops || {}).forEach(function (id) {
       L.rectangle(G.cellBounds(summary.stops[id].cell), { color: '#1d4ed8', weight: 3, fill: false, interactive: false }).addTo(layers.cells);
     });
+    // Each field your track scanned (S5-P13 part 2): its ground, scanned and missed.
+    var fields = fieldScans();
+    fields.forEach(function (f) { shadeField(f, layers.cells); f.pts.forEach(function (p) { b.extend(G.stepBounds(p)); }); });
+    showFieldScans(fields);
     // Your recorder's track, where you walked, over the cells (S3-P27, M465).
     if (summary.track && summary.track.length > 1) {
       drawTrack(summary.track, layers.cells, darkColours() ? darkColours().paused : settings.pausedColour);
       summary.track.forEach(function (p) { b.extend(p); });
     }
-    setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: 17, padding: [16, 16] }); }, 0);
+    // Closer in when there's a field to see (S5-P13 part 2).
+    setTimeout(function () { map.invalidateSize(); if (b.isValid()) map.fitBounds(b, { maxZoom: fields.length ? 19 : 17, padding: [16, 16] }); }, 0);
+  }
+
+  /* ── Fields as areas (S5-P13 part 2, |Q600 (a)) ── */
+
+  // Each accepted field a track scanned, with its ground and what was
+  // scanned: your track scans "A track scans each side (m)", and the field is
+  // collected once "Field collected when scanned (%)" of it is.
+  function scanFields(track, segs) {
+    if (!track || track.length < 2) return [];
+    var reach = settings.reach || 15, cover = (settings.fieldCover || 70) / 100;
+    return (segs || []).filter(function (g) { return g.kind === 'Field'; }).map(function (g) {
+      var pts = G.fieldPoints({ outline: g.outline, squares: g.squares });
+      var scan = G.fieldScan(pts, track, reach);
+      return { g: g, pts: pts, scan: scan, share: G.scanShare(scan), cover: cover };
+    }).filter(function (f) { return f.share > 0; });
+  }
+  // The summary's walk, worked out once for each track it has.
+  function fieldScans() {
+    if (!summary) return [];
+    if (summary.fieldsFor !== summary.track) {
+      summary.fieldsFor = summary.track;
+      summary.fields = scanFields(summary.track, summary.collection && summary.collection.simulated ? simSegments : segments);
+    }
+    return summary.fields || [];
+  }
+  // Scanned ground in green, missed in orange, a square of shading for each point.
+  function shadeField(f, layer) {
+    f.pts.forEach(function (p, i) {
+      L.rectangle(G.stepBounds(p), { stroke: false, fillColor: f.scan[i] ? '#16a34a' : '#f97316', fillOpacity: f.scan[i] ? 0.3 : 0.5, interactive: false,
+        className: f.scan[i] ? 'lt-scan-hit' : 'lt-scan-miss' }).addTo(layer);
+    });
+  }
+  function scanLine(f) {
+    var pct = Math.round(f.share * 100);
+    return 'You scanned ' + pct + '% of ' + f.g.name + (f.share >= f.cover ? ': collected.' : ': ' + Math.round(f.cover * 100) + '% collects it.');
+  }
+  function showFieldScans(fields) {
+    var box = $('sm-fields');
+    box.textContent = '';
+    box.hidden = !fields.length;
+    fields.forEach(function (f) { var p = document.createElement('p'); p.className = 'lt-scan-line'; p.textContent = scanLine(f); box.appendChild(p); });
+    if (fields.length) { var k = document.createElement('p'); k.className = 'muted small'; k.textContent = 'On the map: green is the ground you scanned, orange what you missed.'; box.appendChild(k); }
   }
 
   function allCells() {
