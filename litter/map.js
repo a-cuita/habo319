@@ -273,12 +273,14 @@ window.LitterMap = function (app) {
 
   /* ── Your collections (item 15) ── */
 
+  // Turning Admin Mode on or off redraws the list (S5-P10, |M798).
+  $('cl-sim').addEventListener('change', function () { setTimeout(drawMine, 0); });
+
   function showMine() {
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
       colours = d.colours || colours;
       dark = d.dark || dark;
-      $('my-none').hidden = !!d.collections.length;
       drawMine();
       realSegs = d.segments || realSegs;
       simSegs = d.simSegments || simSegs;
@@ -291,10 +293,16 @@ window.LitterMap = function (app) {
     });
   }
 
+  // Simulated walks only in Admin Mode (S5-P10, |M798): never alongside
+  // real ones in Player mode.
   function drawMine() {
+    if (!mine) return;
     var list = $('my-list');
     list.textContent = '';
-    var cols = mine.collections;
+    var admin = !!(app.builderMode && app.builderMode());
+    var cols = mine.collections.filter(function (c) { return admin || !c.simulated; });
+    $('my-none').hidden = !!cols.length;
+    if (!cols.length) $('my-none').textContent = 'No collections yet.';
     (showAll ? cols : cols.slice(0, SHOW_FIRST)).forEach(function (c) { list.appendChild(collectionItem(c)); });
     setTimeout(function () { drawSmallMaps(list); }, 0);
     $('my-more').hidden = showAll || cols.length <= SHOW_FIRST;
