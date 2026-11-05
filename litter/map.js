@@ -47,7 +47,7 @@ window.LitterMap = function (app) {
     bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
-    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb per mile per day'] : ['0 · clean', '5', '10 or more · heavy'])
+    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb/mi·day⁻¹'] : ['0 · clean', '5', '10 or more · heavy'])
       .forEach(function (t) { marks.appendChild(el('span', null, t)); });
     box.appendChild(marks);
   }
@@ -363,7 +363,7 @@ window.LitterMap = function (app) {
           realSegs = d.segments || realSegs;
           simSegs = d.simSegments || simSegs;
           drawSegments();
-          app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb per mile per day.'
+          app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb/mi·day⁻¹.'
             : 'Measured again: no segment rate from this walk.');
         }, function (err) { ma.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
       });
