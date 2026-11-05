@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=35">
+<link rel="stylesheet" href="litter.css?v=36">
 </head>
 <body>
 
@@ -273,7 +273,12 @@
     <section class="card">
       <!-- Drawing a private segment (S5-P12, Q550): squares you keep, to use again in a walk's plan. -->
       <h2>Draw a private segment</h2>
-      <p class="muted small">Tap the squares you mean to keep. The app fills in along the street from the square you tapped last.</p>
+      <!-- Path or Field, chosen first (S5-P19, |C788): a field is drawn by its corners, not squares. -->
+      <div class="lt-plan-kind" role="radiogroup" aria-label="Kind">
+        <label><input type="radio" name="pl-kind" id="pl-kind-path" value="Path" checked> Path</label>
+        <label><input type="radio" name="pl-kind" id="pl-kind-field" value="Field"> Field</label>
+      </div>
+      <p class="muted small" id="pl-how">Path: a street, sidewalk or trail. Tap the squares you mean to keep. The app fills in along the street from the square you tapped last.</p>
       <p class="lt-plan-status" id="pl-status"></p>
     </section>
     <p class="lt-pick" id="pl-pick" role="status" hidden></p>
@@ -407,20 +412,20 @@
   <!-- The public map (S3-P22, item 10): anyone can open it, with no account (Q391). -->
   <div id="v-map" hidden>
     <section class="card">
-      <!-- How to read the map, behind an ℹ️ (S5-P11, M593, Q565): pointing at it shows the words; a tap shows them here. -->
-      <div class="lt-title-row">
-        <h2>The litter map</h2>
-        <button class="lt-info" id="mp-info" type="button" aria-label="How to read the map" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side. A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.">ℹ️</button>
-      </div>
-      <div class="muted small" id="mp-info-say" hidden>
-        <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
-        <!-- These words follow the layer showing (|C671). -->
-        <p id="mp-info-colour">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
-      </div>
+      <h2>The litter map</h2>
     </section>
     <!-- The map itself: the main page borrows this block, so both show the same layers (Oct 31, field first). -->
     <div id="mp-slot">
       <div id="mp-body">
+        <!-- How to read the map, behind an ℹ️ (S5-P11, M593, Q565), with the map wherever it shows, the main page too (S5-P10, |C782). -->
+        <div class="lt-map-info">
+          <button class="lt-info" id="mp-info" type="button" aria-label="How to read the map" aria-expanded="false" title="Each square is 1/160 of a mile (about 33 ft) on a side. A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.">ℹ️</button>
+          <div class="muted small" id="mp-info-say" hidden>
+            <p>Each square is 1/160 of a mile (about 33 ft) on a side.</p>
+            <!-- These words follow the layer showing (|C671). -->
+            <p id="mp-info-colour">A square's colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.</p>
+          </div>
+        </div>
         <div class="lt-legend" id="mp-legend"></div>
         <div class="lt-map-box lt-map-has-layers">
           <div class="lt-map" id="mp-map"></div>
@@ -479,7 +484,6 @@
           <dl class="lt-facts">
             <dt>Email</dt><dd id="me-email"></dd>
             <dt>Waiver</dt><dd id="me-waiver"></dd>
-            <dt>Volunteer record</dt><dd id="me-match"></dd>
           </dl>
           <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
         </section>
@@ -651,11 +655,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
-<script src="collect.js?v=40"></script>
-<script src="map.js?v=21"></script>
-<script src="quest.js?v=3"></script>
+<script src="collect.js?v=41"></script>
+<script src="map.js?v=22"></script>
+<script src="quest.js?v=4"></script>
 <script src="settings.js?v=2"></script>
 <script src="reviews.js?v=2"></script>
-<script src="litter.js?v=16"></script>
+<script src="litter.js?v=17"></script>
 </body>
 </html>

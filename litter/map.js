@@ -178,8 +178,8 @@ window.LitterMap = function (app) {
   // whether it's due or partly cleaned.
   var ARROWS = { up: ' ↑', down: ' ↓', level: ' →' };
   function segmentLine(g) {
-    var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb per mile per day'
-      : round(g.rate, 2) + ' lb per mile per day (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
+    var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb/mi·day⁻¹'
+      : round(g.rate, 2) + ' lb/mi·day⁻¹ (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
     return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
       (g.due ? ' · Due: collect it to measure its rate' : '');
   }
@@ -229,7 +229,7 @@ window.LitterMap = function (app) {
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
           (g.walks || []).forEach(function (w) {
-            box.appendChild(el('div', 'lt-pop-walk', dayWords(w.collected) + ' · ' + w.by + ' · ' + round(w.rate, 2) + ' lb per mile per day'));
+            box.appendChild(el('div', 'lt-pop-walk', dayWords(w.collected) + ' · ' + w.by + ' · ' + round(w.rate, 2) + ' lb/mi·day⁻¹'));
           });
           if (g.notCounted) box.appendChild(el('div', 'lt-pop-part', g.notCounted + (g.notCounted === 1 ? ' more walk wasn\'t' : ' more walks weren\'t') + ' counted: too soon after the last, or a Rate Reset.'));
           return box;
@@ -608,9 +608,14 @@ window.LitterMap = function (app) {
     ['Path', 'Field'].forEach(function (k) { var o = el('option', null, k); o.value = k; sel.appendChild(o); });
     n2.appendChild(l2); n2.appendChild(sel); f.appendChild(n2);
     f.appendChild(el('p', 'muted small', 'Path: a street, sidewalk or trail. Field: open ground, like a lawn or a park.'));
-    var drawer = cornerDrawer(p.cells, []);
-    drawer.box.hidden = true;
+    // A private segment drawn as a field brings its corners: Field is chosen,
+    // and its shape is there to submit as it is (S5-P19, |C788).
+    var drawn = p.kind === 'Field' && (p.outline || []).length >= 3;
+    var drawer = cornerDrawer(p.cells, drawn ? p.outline : []);
+    if (drawn) sel.value = 'Field';
+    drawer.box.hidden = !drawn;
     f.appendChild(drawer.box);
+    if (drawn) drawer.open();
     sel.addEventListener('change', function () { drawer.box.hidden = sel.value !== 'Field'; if (sel.value === 'Field') drawer.open(); });
     var go = el('button', 'btn btn-primary lt-propose-go', 'Submit'), no = el('button', 'btn btn-secondary lt-propose-cancel', 'Cancel');
     go.type = 'button'; no.type = 'button';

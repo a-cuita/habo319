@@ -335,11 +335,13 @@ function normalizePhone_(phone) {
 
 // The volunteer with the same first and last name and the same email or
 // phone. Matching on name too keeps family members who share a phone or
-// email apart. A match missing an email or phone gets it filled in.
+// email apart. A match missing an email or phone gets it filled in. A
+// record the litter page made at sign-up has no First check-in yet: this
+// check-in is their first (S5-P26, |Q611 (a)).
 function findOrCreateVolunteer_(v, now) {
   var sheet = getDb_().getSheetByName(TABS.volunteers.name);
   var last = lastRowWith_(sheet, VOLUNTEER_COL.id);
-  var rows = last > 1 ? sheet.getRange(2, 1, last - 1, VOLUNTEER_COL.phone).getDisplayValues() : [];
+  var rows = last > 1 ? sheet.getRange(2, 1, last - 1, VOLUNTEER_COL.firstSeen).getDisplayValues() : [];
   var lower = function (s) { return String(s).trim().replace(/\s+/g, ' ').toLowerCase(); };
   var phoneDigits = normalizePhone_(v.phone);
   for (var i = 0; i < rows.length; i++) {
@@ -351,6 +353,7 @@ function findOrCreateVolunteer_(v, now) {
       var row = i + 2;
       if (v.email && !r[VOLUNTEER_COL.email - 1].trim()) sheet.getRange(row, VOLUNTEER_COL.email).setValue(safeCell_(v.email));
       if (v.phone && !r[VOLUNTEER_COL.phone - 1].trim()) sheet.getRange(row, VOLUNTEER_COL.phone).setValue(v.phone);
+      if (!r[VOLUNTEER_COL.firstSeen - 1].trim()) sheet.getRange(row, VOLUNTEER_COL.firstSeen).setValue(now);
       sheet.getRange(row, VOLUNTEER_COL.lastSeen).setValue(now);
       return { id: r[VOLUNTEER_COL.id - 1].trim(), isNew: false };
     }

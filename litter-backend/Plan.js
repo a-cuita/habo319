@@ -15,7 +15,7 @@
  *   actually went, as with a recorder's GPX file (Q228).
  */
 
-var PLAN_COL = { id: 1, account: 2, created: 3, stretches: 4, cells: 5, turns: 6, miles: 7, collection: 8, updated: 9, name: 10, deleted: 11 };
+var PLAN_COL = { id: 1, account: 2, created: 3, stretches: 4, cells: 5, turns: 6, miles: 7, collection: 8, updated: 9, name: 10, deleted: 11, kind: 12, outline: 13 };
 var SETTING_PLAN_XP = 'XP for each planned collection';
 // XP for each stretch (S3-P27, Q401, Q402, M409, Q424): its visual rating,
 // by how close it is to the Litter Index, with a bonus as the Litter Index
@@ -42,6 +42,15 @@ function planSave_(req) {
     var turns = cleanCells_(s && s.turns).filter(function (t) { return cells.indexOf(t) !== -1; });
     return { cells: cells, turns: turns, miles: milesValue_(Number(s && s.miles) || 0) };
   }).filter(function (s) { return s.cells.length; });
+  // A field drawn by its corners (S5-P19, |C788): its squares and miles come
+  // from the shape, as a public field's do.
+  var field = /^\s*f/i.test(String(p.kind || '')), corners = [];
+  if (field) {
+    corners = fieldCorners_(p.outline);
+    if (!corners.length) throw new Error('Tap the field\'s corners on the map first: 3 or more.');
+    var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
+    list = [{ cells: Object.keys(ground.cells).slice(0, 2000), turns: [], miles: milesValue_(ground.miles) }];
+  }
   if (!list.length) throw new Error('A plan needs at least one cell: tap the cells you mean to cover.');
   var name = clean_(p.name, 60);
   return withLock_(function () {
@@ -59,6 +68,8 @@ function planSave_(req) {
     row[PLAN_COL.miles - 1] = round_(miles, 2);
     row[PLAN_COL.updated - 1] = now;
     row[PLAN_COL.name - 1] = safeCell_(name);
+    row[PLAN_COL.kind - 1] = field ? 'Field' : 'Path';
+    row[PLAN_COL.outline - 1] = corners.length ? outlineText_(corners) : '';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     return { plan: planView_(planById_(id)), planNeeded: planNeeded_(account.id), plans: myPlans_(account.id) };
   });
@@ -98,7 +109,8 @@ function planOf_(r) {
     stretches: cells.map(function (c, i) {
       return { cells: c.split(/\s+/).filter(isCell), turns: String(turns[i] || '').split(/\s+/).filter(isCell) };
     }).filter(function (s) { return s.cells.length; }),
-    miles: Number(r.get('miles')) || 0, collection: r.get('collection'), name: r.get('name'), deleted: !!r.get('deleted')
+    miles: Number(r.get('miles')) || 0, collection: r.get('collection'), name: r.get('name'), deleted: !!r.get('deleted'),
+    kind: r.get('kind') === 'Field' ? 'Field' : 'Path', outline: parseOutline_(r.get('outline'))
   };
 }
 

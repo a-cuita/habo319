@@ -67,6 +67,10 @@ html.lt-builder .lt-nt.working { background: #4b5563; animation: lt-work-pulse 1
 
 /* The map and your collections (S3-P22). */
 .lt-legend { margin-top: 10px; }
+/* The map's ℹ️ travels with the map, to the main page too (S5-P10, |C782). */
+.lt-map-info { display: flex; flex-wrap: wrap; justify-content: flex-end; margin-top: 8px; }
+.lt-map-info > #mp-info-say { flex-basis: 100%; }
+.lt-map-info + .lt-legend { margin-top: 2px; }
 .lt-legend-bar { height: 14px; border-radius: 7px; border: 1px solid var(--border); }
 .lt-legend-marks { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--text-dim); margin-top: 4px; gap: 8px; }
 .lt-pop strong { display: block; font-size: 1rem; }
@@ -395,3 +399,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-piece-n span { display: inline-block; min-width: 22px; padding: 1px 5px; border-radius: 11px; color: #fff; font-weight: 800; font-size: 0.8rem; text-align: center; border: 2px solid #fff; }
 body.lt-has-back .lt-notices { top: 48px; }
 .lt-weigh-pin { pointer-events: none; }
+/* The live dot's ring stands off the map (S5-U17, |C794). */
+.leaflet-pane path.lt-here-dot { filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45)); }
+/* Path or Field, first, when drawing a private segment (S5-P19, |C788). */
+.lt-plan-kind { display: flex; gap: 18px; margin: 4px 0 8px; font-weight: 700; }
+.lt-plan-kind label { display: flex; align-items: center; gap: 6px; cursor: pointer; }

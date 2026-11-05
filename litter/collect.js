@@ -177,6 +177,7 @@ window.LitterCollect = function (app) {
     c.ckOut = (c.ckOut || []).concat([k]);
     save();
     if (!c.practice) { segmentPrompt(pos); drawLiveFields(); }
+    if (!c.sim && !c.practice && (pos.acc || 0) < 999 && !$('v-collect').hidden) showHere(pos.lat, pos.lon, pos.acc);
   }
   // Weigh as you step onto a due segment and as you step off it, so its
   // pounds are its own (S5-P3, Q524).
@@ -185,9 +186,16 @@ window.LitterCollect = function (app) {
     var cell = G.cellAt(pos.lat, pos.lon);
     var on = segs().filter(function (s) { return s.due && nearSquare(s.squares, cell); })[0];
     var was = c.onSegment ? segs().filter(function (s) { return s.id === c.onSegment; })[0] : null;
+    // Whether the walk had reached any segment before, due or not (S5-U2, |C714).
+    var reachedBefore = !!c.steppedOn;
+    if (!reachedBefore && segs().some(function (s) { return nearSquare(s.squares, cell); })) { c.steppedOn = true; save(); }
     if (on && (!was || was.id !== on.id)) {
       c.onSegment = on.id;
-      app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
+      // The walk's first segment, with nothing weighed yet: no empty bag to
+      // weigh. HABO counts this first weighing from where you stepped on. Any
+      // later segment asks, as before.
+      if (c.n === 1 && !reachedBefore) app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. No need to weigh yet, since you\'ve only just started: collect it, and weigh as you step off.');
+      else app.notice('You\'re stepping onto ' + on.name + ', cleaned ' + days(on.days) + ' ago. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
     } else if (!on && was) {
       c.onSegment = '';
       app.notice('You\'re stepping off ' + was.name + '. Weigh now (Litter pulse, then Weigh), so its pounds are its own.');
@@ -230,9 +238,7 @@ window.LitterCollect = function (app) {
       dotWatch = navigator.geolocation.watchPosition(function (p) {
         if (!dotWanted()) return syncDot();
         var at = [p.coords.latitude, p.coords.longitude];
-        layers.here.clearLayers();
-        if (p.coords.accuracy < 200) L.circle(at, { radius: p.coords.accuracy, stroke: false, fillColor: '#2563eb', fillOpacity: 0.12, interactive: false }).addTo(layers.here);
-        L.circleMarker(at, { radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false, className: 'lt-here-dot' }).addTo(layers.here);
+        showHere(at[0], at[1], p.coords.accuracy);
         if (dotFirst) { dotFirst = false; map.setView(at, Math.max(map.getZoom(), 17)); }
         segmentPrompt({ lat: at[0], lon: at[1], acc: p.coords.accuracy });
       }, function () { /* no fix just now */ }, { enableHighAccuracy: true, maximumAge: 5000, timeout: 30000 });
@@ -241,6 +247,23 @@ window.LitterCollect = function (app) {
       dotWatch = null;
       if (layers) layers.here.clearLayers();
     }
+  }
+  // The dot itself, as most maps show where you are (S5-U17, |C794): a blue
+  // dot with a white ring, in a faded blue circle as wide as the GPS's
+  // accuracy, in a layer of its own above the rest. Every GPS fix the page
+  // takes moves it, the watch's and each check-in's alike, so it shows even
+  // when the phone is slow to start the watch.
+  function showHere(lat, lon, acc) {
+    if (!map || !layers || !isFinite(lat) || !isFinite(lon)) return;
+    layers.here.clearLayers();
+    if (acc > 0 && acc < 200) L.circle([lat, lon], { pane: 'ltHere', radius: acc, color: '#2563eb', weight: 1, opacity: 0.35, fillColor: '#2563eb', fillOpacity: 0.15, interactive: false, className: 'lt-here-acc' }).addTo(layers.here);
+    L.circleMarker([lat, lon], { pane: 'ltHere', radius: 8, color: '#fff', weight: 3, fillColor: '#2563eb', fillOpacity: 1, interactive: false, className: 'lt-here-dot' }).addTo(layers.here);
+  }
+  // The last real fix, when the collecting screen opens.
+  function hereFromCheckins() {
+    if (!c || c.ended || c.sim || c.practice) return;
+    var ks = (c.checkins || []).filter(function (k) { return (k[3] || 0) < 999; }), k = ks[ks.length - 1];
+    if (k) showHere(k[1], k[2], k[3]);
   }
   setInterval(syncDot, 3000);
   document.addEventListener('visibilitychange', syncDot);
@@ -626,6 +649,7 @@ window.LitterCollect = function (app) {
     drawCells([], c && c.lastCell, null);
     drawSim();
     drawLiveFields();
+    hereFromCheckins();
     syncDot();
     drill();
     if (c && c.sim && !c.ended) fitCells(planCells(c.plan), c.line);
@@ -672,6 +696,7 @@ window.LitterCollect = function (app) {
     map = L.map('cl-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     map.createPane('ltPlan').style.zIndex = 450;   // the plan above everything else (S5-P9, |C685)
+    map.createPane('ltHere').style.zIndex = 620;   // the live dot above every layer, the plan and the pins too (S5-U17, |C794)
     layers = { streets: L.layerGroup().addTo(map), plan: L.layerGroup().addTo(map), fields: L.layerGroup().addTo(map), cells: L.layerGroup().addTo(map), sim: L.layerGroup().addTo(map), here: L.layerGroup().addTo(map) };
     map.on('click', function (e) {
       lastTap = { lat: e.latlng.lat, lon: e.latlng.lng, acc: 5 };
@@ -1335,7 +1360,9 @@ window.LitterCollect = function (app) {
     if (!plan.length || (summary.collection && summary.collection.simulated)) return [];
     var off = function (cell) { return !nearSquare(plan, cell); };
     var track = summary.track && summary.track.length > 1 ? summary.track : null;
-    if (!track) { var all = offPlanCells(); return all.length >= 3 ? [{ cells: all }] : []; }
+    // No track yet: the pieces wait for it (S5-U17, |C795), since without it
+    // there's nowhere to split them, and one piece of everything is wrong.
+    if (!track) return [];
     var weighEnds = {};
     summary.stretches.forEach(function (st) { if (!st.discarded && st.cells.length) weighEnds[st.cells[st.cells.length - 1]] = true; });
     var pts = track.map(function (p) { return { xy: G.xy(p[0], p[1]), paused: !!p[2] }; });
@@ -1382,8 +1409,15 @@ window.LitterCollect = function (app) {
   function showOffPlan() {
     var pieces = piecesNow();
     var open = pieces.filter(function (q) { return !q.done; });
-    $('sm-offplan').hidden = !pieces.length;
+    // Ground off the plan, and no track yet: say the pieces come with it.
+    var waiting = !pieces.length && !(summary.track && summary.track.length > 1) && offPlanCells().length >= 3;
+    $('sm-offplan').hidden = !pieces.length && !waiting;
     $('sm-offplan-err').textContent = '';
+    $('sm-pieces').textContent = '';
+    $('sm-pieces-hint').textContent = '';
+    $('sm-pieces-join').hidden = true;
+    $('sm-pieces-map').parentNode.hidden = !pieces.length;
+    if (waiting) $('sm-offplan-say').textContent = 'You walked ground off your plan. Add your walk\'s GPX track above, and it shows here piece by piece, split where you turned around, paused or weighed, to keep as private segments.';
     if (!pieces.length) return;
     $('sm-offplan-say').textContent = pieces.length === 1 ? 'You walked 1 piece of ground off your plan. Keep it as a private segment, to put in a plan again?'
       : 'You walked ' + pieces.length + ' pieces of ground off your plan, split where your track turned around, paused, or where you weighed. Keep each as a private segment, to put in a plan again?';
@@ -2187,8 +2221,10 @@ window.LitterCollect = function (app) {
   // the cell last tapped, which the next tap fills in from along the street.
   // Undo takes back the last tap.
   function openPlan() {
-    planning = { stretches: [{ cells: [], turns: [], from: null }], history: [] };
+    planning = { stretches: [{ cells: [], turns: [], from: null }], history: [], kind: 'Path', corners: [] };
     $('pl-name').value = '';
+    $('pl-kind-path').checked = true;
+    planHow();
     // The planning map is the collecting map: a simulated walk's line stays off it (C606).
     if (layers) layers.sim.clearLayers();
     $('cl-sim-note').hidden = true;
@@ -2213,7 +2249,37 @@ window.LitterCollect = function (app) {
     }).then(function () { drawPlanning(false); });
   }
 
+  // Path or Field, first (S5-P19, |C788). A field is its corners, tapped in
+  // order around it; its squares and miles follow from the shape, as a public
+  // field's do. Switching starts the drawing again.
+  var PLAN_HOW = {
+    Path: 'Path: a street, sidewalk or trail. Tap the squares you mean to keep. The app fills in along the street from the square you tapped last.',
+    Field: 'Field: open ground, like a lawn or a park. Tap each corner of it on the map, in order around it. The shape closes itself.'
+  };
+  function planHow() { $('pl-how').textContent = PLAN_HOW[$('pl-kind-field').checked ? 'Field' : 'Path']; }
+  function planKind() {
+    if (!planning) return;
+    planning.kind = $('pl-kind-field').checked ? 'Field' : 'Path';
+    planning.stretches = [{ cells: [], turns: [], from: null }];
+    planning.history = [];
+    planning.corners = [];
+    planHow();
+    drawPlanning(false);
+  }
+  function fieldShape() {
+    var corners = planning.corners, pts = corners.length >= 3 ? G.fieldPoints({ outline: corners }) : [], cells = [];
+    pts.forEach(function (p) { var x = G.cellOfXY(p); if (cells.indexOf(x) === -1) cells.push(x); });
+    return { cells: cells, miles: G.fieldMiles(pts, settings.reach || 15) };
+  }
   function planTap(cell) {
+    if (planning.kind === 'Field') {
+      if (planning.corners.length >= 60 || !lastTap) return;
+      planning.corners.push([lastTap.lat, lastTap.lon]);
+      planning.history.push({ corner: true });
+      planning.stretches[0].cells = fieldShape().cells;
+      app.notice('');
+      return drawPlanning(false);
+    }
     var st = planning.stretches[0];
     if (st.cells.indexOf(cell) !== -1) {
       app.notice('That square is already in it. To take squares out, press Undo.');
@@ -2232,6 +2298,7 @@ window.LitterCollect = function (app) {
   function planUndo() {
     var step = planning.history.pop();
     if (!step) return;
+    if (step.corner) { planning.corners.pop(); planning.stretches[0].cells = fieldShape().cells; return drawPlanning(false); }
     var st = planning.stretches[0];
     st.cells = st.cells.filter(function (x) { return step.added.indexOf(x) === -1; });
     st.from = step.from;
@@ -2239,6 +2306,7 @@ window.LitterCollect = function (app) {
   }
 
   function planMiles(st) {
+    if (planning && planning.kind === 'Field') return fieldShape().miles;
     var m = streets ? streets.measure(st.cells) : { street: 0, off: G.CELL_M * st.cells.length };
     return (m.street + m.off) / G.MILE_M;
   }
@@ -2251,9 +2319,15 @@ window.LitterCollect = function (app) {
       st.cells.forEach(function (cell) {
         L.rectangle(G.cellBounds(cell), { color: '#c2410c', weight: 1, fillColor: '#f97316', fillOpacity: 0.4, interactive: false }).addTo(layers.cells);
       });
+      var fc = planning.kind === 'Field' ? planning.corners : [], colour = darkColours() ? darkColours().plan : '#0e7490';
+      if (fc.length >= 3) L.polygon(fc, { color: colour, weight: 3, fillOpacity: 0, interactive: false, className: 'lt-corners-shape' }).addTo(layers.cells);
+      else if (fc.length === 2) L.polyline(fc, { color: colour, weight: 3, interactive: false }).addTo(layers.cells);
+      fc.forEach(function (c) { L.circleMarker(c, { radius: 6, color: colour, weight: 2, fillColor: '#fff', fillOpacity: 1, interactive: false, className: 'lt-corner' }).addTo(layers.cells); });
       setTimeout(function () { map.invalidateSize(); }, 0);
     }
-    $('pl-status').textContent = st.cells.length ? 'Your private segment: ' + plural(st.cells.length, 'square', 'squares') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
+    if (planning.kind === 'Field') $('pl-status').textContent = !fc.length ? 'Tap the first corner of the field.' : fc.length < 3 ? plural(fc.length, 'corner', 'corners') + ': 3 or more make a field.'
+      : 'Your field: ' + plural(fc.length, 'corner', 'corners') + ', ' + plural(st.cells.length, 'square', 'squares') + ', ' + round(planMiles(st), 2) + ' mi to scan it.';
+    else $('pl-status').textContent = st.cells.length ? 'Your private segment: ' + plural(st.cells.length, 'square', 'squares') + ', ' + round(planMiles(st), 2) + ' mi.' : 'Tap where your walk starts, then each corner along the way: the squares between follow the streets.';
     $('pl-undo').disabled = !planning.history.length;
     planSegments(st);
   }
@@ -2289,12 +2363,16 @@ window.LitterCollect = function (app) {
   }
 
   function savePlan(button) {
+    var field = planning.kind === 'Field';
+    if (field && planning.corners.length < 3) { $('pl-err').textContent = 'Tap at least 3 corners of the field on the map first.'; return; }
     var list = planning.stretches.filter(function (st) { return st.cells.length; }).map(function (st) {
       return { cells: st.cells.slice(), turns: [], miles: planMiles(st) };
     });
-    if (!list.length) { $('pl-err').textContent = 'Tap the squares you mean to keep first.'; return; }
+    if (!list.length) { $('pl-err').textContent = field ? 'Those corners hold no ground: spread them out a little.' : 'Tap the squares you mean to keep first.'; return; }
+    var sent = { stretches: list, name: $('pl-name').value };
+    if (field) { sent.kind = 'Field'; sent.outline = planning.corners.slice(); }
     app.busy(button, 'pl-err', function () {
-      return busyWhile('Saving your private segment, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: { stretches: list, name: $('pl-name').value } }); }).then(function (d) {
+      return busyWhile('Saving your private segment, please wait...', function () { return app.api('planSave', { token: app.myToken(), plan: sent }); }).then(function (d) {
         planNoticesGone();
         planning = null;
         account = account || { xp: 0, plans: [] };
@@ -2381,6 +2459,8 @@ window.LitterCollect = function (app) {
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
+  $('pl-kind-path').addEventListener('change', planKind);
+  $('pl-kind-field').addEventListener('change', planKind);
   $('cl-choose').addEventListener('click', function () { if (app.chooseWalkPlan) app.chooseWalkPlan(walkPlan().map(function (x) { return x.id; })); });
   $('cl-discard').addEventListener('click', function () { askDiscard(1); });
   $('cd-no').addEventListener('click', closeDiscard);

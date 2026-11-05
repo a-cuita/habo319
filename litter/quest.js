@@ -14,7 +14,7 @@ window.LitterQuest = function (app) {
   var GEAR_KEY = 'habo-litter-gear';   // the gear ticked, kept on this phone until step 3 is done
   var quest = null;      // the player's quest, as HABO last said
   var list = [];         // the player's quests, for Your quests
-  var workshop = null;   // a workshop run in Admin Mode: { steps, gear }, nothing saved
+  var workshop = null;   // a run that saves nothing: { steps, gear, again }. A workshop run in Admin Mode, or a player going through it again (again: true)
   var pending = {};
   var GEAR = [['gloves', 'Gloves'], ['bags', 'Bags'], ['vest', 'A bright safety vest'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
   var STEPS = [
@@ -60,9 +60,10 @@ window.LitterQuest = function (app) {
     card.hidden = !q || (q.done && !workshop);
     card.classList.toggle('workshop', !!workshop);
     $('qs-workshop-end').hidden = !workshop;
+    $('qs-workshop-end').textContent = workshop && workshop.again ? 'End this run' : 'End the workshop run';
     if (card.hidden) return;
-    $('qs-title').textContent = workshop ? 'Your first quest · workshop run' : 'Your first quest';
-    $('qs-say').textContent = workshop ? 'A run for a room to follow, from the start. Nothing is saved, and no XP.'
+    $('qs-title').textContent = workshop ? (workshop.again ? 'Your first quest · again' : 'Your first quest · workshop run') : 'Your first quest';
+    $('qs-say').textContent = workshop ? (workshop.again ? 'From the start, to remind yourself how it works. Nothing is saved, and no XP.' : 'A run for a room to follow, from the start. Nothing is saved, and no XP.')
       : 'Six steps before your first collection, each ticked as you do it. Each one earns ' + q.stepXp + ' XP, and finishing earns ' + q.doneXp + ' more.';
     $('qs-gate').hidden = !!workshop || !q.needed;
     var box = $('qs-steps');
@@ -114,7 +115,8 @@ window.LitterQuest = function (app) {
       workshop.steps.push(n);
       workshop.steps.sort(function (a, b) { return a - b; });
       render();
-      if (workshop.steps.length === STEPS.length) blue('Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.', 'workshop');
+      if (workshop.steps.length === STEPS.length) blue(workshop.again ? 'Done again: every step ticked. Nothing was saved. Press End this run at the bottom of the card.'
+        : 'Workshop run done: every step ticked. Nothing was saved. Press End the workshop run to put your own quest back.', 'workshop');
       return Promise.resolve();
     }
     if (!quest || has(n) || pending[n]) return Promise.resolve();
@@ -146,15 +148,28 @@ window.LitterQuest = function (app) {
   }
   function endWorkshop() {
     if (!workshop) return;
+    var again = workshop.again;
     workshop = null;
     render();
     app.clearNotice('workshop');
-    app.notice('Workshop run ended. Your own quest is as it was.');
+    app.notice(again ? 'Run ended. Your first quest stays done.' : 'Workshop run ended. Your own quest is as it was.');
   }
   function syncWorkshopButton() {
     var on = !!$('cl-sim').checked;
     $('qs-workshop').hidden = !on;
-    if (!on) endWorkshop();
+    if (!on && workshop && !workshop.again) endWorkshop();
+  }
+
+  /* ── Going through it again (S5-P20, |M763): after it's done, any time ── */
+
+  // The first quest from the start, for the player to refresh themselves on
+  // how it works: as a workshop run, with nothing saved and no XP.
+  function startAgain() {
+    workshop = { steps: [1], gear: {}, again: true };
+    if (app.showAccount) app.showAccount();
+    render();
+    $('qs-card').scrollIntoView({ block: 'start' });
+    blue('Going through your first quest again, from the start, to remind yourself how it works. Nothing is saved, and no XP.', 'workshop');
   }
   $('qs-workshop').addEventListener('click', startWorkshop);
   $('qs-workshop-end').addEventListener('click', endWorkshop);
@@ -319,6 +334,15 @@ window.LitterQuest = function (app) {
       if (q.started) line('Started ' + when(q.started) + '.');
       if (q.started && q.finished) line('It took ' + took(q.finished - q.started) + '.');
       line('Rewards: ' + q.xp + ' XP (' + q.stepXp + ' for each of its ' + q.steps.length + ' steps, and ' + q.doneXp + ' for finishing).');
+      if (q.name === 'First quest') {
+        var again = document.createElement('button');
+        again.type = 'button';
+        again.className = 'btn btn-secondary lt-quest-again';
+        again.textContent = 'Go through it again';
+        again.addEventListener('click', startAgain);
+        more.appendChild(again);
+        line('From the start, any time, to remind yourself how it works. Nothing is saved, and no XP.');
+      }
       head.addEventListener('click', function () { more.hidden = !more.hidden; head.setAttribute('aria-expanded', String(!more.hidden)); });
       item.appendChild(head);
       item.appendChild(more);

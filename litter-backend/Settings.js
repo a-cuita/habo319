@@ -103,7 +103,8 @@ function settingsSave_(req) {
     var n = 0;
     out.forEach(function (x) {
       var before = String(getSetting_(x[0][0]));
-      if (before.trim() === x[1]) return;
+      // A colour in capitals is the same colour (S5-P19, |C787): not a change.
+      if (before.trim() === x[1] || (x[0][3] === 'colour' && before.trim().toLowerCase() === x[1])) return;
       setSetting_(x[0][0], x[1]);
       logChange_(account.email, 'Setting', x[0][0], 'Value', before, x[1]);
       n++;

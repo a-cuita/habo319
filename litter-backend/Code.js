@@ -80,9 +80,11 @@ var TABS = {
   // Deleted: when the player deleted it; the row stays, for the record.
   plans: {
     name: 'Plans',
-    header: ['Plan ID', 'Account ID', 'Created', 'Stretches', 'Cells', 'Turnarounds', 'Miles', 'Collection', 'Updated', 'Name', 'Deleted'],
-    widths: [90, 90, 150, 80, 420, 220, 80, 110, 150, 200, 150],
-    formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm', 10: '@', 11: 'yyyy-mm-dd h:mm' }
+    // Kind and Outline (S5-P19, |C788): a private segment drawn as a field,
+    // by its corners, keeps them, so submitting it needs no redrawing.
+    header: ['Plan ID', 'Account ID', 'Created', 'Stretches', 'Cells', 'Turnarounds', 'Miles', 'Collection', 'Updated', 'Name', 'Deleted', 'Kind', 'Outline'],
+    widths: [90, 90, 150, 80, 420, 220, 80, 110, 150, 200, 150, 80, 300],
+    formats: { 3: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 9: 'yyyy-mm-dd h:mm', 10: '@', 11: 'yyyy-mm-dd h:mm', 12: '@', 13: '@' }
   },
   // Accepted segments (S5-P3): a player's plan, proposed; HABO's staff accept
   // it by typing Yes under Accepted (Q527); Kind is Path or Field (Q533). Its

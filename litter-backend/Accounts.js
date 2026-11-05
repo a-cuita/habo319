@@ -64,7 +64,6 @@ function setUp_(req) {
     return Object.assign(sendCode_(scope, a.email, a.first, 'to finish setting up your account'), { needsCode: true });
   }
   checkCode_(scope, req.code);
-  var volunteer = findVolunteer_(a);   // opens the check-in's Sheet, so before taking the lock
 
   var made = withLock_(function () {
     var accounts = readAccounts_();
@@ -81,19 +80,20 @@ function setUp_(req) {
     row[ACCOUNT_COL.handle - 1] = a.handle;
     row[ACCOUNT_COL.shows - 1] = a.shows;
     row[ACCOUNT_COL.adult - 1] = 'Yes';
-    row[ACCOUNT_COL.volunteer - 1] = volunteer;
     row[ACCOUNT_COL.updated - 1] = now;
     row[ACCOUNT_COL.status - 1] = 'Active';
     var sheet = getDb_().getSheetByName(TABS.accounts.name);
     var at = lastRowWith_(sheet, ACCOUNT_COL.id) + 1;
     sheet.getRange(at, 1, 1, TABS.accounts.header.length).setValues([TABS.accounts.header.map(function (h, i) { return row[i] == null ? '' : row[i]; })]);
     logChange_(name, 'Set up', id + ' ' + a.handle, 'Account', '', a.email);
-    if (volunteer) logChange_(name, 'Matched', id + ' ' + a.handle, 'Check-in volunteer', '', volunteer);
     var account = readAccounts_().filter(function (x) { return x.id === id; })[0];
     var signing = recordSignature_(account, w, signature, now);
     questStart_(id, now);   // the first quest starts at sign-up (S5-P20)
     return { account: account, signing: signing, token: newDevice_(id, 'Set up', now) };
   });
+  // Every player a HABO volunteer from sign-up (S5-P26): their check-in
+  // record, found or made, once the account is there.
+  linkVolunteer_(made.account);
   var copy = emailWaiverCopy_(made.account, made.signing);
   return { token: made.token, account: accountView_(readAccounts_().filter(function (x) { return x.id === made.account.id; })[0]), copySent: copy.ok };
 }
@@ -267,47 +267,79 @@ function requireCurrentWaiver_(account) {
   if (!accountView_(account).waiverCurrent) throw coded_('waiver-new', 'The waiver has been updated. You must acknowledge and sign the new version.');
 }
 
-/* ── The check-in's volunteer record (item 4), read only ── */
+/* ── The check-in's volunteer record (S5-P26): found, or made at sign-up ── */
 
-// The check-in volunteer with the same email. When more than one has it (a
-// family sharing an email), the one with the same name; when none of them
-// has the same name, no match yet.
-function findVolunteer_(a) {
-  if (!a.email) return '';
-  var rows;
+// The check-in volunteer for an account, by the check-in's own rule (|Q610
+// (a)): the same first and last name, plus the same email. With none, a new
+// record in the check-in's Volunteers tab, made as the check-in makes one,
+// with First check-in and Last check-in left blank: the check-in fills them
+// at their first real check-in (|Q611 (a)). Returns { id, made }, or null
+// when the check-in's Sheet can't be opened (the account tries again later).
+// The check-in writes this tab too, under a lock of its own, so a new row is
+// written only into an empty row and read back: if it was taken meanwhile,
+// it's tried again.
+function findOrMakeVolunteer_(a) {
+  if (!a.email || !a.first || !a.last) return null;
+  var sheet;
   try {
-    var link = getSetting_(SETTING_CHECKIN_SHEET).trim();
-    var sheet = SpreadsheetApp.openById(driveId_(link)).getSheetByName('Volunteers');
-    var last = sheet ? sheet.getLastRow() : 0;
-    rows = last > 1 ? sheet.getRange(2, 1, last - 1, 4).getDisplayValues() : [];
+    sheet = SpreadsheetApp.openById(driveId_(getSetting_(SETTING_CHECKIN_SHEET).trim())).getSheetByName('Volunteers');
   } catch (err) {
-    console.warn('The check-in\'s Sheet couldn\'t be read: ' + err);
-    return '';
+    console.warn('The check-in\'s Sheet couldn\'t be opened: ' + err);
+    return null;
   }
+  if (!sheet) return null;
   var lower = function (s) { return String(s).trim().replace(/\s+/g, ' ').toLowerCase(); };
-  var same = rows.filter(function (r) { return String(r[0]).trim() && lower(r[3]) === a.email; });
-  var named = same.filter(function (r) { return lower(r[1]) === lower(a.first) && lower(r[2]) === lower(a.last); });
-  var pick = named.length === 1 ? named[0] : !named.length && same.length === 1 ? same[0] : null;
-  return pick ? String(pick[0]).trim() : '';
+  var same = function (r) { return lower(r[1]) === lower(a.first) && lower(r[2]) === lower(a.last) && lower(r[3]) === lower(a.email); };
+  var read = function () {
+    var last = lastRowWith_(sheet, 1);
+    return { last: last, rows: last > 1 ? sheet.getRange(2, 1, last - 1, 5).getDisplayValues() : [] };
+  };
+  for (var tries = 0; tries < 3; tries++) {
+    var got = read();
+    var hit = got.rows.filter(function (r) { return String(r[0]).trim() && same(r); })[0];
+    if (hit) return { id: String(hit[0]).trim(), made: false };
+    var id = volunteerId_(got.rows.map(function (r) { return String(r[0]).trim(); }));
+    var at = got.last + 1;
+    if (String(sheet.getRange(at, 1).getDisplayValue()).trim()) continue;   // the check-in just wrote there
+    sheet.getRange(at, 1, 1, 7).setValues([[id, safeCell_(a.first), safeCell_(a.last), safeCell_(lower(a.email)), '', '', '']]);
+    var back = read().rows.filter(function (r) { return String(r[0]).trim() === id; });
+    if (back.length === 1 && same(back[0])) return { id: id, made: true };
+  }
+  return null;
 }
 
-// An account with no match yet tries again, at most twice an hour, so one
-// that checks in at an event later is matched then (item 4).
+// The next volunteer id, as the check-in counts them: V001, V002 … V999, V1000.
+function volunteerId_(ids) {
+  var max = 0;
+  ids.forEach(function (id) { var m = /^V(\d+)$/.exec(id || ''); if (m) max = Math.max(max, Number(m[1])); });
+  var n = String(max + 1);
+  while (n.length < 3) n = '0' + n;
+  return 'V' + n;
+}
+
+// Links an account to its check-in volunteer, found or made, and records it
+// in the Changes tab. Returns the account.
+function linkVolunteer_(account) {
+  var found = findOrMakeVolunteer_(account);
+  if (!found) return account;
+  withLock_(function () {
+    var sheet = getDb_().getSheetByName(TABS.accounts.name);
+    sheet.getRange(account.row || readAccounts_().filter(function (x) { return x.id === account.id; })[0].row, ACCOUNT_COL.volunteer).setValue(found.id);
+    logChange_(account.first + ' ' + account.last, found.made ? 'Made' : 'Matched', account.id + ' ' + account.handle, 'Check-in volunteer', '', found.id);
+  });
+  account.volunteer = found.id;
+  return account;
+}
+
+// An account with no record yet tries again, at most twice an hour, so one
+// whose sign-up couldn't reach the check-in's Sheet is linked later.
 function rematch_(account) {
   if (account.volunteer) return account;
   var cache = CacheService.getScriptCache();
   var key = 'rematch:' + account.id;
   if (cache.get(key)) return account;
   cache.put(key, '1', 1800);
-  var volunteer = findVolunteer_(account);
-  if (!volunteer) return account;
-  withLock_(function () {
-    var sheet = getDb_().getSheetByName(TABS.accounts.name);
-    sheet.getRange(account.row, ACCOUNT_COL.volunteer).setValue(volunteer);
-    logChange_(account.first + ' ' + account.last, 'Matched', account.id + ' ' + account.handle, 'Check-in volunteer', '', volunteer);
-  });
-  account.volunteer = volunteer;
-  return account;
+  return linkVolunteer_(account);
 }
 
 /* ── Signed-in phones ── */

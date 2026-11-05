@@ -101,7 +101,8 @@ function segmentPropose_(req) {
     plan.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (squares.indexOf(c) === -1) squares.push(c); }); });
     // A field's corners, drawn on the map (S5-P13 part 2, |Q600 (a)): its
     // ground is inside them, and its squares are the ones that ground is in.
-    var corners = kind === 'Field' ? fieldCorners_(req.outline) : [];
+    // A field drawn by its corners as a private segment brings them (S5-P19, |C788).
+    var corners = kind === 'Field' ? fieldCorners_(Array.isArray(req.outline) && req.outline.length ? req.outline : plan.outline) : [];
     var miles = plan.miles;
     if (corners.length) {
       var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
@@ -277,24 +278,48 @@ function worldWalks_(counted, rows) {
     cells.forEach(function (c) { w.walked[c] = true; });
     var t = s.get('ended') instanceof Date ? s.get('ended').getTime() : 0;
     if (t > w.t) w.t = t;
-    w.weighings.push({ cells: cells, lbs: s.get('pounds') === '' ? null : Number(s.get('pounds')) || 0,
+    w.weighings.push({ n: Number(s.get('n')) || 0, cells: cells, lbs: s.get('pounds') === '' ? null : Number(s.get('pounds')) || 0,
       miles: (Number(s.get('streetMi')) || 0) + (Number(s.get('offMi')) || 0) });
   });
+  return out;
+}
+
+// A weighing's cells that count for a segment (S5-U2, |C714). A walk's first
+// weighing, before anything was weighed, starts where the walk first reached
+// its first segment: the bag was empty until then, so the page doesn't ask
+// you to weigh there. Only when the way there touched no other segment: if it
+// did, that one was first, and the weighing counts whole. Every later
+// weighing counts whole.
+function weighingCells_(w, x, near, others, k) {
+  var first = w.weighings.reduce(function (m, y) { return y.cells.length && y.lbs != null && y.n < m ? y.n : m; }, Infinity);
+  if (x.n !== first) return x.cells;
+  for (var i = 0; i < x.cells.length; i++) {
+    if (near(x.cells[i])) return x.cells.slice(i);
+    if (isNear_(others, x.cells[i], k.near)) return x.cells;
+  }
+  return [];
+}
+// The squares of every other accepted segment, for weighingCells_.
+function otherSquares_(g) {
+  var out = {};
+  segmentsAll_().forEach(function (o) { if (o.accepted && o.id !== g.id) o.squares.forEach(function (c) { out[c] = true; }); });
   return out;
 }
 
 // What a walk did on a path segment: collected it, when it came near enough
 // to its covered share (90% to start), with the pounds of its weighings
 // inside it (80% inside); `known` when those weighings cover it too. Or null.
-function pathEvent_(g, w, k, inSeg, piece) {
+function pathEvent_(g, w, k, inSeg, piece, others) {
   var covered = g.squares.filter(function (c) { return isNear_(w.walked, c, k.near); }).length / g.squares.length;
   if (!w.t || !covered || (covered < k.cover && !piece)) return null;
   var lbs = 0, weighed = {};
+  var nearSeg = function (c) { return isNear_(inSeg, c, k.near); };
   w.weighings.forEach(function (x) {
     if (!x.cells.length || x.lbs == null) return;
-    if (x.cells.filter(function (c) { return isNear_(inSeg, c, k.near); }).length / x.cells.length < k.inside) return;
+    var cells = weighingCells_(w, x, nearSeg, others || {}, k);
+    if (!cells.length || cells.filter(nearSeg).length / cells.length < k.inside) return;
     lbs += x.lbs;
-    x.cells.forEach(function (c) { weighed[c] = true; });
+    cells.forEach(function (c) { weighed[c] = true; });
   });
   var known = g.squares.filter(function (c) { return isNear_(weighed, c, k.near); }).length / g.squares.length >= k.cover;
   return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, walked: w.walked, weighed: weighed };
@@ -307,7 +332,7 @@ function pathEvent_(g, w, k, inSeg, piece) {
 // weighings' squares, scanning the same reach, cover as much of it as
 // collects it. A walk with no saved track scans from the squares it walked.
 // Or null.
-function fieldEvent_(g, w, k, ground, piece) {
+function fieldEvent_(g, w, k, ground, piece, others) {
   if (!w.scans[g.id]) {
     var track = w.track && w.track.length > 1 ? w.track : null;
     w.scans[g.id] = track ? LitterGeo.fieldScan(ground.pts, track, k.reach) : ground.pts.map(function (p) {
@@ -317,11 +342,13 @@ function fieldEvent_(g, w, k, ground, piece) {
   var scan = w.scans[g.id], covered = LitterGeo.scanShare(scan);
   if (!w.t || !covered || (covered < k.fieldCover && !piece)) return null;
   var lbs = 0, weighed = [];
+  var nearField = function (c) { return isNear_(ground.cells, c, k.near); };
   w.weighings.forEach(function (x) {
     if (!x.cells.length || x.lbs == null) return;
-    if (x.cells.filter(function (c) { return isNear_(ground.cells, c, k.near); }).length / x.cells.length < k.inside) return;
+    var cells = weighingCells_(w, x, nearField, others || {}, k);
+    if (!cells.length || cells.filter(nearField).length / cells.length < k.inside) return;
     lbs += x.lbs;
-    x.cells.forEach(function (c) { weighed.push(LitterGeo.centerXY(c)); });
+    cells.forEach(function (c) { weighed.push(LitterGeo.centerXY(c)); });
   });
   // A weighed square scans from anywhere in it: its middle, plus half its diagonal.
   var r = k.reach + LitterGeo.CELL_M * 0.71;
@@ -338,7 +365,8 @@ function fieldEvent_(g, w, k, ground, piece) {
 function segmentCollections_(g, walks, k, ground) {
   var field = g.kind === 'Field', cover = field ? k.fieldCover : k.cover, inSeg = {};
   g.squares.forEach(function (c) { inSeg[c] = true; });
-  var all = Object.keys(walks).map(function (id) { return field ? fieldEvent_(g, walks[id], k, ground, true) : pathEvent_(g, walks[id], k, inSeg, true); })
+  var others = otherSquares_(g);
+  var all = Object.keys(walks).map(function (id) { return field ? fieldEvent_(g, walks[id], k, ground, true, others) : pathEvent_(g, walks[id], k, inSeg, true, others); })
     .filter(Boolean).sort(function (a, b) { return a.t - b.t; });
   var out = [], group = [];
   var share = function (list, key) {
@@ -610,7 +638,7 @@ function myPlans_(accountId) {
     var cells = [];
     p.stretches.forEach(function (s) { s.cells.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
     var u = uses[p.id] || { n: 0, last: 0 };
-    return { id: p.id, created: p.created, name: p.name, cells: cells, miles: p.miles, used: u.n, lastUsed: u.last,
+    return { id: p.id, created: p.created, name: p.name, cells: cells, miles: p.miles, used: u.n, lastUsed: u.last, kind: p.kind, outline: p.outline,
       segment: g ? { id: g.id, name: g.name, accepted: g.accepted, proposed: g.proposed, declined: g.declined, review: reviewOutcome_(g.id) } : null };
   }).reverse().slice(0, 50);
 }

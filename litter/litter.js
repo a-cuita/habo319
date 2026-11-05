@@ -544,9 +544,7 @@
     $('me-name-star').hidden = a.mapShows !== 'Name';
     $('me-email').textContent = a.email;
     $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
-    $('me-match').textContent = a.matched
-      ? 'Matched to your HABO volunteer record.'
-      : 'Not matched yet. It will be when you check in at a HABO event with the same email.';
+    // Every player is a HABO volunteer from sign-up (S5-P26): the Volunteer record line is gone (|Q571).
     $('me-form').hidden = true;
     $('me-edit').hidden = false;
     show('v-account');
@@ -619,7 +617,8 @@
     practice: function () { collect.practice(); },
     onQuestChanged: function (d) { collect.onQuestChanged(d); },
     chooseWalkPlan: function () { show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(collect.walkIds(), true); },
-    closePanel: function () { panel(false); }
+    closePanel: function () { panel(false); },
+    showAccount: function () { showAccount(state.account); }
   });
 
   /* ── Settings in Admin Mode (S5-P19 A, settings.js) ── */
