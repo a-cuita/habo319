@@ -66,6 +66,7 @@ function settingGroups_() {
     [SETTING_COLOUR_5, 'Map colour at 5', 'At 5.', 'colour'],
     [SETTING_COLOUR_10, 'Map colour at 10', 'At 10 and above.', 'colour'],
     [SETTING_PLAN_COLOUR, 'Map colour: plan', 'The band around your chosen plan.', 'colour'],
+    [SETTING_MAP_FADE, 'Readings fade out after', 'On the map, a square\'s Litter Index fades as it ages, and is gone after this many days. Its numbers stay in the pop-ups and the rates.', 'number', 'days', 1, 365],
     [SETTING_PAUSED_COLOUR, 'Paused track colour', 'Where a GPX track was paused.', 'colour']]
     .concat(DARK_SETTINGS.map(function (d) { return [d[1], d[1], 'The same, in Admin Mode\'s dark look.', 'colour']; }))
     .concat([[SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]]) }

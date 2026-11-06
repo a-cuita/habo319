@@ -19,6 +19,8 @@
  */
 
 var SETTING_COLOUR_0 = 'Map colour at 0';
+// A reading fades on the map as it ages, gone after this many days (S6-P1, |Q678, |Q673).
+var SETTING_MAP_FADE = 'Map: readings fade out after (days)';
 var SETTING_COLOUR_5 = 'Map colour at 5';
 var SETTING_COLOUR_10 = 'Map colour at 10';
 var SETTING_BREAK_AFTER = 'Break question after (collections)';
@@ -85,11 +87,14 @@ function mapLoad_(req) {
     });
   });
   var tz = Session.getScriptTimeZone();
-  var cells = Object.keys(latest).map(function (cell) {
+  // Faded out (S6-P1, |Q678): a reading older than the setting isn't drawn,
+  // so it isn't sent; its numbers stay in the pop-ups' tables and the rates.
+  var fade = Math.max(1, minutesSetting_(SETTING_MAP_FADE, 30)), since = Date.now() - fade * 86400000;
+  var cells = Object.keys(latest).filter(function (cell) { return latest[cell].ended >= since; }).map(function (cell) {
     var x = latest[cell];
     return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
   });
-  return { colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
+  return { fadeDays: fade, colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
     segments: segmentSummaries_(false), simSegments: viewer ? segmentSummaries_(true, viewer.id) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
 }
 

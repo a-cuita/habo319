@@ -68,6 +68,7 @@ window.LitterMap = function (app) {
 
   function useLoad(d) {
     loaded = d; loadedAt = Date.now();
+    if (d.fadeDays) fadeDays = d.fadeDays;
     colours = d.colours || colours;
     dark = d.dark || dark;
     planColour = d.planColour || planColour;
@@ -231,12 +232,23 @@ window.LitterMap = function (app) {
     return t;
   }
 
+  // A reading fades as it ages, gone after the map's fade days (S6-P1,
+  // |Q678): 1 on its day, down evenly to none. A simulated walk's own
+  // squares, opened from it, don't fade.
+  var fadeDays = 30;
+  function fadeOf(x) {
+    if (!x[2] || !/^\d{4}-\d{2}-\d{2}$/.test(String(x[2]))) return 1;
+    var p = String(x[2]).split('-'), day = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getTime();
+    var age = Math.max(0, (Date.now() - day) / 86400000 - 0.5);
+    return Math.max(0, 1 - age / fadeDays);
+  }
   function draw(cells) {
     layer.clearLayers();
     if (mode === 'rate') return drawRates();
     cells.forEach(function (x) {
-      var c = G.indexColour(x[1], scale());
-      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-index-square' });
+      var c = G.indexColour(x[1], scale()), f = fadeOf(x);
+      if (!(f > 0)) return;
+      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9 * f, fillColor: c, fillOpacity: 0.7 * f, className: 'lt-index-square' });
       r.bindPopup(function () {
         // One table on every square (S5-P10, |C849): the walks behind its
         // segment's rate, or, with none, the square's latest reading.
