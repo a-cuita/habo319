@@ -8,6 +8,10 @@ window.LitterSettings = function (app) {
   'use strict';
   var $ = app.$;
   var groups = [], openKey = '';
+  // The lock (S6-P7, |Q649 (a)): Settings opens locked, so a mis-tap can't
+  // change anything. The floating 🔓 Unlock opens every box; Save, or
+  // leaving Settings, locks it again.
+  var locked = true;
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -17,6 +21,7 @@ window.LitterSettings = function (app) {
   }
 
   function open() {
+    locked = true;
     app.show('v-settings');
     window.scrollTo(0, 0);
     $('settings-list').textContent = '';
@@ -35,6 +40,21 @@ window.LitterSettings = function (app) {
     box.textContent = '';
     $('settings-note').textContent = groups.length ? 'Open a section, change what you need, and press its Save.' : 'Your rank has no settings to change yet.';
     groups.forEach(function (g) { box.appendChild(section(g)); });
+    lock(locked);
+  }
+
+  // Locked: every box shows its value, and nothing in a section (its boxes,
+  // Add, Remove, Save) can be pressed; a section still opens to be read.
+  function lock(on) {
+    locked = on;
+    var box = $('settings-list'), btn = $('settings-lock');
+    box.classList.toggle('lt-set-locked', on);
+    Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea, button'), function (x) { x.disabled = on; });
+    btn.hidden = !groups.length;
+    btn.textContent = on ? '🔓 Unlock' : '🔒 Lock';
+    btn.setAttribute('aria-label', on ? 'Unlock Settings to change them' : 'Lock Settings');
+    btn.classList.toggle('lt-fab-lock-open', !on);
+    if (groups.length) $('settings-note').textContent = on ? 'Locked, so nothing changes by mistake. Press 🔓 Unlock to change a setting.' : 'Unlocked. Open a section, change what you need, and press its Save. Save locks it again.';
   }
 
   function section(g) {
@@ -62,6 +82,7 @@ window.LitterSettings = function (app) {
         return app.api('settingsSave', { token: app.myToken(), group: g.key, values: values }).then(function (res) {
           groups = res.groups || groups;
           openKey = g.key;
+          locked = true;   // Save locks it again (S6-P7)
           draw();
           app.notice(res.changed ? g.title + ': ' + (res.changed === 1 ? '1 setting' : res.changed + ' settings') + ' saved. The page uses ' + (res.changed === 1 ? 'it' : 'them') + ' from when you go back.' : g.title + ': nothing had changed.');
         });
@@ -196,6 +217,7 @@ window.LitterSettings = function (app) {
   $('cl-sim').addEventListener('change', sync);
   $('me-go-settings').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
   $('settings-back').addEventListener('click', function () { if (app.back) app.back(); });
+  $('settings-lock').addEventListener('click', function () { lock(!locked); });
 
   return { open: open, sync: sync };
 };

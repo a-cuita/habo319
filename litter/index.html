@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=41">
+<link rel="stylesheet" href="litter.css?v=42">
 </head>
 <body>
 
@@ -608,6 +608,8 @@
     </section>
     <div id="settings-list"></div>
     <button class="lt-fab-back" id="settings-back" type="button" aria-label="Back" title="Back">←</button>
+    <!-- The lock (S6-P7, |Q649 (a)): Settings opens locked; this unlocks it, and Save or leaving locks it again. -->
+    <button class="lt-fab-lock" id="settings-lock" type="button" hidden>🔓 Unlock</button>
   </div>
 
   <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
@@ -743,7 +745,7 @@
 <script src="collect.js?v=44"></script>
 <script src="map.js?v=27"></script>
 <script src="quest.js?v=4"></script>
-<script src="settings.js?v=3"></script>
+<script src="settings.js?v=4"></script>
 <script src="reviews.js?v=3"></script>
 <script src="forum.js?v=3"></script>
 <script src="litter.js?v=20"></script>
