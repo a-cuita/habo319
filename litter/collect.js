@@ -452,17 +452,15 @@ window.LitterCollect = function (app) {
     note.textContent = 'Unlocks at Level ' + s.level;
     return s;
   }
-  // Under your XP and level in the top panel (|Q621): every skill, with its level.
+  // Litter Class Skills: a button in the top panel (|C837), opening a sheet
+  // with every skill and its level (|Q621).
   function showSkills() {
     var box = $('cl-skills'), list = settings.skills || [];
     box.textContent = '';
-    box.hidden = !account || !list.length;
-    if (box.hidden) return;
-    var have = myLevel();
-    var head = document.createElement('p');
-    head.className = 'lt-skills-head';
-    head.textContent = 'Litter Class Skills';
-    box.appendChild(head);
+    $('me-go-skills').hidden = !account || !list.length;
+    if (!account || !list.length) return;
+    var have = myLevel(), lw = levelWords(account.xp);
+    $('skills-level').textContent = 'Your XP: ' + account.xp + '.' + (lw ? ' ' + lw : '');
     var ul = document.createElement('ul');
     ul.className = 'lt-skills';
     list.forEach(function (s) {
@@ -2527,6 +2525,16 @@ window.LitterCollect = function (app) {
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
+  // The Litter Class Skills sheet (S5-P29, |C837): opened from the top panel, closed with ×.
+  function skillsSheet(open) {
+    if (open) showSkills();
+    $('skills-sheet').hidden = !open;
+    document.body.classList.toggle('lt-sheet-open', open);
+    if (open) $('skills-close').focus();
+  }
+  $('me-go-skills').addEventListener('click', function () { skillsSheet(true); });
+  $('skills-close').addEventListener('click', function () { skillsSheet(false); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('skills-sheet').hidden) skillsSheet(false); });
   $('pl-kind-path').addEventListener('change', planKind);
   $('pl-kind-field').addEventListener('change', planKind);
   $('cl-choose').addEventListener('click', function () { if (app.chooseWalkPlan) app.chooseWalkPlan(walkPlan().map(function (x) { return x.id; })); });

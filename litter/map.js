@@ -178,16 +178,16 @@ window.LitterMap = function (app) {
   // whether it's due or partly cleaned.
   var ARROWS = { up: ' ↑', down: ' ↓', level: ' →' };
   function segmentLine(g) {
-    var rate = g.rate == null && g.median == null ? 'no recent rate' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb/mi·day⁻¹'
-      : round(g.rate, 2) + ' lb/mi·day⁻¹ (' + g.shows.toLowerCase() + ' of ' + g.count + ')';
-    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') +
-      (g.due ? ' · Due: collect it to measure its rate' : '');
+    // Fewer words (S5-P10, |C850): the walks behind the rate are in the table under it.
+    var rate = g.rate == null && g.median == null ? 'no rate yet' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb/mi·day⁻¹'
+      : round(g.rate, 2) + ' lb/mi·day⁻¹ ' + g.shows.toLowerCase();
+    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') + (g.due ? ' · Due' : '');
   }
   // Partly cleaned (Q532): "Partial (NE): 60% of this segment was cleaned 4 days ago".
   function partialLines(g) {
     return (g.groups || []).map(function (p) {
-      return 'Partial' + (p.dir ? ' (' + p.dir + ')' : '') + ': ' + p.pct + '% of this segment ' +
-        (p.days == null ? 'hasn\'t been cleaned yet' : 'was cleaned ' + (p.days === 0 ? 'less than a day ago' : p.days === 1 ? '1 day ago' : p.days + ' days ago'));
+      return 'Partial' + (p.dir ? ' (' + p.dir + ')' : '') + ': ' + p.pct + '% ' +
+        (p.days == null ? 'not cleaned yet' : 'cleaned ' + (p.days === 0 ? 'today' : p.days === 1 ? '1 day ago' : p.days + ' days ago'));
     });
   }
   function segmentsAt(cell) { return segList().filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
@@ -195,6 +195,17 @@ window.LitterMap = function (app) {
   // By, and the layer's number: each walk's rate on Accumulation rate, or its
   // Litter Index on this square on the Litter Index layer, the same walks on
   // both (|Q625).
+  // A square's latest reading, as the same table, one row.
+  function latestTable(x) {
+    var t = el('table', 'lt-pop-table');
+    var head = el('tr');
+    ['Day', 'By', 'Litter Index'].forEach(function (h) { head.appendChild(el('th', null, h)); });
+    t.appendChild(head);
+    var tr = el('tr', 'lt-pop-walk');
+    [day(x[2]).replace(/, \d{4}$/, ''), x[3] || '—', Number(x[1]).toFixed(1)].forEach(function (v) { tr.appendChild(el('td', null, v)); });
+    t.appendChild(tr);
+    return t;
+  }
   function walksTable(g, cell) {
     var index = cell != null, walks = g.walks || [];
     if (!walks.length) return null;
@@ -218,16 +229,17 @@ window.LitterMap = function (app) {
       var c = G.indexColour(x[1], scale());
       var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-index-square' });
       r.bindPopup(function () {
-        var box = el('div', 'lt-pop');
-        box.appendChild(el('strong', null, 'Litter Index ' + x[1].toFixed(1)));
-        box.appendChild(el('div', null, 'Collected ' + day(x[2])));
-        if (x[3]) box.appendChild(el('div', null, 'By ' + x[3]));
+        // One table on every square (S5-P10, |C849): the walks behind its
+        // segment's rate, or, with none, the square's latest reading.
+        var box = el('div', 'lt-pop'), tables = 0;
+        box.appendChild(el('strong', null, 'Litter Index'));
         segmentsAt(x[0]).forEach(function (g) {
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           var tb = walksTable(g, x[0]);
-          if (tb) box.appendChild(tb);
+          if (tb) { box.appendChild(tb); tables++; }
         });
+        if (!tables) box.appendChild(latestTable(x));
         return box;
       });
       r.cellId = x[0];
@@ -251,7 +263,6 @@ window.LitterMap = function (app) {
           // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
           var tb = walksTable(g, null);
           if (tb) box.appendChild(tb);
-          if (g.notCounted) box.appendChild(el('div', 'lt-pop-part', g.notCounted + (g.notCounted === 1 ? ' more walk wasn\'t' : ' more walks weren\'t') + ' counted: too soon after the last, or a Rate Reset.'));
           return box;
         });
         r.addTo(layer);

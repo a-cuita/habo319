@@ -268,7 +268,7 @@ window.LitterForum = function (app) {
     app.notice('');
     app.show('v-report');
     $('rp-title').textContent = of === 'Idea' ? 'Submit an Idea' : 'Report an Issue';
-    $('rp-say').textContent = of === 'Idea' ? 'Your idea goes to HABO\'s admins, who talk it through.' : 'What went wrong goes to HABO\'s admins, who look into it.';
+    $('rp-say').textContent = of === 'Idea' ? 'Your idea goes to the Admins, who talk it through.' : 'What went wrong goes to the Admins, who look into it.';
     $('rp-label').textContent = of === 'Idea' ? 'Your idea' : 'What happened? Say which screen you were on, and what you pressed.';
     $('rp-text').value = '';
     $('rp-err').textContent = '';
@@ -278,7 +278,7 @@ window.LitterForum = function (app) {
     app.busy($('rp-send'), 'rp-err', function () {
       return app.api('reportSend', { token: app.myToken(), of: reportOf, text: $('rp-text').value }).then(function () {
         if (app.back) app.back();
-        app.notice(reportOf === 'Idea' ? 'Sent to HABO\'s admins. Thank you for the idea.' : 'Sent to HABO\'s admins. Thank you for telling us.');
+        app.notice(reportOf === 'Idea' ? 'Sent to the Admins. Thank you for the idea.' : 'Sent to the Admins. Thank you for telling us.');
       });
     });
   }
