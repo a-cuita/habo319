@@ -234,7 +234,7 @@ function xpOf_(accountId) {
     return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) * (mult[q.get('collection')] || 1) : t;
   }, 0);
   var me = readAccounts_().filter(function (a) { return a.id === accountId; })[0];
-  return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId) + challengeXp_(accountId), 2);   // and Challenges' (S6-P8)
+  return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId) + challengeXp_(accountId) + badgeXp_(accountId), 2);   // and Challenges' (S6-P8), and badges' (S6-P6)
 }
 
 // One walk's XP, line by line (S6-P3): for planning it, for its ratings, and

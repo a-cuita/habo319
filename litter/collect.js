@@ -313,6 +313,7 @@ window.LitterCollect = function (app) {
       pace = d.pace || null;
       setTypes(d.types);
       gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
+      if (app.onEarned) app.onEarned(d);   // badges just reached, and the weekly streak (S6-P6)
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
@@ -517,6 +518,8 @@ window.LitterCollect = function (app) {
     var parts = [['Planning it', w.plan], ['Your ratings', w.ratings], ['Litter types', w.types]];
     // The time bonus on its ratings and litter types (S6-P3 item 5).
     if (w.mult > 1) parts.push(['Time bonus (×' + w.mult + ')', w.bonus]);
+    // Badges it just earned (S6-P6): their XP, on top of the walk's.
+    if (w.badges > 0) parts.push(['New badges', w.badges]);
     var animate = shownWalkXp[col.id] !== w.total && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     shownWalkXp[col.id] = w.total;
     var rows = parts.map(function (p) {
@@ -529,7 +532,8 @@ window.LitterCollect = function (app) {
       lines.appendChild(li);
       return { li: li, n: n, v: p[1] };
     });
-    total.textContent = animate ? '' : 'Total: ' + w.total + ' XP';
+    var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
+    total.textContent = animate ? '' : 'Total: ' + sum + ' XP';
     if (!animate) { gotXp(w.xp, total); return; }
     var step = 0;
     (function next() {
@@ -537,7 +541,7 @@ window.LitterCollect = function (app) {
         var r = rows[step++];
         r.li.className = 'lt-walk-xp-in';
         countUp(r.n, r.v, '+', '', next);
-      } else countUp(total, w.total, 'Total: ', ' XP', function () { gotXp(w.xp, total); });
+      } else countUp(total, sum, 'Total: ', ' XP', function () { gotXp(w.xp, total); });
     })();
   }
   function countUp(el, to, pre, post, then) {
@@ -1473,6 +1477,7 @@ window.LitterCollect = function (app) {
 
   function finish(d) {
     var id = c.id;
+    if (app.onEarned) app.onEarned(d);
     summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null,
       // The walk's plan, to offer the ground collected off it (Q560).
       planCells: c.plan ? planCells(c.plan) : [] };
@@ -2117,6 +2122,7 @@ window.LitterCollect = function (app) {
       return busyWhile('Saving, please wait...', function () { return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }); }).then(function (d) {
         summary.collection = d.collection;
         if (d.walk) summary.walk = d.walk;
+        if (app.onEarned) app.onEarned(d);
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
@@ -2181,6 +2187,7 @@ window.LitterCollect = function (app) {
       if (d.collection) summary.collection = d.collection;
       if (d.stretches) summary.stretches = d.stretches;
       if (d.walk) summary.walk = d.walk;
+      if (app.onEarned) app.onEarned(d);
       summary.stops = {};
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;

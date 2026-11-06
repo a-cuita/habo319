@@ -194,7 +194,7 @@ function collectEnd_(req) {
     retotal_(col.id);
     setPlanXp_(col.id);
     if (col.simulated) refreshSimulations_();
-    return { collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_), walk: walkXp_(col.id, account.id) };
+    return walkDone_({ collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) }, col.id, account);
   });
 }
 
@@ -288,8 +288,7 @@ function collectFix_(req) {
     var rd = lbs == null || now.get('track') !== 'Yes' ? { cpue: null, index: null } : LitterGeo.reading(lbs, (Number(now.get('streetMi')) + Number(now.get('offMi'))) * LitterGeo.MILE_M, Number(now.get('activeMin')));
     sheet.getRange(r.row, STRETCH_COL.cpue, 1, 2).setValues([[rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)]]);
     retotal_(col.id);
-    return { stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0]), collection: collectionView_(readCollection_(col.id)),
-      walk: walkXp_(col.id, account.id) };
+    return walkDone_({ stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0]), collection: collectionView_(readCollection_(col.id)) }, col.id, account);
   });
 }
 
@@ -305,12 +304,15 @@ function collectLoad_(req) {
   var col = id ? readCollection_(id) : openCollection_(account.id);
   if (col && col.account !== account.id) col = null;
   var quest = questView_(account);
+  var earned = badgesNow_(account);
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
     plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
-    quest: quest, quests: [quest], walk: col ? walkXp_(col.id, account.id) : null
+    quest: quest, quests: [quest], walk: col ? walkXp_(col.id, account.id) : null,
+    // Badges just reached, and the weekly streak (S6-P6).
+    earned: earned, streak: streakOf_(account.id)
   };
 }
 
@@ -522,7 +524,7 @@ function collectTrack_(req) {
     setPlanXp_(col.id);   // XP comes with the GPX track
     measureRates_(col.id);   // and a rate for each due segment it collected (S5-P3)
     if (col.simulated) refreshSimulations_();
-    return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_), walk: walkXp_(col.id, account.id) };
+    return walkDone_({ track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) }, col.id, account);
   });
 }
 
@@ -594,6 +596,16 @@ function hoursOf_(accountId) {
 // thing pressed, keeping the stretches already sent (Q303).
 // This person's walks still Collecting with nothing pressed for the
 // setting's hours (12 to start).
+// A walk's response, with its XP, any badge it just earned, and the weekly
+// streak (S6-P6). Under the lock: badges are written first, so the XP counts them.
+function walkDone_(out, collectionId, account) {
+  out.earned = badgesEarn_(account);
+  out.walk = walkXp_(collectionId, account.id);
+  out.walk.badges = round_(out.earned.reduce(function (t, b) { return t + b.xp; }, 0), 2);
+  out.streak = streakOf_(account.id);
+  return out;
+}
+
 function leftAlone_(account) {
   var hours = minutesSetting_(SETTING_AUTO_END, 12);
   return readRows_(TABS.collections).filter(function (q) {

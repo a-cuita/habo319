@@ -189,26 +189,85 @@ window.LitterShare = (function () {
     });
   }
 
+  function ymdOf(ms) { var d = new Date(ms || Date.now()); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+
+  // A picture handed to the phone's share sheet, or downloaded.
+  function deliver(blob, name, title, text) {
+    var file = new File([blob], name, { type: 'image/png' });
+    if (canShare()) {
+      return navigator.share({ files: [file], title: title, text: text })
+        .then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; throw e; });
+    }
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    return Promise.resolve('downloaded');
+  }
+  function toBlob(canvas) {
+    return new Promise(function (resolve, reject) {
+      try { canvas.toBlob(function (b) { if (b) resolve(b); else reject(new Error('The picture couldn\'t be made.')); }, 'image/png'); }
+      catch (e) { reject(new Error('The picture couldn\'t be made.')); }
+    });
+  }
+
   // Makes the picture, then shares it or downloads it. `walk`: { started,
   // pounds, miles, track, stretches, handle, level, colours }.
   function walkPicture(walk) {
     return picture(walk).then(function (blob) {
-      var day = new Date(walk.started || Date.now()), ymd = day.getFullYear() + '-' + ('0' + (day.getMonth() + 1)).slice(-2) + '-' + ('0' + day.getDate()).slice(-2);
-      var name = 'habo-litter-walk-' + ymd + '.png';
-      var file = new File([blob], name, { type: 'image/png' });
-      if (canShare()) {
-        return navigator.share({ files: [file], title: 'My HABO litter walk', text: round(walk.pounds || 0, 2) + ' lb of litter collected with HABO.' })
-          .then(function () { return 'shared'; }, function (e) { if (e && e.name === 'AbortError') return 'cancelled'; throw e; });
-      }
-      var a = document.createElement('a');
-      a.href = URL.createObjectURL(blob);
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-      return 'downloaded';
+      return deliver(blob, 'habo-litter-walk-' + ymdOf(walk.started) + '.png', 'My HABO litter walk', round(walk.pounds || 0, 2) + ' lb of litter collected with HABO.');
     });
   }
 
-  return { walkPicture: walkPicture, label: label, canShare: canShare };
+  // A badge or a streak (S6-P6, |Q647's addendum, |Q648): `b`: { badge (an
+  // emoji), title, line, handle, level, when }.
+  function badgePicture(b) {
+    var canvas = document.createElement('canvas');
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    var g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#ecfdf5'); g.addColorStop(1, '#fef3c7');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#15803d';
+    ctx.fillRect(0, 0, W, 14);
+    ctx.textAlign = 'center';
+    // The badge, in a ring.
+    ctx.beginPath(); ctx.arc(W / 2, 400, 230, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff'; ctx.fill();
+    ctx.lineWidth = 14; ctx.strokeStyle = '#b45309'; ctx.stroke();
+    ctx.font = '240px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#111827';
+    ctx.fillText(b.badge || '🏅', W / 2, 410);
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = '800 76px system-ui, sans-serif';
+    wrap(ctx, b.title || '', W / 2, 760, W - 120, 86);
+    ctx.font = '500 42px system-ui, sans-serif';
+    ctx.fillStyle = '#374151';
+    var y = wrap(ctx, b.line || '', W / 2, 900, W - 160, 54);
+    ctx.font = '500 36px system-ui, sans-serif';
+    ctx.fillText(new Date(b.when || Date.now()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }), W / 2, y + 30);
+    // Your handle, with your level.
+    ctx.font = '800 46px system-ui, sans-serif';
+    ctx.fillStyle = '#111827';
+    ctx.fillText((b.handle || '') + (b.level != null ? '  ·  Level ' + b.level : ''), W / 2, H - 150);
+    ctx.font = '800 36px system-ui, sans-serif';
+    ctx.fillStyle = '#15803d';
+    ctx.fillText('🌱 HABO Litter Collection', W / 2, H - 70);
+    var name = 'habo-litter-' + String(b.title || 'badge').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + ymdOf(b.when) + '.png';
+    return toBlob(canvas).then(function (blob) { return deliver(blob, name, b.title || 'My HABO badge', (b.title || '') + ': ' + (b.line || '') + ' With HABO.'); });
+  }
+  // Centred lines, wrapped to a width. Returns the last line's y.
+  function wrap(ctx, text, x, y, width, step) {
+    var words = String(text).split(' '), line = '', lines = [];
+    words.forEach(function (w) { var t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > width && line) { lines.push(line); line = w; } else line = t; });
+    if (line) lines.push(line);
+    lines.forEach(function (l, i) { ctx.fillText(l, x, y + i * step); });
+    return y + (lines.length - 1) * step + step;
+  }
+
+  return { walkPicture: walkPicture, badgePicture: badgePicture, label: label, canShare: canShare };
 })();

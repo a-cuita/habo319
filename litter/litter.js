@@ -74,7 +74,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-wiki-page', 'v-wiki-draft', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -630,6 +630,8 @@
     $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
+    // Badges just earned, and the weekly streak (S6-P6, achievements.js).
+    onEarned: function (d) { if (achievements) achievements.onEarned(d); },
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); },
     planLabel: planLabel,
@@ -640,7 +642,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -680,6 +682,16 @@
 
   var challenges = window.LitterChallenges({
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
+  });
+
+  /* ── Streaks and achievements (S6-P6, achievements.js) ── */
+
+  var achievements = window.LitterAchievements({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    levelNow: function () { return collect.levelNow(); },
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }
   });

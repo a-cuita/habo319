@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=47">
+<link rel="stylesheet" href="litter.css?v=48">
 </head>
 <body>
 
@@ -37,7 +37,7 @@
   <div class="lt-me-bar" id="me-bar" hidden>
       <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
         <span class="lt-me-who"><span id="me-public"></span><span class="lt-xp-bar" id="me-xpbar" role="img" hidden><span class="lt-xp-fill" id="me-xpfill"></span></span></span>
-        <span class="lt-me-level" id="me-level" hidden></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
+        <span class="lt-me-level" id="me-level" hidden></span><span class="lt-me-streak" id="me-streak" hidden></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
       </button>
       <div class="lt-me-panel" id="me-panel" hidden>
         <section class="card lt-me">
@@ -86,6 +86,8 @@
           <button class="btn btn-secondary" id="me-go-skills" type="button" hidden>Litter Class Skills</button>
           <!-- The Wiki (S6-P9, |M862): for everyone. -->
           <button class="btn btn-secondary" id="me-go-wiki" type="button">Wiki</button>
+          <!-- Your badges and weekly streak (S6-P6). -->
+          <button class="btn btn-secondary" id="me-go-badges" type="button">Badges</button>
         </section>
         <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
         <section class="card">
@@ -109,6 +111,8 @@
           <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
           <!-- Challenges in Admin Mode (S6-P8): a Builder or above builds them. -->
           <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Challenges</button>
+          <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)): a Builder or above makes them. -->
+          <button class="btn btn-secondary" id="me-go-achievements" type="button" hidden>Achievements</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
           <!-- Its Wiki page (S6-P9, |Q665 (a)), shown with the words above. -->
           <div class="muted small" id="cl-sim-wiki" hidden></div>
@@ -455,6 +459,8 @@
         <ul class="lt-walk-xp-lines" id="sm-xp-lines"></ul>
         <p class="lt-walk-xp-total" id="sm-xp-total"></p>
       </div>
+      <!-- Badges this walk earned, and the weekly streak grown (S6-P6), with Share. -->
+      <div class="lt-ach-news" id="sm-badges" hidden></div>
       <!-- Share the walk as a picture (S6-P5): the phone's share sheet, or Download picture. -->
       <button class="btn btn-secondary" id="sm-share" type="button" hidden>Share</button>
       <p class="muted" id="sm-wait" hidden></p>
@@ -576,6 +582,8 @@
   <!-- The main page (Oct 31, field first): a panel at the top with your
        details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
+    <!-- Just earned (S6-P6, |Q647's addendum): a badge, or the weekly streak grown, with Share. -->
+    <section class="card lt-ach-news" id="ach-news" hidden></section>
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->
     <section class="card lt-quest" id="qs-card" hidden>
@@ -717,6 +725,39 @@
     </section>
   </div>
 
+  <!-- Your badges (S6-P6): the weekly streak, then each achievement, earned or not yet. -->
+  <div id="v-badges" hidden>
+    <section class="card">
+      <h2>Badges</h2>
+      <p class="muted small" id="badges-note"></p>
+    </section>
+    <section class="card lt-ach-item" id="badges-streak"></section>
+    <div id="badges-list"></div>
+    <button class="lt-fab-back" id="badges-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+  <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)). -->
+  <div id="v-ach-admin" hidden>
+    <section class="card">
+      <h2>Achievements</h2>
+      <p class="muted small" id="aa-note"></p>
+      <button class="btn btn-primary" id="aa-add" type="button" hidden>Add an achievement</button>
+    </section>
+    <section class="card" id="aa-form" hidden>
+      <h2 id="aa-form-title">Add an achievement</h2>
+      <div class="ig"><label for="aa-name">Name</label><input id="aa-name" maxlength="60"></div>
+      <div class="ig"><label for="aa-badge">Badge (an emoji)</label><input id="aa-badge" maxlength="16"></div>
+      <div class="ig"><label for="aa-counts">What it counts</label><select id="aa-counts"></select></div>
+      <div class="ig"><label for="aa-reach">Number to reach</label><input id="aa-reach" type="number" min="0" step="any" inputmode="decimal"></div>
+      <div class="ig" id="aa-minutes-box" hidden><label for="aa-minutes" id="aa-minutes-label">Minutes</label><input id="aa-minutes" type="number" min="0" max="1440" step="1" inputmode="numeric"></div>
+      <div class="ig"><label for="aa-xp">XP</label><input id="aa-xp" type="number" min="0" max="1000" step="0.5" inputmode="decimal"></div>
+      <button class="btn btn-primary" id="aa-save" type="button">Save</button>
+      <button class="btn btn-secondary" id="aa-cancel" type="button">Cancel</button>
+      <p class="err" id="aa-err" role="alert"></p>
+    </section>
+    <div id="aa-list"></div>
+    <button class="lt-fab-back" id="aa-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
   <div id="v-reviews" hidden>
     <section class="card">
       <h2>Reviews</h2>
@@ -852,7 +893,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
-<script src="share.js?v=1"></script>
+<script src="share.js?v=2"></script>
 <script src="collect.js?v=49"></script>
 <script src="map.js?v=32"></script>
 <script src="quest.js?v=4"></script>
@@ -860,7 +901,8 @@
 <script src="reviews.js?v=4"></script>
 <script src="forum.js?v=4"></script>
 <script src="challenges.js?v=1"></script>
-<script src="wiki.js?v=1"></script>
+<script src="wiki.js?v=2"></script>
+<script src="achievements.js?v=1"></script>
 <script src="litter.js?v=25"></script>
 </body>
 </html>

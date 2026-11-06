@@ -192,6 +192,7 @@ window.LitterWiki = function (app) {
     return b;
   }
 
+  $('cl-sim').addEventListener('change', sync);
   $('me-go-wiki').addEventListener('click', open);
   $('wiki-back').addEventListener('click', function () { if (app.back) app.back(); });
   $('wiki-page-back').addEventListener('click', leavePage);

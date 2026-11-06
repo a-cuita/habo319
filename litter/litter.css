@@ -552,3 +552,23 @@ body.lt-sheet-open { overflow: hidden; }
 .lt-wiki-draft { border-top: 1px solid var(--border); padding: 10px 0; }
 .lt-wiki-draft p { margin: 0 0 4px; }
 .lt-wiki-link { display: inline-block; margin-top: 6px; }
+
+/* Streaks and achievements (S6-P6). */
+.lt-me-streak { font-weight: 800; font-size: 0.9rem; margin-left: 6px; white-space: nowrap; }
+.lt-ach-news { position: relative; border: 2px solid #b45309; background: #fffbeb; }
+#sm-badges { padding: 12px; border-radius: 12px; margin: 10px 0; }
+.lt-ach-close { position: absolute; top: 6px; right: 8px; }
+.lt-ach-new { text-align: center; padding: 8px 0; }
+.lt-ach-new + .lt-ach-new { border-top: 1px solid #fde68a; }
+.lt-ach-new p { margin: 4px 0; }
+.lt-ach-badge { font-size: 2.4rem; line-height: 1.2; }
+.lt-ach-item { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--border); }
+section.card.lt-ach-item { border-top: 0; padding: 16px; }
+.lt-ach-item .lt-ach-badge { flex: 0 0 auto; width: 3rem; text-align: center; }
+.lt-ach-words { flex: 1; min-width: 0; }
+.lt-ach-words p { margin: 0 0 4px; }
+.lt-ach-item.lt-locked .lt-ach-badge { filter: grayscale(1); opacity: 0.5; }
+.lt-ach-item.lt-locked .lt-col-head { opacity: 0.7; }
+.lt-ach-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin: 4px 0; }
+.lt-ach-fill { height: 100%; background: #b45309; }
+.lt-ach-share { margin-top: 6px; }

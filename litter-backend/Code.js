@@ -198,6 +198,19 @@ var TABS = {
   },
   // Ground off a plan a player asked to add to a public segment (S5-U17,
   // |M711): reviewed like a segment submitted to be public.
+  // Achievements (S6-P6): what admins make, and the badges players earn.
+  achievements: {
+    name: 'Achievements',
+    header: ['Achievement ID', 'Name', 'Badge', 'Counts', 'Number to reach', 'Minutes', 'XP', 'State', 'Made by', 'Made'],
+    widths: [100, 180, 60, 200, 110, 70, 50, 70, 110, 150],
+    formats: { 10: 'yyyy-mm-dd h:mm' }
+  },
+  badges: {
+    name: 'Badges earned',
+    header: ['Account ID', 'Achievement ID', 'Name', 'Badge', 'Earned', 'XP'],
+    widths: [100, 100, 180, 60, 150, 50],
+    formats: { 5: 'yyyy-mm-dd h:mm' }
+  },
   // The Wiki (S6-P9): its live pages, and admins' drafts waiting on the Forum.
   wiki: {
     name: 'Wiki',
@@ -300,7 +313,12 @@ function actions_() {
     challengeRetire: challengeRetire_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,
-    wikiDraft: wikiDraft_
+    wikiDraft: wikiDraft_,
+    // Streaks and achievements (S6-P6).
+    achievementsLoad: achievementsLoad_,
+    achievementsAdmin: achievementsAdmin_,
+    achievementSave: achievementSave_,
+    achievementRetire: achievementRetire_
   };
 }
 
@@ -448,7 +466,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -490,6 +508,7 @@ function ensureSchema_(force) {
     fieldsAreaOnce_();
     challengesOnce_();
     wikiOnce_();
+    achievementsOnce_();
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
