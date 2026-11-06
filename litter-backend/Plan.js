@@ -36,6 +36,8 @@ function planSave_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
   requireCurrentWaiver_(account);
+  // A Litter Class Skill each (S5-P29): ground kept from a walk, or one drawn.
+  requireSkill_(account, req.from === 'walk' ? 'keep' : 'draw');
   var p = req.plan || {};
   var list = (Array.isArray(p.stretches) ? p.stretches : []).slice(0, 30).map(function (s) {
     var cells = cleanCells_(s && s.cells);

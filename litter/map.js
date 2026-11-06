@@ -543,6 +543,7 @@ window.LitterMap = function (app) {
       var s = el('button', 'lt-seg-menu-item lt-plan-propose', 'Submit as Public Segment');
       s.type = 'button';
       s.addEventListener('click', function () { closeMenus(); submitForm(p, box); });
+      if (app.gate) app.gate(s, 'submit');   // a Litter Class Skill (S5-P29)
       menu.appendChild(s);
     }
     var d = el('button', 'lt-seg-menu-item lt-plan-delete', 'Delete');

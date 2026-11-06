@@ -88,6 +88,7 @@ var COMPASS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 function segmentPropose_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  requireSkill_(account, 'submit');   // a Litter Class Skill (S5-P29)
   var plan = planById_(clean_(req.planId, 20));
   if (!plan || plan.account !== account.id) throw new Error('That plan isn\'t yours, or isn\'t here any more.');
   var name = clean_(req.name, 80) || 'From plan ' + plan.id;

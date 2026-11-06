@@ -555,6 +555,27 @@ body.lt-has-back .lt-notices { top: 48px; }
 .lt-pop-table { border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; width: 100%; }
 .lt-pop-table th, .lt-pop-table td { text-align: left; padding: 2px 6px 2px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); white-space: nowrap; }
 .lt-pop-table th:last-child, .lt-pop-table td:last-child { text-align: right; padding-right: 0; }
+
+/* Litter Class Skills (S5-P29): under your XP in the top panel, each with
+   its level; one you haven't reached greyed, "Unlocks at Level N" (Q614 (a)). */
+.lt-skills-box { margin: 4px 0 10px; }
+.lt-skills-head { font-weight: 800; margin: 6px 0 4px; }
+.lt-skills { list-style: none; margin: 0; padding: 0; }
+.lt-skill { border-top: 1px solid var(--border); padding: 6px 0; }
+.lt-skill-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.lt-skill-name { font-weight: 700; }
+.lt-skill-level { font-size: 0.88rem; color: var(--text-dim); white-space: nowrap; }
+.lt-skill-say { margin: 2px 0 0; }
+.lt-skill.lt-locked { opacity: 0.5; filter: grayscale(1); }
+/* A skill's button, before you reach its level: greyed, with its level under its words. */
+.btn.lt-locked, .lt-seg-menu-item.lt-locked { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
+.lt-lock-note { display: block; font-size: 0.8rem; font-weight: 600; margin-top: 2px; }
+/* Settings, Levels and class skills: the level ranges, a row each. */
+.lt-set-ranges { display: grid; gap: 6px; margin: 4px 0 8px; }
+.lt-set-range { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 6px; align-items: center; }
+.lt-set-range .lt-set-number { width: 100%; min-width: 0; }
+.lt-set-range .btn { width: auto; min-height: 40px; padding: 8px 10px; margin: 0; }
+.lt-set-range-head span { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -1063,6 +1084,8 @@ body.lt-has-back .lt-notices { top: 48px; }
         <section class="card">
           <p id="cl-hours"></p>
           <p class="lt-xp" id="cl-xp" hidden></p>
+          <!-- Litter Class Skills (S5-P29, |Q621, |Q631 (a)): each with its level, greyed until reached. -->
+          <div class="lt-skills-box" id="cl-skills" hidden></div>
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
           <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
           <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
@@ -2144,6 +2167,8 @@ window.LitterCollect = function (app) {
     // Just your XP: how it's earned belongs in training (|C511, S3-P30).
     var lw = levelWords(a.xp);
     $('cl-xp').textContent = 'Your XP: ' + a.xp + '.' + (lw ? ' ' + lw : '');
+    showSkills();
+    gate($('cl-plan-btn'), 'draw');
     var w = walkPlan(), line = $('cl-plan');
     line.className = 'lt-plan-line';
     if (going) line.textContent = '';
@@ -2186,6 +2211,61 @@ window.LitterCollect = function (app) {
     var l = levelOf(Number(xp) || 0, settings.levels);
     if (!settings.levels || !settings.levels.length) return '';
     return 'Level ' + l.level + (l.next != null ? ' (' + round(l.next - (Number(xp) || 0), 2) + ' XP to Level ' + (l.level + 1) + ')' : '') + '.';
+  }
+
+  /* ── Litter Class Skills (S5-P29, |Q612 to |Q615, |Q631 (a)) ── */
+
+  // Each skill opens at a level, set in Admin Mode's Settings (0: open to
+  // everyone). Below it, the skill is greyed, with "Unlocks at Level N"
+  // (|Q614 (a)), and HABO refuses it too.
+  function myLevel() { return levelOf(Number(account && account.xp) || 0, settings.levels).level; }
+  function skill(key) {
+    var s = (settings.skills || []).filter(function (x) { return x.key === key; })[0];
+    if (!s || !s.level) return { open: true, level: 0, name: s ? s.name : '' };
+    return { open: myLevel() >= s.level, level: s.level, name: s.name };
+  }
+  // A skill's button: greyed, with "Unlocks at Level N" under its words, until you reach it.
+  function gate(b, key) {
+    var s = skill(key), note = b.querySelector('.lt-lock-note');
+    b.disabled = !s.open;
+    b.classList.toggle('lt-locked', !s.open);
+    if (s.open) { if (note) note.remove(); return s; }
+    if (!note) { note = document.createElement('small'); note.className = 'lt-lock-note'; b.appendChild(note); }
+    note.textContent = 'Unlocks at Level ' + s.level;
+    return s;
+  }
+  // Under your XP and level in the top panel (|Q621): every skill, with its level.
+  function showSkills() {
+    var box = $('cl-skills'), list = settings.skills || [];
+    box.textContent = '';
+    box.hidden = !account || !list.length;
+    if (box.hidden) return;
+    var have = myLevel();
+    var head = document.createElement('p');
+    head.className = 'lt-skills-head';
+    head.textContent = 'Litter Class Skills';
+    box.appendChild(head);
+    var ul = document.createElement('ul');
+    ul.className = 'lt-skills';
+    list.forEach(function (s) {
+      var li = document.createElement('li'), open = have >= s.level;
+      li.className = 'lt-skill' + (open ? '' : ' lt-locked');
+      var top = document.createElement('div');
+      top.className = 'lt-skill-top';
+      var name = document.createElement('span');
+      name.className = 'lt-skill-name';
+      name.textContent = s.name;
+      var lv = document.createElement('span');
+      lv.className = 'lt-skill-level';
+      lv.textContent = open ? 'Level ' + s.level : 'Unlocks at Level ' + s.level;
+      top.appendChild(name); top.appendChild(lv);
+      var say = document.createElement('p');
+      say.className = 'muted small lt-skill-say';
+      say.textContent = s.say;
+      li.appendChild(top); li.appendChild(say);
+      ul.appendChild(li);
+    });
+    box.appendChild(ul);
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -2820,6 +2900,7 @@ window.LitterCollect = function (app) {
     $('pf-types-none').textContent = !types.length && !q ? 'The litter types haven\'t loaded yet: they need signal once. Try again in a moment.' : 'No litter type has "' + $('pf-type-search').value.trim() + '" in it.';
     $('pf-type-add').hidden = !q || shown > 0;
     $('pf-type-add').textContent = 'Add "' + $('pf-type-search').value.trim() + '" as a new type';
+    gate($('pf-type-add'), 'type');   // a Litter Class Skill (S5-P29)
   }
   function showPicked() {
     var p = picked();
@@ -3218,6 +3299,7 @@ window.LitterCollect = function (app) {
     row.className = 'lt-piece-buttons';
     var keep = button('Keep as a private segment', 'btn btn-primary lt-piece-keep', function () { keepPiece(q, keep); });
     var split = button(summary.splitting === n ? 'Cancel split' : 'Split', 'btn btn-secondary lt-piece-split', function () { summary.splitting = summary.splitting === n ? -1 : n; showOffPlan(); });
+    gate(keep, 'keep');
     row.appendChild(keep); row.appendChild(split);
     box.appendChild(row);
     // A piece touching a public segment: part of it, or new (|M711)?
@@ -3226,7 +3308,9 @@ window.LitterCollect = function (app) {
       t.className = 'small lt-piece-touch';
       t.textContent = 'It touches ' + g.name + '. Part of it, or new? If it\'s part of it, ask an admin to add it.';
       box.appendChild(t);
-      box.appendChild(button('Ask an admin to add it to ' + g.name, 'btn btn-secondary lt-piece-ask', function (e) { askPiece(q, g, e.currentTarget); }));
+      var ask = button('Ask an admin to add it to ' + g.name, 'btn btn-secondary lt-piece-ask', function (e) { askPiece(q, g, e.currentTarget); });
+      gate(ask, 'add');
+      box.appendChild(ask);
     });
     return box;
   }
@@ -3238,7 +3322,7 @@ window.LitterCollect = function (app) {
   }
   function keepPiece(q, b) {
     app.busy(b, 'sm-offplan-err', function () {
-      return app.api('planSave', { token: app.myToken(), plan: { stretches: [{ cells: q.cells, turns: [], miles: planMiles({ cells: q.cells }) }], name: q.name || '' } }).then(function (d) {
+      return app.api('planSave', { token: app.myToken(), from: 'walk', plan: { stretches: [{ cells: q.cells, turns: [], miles: planMiles({ cells: q.cells }) }], name: q.name || '' } }).then(function (d) {
         if (account && d.plans) account.plans = d.plans;
         q.done = 'Kept as a private segment' + (q.name ? ': ' + q.name : '') + '. It\'s in Segments.';
         showOffPlan();
@@ -3985,6 +4069,7 @@ window.LitterCollect = function (app) {
   // the cell last tapped, which the next tap fills in from along the street.
   // Undo takes back the last tap.
   function openPlan() {
+    if (!skill('draw').open) return;   // a Litter Class Skill (S5-P29): its button is greyed
     planning = { stretches: [{ cells: [], turns: [], from: null }], history: [], kind: 'Path', corners: [] };
     $('pl-name').value = '';
     $('pl-kind-path').checked = true;
@@ -4242,7 +4327,9 @@ window.LitterCollect = function (app) {
       if (!c || c.ended || c.current.pausedAt) return;
       if (nearSquare(cells, G.cellAt(p.coords.latitude, p.coords.longitude))) { app.clearNotice('off-plan'); return; }
       // And a new segment, weighed at each end (S5-U17, |C698): the weighings split the ground off your plan into pieces at the end.
-      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way. Collecting here? Weigh now to start a new segment, and weigh again at its end.', { key: 'off-plan' });
+      // Collecting here? is a Litter Class Skill (S5-P29): below its level, the notice doesn't ask.
+      app.notice('You\'re off your plan\'s segments. Pause while you travel to your next one, unless you\'re collecting on the way.' +
+        (skill('here').open ? ' Collecting here? Weigh now to start a new segment, and weigh again at its end.' : ''), { key: 'off-plan' });
     }, function () { /* no fix: nothing to say */ }, { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 });
   });
   $('pl-cancel').addEventListener('click', function () { planNoticesGone(); planning = null; app.showAccount(); });
@@ -4302,6 +4389,8 @@ window.LitterCollect = function (app) {
   return {
     onAccount: onAccount,
     openPast: openPast,
+    // Litter Class Skills (S5-P29), for the Segments screen's Submit as Public Segment.
+    skill: skill, gate: gate,
     // Opening the page with a collection still going: back to it (Q282). One
     // left alone past its hours is ended where its last stretch did (Q303).
     resume: function () {
@@ -4890,6 +4979,7 @@ window.LitterMap = function (app) {
       var s = el('button', 'lt-seg-menu-item lt-plan-propose', 'Submit as Public Segment');
       s.type = 'button';
       s.addEventListener('click', function () { closeMenus(); submitForm(p, box); });
+      if (app.gate) app.gate(s, 'submit');   // a Litter Class Skill (S5-P29)
       menu.appendChild(s);
     }
     var d = el('button', 'lt-seg-menu-item lt-plan-delete', 'Delete');
@@ -5718,7 +5808,7 @@ window.LitterSettings = function (app) {
       openKey = g.key;
       Array.prototype.forEach.call(document.querySelectorAll('.lt-set-group'), function (o) { if (o !== d) o.open = false; });
     });
-    var rows = g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
+    var rows = g.custom ? skillsSection(g, d) : g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
     var err = el('p', 'err');
     err.id = 'set-err-' + g.key;
     err.setAttribute('role', 'alert');
@@ -5803,6 +5893,61 @@ window.LitterSettings = function (app) {
     }
     box.appendChild(row);
     return { box: box, name: it.name, value: value };
+  }
+
+  // Levels and class skills (S5-P29, |Q612 to |Q615): the level ranges, each
+  // with its XP for each level, to add to and remove from; then each Litter
+  // Class Skill with the level it opens at. Returns its rows, as item() does.
+  function skillsSection(g, d) {
+    var lv = el('div', 'lt-set-item');
+    lv.appendChild(el('p', 'lt-set-label', 'Levels'));
+    lv.appendChild(el('p', 'muted small lt-set-say', 'Each level costs its range\'s XP, on top of the levels before it. Below Level 1 is Level 0. Leave To level blank for "and up".'));
+    var table = el('div', 'lt-set-ranges');
+    var head = el('div', 'lt-set-range lt-set-range-head');
+    ['From level', 'To level', 'XP per level', ''].forEach(function (t) { head.appendChild(el('span', null, t)); });
+    table.appendChild(head);
+    var addRange = function (r) {
+      var line = el('div', 'lt-set-range');
+      ['From level', 'To level', 'XP per level'].forEach(function (t, i) {
+        var n = el('input', 'lt-set-number lt-set-range-' + ['from', 'to', 'xp'][i]);
+        n.type = 'number'; n.inputMode = 'numeric'; n.step = i === 2 ? 'any' : '1'; n.min = i === 2 ? '0' : '1';
+        n.value = r && r[i] != null ? r[i] : '';
+        n.setAttribute('aria-label', t);
+        line.appendChild(n);
+      });
+      var rm = el('button', 'btn btn-secondary lt-set-remove', 'Remove');
+      rm.type = 'button';
+      rm.addEventListener('click', function () { line.remove(); });
+      line.appendChild(rm);
+      table.appendChild(line);
+      return line;
+    };
+    (g.levels || []).forEach(addRange);
+    lv.appendChild(table);
+    var more = el('button', 'btn btn-secondary lt-set-add', 'Add a level range');
+    more.type = 'button';
+    more.id = 'set-skills-add-range';
+    more.addEventListener('click', function () { addRange(null).querySelector('input').focus(); });
+    lv.appendChild(more);
+    d.appendChild(lv);
+    var sk = el('div', 'lt-set-item');
+    sk.appendChild(el('p', 'lt-set-label', 'Litter Class Skills'));
+    sk.appendChild(el('p', 'muted small lt-set-say', 'The level each opens at. 0 is open to everyone. A player below it sees it greyed in their top panel, with "Unlocks at Level 2".'));
+    d.appendChild(sk);
+    var boxes = (g.skills || []).map(function (s) {
+      var r = item(g, { name: s.key, label: s.name, say: s.say, kind: 'number', unit: 'level', min: 0, max: 999, value: s.level });
+      r.box.querySelector('input').step = '1';
+      d.appendChild(r.box);
+      return r;
+    });
+    return [
+      { name: 'levels', value: function () {
+        return Array.prototype.map.call(table.querySelectorAll('.lt-set-range:not(.lt-set-range-head)'), function (line) {
+          return Array.prototype.map.call(line.querySelectorAll('input'), function (x) { return x.value; });
+        }).filter(function (r) { return r.some(function (x) { return String(x).trim(); }); });
+      } },
+      { name: 'skills', value: function () { var o = {}; boxes.forEach(function (b) { o[b.name] = b.value(); }); return o; } }
+    ];
   }
 
   // The Settings button, in the Admin Mode box while Admin Mode is on.
@@ -6591,6 +6736,7 @@ window.LitterReviews = function (app) {
     onPlans: function (d) { collect.onPlans(d); },
     walkIds: function () { return collect.walkIds(); },
     useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
+    gate: function (b, key) { return collect.gate(b, key); },
     showCollections: function () { notice(''); show('v-collections'); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }
   });

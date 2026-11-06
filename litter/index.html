@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=37">
+<link rel="stylesheet" href="litter.css?v=38">
 </head>
 <body>
 
@@ -515,6 +515,8 @@
         <section class="card">
           <p id="cl-hours"></p>
           <p class="lt-xp" id="cl-xp" hidden></p>
+          <!-- Litter Class Skills (S5-P29, |Q621, |Q631 (a)): each with its level, greyed until reached. -->
+          <div class="lt-skills-box" id="cl-skills" hidden></div>
           <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
           <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
           <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
@@ -655,11 +657,11 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
-<script src="collect.js?v=41"></script>
-<script src="map.js?v=25"></script>
+<script src="collect.js?v=42"></script>
+<script src="map.js?v=26"></script>
 <script src="quest.js?v=4"></script>
-<script src="settings.js?v=2"></script>
+<script src="settings.js?v=3"></script>
 <script src="reviews.js?v=2"></script>
-<script src="litter.js?v=17"></script>
+<script src="litter.js?v=18"></script>
 </body>
 </html>

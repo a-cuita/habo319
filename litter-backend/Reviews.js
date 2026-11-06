@@ -29,6 +29,7 @@ function additionsAll_() {
 function additionAsk_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  requireSkill_(account, 'add');   // a Litter Class Skill (S5-P29)
   var cells = cleanCells_(req.cells);
   if (cells.length < 2) throw new Error('That piece is too small to add.');
   var miles = round_(milesValue_(req.miles || 0), 3), note = clean_(req.note, 500);

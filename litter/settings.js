@@ -49,7 +49,7 @@ window.LitterSettings = function (app) {
       openKey = g.key;
       Array.prototype.forEach.call(document.querySelectorAll('.lt-set-group'), function (o) { if (o !== d) o.open = false; });
     });
-    var rows = g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
+    var rows = g.custom ? skillsSection(g, d) : g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
     var err = el('p', 'err');
     err.id = 'set-err-' + g.key;
     err.setAttribute('role', 'alert');
@@ -134,6 +134,61 @@ window.LitterSettings = function (app) {
     }
     box.appendChild(row);
     return { box: box, name: it.name, value: value };
+  }
+
+  // Levels and class skills (S5-P29, |Q612 to |Q615): the level ranges, each
+  // with its XP for each level, to add to and remove from; then each Litter
+  // Class Skill with the level it opens at. Returns its rows, as item() does.
+  function skillsSection(g, d) {
+    var lv = el('div', 'lt-set-item');
+    lv.appendChild(el('p', 'lt-set-label', 'Levels'));
+    lv.appendChild(el('p', 'muted small lt-set-say', 'Each level costs its range\'s XP, on top of the levels before it. Below Level 1 is Level 0. Leave To level blank for "and up".'));
+    var table = el('div', 'lt-set-ranges');
+    var head = el('div', 'lt-set-range lt-set-range-head');
+    ['From level', 'To level', 'XP per level', ''].forEach(function (t) { head.appendChild(el('span', null, t)); });
+    table.appendChild(head);
+    var addRange = function (r) {
+      var line = el('div', 'lt-set-range');
+      ['From level', 'To level', 'XP per level'].forEach(function (t, i) {
+        var n = el('input', 'lt-set-number lt-set-range-' + ['from', 'to', 'xp'][i]);
+        n.type = 'number'; n.inputMode = 'numeric'; n.step = i === 2 ? 'any' : '1'; n.min = i === 2 ? '0' : '1';
+        n.value = r && r[i] != null ? r[i] : '';
+        n.setAttribute('aria-label', t);
+        line.appendChild(n);
+      });
+      var rm = el('button', 'btn btn-secondary lt-set-remove', 'Remove');
+      rm.type = 'button';
+      rm.addEventListener('click', function () { line.remove(); });
+      line.appendChild(rm);
+      table.appendChild(line);
+      return line;
+    };
+    (g.levels || []).forEach(addRange);
+    lv.appendChild(table);
+    var more = el('button', 'btn btn-secondary lt-set-add', 'Add a level range');
+    more.type = 'button';
+    more.id = 'set-skills-add-range';
+    more.addEventListener('click', function () { addRange(null).querySelector('input').focus(); });
+    lv.appendChild(more);
+    d.appendChild(lv);
+    var sk = el('div', 'lt-set-item');
+    sk.appendChild(el('p', 'lt-set-label', 'Litter Class Skills'));
+    sk.appendChild(el('p', 'muted small lt-set-say', 'The level each opens at. 0 is open to everyone. A player below it sees it greyed in their top panel, with "Unlocks at Level 2".'));
+    d.appendChild(sk);
+    var boxes = (g.skills || []).map(function (s) {
+      var r = item(g, { name: s.key, label: s.name, say: s.say, kind: 'number', unit: 'level', min: 0, max: 999, value: s.level });
+      r.box.querySelector('input').step = '1';
+      d.appendChild(r.box);
+      return r;
+    });
+    return [
+      { name: 'levels', value: function () {
+        return Array.prototype.map.call(table.querySelectorAll('.lt-set-range:not(.lt-set-range-head)'), function (line) {
+          return Array.prototype.map.call(line.querySelectorAll('input'), function (x) { return x.value; });
+        }).filter(function (r) { return r.some(function (x) { return String(x).trim(); }); });
+      } },
+      { name: 'skills', value: function () { var o = {}; boxes.forEach(function (b) { o[b.name] = b.value(); }); return o; } }
+    ];
   }
 
   // The Settings button, in the Admin Mode box while Admin Mode is on.

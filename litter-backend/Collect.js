@@ -316,6 +316,7 @@ function collectLoad_(req) {
 function addLitterType_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  requireSkill_(account, 'type');   // a Litter Class Skill (S5-P29)
   var name = clean_(req.type, 60).replace(/\s+/g, ' ');
   if (name.length < 2) throw new Error('Type the litter type\'s name.');
   return withLock_(function () {
@@ -680,6 +681,8 @@ function collectSettings_() {
     autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
     breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(),
     levels: levelRanges_(),
+    // Litter Class Skills (S5-P29): each with the level it opens at.
+    skills: classSkills_(),
     // Fields as areas (S5-P13 part 2): how far a track scans, and the share that collects a field.
     reach: minutesSetting_(SETTING_REACH, 15), fieldCover: Math.min(100, minutesSetting_(SETTING_FIELD_COVER, 70)),
     sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
