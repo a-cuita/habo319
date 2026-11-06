@@ -204,7 +204,7 @@ function forumLoad_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
   requireAdmin_(account);
-  return withLock_(function () { return forumView_(account); });
+  return forumLock_(function () { return forumView_(account); });
 }
 
 // One topic, in full; reading it marks it read.
@@ -213,7 +213,7 @@ function forumTopic_(req) {
   var account = requireAccount_(req.token);
   requireAdmin_(account);
   var id = clean_(req.topicId, 20);
-  return withLock_(function () {
+  return forumLock_(function () {
     closeVotes_();
     var out = topicView_(account, id);
     markRead_(account.id, id);
@@ -231,7 +231,7 @@ function forumOpen_(req) {
   var title = clean_(req.title, FORUM_TITLE_MAX);
   if (title.length < 2) throw new Error('Give it a title.');
   var text = textOf_(req.text, kind === 'Decision' ? 'what you propose' : 'what it\'s about');
-  return withLock_(function () {
+  return forumLock_(function () {
     var id = topicNew_(account, kind, title, text, FORUM_STATES[kind][0]);
     return { topic: topicView_(account, id) };
   });
@@ -244,7 +244,7 @@ function forumReply_(req) {
   requireAdmin_(account);
   var text = textOf_(req.text, 'your reply');
   var id = clean_(req.topicId, 20);
-  return withLock_(function () {
+  return forumLock_(function () {
     var t = forumTopics_().filter(function (x) { return x.id === id; })[0];
     if (!t) throw new Error('That topic isn\'t here any more.');
     var sheet = getDb_().getSheetByName(TABS.forumReplies.name), now = new Date();
@@ -262,7 +262,7 @@ function forumMove_(req) {
   var account = requireAccount_(req.token);
   requireAdmin_(account);
   var id = clean_(req.topicId, 20), to = String(req.to || ''), note = clean_(req.note, 500);
-  return withLock_(function () {
+  return forumLock_(function () {
     closeVotes_();
     var view = topicView_(account, id);
     if (view.can.indexOf(to) === -1) throw new Error(moveRefusal_(view, to));
@@ -304,7 +304,7 @@ function forumVote_(req) {
   var vote = String(req.vote || '');
   if (FORUM_VOTES.indexOf(vote) === -1) throw new Error('Vote Approve, Reject or Abstain.');
   var id = clean_(req.topicId, 20);
-  return withLock_(function () {
+  return forumLock_(function () {
     closeVotes_();
     var t = forumTopics_().filter(function (x) { return x.id === id; })[0];
     if (!t || t.kind !== 'Decision') throw new Error('That isn\'t a Decision.');
@@ -325,7 +325,7 @@ function forumReview_(req) {
   var account = requireAccount_(req.token);
   requireAdmin_(account);
   var rid = clean_(req.reviewId, 20);
-  return withLock_(function () {
+  return forumLock_(function () {
     var had = forumTopics_().filter(function (t) { return t.kind === 'Review' && t.link === rid; })[0];
     if (had) return { topic: topicView_(account, had.id) };
     var rv = reviewStates_()[rid];
@@ -342,7 +342,7 @@ function reportSend_(req) {
   var of = String(req.of || '');
   if (!REPORT_OF[of]) throw new Error('Choose Report an Issue or Submit an Idea.');
   var text = textOf_(req.text, of === 'Idea' ? 'your idea' : 'what happened');
-  return withLock_(function () {
+  return forumLock_(function () {
     // At most 10 an hour from one account.
     var hour = Date.now() - 3600000;
     if (forumTopics_().filter(function (t) { return t.kind === 'Report' && t.by === account.id && t.opened > hour; }).length >= 10) throw new Error('That\'s 10 this hour. Try again later.');
@@ -398,8 +398,11 @@ function digestHour_() {
   return getSetting_(SETTING_DIGEST_HOUR).trim() !== '' && n >= 0 && n <= 23 ? Math.floor(n) : 7;
 }
 function digestWrite_(d, fields) {
-  var sheet = getDb_().getSheetByName(TABS.forumDigest.name);
-  Object.keys(fields).forEach(function (k) { sheet.getRange(d.row, DIGEST_COL[k]).setValue(fields[k]); });
+  // Under the lock, so what was read before it is read again after (S6-P1).
+  forumLock_(function () {
+    var sheet = getDb_().getSheetByName(TABS.forumDigest.name);
+    Object.keys(fields).forEach(function (k) { sheet.getRange(d.row, DIGEST_COL[k]).setValue(fields[k]); });
+  });
 }
 
 // An admin's choice, from the Forum: Off, Daily or Weekly.
@@ -409,7 +412,7 @@ function forumDigestSave_(req) {
   requireAdmin_(account);
   var cadence = String(req.cadence || '');
   if (DIGEST_CADENCES.indexOf(cadence) === -1) throw new Error('Choose Off, Daily or Weekly.');
-  return withLock_(function () {
+  return forumLock_(function () {
     var d = digestOf_(account.id), now = new Date();
     if (!d) {
       var sheet = getDb_().getSheetByName(TABS.forumDigest.name);
@@ -487,7 +490,13 @@ function digestMail_(account, groups) {
 // Each hour, from the trigger you add once in the Apps Script editor
 // (Triggers, Add Trigger, forumDigestTick, Time-driven, Hour timer, Every
 // hour): each admin whose digest is due gets it, or nothing if nothing's new.
+// The Forum's own writes, under the lock: they touch nothing kept_ keeps,
+// so what's kept stays kept (S6-P1).
+function forumLock_(fn) { return withLock_(fn, true); }
+
 function forumDigestTick() {
+  // A trigger starts here, not through dispatch_, so nothing kept is carried in (S6-P1).
+  forgetReads_();
   ensureSchema_();
   var now = new Date(), hour = digestHour_();
   var due = digestRows_().filter(function (d) {

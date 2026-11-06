@@ -309,12 +309,81 @@ function dispatch_(req) {
   var action = req && req.action;
   var actions = actions_();
   if (!Object.prototype.hasOwnProperty.call(actions, action)) return { success: false, error: 'Unknown action: ' + action };
+  forgetReads_();
   try {
     return { success: true, data: actions[action](req) };
   } catch (err) {
     console.error(err);
     return { success: false, error: err.message || String(err), code: err.code || '' };
+  } finally {
+    forgetReads_();
   }
+}
+
+// Each tab read once per request (S6-P1). A tab's rows are kept once read,
+// for the rest of the request, so the main page reads the Sheet about a
+// dozen times, not 185. Anything written forgets them all: a write happens
+// under the lock (withLock_), which forgets what was kept going in and
+// coming out, and reads under the lock always go to the Sheet. So a read
+// never misses a write.
+var readMemo_ = {};
+function forgetReads_() { readMemo_ = {}; }
+
+// What's worked out from every walk, like each segment's rate and whether
+// it's due (S6-P1, item 3), kept for 10 minutes between requests, and
+// worked out again at once whenever anything is written through the app (a
+// walk saved, a review, a setting) or a setting changes in the Sheet. A
+// change typed straight into another tab of the Sheet shows within 10
+// minutes. Under the lock it's always worked out fresh.
+var KEPT_MINUTES = 10, KEPT_PART = 90000;
+function dataVersion_(fresh) {
+  var cache = CacheService.getScriptCache(), v = fresh ? null : cache.get('data-version');
+  if (!v) { v = Date.now().toString(36) + Math.random().toString(36).slice(2, 6); cache.put('data-version', v, 21600); }
+  return v;
+}
+function settingsStamp_() {
+  getSetting_('');
+  var text = JSON.stringify(settingsMemo_ || []), h = 5381;
+  for (var i = 0; i < text.length; i++) h = ((h * 33) ^ text.charCodeAt(i)) >>> 0;
+  return h.toString(36);
+}
+// `name`: what it is, with whose world if it's someone's. Gives back what
+// `fn` gives, as plain data (as the page gets it).
+function kept_(name, fn) {
+  if (lockDepth_ > 0) return JSON.parse(JSON.stringify(fn()));
+  var cache = CacheService.getScriptCache();
+  // Each 10 minutes on the clock is its own, so what depends on the time (a
+  // segment's days left) is never more than 10 minutes old.
+  var key = 'kept:' + name + ':' + dataVersion_() + ':' + settingsStamp_() + ':' + Math.floor(Date.now() / (KEPT_MINUTES * 60000));
+  var head = cache.get(key);
+  if (head) {
+    var parts = [];
+    for (var i = 0; i < Number(head); i++) { var part = cache.get(key + ':' + i); if (part == null) { parts = null; break; } parts.push(part); }
+    if (parts) return JSON.parse(parts.join(''));
+  }
+  var text = JSON.stringify(fn()), n = Math.ceil(text.length / KEPT_PART) || 1;
+  try {
+    for (var j = 0; j < n; j++) cache.put(key + ':' + j, text.slice(j * KEPT_PART, (j + 1) * KEPT_PART), KEPT_MINUTES * 60);
+    cache.put(key, String(n), KEPT_MINUTES * 60);
+  } catch (e) { console.warn('Not kept: ' + name + ': ' + e.message); }
+  return JSON.parse(text);
+}
+
+// A tab's values below its header, as the Sheet has them: kept for the
+// request when read outside the lock. Callers get their own copy of each row.
+// `idCol`: the column whose last filled row ends the tab (1, the id, unless
+// given); `shown`: the values as the Sheet shows them, as text.
+function tabValues_(tab, idCol, shown) {
+  var keep = lockDepth_ === 0, key = tab.name + (shown ? ' (shown)' : '');
+  var values = keep ? readMemo_[key] : null;
+  if (!values) {
+    var sheet = getDb_().getSheetByName(tab.name);
+    var last = lastRowWith_(sheet, idCol || 1);
+    var range = last < 2 ? null : sheet.getRange(2, 1, last - 1, tab.header.length);
+    values = !range ? [] : shown ? range.getDisplayValues() : range.getValues();
+    if (keep) readMemo_[key] = values;
+  }
+  return values.map(function (row) { return row.slice(); });
 }
 
 function health_() {
@@ -673,17 +742,21 @@ function noteWrongCode_(scope, message) {
   throw new Error(message);
 }
 
-// Runs fn while holding the script lock. Safe to nest.
+// Runs fn while holding the script lock. Safe to nest. `quiet`: what fn
+// writes touches nothing kept_ keeps (the Forum), so that stays kept.
 var lockDepth_ = 0;
-function withLock_(fn) {
+function withLock_(fn, quiet) {
   if (lockDepth_ > 0) return fn();
   var lock = LockService.getScriptLock();
   lock.waitLock(20000);
+  forgetReads_();
   lockDepth_++;
   try {
     return fn();
   } finally {
     lockDepth_--;
+    forgetReads_();
+    if (!quiet) dataVersion_(true);   // what's kept from before is worked out again (S6-P1)
     // What was written reaches the Sheet before the next one in line reads
     // it, so two loads at once can't both add the same missing rows (Oct 24,
     // |C514: the five XP settings were added twice).

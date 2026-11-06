@@ -176,10 +176,8 @@ function signOut_(req) {
 
 // Every account, with its row in the Sheet.
 function readAccounts_() {
-  var sheet = getDb_().getSheetByName(TABS.accounts.name);
-  var last = lastRowWith_(sheet, ACCOUNT_COL.id);
-  if (last < 2) return [];
-  return sheet.getRange(2, 1, last - 1, TABS.accounts.header.length).getDisplayValues().map(function (r, i) {
+  // Read once per request (S6-P1, tabValues_ in Code.js), as shown in the Sheet.
+  return tabValues_(TABS.accounts, ACCOUNT_COL.id, true).map(function (r, i) {
     var get = function (k) { return String(r[ACCOUNT_COL[k] - 1]).trim(); };
     return {
       row: i + 2, id: get('id'), first: get('first'), last: get('last'), email: get('email').toLowerCase(),

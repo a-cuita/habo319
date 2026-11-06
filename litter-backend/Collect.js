@@ -297,7 +297,9 @@ function collectFix_(req) {
 function collectLoad_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
-  withLock_(function () { endLeftAlone_(account); });
+  // Only under the lock when a walk of yours was left going (S6-P1: the lock
+  // works out again what's kept, so it's taken only to write).
+  if (leftAlone_(account).length) withLock_(function () { endLeftAlone_(account); });
   var id = clean_(req.collectionId, 20);
   var col = id ? readCollection_(id) : openCollection_(account.id);
   if (col && col.account !== account.id) col = null;
@@ -412,12 +414,10 @@ function cleanRating_(v) {
 
 // `colMap`: a tab's columns, for a tab not named below (S5-P19 B).
 function readRows_(tab, colMap) {
-  var sheet = getDb_().getSheetByName(tab.name);
-  var last = lastRowWith_(sheet, 1);
-  if (last < 2) return [];
   var cols = colMap || (tab === TABS.collections ? COLLECTION_COL : tab === TABS.stretches ? STRETCH_COL : tab === TABS.plans ? PLAN_COL :
     tab === TABS.segments ? SEGMENT_COL : tab === TABS.rates ? RATE_COL : TYPE_COL);
-  return sheet.getRange(2, 1, last - 1, tab.header.length).getValues().map(function (values, i) {
+  // Read once per request (S6-P1, tabValues_ in Code.js).
+  return tabValues_(tab).map(function (values, i) {
     return { row: i + 2, values: values, get: function (k) { var v = values[cols[k] - 1]; return v instanceof Date ? v : String(v == null ? '' : v).trim(); } };
   }).filter(function (r) { return String(r.values[0]).trim(); });
 }
@@ -591,12 +591,21 @@ function hoursOf_(accountId) {
 
 // A collection left alone ends by itself 12 hours (a setting) after the last
 // thing pressed, keeping the stretches already sent (Q303).
-function endLeftAlone_(account) {
+// This person's walks still Collecting with nothing pressed for the
+// setting's hours (12 to start).
+function leftAlone_(account) {
   var hours = minutesSetting_(SETTING_AUTO_END, 12);
-  readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') === 'Collecting'; }).forEach(function (q) {
+  return readRows_(TABS.collections).filter(function (q) {
+    if (q.get('account') !== account.id || q.get('status') !== 'Collecting') return false;
+    var last = q.get('lastPressed');
+    return Date.now() - (last instanceof Date ? last.getTime() : 0) >= hours * 3600000;
+  });
+}
+
+function endLeftAlone_(account) {
+  leftAlone_(account).forEach(function (q) {
     var last = q.get('lastPressed');
     var at = last instanceof Date ? last.getTime() : 0;
-    if (Date.now() - at < hours * 3600000) return;
     var sheet = getDb_().getSheetByName(TABS.collections.name);
     var list = stretchesOf_(q.get('id'));
     sheet.getRange(q.row, COLLECTION_COL.ended).setValue(new Date(at));

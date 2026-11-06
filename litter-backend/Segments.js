@@ -481,6 +481,7 @@ function measureWorld_(sim, owner) {
     var text = why[key(r.segment, r.collection)] || 'No rate by the rules as they are now.';
     if (r.notCounted !== text) sheet.getRange(r.row, RATE_COL.notCounted).setValue(text);
   });
+  forgetReads_();   // what it wrote is read fresh after (S6-P1)
   return made;
 }
 
@@ -568,6 +569,10 @@ function fieldsAreaOnce_() {
 // days, groups: [{ pct, dir, days }] }.
 function segmentSummaries_(sim, accountId) {
   if (sim && !accountId) return [];   // a simulated world is always someone's
+  // Kept between requests until something's written (S6-P1, kept_ in Code.js).
+  return kept_('segments:' + (sim ? 'sim:' + accountId : 'public'), function () { return segmentSummariesWorked_(sim, accountId); });
+}
+function segmentSummariesWorked_(sim, accountId) {
   var now = Date.now();
   var counted = rateCollections_(sim, accountId);
   var rows = readRows_(TABS.stretches);
