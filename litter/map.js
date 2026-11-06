@@ -101,6 +101,7 @@ window.LitterMap = function (app) {
     app.notice('');
     app.show('v-map');
     onMain = false;
+    drawnOnMain = false;   // it draws its own squares, track or plan here (S6-P2)
     planButton();
     $('mp-slot').appendChild($('mp-body'));
     layersMenu(false);
@@ -134,20 +135,28 @@ window.LitterMap = function (app) {
 
   // The same map on the main page, in the Collecting card, with your picked
   // plan outlined, in place of See the map (Oct 31, field first).
-  function inline() {
+  // `quick` (S6-P2): back on the main page with nothing written since it
+  // loaded: the map as it was, not asked for again or redrawn.
+  var drawnOnMain = false;
+  function inline(quick) {
     onMain = true;
-    setTimeout(function () { drawSmallMaps($('segments-list')); }, 0);
+    if (!quick) setTimeout(function () { drawSmallMaps($('segments-list')); }, 0);
     $('cl-litter-map-slot').appendChild($('mp-body'));
     layersMenu(false);
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
+    if (quick && drawnOnMain && loaded) {
+      showPlan(app.pickedPlanCells ? app.pickedPlanCells() : []);
+      return Promise.resolve();
+    }
     var fresh = loaded && Date.now() - loadedAt < 120000;
     if (!fresh) $('mp-note').textContent = 'Loading the map…';
     return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', { token: app.myToken ? app.myToken() : '' })).then(function (d) {
       useLoad(d);
       lastCells = d.cells || [];
       draw(lastCells);
+      drawnOnMain = true;
       showPlan(app.pickedPlanCells ? app.pickedPlanCells() : []);
       $('mp-note').textContent = mode === 'rate' ? $('mp-note').textContent : '';
       if (mode === 'rate') setMode('rate');

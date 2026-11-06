@@ -24,9 +24,16 @@
   // backend's code, like "signed-out".
   // quiet: sent in the background (the walk's queue, check-ins, the handle
   // check), with no working bar, so it never stops a press (S5-P16).
+  // What the main page shows changes only when something is written (S6-P2,
+  // |Q642 (a)): these only read, or write only the Forum. Any other action
+  // marks the main page to load again the next time it shows.
+  var SAME_MAIN = ['collectLoad', 'start', 'mapLoad', 'settingsLoad', 'reviewsLoad', 'myCollections', 'handleFree', 'forumUnread', 'forumTopic',
+    'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend'];
+  var changedAt = Date.now();
+  function marks(action) { if (SAME_MAIN.indexOf(action) === -1) changedAt = Date.now(); }
   function api(action, data, quiet) {
     if (!quiet) workStart();
-    return ask(action, data).then(function (d) { if (!quiet) workEnd(); return d; }, function (err) { if (!quiet) workEnd(); throw err; });
+    return ask(action, data).then(function (d) { marks(action); if (!quiet) workEnd(); return d; }, function (err) { marks(action); if (!quiet) workEnd(); throw err; });
   }
   function ask(action, data) {
     var body = JSON.stringify(Object.assign({ action: action }, data || {}));
@@ -537,7 +544,13 @@
     p.style.maxHeight = Math.max(200, window.innerHeight - top - 12) + 'px';
   }
 
+  // The main page as it was (S6-P2, |Q642 (a)): back on it within 5 minutes
+  // with nothing written since it loaded, it isn't asked of HABO again, and
+  // its map isn't redrawn. Anything written, or longer away, loads it again.
+  var MAIN_KEEP_MS = 5 * 60000, mainAt = 0, mainOf = null;
   function showAccount(a) {
+    var quick = mainAt > changedAt && Date.now() - mainAt < MAIN_KEEP_MS && mainOf === a;
+    if (!quick) { mainAt = Date.now(); mainOf = a; }
     state.account = a;
     notice('');
     if (!a.waiverCurrent) return startResign();
@@ -554,9 +567,9 @@
     $('me-form').hidden = true;
     $('me-edit').hidden = false;
     show('v-account');
-    collect.onAccount();
-    mapper.showMine();
-    mapper.inline();
+    collect.onAccount(quick);
+    if (!quick) mapper.showMine();
+    mapper.inline(quick);
   }
 
   function startEdit() {

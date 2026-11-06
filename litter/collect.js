@@ -283,10 +283,12 @@ window.LitterCollect = function (app) {
   // Under the account: hours collecting, XP, the plan, and Start (or Back to
   // my collection). Start waits for a plan until you have as many
   // collections as the break question waits for.
-  function onAccount() {
+  // `quick`: back on the main page with nothing written since it loaded
+  // (S6-P2): what it shows stays, and HABO isn't asked again.
+  function onAccount(quick) {
     $('cl-account').hidden = false;
     closeStartAsks();
-    $('cl-hours').textContent = '';
+    if (!quick) $('cl-hours').textContent = '';
     showPlanLine();
     // Admin Mode for every rank, each named with its own (S5-P28, |Q639 (a), |Q563):
     // simulated walks and Measure again stay a Head Builder's.
@@ -299,6 +301,11 @@ window.LitterCollect = function (app) {
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = adminAllowed() && load(SIM_KEY) === true;
     if (app.syncWorkshop) app.syncWorkshop();
+    if (quick) {
+      if (app.onPlanPicked) app.onPlanPicked(walkCells());
+      showSun($('cl-account-sun'), null);
+      return Promise.resolve();
+    }
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
