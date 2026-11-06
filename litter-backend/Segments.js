@@ -203,6 +203,27 @@ function cleanedTimes_(counted, except, before, rows) {
   return out;
 }
 
+// When each of a segment's squares was last cleaned by a walk that
+// collected it, for its Partial lines (S5-P10, |Q622 (a)): only a weighing
+// with most of its squares inside the segment counts, so a walk that passed
+// an end, or crossed at a corner, doesn't mark it cleaned. { square: ms }.
+function cleanedInside_(g, walks, k) {
+  var inSeg = {}, others = otherSquares_(g), out = {};
+  g.squares.forEach(function (c) { inSeg[c] = true; });
+  var nearSeg = function (c) { return isNear_(inSeg, c, k.near); };
+  Object.keys(walks).forEach(function (id) {
+    var w = walks[id];
+    if (!w.t) return;
+    w.weighings.forEach(function (x) {
+      if (!x.cells.length) return;
+      var cells = weighingCells_(w, x, nearSeg, others, k);
+      if (!cells.length || cells.filter(nearSeg).length / cells.length < k.inside) return;
+      cells.forEach(function (c) { if (nearSeg(c) && (!out[c] || out[c] < w.t)) out[c] = w.t; });
+    });
+  });
+  return out;
+}
+
 // The rules, from the Settings tab.
 function segmentRules_() {
   var cell = LitterGeo.CELL_M;
@@ -549,8 +570,12 @@ function segmentSummaries_(sim, accountId) {
   var now = Date.now();
   var counted = rateCollections_(sim, accountId);
   var rows = readRows_(TABS.stretches);
-  var cleaned = cleanedTimes_(counted, '', 0, rows);
   var walks = worldWalks_(counted, rows);
+  // Each walk's weighings with a Litter Index, oldest first, for the map's table.
+  var stretchesOf = {};
+  rows.filter(function (q) { return counted[q.get('collection')] && q.get('discarded') !== 'Yes' && q.get('index') !== ''; })
+    .sort(function (a, b) { return (a.get('ended') instanceof Date ? a.get('ended').getTime() : 0) - (b.get('ended') instanceof Date ? b.get('ended').getTime() : 0); })
+    .forEach(function (q) { (stretchesOf[q.get('collection')] = stretchesOf[q.get('collection')] || []).push(q); });
   // Rates the 24-hour rule doesn't give are kept, but not counted (S5-P13).
   var allRates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]); });
   var rates = allRates.filter(function (r) { return !r.notCounted; });
@@ -570,9 +595,17 @@ function segmentSummaries_(sim, accountId) {
     var recent = recentRows.map(function (r) { return r.rate; });
     // The walks that gave it a rate in the window, newest first, for the map's pop-up (|M650);
     // and how many there were not counted (S5-P13).
+    // With each walk's Litter Index on this segment's squares, for the same
+    // table on the Litter Index layer (|Q624 (a), |Q625).
+    var onSeg = {};
+    g.squares.forEach(function (c) { onSeg[c] = true; });
     var walksGave = recentRows.slice().sort(function (a, b) { return b.collected - a.collected; }).map(function (r) {
       var q = counted[r.collection], who = q ? shown[q.get('account')] : '';
-      return { collected: r.collected, rate: r.rate, by: who || 'a volunteer' };
+      var idx = {};
+      (stretchesOf[r.collection] || []).forEach(function (st) {
+        String(st.get('cells')).split(/\s+/).forEach(function (c) { if (onSeg[c]) idx[c] = round_(Number(st.get('index')), 1); });
+      });
+      return { collected: r.collected, rate: r.rate, by: who || 'a volunteer', idx: idx };
     });
     var notCountedN = allRates.filter(function (r) { return r.segment === g.id && r.notCounted && now - r.collected <= win; }).length;
     // Two weeks ago, over the same length of window: the arrow's comparison.
@@ -580,7 +613,8 @@ function segmentSummaries_(sim, accountId) {
     var earlier = own.filter(function (r) { return r.collected <= then && then - r.collected <= win; }).length;
     var med = median_(recent), avg = mean_(recent);
     var parts = partsOf_(g, k.part);
-    var ages = parts.map(function (p) { var t = partTime_(cleaned, p, k.near); return t ? (now - t) / DAY_MS : null; });
+    var mine = cleanedInside_(g, walks, k);
+    var ages = parts.map(function (p) { var t = partTime_(mine, p, k.near); return t ? (now - t) / DAY_MS : null; });
     var known = ages.filter(function (a) { return a != null; });
     var d = mean_(known);
     // Days since its clock started (S5-P13), not the parts' average, for a
@@ -599,7 +633,8 @@ function segmentSummaries_(sim, accountId) {
     var byDay = {};
     ages.forEach(function (a, i) { var key = a == null ? 'never' : String(Math.floor(a)); (byDay[key] = byDay[key] || []).push(parts[i]); });
     var keys = Object.keys(byDay);
-    var groups = keys.length < 2 ? [] : keys.map(function (key) {
+    // A field is an area: its squares don't measure it, so no Partial lines (|Q623 (a)).
+    var groups = keys.length < 2 || g.kind === 'Field' ? [] : keys.map(function (key) {
       var sq = [].concat.apply([], byDay[key]);
       return { pct: Math.round(byDay[key].length / parts.length * 100), dir: directionOf_(g.squares, sq), days: key === 'never' ? null : Number(key) };
     }).sort(function (a, b) { return (a.days == null ? 1e9 : a.days) - (b.days == null ? 1e9 : b.days); });

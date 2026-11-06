@@ -191,6 +191,25 @@ window.LitterMap = function (app) {
     });
   }
   function segmentsAt(cell) { return segList().filter(function (g) { return g.squares.indexOf(cell) !== -1; }); }
+  // The walks behind a segment's rate, as a table (S5-P10, |Q624 (a)): Day,
+  // By, and the layer's number: each walk's rate on Accumulation rate, or its
+  // Litter Index on this square on the Litter Index layer, the same walks on
+  // both (|Q625).
+  function walksTable(g, cell) {
+    var index = cell != null, walks = g.walks || [];
+    if (!walks.length) return null;
+    var t = el('table', 'lt-pop-table');
+    var head = el('tr');
+    ['Day', 'By', index ? 'Litter Index' : 'lb/mi·day⁻¹'].forEach(function (h) { head.appendChild(el('th', null, h)); });
+    t.appendChild(head);
+    walks.forEach(function (w) {
+      var tr = el('tr', 'lt-pop-walk');
+      var v = index ? (w.idx && w.idx[cell] != null ? Number(w.idx[cell]).toFixed(1) : '—') : String(round(w.rate, 2));
+      [dayWords(w.collected), w.by, v].forEach(function (x) { tr.appendChild(el('td', null, x)); });
+      t.appendChild(tr);
+    });
+    return t;
+  }
 
   function draw(cells) {
     layer.clearLayers();
@@ -206,6 +225,8 @@ window.LitterMap = function (app) {
         segmentsAt(x[0]).forEach(function (g) {
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
+          var tb = walksTable(g, x[0]);
+          if (tb) box.appendChild(tb);
         });
         return box;
       });
@@ -228,9 +249,8 @@ window.LitterMap = function (app) {
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
-          (g.walks || []).forEach(function (w) {
-            box.appendChild(el('div', 'lt-pop-walk', dayWords(w.collected) + ' · ' + w.by + ' · ' + round(w.rate, 2) + ' lb/mi·day⁻¹'));
-          });
+          var tb = walksTable(g, null);
+          if (tb) box.appendChild(tb);
           if (g.notCounted) box.appendChild(el('div', 'lt-pop-part', g.notCounted + (g.notCounted === 1 ? ' more walk wasn\'t' : ' more walks weren\'t') + ' counted: too soon after the last, or a Rate Reset.'));
           return box;
         });
