@@ -74,7 +74,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -640,7 +640,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -671,7 +671,17 @@
     back: function () { showAccount(state.account); },
     smallMap: function (title, cells, opts) { return mapper.smallMap(title, cells, opts); },
     drawSmallMaps: function (root) { mapper.drawSmallMaps(root); },
-    openForum: function (id) { forum.openReview(id); }
+    openForum: function (id) { forum.openReview(id); },
+    challengePhoto: function (id, img, button) { return challenges.photoInto(id, img, button); },
+    cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); }
+  });
+
+  /* ── Challenges (S6-P8, challenges.js) ── */
+
+  var challenges = window.LitterChallenges({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
   });
 
   /* ── The admins' forum, and players' reports (S5-P28, forum.js) ── */
@@ -720,7 +730,7 @@
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
   $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
-  $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); });
+  $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); challenges.load(); });
   $('quests-back').addEventListener('click', function () { showAccount(state.account); });
   $('plans-back').addEventListener('click', function () { showAccount(state.account); });
   $('trouble-retry').addEventListener('click', open);

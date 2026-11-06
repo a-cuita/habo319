@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=45">
+<link rel="stylesheet" href="litter.css?v=46">
 </head>
 <body>
 
@@ -105,6 +105,8 @@
           <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
           <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
           <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
+          <!-- Challenges in Admin Mode (S6-P8): a Builder or above builds them. -->
+          <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Challenges</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -636,6 +638,47 @@
   </div>
 
   <!-- Reviews (S5-P19 B, |Q584, |Q593 (a)): each segment submitted to be public; an Apprentice recommends, a Builder or above decides. -->
+  <!-- Challenges in Admin Mode (S6-P8, |M669, |M846): each built from the toolbox, with its XP. -->
+  <div id="v-challenges-admin" hidden>
+    <section class="card">
+      <h2>Challenges</h2>
+      <p class="muted small" id="cha-note"></p>
+      <button class="btn btn-primary" id="cha-add" type="button" hidden>Add a Challenge</button>
+    </section>
+    <section class="card" id="cha-form" hidden>
+      <h2 id="cha-form-title">Add a Challenge</h2>
+      <div class="ig"><label for="cha-name">Name</label><input id="cha-name" maxlength="80"></div>
+      <div class="ig"><label for="cha-kind">Kind</label>
+        <select id="cha-kind"><option value="Items">Items: players send a place, a photo or a note</option><option value="Walk goal">Walk goal: counted from their walks</option></select></div>
+      <div class="ig"><label for="cha-says">What the screen says: what to do</label><textarea id="cha-says" rows="3" maxlength="1000"></textarea></div>
+      <div class="ig"><label for="cha-why">Why (shown under it)</label><textarea id="cha-why" rows="2" maxlength="1000"></textarea></div>
+      <div class="ig"><label for="cha-from">From (blank: from now)</label><input id="cha-from" type="date"></div>
+      <div class="ig"><label for="cha-to">To (blank: no end)</label><input id="cha-to" type="date"></div>
+      <div id="cha-items-box">
+        <fieldset class="ig lt-cha-actions" id="cha-actions"><legend>What players send</legend>
+          <label><input type="checkbox" value="Place"> A place: Use my location</label>
+          <label><input type="checkbox" value="Photo"> A photo</label>
+          <label><input type="checkbox" value="Note"> A note</label>
+        </fieldset>
+        <div class="ig"><label for="cha-xp-each">XP for each one approved</label><input id="cha-xp-each" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-near">Near a public segment: within (metres)</label><input id="cha-near" type="number" min="0" max="500" step="1" inputmode="numeric"></div>
+        <div class="ig"><label for="cha-xp-near">XP for one that near (0: the same as each)</label><input id="cha-xp-near" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-level">Opens at level (0: everyone)</label><input id="cha-level" type="number" min="0" max="999" step="1" inputmode="numeric"></div>
+      </div>
+      <div id="cha-walk-box" hidden>
+        <div class="ig"><label for="cha-miles">Miles goal</label><input id="cha-miles" type="number" min="0" max="1000" step="0.1" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-segs">Different segments (0: any)</label><input id="cha-segs" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+        <div class="ig"><label for="cha-xp-per">XP for each 0.01 mi</label><input id="cha-xp-per" type="number" min="0" max="100" step="0.05" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-mult">Finishing multiplier (1: none)</label><input id="cha-mult" type="number" min="1" max="10" step="0.1" inputmode="decimal"></div>
+      </div>
+      <button class="btn btn-primary" id="cha-save" type="button">Save</button>
+      <button class="btn btn-secondary" id="cha-cancel" type="button">Cancel</button>
+      <p class="err" id="cha-err" role="alert"></p>
+    </section>
+    <div id="cha-list"></div>
+    <button class="lt-fab-back" id="cha-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
   <div id="v-reviews" hidden>
     <section class="card">
       <h2>Reviews</h2>
@@ -728,6 +771,12 @@
       <p class="muted small" id="quests-none" hidden>No quest finished yet. Your first quest is on the main page.</p>
       <div id="quests-list"></div>
     </section>
+    <!-- Challenges (S6-P8, |Q661 (a)): one task each, that earns XP. -->
+    <section class="card" id="my-challenges">
+      <h2>Challenges</h2>
+      <p class="muted small" id="challenges-note"></p>
+      <div id="challenges-list"></div>
+    </section>
     <button class="lt-fab-back" id="quests-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
@@ -770,8 +819,9 @@
 <script src="map.js?v=29"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=4"></script>
-<script src="reviews.js?v=3"></script>
+<script src="reviews.js?v=4"></script>
 <script src="forum.js?v=3"></script>
-<script src="litter.js?v=23"></script>
+<script src="challenges.js?v=1"></script>
+<script src="litter.js?v=24"></script>
 </body>
 </html>

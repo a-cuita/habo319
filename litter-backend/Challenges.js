@@ -96,9 +96,10 @@ function itemXp_(c, item) { return item.near && c.xpNear ? c.xpNear : c.xpEach; 
 
 /* ── The player's side ── */
 
-function challengeView_(c, account, level, items, now) {
+function challengeView_(c, account, level, items, now, why) {
   var mine = items.filter(function (x) { return x.challenge === c.id && x.account === account.id; }).map(function (x) {
-    return { id: x.id, sent: x.sent, state: x.state, xp: x.state === 'Approved' ? x.xp : 0, note: x.note, near: x.near, lat: x.lat, lon: x.lon };
+    return { id: x.id, sent: x.sent, state: x.state, xp: x.state === 'Approved' ? x.xp : 0, note: x.note, near: x.near, lat: x.lat, lon: x.lon,
+      why: x.state === 'Declined' ? (why[x.id] || '') : '' };
   });
   return { id: c.id, name: c.name, says: c.says, why: c.why, kind: c.kind, actions: c.actions, near: c.near, xpEach: c.xpEach, xpNear: c.xpNear,
     milesGoal: c.milesGoal, segGoal: c.segGoal, xpPer: c.xpPer, mult: c.mult, from: c.from, to: c.to, level: c.kind === 'Items' ? c.level : 0,
@@ -114,9 +115,12 @@ function challengesLoad_(req) {
 }
 function challengesFor_(account) {
   var now = Date.now(), items = challengeItemsAll_(), level = levelOf_(xpOf_(account.id), levelRanges_());
+  // A declined item's note, which the player sees.
+  var why = {};
+  reviewRows_().forEach(function (m) { if (/^CI\d+$/.test(m.segment) && m.move === REVIEW_DECIDE.decline) why[m.segment] = m.note; });
   var list = challengesAll_().filter(function (c) {
     return challengeLive_(c, now) || items.some(function (x) { return x.challenge === c.id && x.account === account.id; });
-  }).map(function (c) { return challengeView_(c, account, level, items, now); });
+  }).map(function (c) { return challengeView_(c, account, level, items, now, why); });
   return { challenges: list, level: level, canBuild: !!account.rank && rankAtLeast_(account.rank, 'Builder') };
 }
 

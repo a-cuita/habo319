@@ -47,10 +47,31 @@ window.LitterReviews = function (app) {
     var box = el('section', 'card lt-review ' + r.state.toLowerCase());
     box.id = 'rv-' + r.id;
     box.appendChild(el('p', 'lt-col-head', r.name));
+    if (r.challengeItem) {
+      // An item sent for a Challenge (S6-P8): its place, its photo and its note, and the XP it earns.
+      box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + (r.near ? 'within reach of ' + r.near : 'not near a public segment') + ' · earns ' + r.xpIf + ' XP if approved'));
+      box.appendChild(el('p', 'muted small', 'Sent by ' + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
+      if (r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
+      if (r.lat != null && r.lon != null) {
+        box.appendChild(el('p', 'small', 'Place: ' + r.lat.toFixed(5) + ', ' + r.lon.toFixed(5) + (r.acc != null ? ' (within ' + r.acc + ' m)' : '')));
+        if (app.smallMap && app.cellOf) box.appendChild(app.smallMap(r.name, [app.cellOf(r.lat, r.lon)], { kind: 'public' }));
+      }
+      if (r.hasPhoto && app.challengePhoto) {
+        var img = el('img', 'lt-review-photo');
+        img.alt = 'The photo sent for ' + r.name;
+        img.hidden = true;
+        var show = el('button', 'btn btn-secondary lt-review-show-photo', 'Show the photo');
+        show.type = 'button';
+        show.addEventListener('click', function () { app.challengePhoto(r.id, img, show); });
+        box.appendChild(show);
+        box.appendChild(img);
+      }
+    } else {
     box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + r.kind + ' · ' + r.squares.length + ' squares · ' + Math.round(r.miles * 100) / 100 + ' mi'));
     box.appendChild(el('p', 'muted small', (r.addition ? 'Asked by ' : 'Submitted by ') + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
     if (r.addition && r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
-    if (app.smallMap) {
+    }
+    if (app.smallMap && !r.challengeItem) {
       // An addition (S5-U17, |M711): the segment in its colour, the piece to add in orange.
       if (r.addition) {
         var colourOf = {};
@@ -82,6 +103,8 @@ window.LitterReviews = function (app) {
     xp.type = 'number'; xp.min = 0; xp.max = view.maxXp; xp.step = 1; xp.inputMode = 'numeric'; xp.id = 'rv-xp-' + r.id; xpLabel.htmlFor = xp.id;
     if (r.recommendedXp != null) xp.value = r.recommendedXp;
     xpRow.appendChild(xpLabel); xpRow.appendChild(xp);
+    // A Challenge's item earns the Challenge's XP: nothing to type (S6-P8).
+    if (r.challengeItem) { xpRow.hidden = true; xp.value = r.xpIf; }
     var noteRow = el('div', 'ig'), noteLabel = el('label', null, 'Note' + (view.canDecide ? ' (the player sees it if you decline)' : '')), note = el('textarea', 'lt-review-note');
     note.id = 'rv-note-' + r.id; noteLabel.htmlFor = note.id; note.rows = 2; note.maxLength = 1000;
     noteRow.appendChild(noteLabel); noteRow.appendChild(note);
@@ -101,8 +124,9 @@ window.LitterReviews = function (app) {
     if (view.canDecide) {
       var yes = el('button', 'btn btn-primary lt-review-approve', 'Approve'), no = el('button', 'btn btn-secondary lt-review-decline', 'Decline');
       yes.type = 'button'; no.type = 'button';
-      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
-      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
+      if (r.challengeItem) yes.textContent = 'Approve (' + r.xpIf + ' XP)';
+      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.challengeItem ? r.name + ' is approved, and ' + r.by + ' earns ' + r.xpIf + ' XP.' : r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
+      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.challengeItem ? r.name + ' is declined. ' + r.by + ' sees your note.' : r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
       row.appendChild(yes); row.appendChild(no);
     } else {
       var ry = el('button', 'btn btn-primary lt-review-rec-approve', 'Recommend Approve'), rn = el('button', 'btn btn-secondary lt-review-rec-decline', 'Recommend Decline');
