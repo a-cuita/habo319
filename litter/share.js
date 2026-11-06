@@ -105,8 +105,33 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
+      drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
       return drawn > 0;
     });
+  }
+
+  // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
+  // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
+  // a bar, in the map's bottom-left corner.
+  function drawScale(ctx, colours) {
+    var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
+    ctx.fillStyle = 'rgba(255,255,255,0.88)';
+    roundRect(ctx, x, y, w, h, 14); ctx.fill();
+    ctx.fillStyle = '#111827';
+    ctx.font = '700 26px system-ui, sans-serif';
+    ctx.textAlign = 'left';
+    ctx.fillText('Litter Index', bx, y + 32);
+    var g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    for (var i = 0; i <= 10; i++) g.addColorStop(i / 10, G.indexColour(i, colours));
+    ctx.fillStyle = g;
+    ctx.fillRect(bx, by, bw, bh);
+    ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
+    ctx.font = '600 22px system-ui, sans-serif';
+    ctx.fillStyle = '#374151';
+    ctx.fillText('0 clean', bx, by + bh + 26);
+    ctx.textAlign = 'center'; ctx.fillText('5', bx + bw / 2, by + bh + 26);
+    ctx.textAlign = 'right'; ctx.fillText('10+', bx + bw, by + bh + 26);
+    ctx.textAlign = 'left';
   }
 
   // A walk's Litter Index: its weighings' readings, weighted by their miles.
@@ -120,6 +145,13 @@ window.LitterShare = (function () {
     return m ? t / m : null;
   }
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
+  // "10:02 to 10:19 AM", or "11:50 AM to 12:20 PM".
+  function times(a, b) {
+    var t = function (ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+    if (!b || b <= a) return t(a);
+    var s = t(a), e = t(b), am = / (AM|PM)$/;
+    return (s.match(am) || [])[1] === (e.match(am) || [])[1] ? s.replace(am, '') + ' to ' + e : s + ' to ' + e;
+  }
 
   // The words under the map.
   function drawWords(ctx, walk) {
@@ -145,7 +177,8 @@ window.LitterShare = (function () {
     ctx.font = '500 38px system-ui, sans-serif';
     ctx.fillStyle = '#374151';
     var day = new Date(walk.started || Date.now()).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
-    ctx.fillText(day, x, y);
+    // And its time, start to end (Jeremy, Nov 6: "the time should be on there too"; "agree").
+    ctx.fillText(day + (walk.started ? '  ·  ' + times(walk.started, walk.ended) : ''), x, y);
     y += 70;
     // Your handle, with your level as a badge.
     ctx.font = '800 46px system-ui, sans-serif';

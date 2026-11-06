@@ -2756,7 +2756,7 @@ window.LitterCollect = function (app) {
     var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
     if (!col) return;
     b.disabled = true;
-    window.LitterShare.walkPicture({ started: col.started, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
+    window.LitterShare.walkPicture({ started: col.started, ended: col.ended, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
       handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours })
       .then(function (how) { b.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
         function (err) { b.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
