@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=44">
+<link rel="stylesheet" href="litter.css?v=45">
 </head>
 <body>
 
@@ -449,6 +449,8 @@
         <ul class="lt-walk-xp-lines" id="sm-xp-lines"></ul>
         <p class="lt-walk-xp-total" id="sm-xp-total"></p>
       </div>
+      <!-- Share the walk as a picture (S6-P5): the phone's share sheet, or Download picture. -->
+      <button class="btn btn-secondary" id="sm-share" type="button" hidden>Share</button>
       <p class="muted" id="sm-wait" hidden></p>
     </section>
     <section class="card lt-gpx" id="sm-gpx-box">
@@ -763,12 +765,13 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
-<script src="collect.js?v=46"></script>
-<script src="map.js?v=28"></script>
+<script src="share.js?v=1"></script>
+<script src="collect.js?v=47"></script>
+<script src="map.js?v=29"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=4"></script>
 <script src="reviews.js?v=3"></script>
 <script src="forum.js?v=3"></script>
-<script src="litter.js?v=22"></script>
+<script src="litter.js?v=23"></script>
 </body>
 </html>

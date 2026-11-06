@@ -1504,6 +1504,9 @@ window.LitterCollect = function (app) {
     $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
       (col.hoursNote ? ' (' + col.hoursNote + ')' : '');
     showWalkXp();   // its XP, line by line (S6-P3)
+    // Share it as a picture (S6-P5): a walk with its GPX track, not a simulated one.
+    $('sm-share').hidden = sim || !keptTrack(col) || !window.LitterShare;
+    if (window.LitterShare) $('sm-share').textContent = window.LitterShare.label();
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
@@ -2727,6 +2730,15 @@ window.LitterCollect = function (app) {
   $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; fitMap(); } });
   $('sf-where-tap').addEventListener('click', function () { if (summary) { summary.whereMode = true; $('sf-where-shown').textContent = 'Tap the cell on the map.'; $('sm-view-box').scrollIntoView({ block: 'start' }); } });
   $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
+  $('sm-share').addEventListener('click', function () {
+    var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
+    if (!col) return;
+    b.disabled = true;
+    window.LitterShare.walkPicture({ started: col.started, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
+      handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours })
+      .then(function (how) { b.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
+        function (err) { b.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
+  });
   $('sm-done').addEventListener('click', function () { summary = null; app.showAccount(); });
   $('sm-map-open').addEventListener('click', function () { app.openMap(allCells(), function () { app.show('v-summary'); drawReadings(); }); });
   $('pf-odd-yes').addEventListener('click', function () { $('pf-odd').hidden = true; $('pf-break').focus(); });
@@ -2734,6 +2746,9 @@ window.LitterCollect = function (app) {
 
   return {
     onAccount: onAccount,
+    // Your level, for a walk's picture (S6-P5); none when there are no levels.
+    levelNow: function () { return settings.levels && settings.levels.length ? myLevel() : null; },
+    mapColours: function () { return settings.colours; },
     openPast: openPast,
     // Litter Class Skills (S5-P29), for the Segments screen's Submit as Public Segment.
     skill: skill, gate: gate,

@@ -693,6 +693,7 @@
     // Back from the map with no account: the welcome screen.
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
     openSummary: function (id, button) { collect.openPast(id, button); },
+    levelNow: function () { return collect.levelNow(); },
     planLabel: planLabel,
     pickedPlanCells: function () { return collect.pickedCells(); },
     onPlans: function (d) { collect.onPlans(d); },

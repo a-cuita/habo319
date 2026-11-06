@@ -417,6 +417,20 @@ window.LitterMap = function (app) {
       });
       row.appendChild(ma);
     }
+    // Share the walk as a picture (S6-P5): one with its GPX track, not a simulated one.
+    if (window.LitterShare && c.track && c.track.length > 1 && !c.simulated) {
+      var sh = el('button', 'btn btn-secondary lt-col-share', window.LitterShare.label());
+      sh.type = 'button';
+      sh.addEventListener('click', function () {
+        var me = app.me && app.me();
+        sh.disabled = true;
+        window.LitterShare.walkPicture({ started: c.started, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
+          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
+          .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
+            function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
+      });
+      row.appendChild(sh);
+    }
     if (c.editable) {
       var f = el('button', 'btn btn-secondary lt-col-fix', 'Fix it (until ' + when(c.editableUntil) + ')');
       f.type = 'button';

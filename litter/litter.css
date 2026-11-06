@@ -512,3 +512,6 @@ body.lt-sheet-open { overflow: hidden; }
 .lt-walk-xp-total { margin: 6px 0 0; font-weight: 900; font-size: 1.1rem; text-align: right; font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 @media (prefers-reduced-motion: reduce) { .lt-xp-burst, .lt-levelup, .lt-levelup-card, .lt-levelup-star { animation: none; } .lt-xp-fill { transition: none; } }
+
+/* Share a walk as a picture (S6-P5). */
+#sm-share { margin-top: 10px; }
