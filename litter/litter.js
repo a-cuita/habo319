@@ -78,8 +78,17 @@
 
   function $(id) { return document.getElementById(id); }
 
+  // The top bar on every screen once you're signed in (S6-P4, |Q644): not
+  // before, and not while a collection is going, where the collecting
+  // screen stays as it was.
+  var NO_BAR = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-collect'];
   function show(id) {
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    var bar = !!state.account && NO_BAR.indexOf(id) === -1;
+    if (bar) fillBar(state.account);
+    else if (!$('me-panel').hidden) panel(false);
+    $('me-bar').hidden = !bar;
+    document.body.classList.toggle('lt-has-bar', bar);
     // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
     document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));
     paintMode();
@@ -526,7 +535,20 @@
     return p.created ? new Date(p.created).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'Plan ' + p.id;
   }
 
-  // The panel at the top of the main page (Oct 31, field first).
+  // The top bar's words (S6-P4): closed, it shows your public map name; with
+  // Neither, your handle (only you see it).
+  function fillBar(a) {
+    if (!a) return;
+    $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
+    $('me-handle').textContent = a.handle;
+    $('me-name').textContent = a.firstName + ' ' + a.lastName;
+    $('me-handle-star').hidden = a.mapShows !== 'Handle';
+    $('me-name-star').hidden = a.mapShows !== 'Name';
+    $('me-email').textContent = a.email;
+    $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
+  }
+
+  // The panel at the top of every screen (Oct 31, field first; S6-P4).
   function panel(open) {
     $('me-panel').hidden = !open;
     $('me-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -554,15 +576,8 @@
     state.account = a;
     notice('');
     if (!a.waiverCurrent) return startResign();
-    // Closed, the panel shows your public map name; with Neither, your handle (only you see it).
-    $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
+    fillBar(a);
     panel(false);
-    $('me-handle').textContent = a.handle;
-    $('me-name').textContent = a.firstName + ' ' + a.lastName;
-    $('me-handle-star').hidden = a.mapShows !== 'Handle';
-    $('me-name-star').hidden = a.mapShows !== 'Name';
-    $('me-email').textContent = a.email;
-    $('me-waiver').textContent = 'Signed ' + niceDate(a.waiverSigned);
     // Every player is a HABO volunteer from sign-up (S5-P26): the Volunteer record line is gone (|Q571).
     $('me-form').hidden = true;
     $('me-edit').hidden = false;

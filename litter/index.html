@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=42">
+<link rel="stylesheet" href="litter.css?v=43">
 </head>
 <body>
 
@@ -19,6 +19,84 @@
   <!-- Notices stack at the top, each until it's closed; the working bar sits under them while HABO answers (S5-P16, C634). -->
   <div class="lt-notices" id="notice" role="status" aria-live="polite"></div>
   <div class="lt-working-scrim" id="working-scrim" hidden></div>
+
+  <!-- The top bar, with your handle and its panel, on every screen once you're signed in, but not
+       while a collection is going (S6-P4, |Q644). Each screen's ← stays where it is. -->
+  <div class="lt-me-bar" id="me-bar" hidden>
+      <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
+        <span id="me-public"></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
+      </button>
+      <div class="lt-me-panel" id="me-panel" hidden>
+        <section class="card lt-me">
+          <!-- A ⭐ beside the one on the public map, in place of an "On the map" row (|C665). -->
+          <p class="lt-handle-big"><span id="me-handle"></span><button class="lt-star" id="me-handle-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="lt-name"><span id="me-name"></span><button class="lt-star" id="me-name-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
+          <p class="muted small lt-star-say" id="me-star-say" hidden>⭐ Displayed on the public map</p>
+          <dl class="lt-facts">
+            <dt>Email</dt><dd id="me-email"></dd>
+            <dt>Waiver</dt><dd id="me-waiver"></dd>
+          </dl>
+          <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
+        </section>
+
+        <form class="card" id="me-form" novalidate hidden>
+          <h2>Change my details</h2>
+          <div class="row2">
+            <div class="ig">
+              <label for="ed-first">First name</label>
+              <input id="ed-first" autocomplete="given-name" maxlength="60">
+            </div>
+            <div class="ig">
+              <label for="ed-last">Last name</label>
+              <input id="ed-last" autocomplete="family-name" maxlength="60">
+            </div>
+          </div>
+          <div class="ig">
+            <label for="ed-handle">Handle</label>
+            <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+            <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
+          </div>
+          <p class="lt-label">On the public map, show</p>
+          <div id="ed-shows"></div>
+          <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
+          <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
+          <p class="err" id="ed-err" role="alert"></p>
+        </form>
+
+        <section class="card">
+          <p id="cl-hours"></p>
+          <p class="lt-xp" id="cl-xp" hidden></p>
+          <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
+          <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
+          <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
+          <!-- Litter Class Skills (S5-P29, |C837): a button, opening a sheet of its own. -->
+          <button class="btn btn-secondary" id="me-go-skills" type="button" hidden>Litter Class Skills</button>
+        </section>
+        <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
+        <section class="card">
+          <button class="btn btn-secondary" id="me-report-issue" type="button">Report an Issue</button>
+          <button class="btn btn-secondary" id="me-report-idea" type="button">Submit an Idea</button>
+        </section>
+        <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
+             It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
+        <section class="card" id="cl-sim-box" hidden>
+          <div class="lt-sim-row">
+            <label class="lt-sim"><input type="checkbox" id="cl-sim"> <span id="cl-sim-name">Admin Mode</span></label>
+            <button class="lt-info" id="cl-sim-info" type="button" aria-label="About Admin Mode" aria-expanded="false" title="While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
+          </div>
+          <!-- The first quest again, for a training workshop (S5-P20, |C717). -->
+          <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
+          <!-- Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a)): the groups your rank may change. -->
+          <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
+          <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
+          <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
+          <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
+          <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
+          <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
+        </section>
+        <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
+      </div>
+    </div>
 
   <section class="card" id="v-loading">
     <p class="muted">Opening…</p>
@@ -471,82 +549,6 @@
   <!-- The main page (Oct 31, field first): a panel at the top with your
        details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
-    <div class="lt-me-bar" id="me-bar">
-      <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
-        <span id="me-public"></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
-      </button>
-      <div class="lt-me-panel" id="me-panel" hidden>
-        <section class="card lt-me">
-          <!-- A ⭐ beside the one on the public map, in place of an "On the map" row (|C665). -->
-          <p class="lt-handle-big"><span id="me-handle"></span><button class="lt-star" id="me-handle-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
-          <p class="lt-name"><span id="me-name"></span><button class="lt-star" id="me-name-star" type="button" aria-label="Displayed on the public map" title="Displayed on the public map" hidden>⭐</button></p>
-          <p class="muted small lt-star-say" id="me-star-say" hidden>⭐ Displayed on the public map</p>
-          <dl class="lt-facts">
-            <dt>Email</dt><dd id="me-email"></dd>
-            <dt>Waiver</dt><dd id="me-waiver"></dd>
-          </dl>
-          <button class="btn btn-secondary" id="me-edit" type="button">Change my details</button>
-        </section>
-
-        <form class="card" id="me-form" novalidate hidden>
-          <h2>Change my details</h2>
-          <div class="row2">
-            <div class="ig">
-              <label for="ed-first">First name</label>
-              <input id="ed-first" autocomplete="given-name" maxlength="60">
-            </div>
-            <div class="ig">
-              <label for="ed-last">Last name</label>
-              <input id="ed-last" autocomplete="family-name" maxlength="60">
-            </div>
-          </div>
-          <div class="ig">
-            <label for="ed-handle">Handle</label>
-            <input id="ed-handle" maxlength="24" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
-            <p class="small lt-handle" id="ed-handle-msg" aria-live="polite"></p>
-          </div>
-          <p class="lt-label">On the public map, show</p>
-          <div id="ed-shows"></div>
-          <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
-          <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
-          <p class="err" id="ed-err" role="alert"></p>
-        </form>
-
-        <section class="card">
-          <p id="cl-hours"></p>
-          <p class="lt-xp" id="cl-xp" hidden></p>
-          <button class="btn btn-secondary" id="me-go-collections" type="button">Your collections</button>
-          <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
-          <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
-          <!-- Litter Class Skills (S5-P29, |C837): a button, opening a sheet of its own. -->
-          <button class="btn btn-secondary" id="me-go-skills" type="button" hidden>Litter Class Skills</button>
-        </section>
-        <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
-        <section class="card">
-          <button class="btn btn-secondary" id="me-report-issue" type="button">Report an Issue</button>
-          <button class="btn btn-secondary" id="me-report-idea" type="button">Submit an Idea</button>
-        </section>
-        <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
-             It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
-        <section class="card" id="cl-sim-box" hidden>
-          <div class="lt-sim-row">
-            <label class="lt-sim"><input type="checkbox" id="cl-sim"> <span id="cl-sim-name">Admin Mode</span></label>
-            <button class="lt-info" id="cl-sim-info" type="button" aria-label="About Admin Mode" aria-expanded="false" title="While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.">ℹ️</button>
-          </div>
-          <!-- The first quest again, for a training workshop (S5-P20, |C717). -->
-          <button class="btn btn-secondary" id="qs-workshop" type="button" hidden>Run the first quest for a workshop</button>
-          <!-- Settings in Admin Mode (S5-P19 A, |Q577 (a), |Q578 (a)): the groups your rank may change. -->
-          <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
-          <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
-          <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
-          <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
-          <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
-          <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
-        </section>
-        <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
-      </div>
-    </div>
-
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->
     <section class="card lt-quest" id="qs-card" hidden>
@@ -748,6 +750,6 @@
 <script src="settings.js?v=4"></script>
 <script src="reviews.js?v=3"></script>
 <script src="forum.js?v=3"></script>
-<script src="litter.js?v=21"></script>
+<script src="litter.js?v=22"></script>
 </body>
 </html>
