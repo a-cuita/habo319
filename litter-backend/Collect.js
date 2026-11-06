@@ -194,7 +194,7 @@ function collectEnd_(req) {
     retotal_(col.id);
     setPlanXp_(col.id);
     if (col.simulated) refreshSimulations_();
-    return { collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
+    return { collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_), walk: walkXp_(col.id, account.id) };
   });
 }
 
@@ -288,7 +288,8 @@ function collectFix_(req) {
     var rd = lbs == null || now.get('track') !== 'Yes' ? { cpue: null, index: null } : LitterGeo.reading(lbs, (Number(now.get('streetMi')) + Number(now.get('offMi'))) * LitterGeo.MILE_M, Number(now.get('activeMin')));
     sheet.getRange(r.row, STRETCH_COL.cpue, 1, 2).setValues([[rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)]]);
     retotal_(col.id);
-    return { stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0]), collection: collectionView_(readCollection_(col.id)) };
+    return { stretch: stretchView_(readRows_(TABS.stretches).filter(function (q) { return q.get('id') === r.get('id'); })[0]), collection: collectionView_(readCollection_(col.id)),
+      walk: walkXp_(col.id, account.id) };
   });
 }
 
@@ -309,7 +310,7 @@ function collectLoad_(req) {
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
     plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
-    quest: quest, quests: [quest]
+    quest: quest, quests: [quest], walk: col ? walkXp_(col.id, account.id) : null
   };
 }
 
@@ -521,7 +522,7 @@ function collectTrack_(req) {
     setPlanXp_(col.id);   // XP comes with the GPX track
     measureRates_(col.id);   // and a rate for each due segment it collected (S5-P3)
     if (col.simulated) refreshSimulations_();
-    return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_) };
+    return { track: parseTrack_(text), collection: collectionView_(readCollection_(col.id)), stretches: stretchesOf_(col.id).map(stretchViewOf_), walk: walkXp_(col.id, account.id) };
   });
 }
 

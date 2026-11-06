@@ -234,6 +234,30 @@ function xpOf_(accountId) {
   return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId), 2);
 }
 
+// One walk's XP, line by line (S6-P3): for planning it, for its ratings, and
+// for its litter types, counted as xpOf_ counts them: only once its GPX
+// track is saved, and its weighings' only once it's Ended. `xp`: the
+// player's whole XP, for the page to see what's new.
+function walkXp_(collectionId, accountId) {
+  var out = { plan: 0, ratings: 0, types: 0, total: 0, counts: false, xp: xpOf_(accountId) };
+  var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === collectionId; })[0];
+  if (!q || !String(q.get('track')).trim() || q.get('simulated') === 'Yes') return out;
+  out.counts = true;
+  out.plan = Number(q.get('xp')) || 0;
+  if (q.get('status') === 'Ended') {
+    var x = xpSettings_();
+    readRows_(TABS.stretches).forEach(function (r) {
+      if (r.get('collection') !== collectionId) return;
+      var st = stretchOf_(r), all = stretchXp_(st, x);
+      var types = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
+      out.ratings += all - types;
+      out.types += types;
+    });
+  }
+  out.total = round_(out.plan + out.ratings + out.types, 2);
+  return out;
+}
+
 function xpSettings_() {
   return { r1: minutesSetting_(SETTING_RATING_XP_1, 3), r2: minutesSetting_(SETTING_RATING_XP_2, 2), r3: minutesSetting_(SETTING_RATING_XP_3, 1),
     bonus: minutesSetting_(SETTING_RATING_BONUS, 5), types: minutesSetting_(SETTING_TYPES_XP, 1) };

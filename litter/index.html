@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=43">
+<link rel="stylesheet" href="litter.css?v=44">
 </head>
 <body>
 
@@ -19,12 +19,25 @@
   <!-- Notices stack at the top, each until it's closed; the working bar sits under them while HABO answers (S5-P16, C634). -->
   <div class="lt-notices" id="notice" role="status" aria-live="polite"></div>
   <div class="lt-working-scrim" id="working-scrim" hidden></div>
+  <!-- A new level (S6-P3, |Q643 (a)): the whole screen, with the Litter Class Skills it opens. -->
+  <div class="lt-levelup" id="levelup" role="dialog" aria-modal="true" aria-labelledby="lu-level" hidden>
+    <div class="lt-levelup-card">
+      <p class="lt-levelup-star" aria-hidden="true">⭐</p>
+      <h2 id="lu-level"></h2>
+      <p id="lu-say"></p>
+      <p class="lt-levelup-head" id="lu-skills-head" hidden>Litter Class Skills now open to you:</p>
+      <ul class="lt-levelup-skills" id="lu-skills" hidden></ul>
+      <button class="btn btn-primary" id="lu-close" type="button">Continue</button>
+    </div>
+  </div>
+  <p class="sr-only" id="xp-said" aria-live="polite"></p>
 
   <!-- The top bar, with your handle and its panel, on every screen once you're signed in, but not
        while a collection is going (S6-P4, |Q644). Each screen's ← stays where it is. -->
   <div class="lt-me-bar" id="me-bar" hidden>
       <button class="lt-me-toggle" id="me-toggle" type="button" aria-expanded="false" aria-controls="me-panel">
-        <span id="me-public"></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
+        <span class="lt-me-who"><span id="me-public"></span><span class="lt-xp-bar" id="me-xpbar" role="img" hidden><span class="lt-xp-fill" id="me-xpfill"></span></span></span>
+        <span class="lt-me-level" id="me-level" hidden></span><span class="lt-me-caret" id="me-caret" aria-hidden="true">▾</span>
       </button>
       <div class="lt-me-panel" id="me-panel" hidden>
         <section class="card lt-me">
@@ -430,6 +443,12 @@
     <section class="card">
       <h2>Your collection</h2>
       <p id="sm-totals"></p>
+      <!-- The walk's XP, line by line, counting up (S6-P3). -->
+      <div class="lt-walk-xp" id="sm-xp" hidden>
+        <p class="lt-walk-xp-head">XP from this walk</p>
+        <ul class="lt-walk-xp-lines" id="sm-xp-lines"></ul>
+        <p class="lt-walk-xp-total" id="sm-xp-total"></p>
+      </div>
       <p class="muted" id="sm-wait" hidden></p>
     </section>
     <section class="card lt-gpx" id="sm-gpx-box">
@@ -744,7 +763,7 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
-<script src="collect.js?v=45"></script>
+<script src="collect.js?v=46"></script>
 <script src="map.js?v=28"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=4"></script>

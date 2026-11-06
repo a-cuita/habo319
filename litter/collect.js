@@ -302,6 +302,7 @@ window.LitterCollect = function (app) {
     $('cl-sim').checked = adminAllowed() && load(SIM_KEY) === true;
     if (app.syncWorkshop) app.syncWorkshop();
     if (quick) {
+      paintXp(account ? account.xp : 0);
       if (app.onPlanPicked) app.onPlanPicked(walkCells());
       showSun($('cl-account-sun'), null);
       return Promise.resolve();
@@ -310,6 +311,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
       pace = d.pace || null;
       setTypes(d.types);
+      gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
@@ -427,15 +429,122 @@ window.LitterCollect = function (app) {
       r = r || below;
       if (!r) break;
       need += r[2];
-      if (xp < need) return { level: level, next: need };
+      if (xp < need) return { level: level, next: need, from: need - r[2] };
       level = n;
     }
-    return { level: level, next: null };
+    return { level: level, next: null, from: need };
   }
   function levelWords(xp) {
     var l = levelOf(Number(xp) || 0, settings.levels);
     if (!settings.levels || !settings.levels.length) return '';
     return 'Level ' + l.level + (l.next != null ? ' (' + round(l.next - (Number(xp) || 0), 2) + ' XP to Level ' + (l.level + 1) + ')' : '') + '.';
+  }
+
+  /* ── XP that pops (S6-P3, |Q643 (a), |Q644 (a)) ── */
+
+  // Your XP bar under your handle in the top bar, on every screen, filling
+  // toward your next level; a "+N XP" that bursts up from what earned it;
+  // and the whole screen at a new level, with any Litter Class Skill it
+  // opens. What's new is counted from the XP this phone last showed you, so
+  // XP earned elsewhere (a segment approved in a review) bursts from the bar
+  // the next time the page loads. How XP is earned doesn't change.
+  var XP_SEEN_KEY = 'habo-litter-xp-seen';
+  function paintXp(xp) {
+    var bar = $('me-xpbar'), lv = $('me-level');
+    xp = Number(xp) || 0;
+    if (!settings.levels || !settings.levels.length) { bar.hidden = true; lv.hidden = true; return; }
+    var l = levelOf(xp, settings.levels);
+    bar.hidden = false;
+    lv.hidden = false;
+    lv.textContent = 'Level ' + l.level;
+    var pct = l.next == null ? 100 : Math.max(0, Math.min(100, (xp - l.from) / Math.max(1e-9, l.next - l.from) * 100));
+    $('me-xpfill').style.width = pct + '%';
+    var say = 'Your XP: ' + xp + '. ' + (l.next == null ? 'Level ' + l.level + '.' : round(l.next - xp, 2) + ' XP to Level ' + (l.level + 1) + '.');
+    bar.title = say;
+    bar.setAttribute('aria-label', say);
+  }
+  function seenKey() { var me = app.me && app.me(); return XP_SEEN_KEY + ':' + ((me && me.handle) || ''); }
+  // `from`: what earned it, for the burst to rise from; else the XP bar.
+  function gotXp(xp, from) {
+    xp = Number(xp) || 0;
+    var seen = load(seenKey());
+    keep(seenKey(), xp);
+    paintXp(xp);
+    if (seen == null || xp <= seen) return;
+    burst(xp - seen, from);
+    var was = levelOf(seen, settings.levels).level, now = levelOf(xp, settings.levels).level;
+    if (settings.levels && settings.levels.length && now > was) setTimeout(function () { levelUp(was, now); }, 900);
+  }
+  function burst(n, from) {
+    var at = from && from.offsetParent !== null ? from : (!$('me-bar').hidden ? $('me-xpbar') : null);
+    var r = at ? at.getBoundingClientRect() : { left: window.innerWidth / 2, width: 0, top: window.innerHeight / 3, height: 0 };
+    var b = document.createElement('div');
+    b.className = 'lt-xp-burst';
+    b.textContent = '+' + round(n, 2) + ' XP';
+    b.setAttribute('aria-hidden', 'true');
+    b.style.left = Math.max(40, Math.min(window.innerWidth - 40, r.left + r.width / 2)) + 'px';
+    b.style.top = Math.max(30, r.top + r.height / 2) + 'px';
+    document.body.appendChild(b);
+    $('xp-said').textContent = '+' + round(n, 2) + ' XP';
+    setTimeout(function () { b.remove(); }, 1900);
+  }
+  function levelUp(was, now) {
+    var opened = (settings.skills || []).filter(function (x) { return x.level > was && x.level <= now; });
+    $('lu-level').textContent = 'Level ' + now + '!';
+    $('lu-say').textContent = 'You reached Level ' + now + '.';
+    var list = $('lu-skills');
+    list.textContent = '';
+    opened.forEach(function (x) { var li = document.createElement('li'); li.textContent = x.name; list.appendChild(li); });
+    $('lu-skills-head').hidden = !opened.length;
+    list.hidden = !opened.length;
+    $('levelup').hidden = false;
+    $('lu-close').focus();
+  }
+  $('lu-close').addEventListener('click', function () { $('levelup').hidden = true; });
+
+  // A walk's XP, line by line (S6-P3, item 4): for planning it, its ratings,
+  // and its litter types, counting up the first time they show; XP comes once
+  // its GPX track is saved. Then the new XP bursts from the total.
+  var shownWalkXp = {};
+  function showWalkXp() {
+    var box = $('sm-xp'), w = summary && summary.walk, col = summary && summary.collection;
+    if (!w || !col || col.simulated) { box.hidden = true; return; }
+    box.hidden = false;
+    var lines = $('sm-xp-lines'), total = $('sm-xp-total');
+    lines.textContent = '';
+    if (!w.counts) { total.textContent = 'XP comes once your GPX track is saved.'; return; }
+    var parts = [['Planning it', w.plan], ['Your ratings', w.ratings], ['Litter types', w.types]];
+    var animate = shownWalkXp[col.id] !== w.total && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+    shownWalkXp[col.id] = w.total;
+    var rows = parts.map(function (p) {
+      var li = document.createElement('li'), n = document.createElement('span');
+      li.appendChild(document.createTextNode(p[0]));
+      n.className = 'lt-walk-xp-n';
+      n.textContent = animate ? '+0' : '+' + p[1];
+      li.appendChild(n);
+      if (animate) li.className = 'lt-walk-xp-wait';
+      lines.appendChild(li);
+      return { li: li, n: n, v: p[1] };
+    });
+    total.textContent = animate ? '' : 'Total: ' + w.total + ' XP';
+    if (!animate) { gotXp(w.xp, total); return; }
+    var step = 0;
+    (function next() {
+      if (step < rows.length) {
+        var r = rows[step++];
+        r.li.className = 'lt-walk-xp-in';
+        countUp(r.n, r.v, '+', '', next);
+      } else countUp(total, w.total, 'Total: ', ' XP', function () { gotXp(w.xp, total); });
+    })();
+  }
+  function countUp(el, to, pre, post, then) {
+    var t0 = null, ms = 450;
+    (function tick(t) {
+      if (t0 == null) t0 = t;
+      var f = Math.min(1, (t - t0) / ms);
+      el.textContent = pre + (f < 1 ? Math.round(to * f) : to) + post;
+      if (f < 1) requestAnimationFrame(tick); else setTimeout(then, 150);
+    })(performance.now());
   }
 
   /* ── Litter Class Skills (S5-P29, |Q612 to |Q615, |Q631 (a)) ── */
@@ -1361,7 +1470,7 @@ window.LitterCollect = function (app) {
 
   function finish(d) {
     var id = c.id;
-    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection),
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null,
       // The walk's plan, to offer the ground collected off it (Q560).
       planCells: c.plan ? planCells(c.plan) : [] };
     c = null;
@@ -1393,7 +1502,8 @@ window.LitterCollect = function (app) {
     $('sm-gpx-say').textContent = sim ? SIM_SAY : GPX_SAY;
     $('sm-wait').hidden = true;
     $('sm-totals').textContent = round(col.pounds, 2) + ' lb · ' + round(col.miles, 2) + ' mi · ' + Math.round(col.active) + ' min active · ' + col.hours + ' volunteer hours' +
-      (col.hoursNote ? ' (' + col.hoursNote + ')' : '') + (col.xp ? ' · ' + col.xp + ' XP for planning it' : '');
+      (col.hoursNote ? ' (' + col.hoursNote + ')' : '');
+    showWalkXp();   // its XP, line by line (S6-P3)
     var list = $('sm-list');
     list.textContent = '';
     summary.stretches.forEach(function (s) { list.appendChild(stretchCard(s)); });
@@ -1750,7 +1860,7 @@ window.LitterCollect = function (app) {
         setTypes(d.types);
         pace = d.pace || pace;
         // Its plan's squares, from the segments it lists, so ground off it is offered in pieces again (S5-U17).
-        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), planCells: planCellsOf(d.collection && d.collection.plan) };
+        summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), planCells: planCellsOf(d.collection && d.collection.plan), walk: d.walk || null };
         showSummary();
       });
     });
@@ -2000,6 +2110,7 @@ window.LitterCollect = function (app) {
     app.busy(button, errBox || 'sf-err', function () {
       return busyWhile('Saving, please wait...', function () { return app.api('collectFix', { token: app.myToken(), stretchId: s.id, fix: fix }); }).then(function (d) {
         summary.collection = d.collection;
+        if (d.walk) summary.walk = d.walk;
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
@@ -2063,6 +2174,7 @@ window.LitterCollect = function (app) {
       gpxPop(false);
       if (d.collection) summary.collection = d.collection;
       if (d.stretches) summary.stretches = d.stretches;
+      if (d.walk) summary.walk = d.walk;
       summary.stops = {};
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
@@ -2640,7 +2752,7 @@ window.LitterCollect = function (app) {
     busyHere: function () { return !!(c && !c.practice && (c.queue.length || !c.ended)); },
     practice: startPractice,
     // A quest step ticked (S5-P20): the XP and Start collecting with it.
-    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; showPlanLine(); },
+    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; gotXp(d.xp, $('qs-card')); showPlanLine(); },
     // The picked plan's squares, for the main page's map; and your plans after
     // one is deleted (Oct 31).
     pickedCells: walkCells,

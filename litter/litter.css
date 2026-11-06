@@ -476,3 +476,39 @@ body.lt-sheet-open { overflow: hidden; }
 .lt-forum-ask { border: 2px solid var(--primary); }
 .lt-forum-cadence { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; font-weight: 700; }
 .lt-forum-cadence label { display: flex; gap: 6px; align-items: center; }
+
+/* XP that pops (S6-P3). The bar under your handle in the top bar, and your level beside it. */
+.lt-me-who { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+.lt-xp-bar { display: block; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; max-width: 260px; }
+.lt-xp-bar[hidden] { display: none; }
+.lt-xp-fill { display: block; height: 100%; width: 0; border-radius: 3px; background: linear-gradient(90deg, #f59e0b, #facc15); transition: width 0.9s ease-out; }
+.lt-me-level { font-size: 0.8rem; font-weight: 800; padding: 2px 8px; border-radius: 10px; background: #fef3c7; color: #78350f; white-space: nowrap; }
+.lt-me-level[hidden] { display: none; }
+/* "+N XP", rising from what earned it. */
+.lt-xp-burst { position: fixed; z-index: 3200; transform: translate(-50%, -50%); pointer-events: none; font-weight: 900; font-size: 1.6rem; color: #b45309;
+  text-shadow: 0 2px 0 #fff, 0 0 12px rgba(250, 204, 21, 0.9); animation: lt-xp-rise 1.8s ease-out forwards; white-space: nowrap; }
+@keyframes lt-xp-rise { 0% { opacity: 0; transform: translate(-50%, -20%) scale(0.6); } 15% { opacity: 1; transform: translate(-50%, -60%) scale(1.25); }
+  35% { transform: translate(-50%, -80%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -260%) scale(1); } }
+/* A new level: the whole screen. */
+.lt-levelup { position: fixed; inset: 0; z-index: 3300; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(circle at center, rgba(250, 204, 21, 0.55), rgba(17, 24, 39, 0.88) 70%); animation: lt-lu-fade 0.35s ease-out; }
+.lt-levelup[hidden] { display: none; }
+.lt-levelup-card { width: min(380px, 100%); text-align: center; padding: 26px 20px 20px; border-radius: var(--radius); background: var(--surface); color: var(--text);
+  box-shadow: 0 18px 48px rgba(0, 0, 0, 0.45); animation: lt-lu-pop 0.55s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.lt-levelup-star { font-size: 3rem; margin: 0; animation: lt-lu-spin 1.2s ease-out; }
+.lt-levelup h2 { font-size: 2.2rem; margin: 6px 0; }
+.lt-levelup-head { font-weight: 700; margin-top: 14px; }
+.lt-levelup-skills { text-align: left; margin: 6px auto 16px; max-width: 280px; }
+@keyframes lt-lu-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes lt-lu-pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes lt-lu-spin { from { transform: rotate(-200deg) scale(0.2); } to { transform: rotate(0) scale(1); } }
+/* A walk's XP, line by line. */
+.lt-walk-xp { margin-top: 10px; padding: 10px 12px; border-radius: var(--radius-sm); background: #fef3c7; color: #78350f; }
+.lt-walk-xp-head { margin: 0 0 6px; font-weight: 800; }
+.lt-walk-xp-lines { list-style: none; margin: 0; padding: 0; }
+.lt-walk-xp-lines li { display: flex; justify-content: space-between; padding: 2px 0; transition: opacity 0.25s; }
+.lt-walk-xp-lines li.lt-walk-xp-wait { opacity: 0; }
+.lt-walk-xp-n { font-weight: 800; font-variant-numeric: tabular-nums; }
+.lt-walk-xp-total { margin: 6px 0 0; font-weight: 900; font-size: 1.1rem; text-align: right; font-variant-numeric: tabular-nums; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+@media (prefers-reduced-motion: reduce) { .lt-xp-burst, .lt-levelup, .lt-levelup-card, .lt-levelup-star { animation: none; } .lt-xp-fill { transition: none; } }
