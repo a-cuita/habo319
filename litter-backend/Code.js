@@ -222,13 +222,20 @@ var TABS = {
   challenges: {
     name: 'Challenges',
     header: ['Challenge ID', 'Name', 'Says', 'Why', 'Kind', 'Actions', 'Near a segment (m)', 'XP each', 'XP near a segment', 'Miles goal', 'Different segments',
-      'XP per 0.01 mi', 'Finishing multiplier', 'From', 'To', 'Opens at level', 'State', 'Made by', 'Made'],
-    widths: [90, 160, 320, 260, 80, 140, 80, 60, 80, 70, 80, 70, 80, 100, 100, 70, 70, 100, 150],
+      'XP per 0.01 mi', 'Finishing multiplier', 'From', 'To', 'Opens at level', 'State', 'Made by', 'Made', 'Skill', 'Goal (approved)', 'XP for each one'],
+    widths: [90, 160, 320, 260, 80, 140, 80, 60, 80, 70, 80, 70, 80, 100, 100, 70, 70, 100, 150, 80, 80, 80],
     formats: { 3: '@', 4: '@', 14: 'yyyy-mm-dd', 15: 'yyyy-mm-dd', 19: 'yyyy-mm-dd h:mm' }
+  },
+  // Litter Class Skills built from the toolbox (S6-P8's rework, Jeremy's answers in chat, Nov 6).
+  toolSkills: {
+    name: 'Toolbox skills',
+    header: ['Skill ID', 'Name', 'Says', 'Why', 'What players send', 'Near a segment (m)', 'XP each', 'XP near a segment', 'Opens at level', 'State', 'Made by', 'Made'],
+    widths: [80, 160, 320, 260, 140, 80, 60, 80, 70, 70, 100, 150],
+    formats: { 3: '@', 4: '@', 12: 'yyyy-mm-dd h:mm' }
   },
   challengeItems: {
     name: 'Challenge items',
-    header: ['Item ID', 'Challenge ID', 'Account ID', 'Sent', 'Latitude', 'Longitude', 'Accuracy (m)', 'Photo', 'Note', 'State', 'Near segment', 'XP'],
+    header: ['Item ID', 'Skill ID', 'Account ID', 'Sent', 'Latitude', 'Longitude', 'Accuracy (m)', 'Photo', 'Note', 'State', 'Near segment', 'XP'],
     widths: [80, 90, 90, 150, 90, 90, 80, 260, 300, 80, 90, 50],
     formats: { 4: 'yyyy-mm-dd h:mm', 8: '@', 9: '@' }
   },
@@ -306,7 +313,12 @@ function actions_() {
     reportSend: reportSend_,
     // Challenges (S6-P8).
     challengesLoad: challengesLoad_,
-    challengeSend: challengeSend_,
+    // Litter Class Skills built from the toolbox (S6-P8's rework).
+    toolSkillsLoad: toolSkillsLoad_,
+    toolSkillSend: toolSkillSend_,
+    toolSkillsAdmin: toolSkillsAdmin_,
+    toolSkillSave: toolSkillSave_,
+    toolSkillRetire: toolSkillRetire_,
     challengePhoto: challengePhoto_,
     challengesAdmin: challengesAdmin_,
     challengeSave: challengeSave_,
@@ -466,7 +478,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -507,6 +519,7 @@ function ensureSchema_(force) {
     ratesRuleOnce_();
     fieldsAreaOnce_();
     challengesOnce_();
+    toolSkillsOnce_();
     wikiOnce_();
     achievementsOnce_();
     fillSettingNotes_(ss);

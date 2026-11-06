@@ -632,6 +632,8 @@
     builderMode: builderMode, paintMode: paintMode,
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
     onEarned: function (d) { if (achievements) achievements.onEarned(d); },
+    // A skill built from the toolbox, in the Litter Class Skills sheet: its Send form (S6-P8's rework, challenges.js).
+    onSkillsShown: function (fresh) { if (challenges) challenges.skillsShown(fresh); },
     showAccount: function () { showAccount(state.account); },
     openMap: function (cells, back) { mapper.open({ focus: cells, back: back }); },
     planLabel: planLabel,

@@ -581,6 +581,7 @@ window.LitterCollect = function (app) {
     var box = $('cl-skills'), list = settings.skills || [];
     box.textContent = '';
     $('me-go-skills').hidden = !account || !list.length;
+    $('cl-skills-btn').hidden = $('me-go-skills').hidden;
     if (!account || !list.length) return;
     var have = myLevel(), lw = levelWords(account.xp);
     $('skills-level').textContent = 'Your XP: ' + account.xp + '.' + (lw ? ' ' + lw : '');
@@ -602,9 +603,17 @@ window.LitterCollect = function (app) {
       say.className = 'muted small lt-skill-say';
       say.textContent = s.say;
       li.appendChild(top); li.appendChild(say);
+      // A skill built from the toolbox (S6-P8's rework): its Send form, filled in by challenges.js.
+      if (/^skill:/.test(s.key)) {
+        li.id = 'skl-' + s.key.slice(6);
+        var tool = document.createElement('div');
+        tool.className = 'lt-skill-tool';
+        li.appendChild(tool);
+      }
       ul.appendChild(li);
     });
     box.appendChild(ul);
+    if (app.onSkillsShown) app.onSkillsShown(false);   // from what's loaded already
   }
 
   function plural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
@@ -2662,9 +2671,11 @@ window.LitterCollect = function (app) {
     if (open) showSkills();
     $('skills-sheet').hidden = !open;
     document.body.classList.toggle('lt-sheet-open', open);
+    if (open && app.onSkillsShown) app.onSkillsShown(true);   // and loaded fresh
     if (open) $('skills-close').focus();
   }
   $('me-go-skills').addEventListener('click', function () { skillsSheet(true); });
+  $('cl-skills-btn').addEventListener('click', function () { skillsSheet(true); });
   $('skills-close').addEventListener('click', function () { skillsSheet(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('skills-sheet').hidden) skillsSheet(false); });
   $('pl-kind-path').addEventListener('change', planKind);

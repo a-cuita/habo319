@@ -1,12 +1,18 @@
-// Challenges (S6-P8, |Q661 (a), |M669, |M846): one task an admin builds that
-// earns XP. Players see them on Your quests: an Items Challenge is sent from
-// the toolbox (Use my location, a photo, a note), each item reviewed in
-// Reviews; a Walk goal counts from your walks. In Admin Mode, a Challenges
-// screen to build them: a Builder or above makes, changes and retires them.
+// Skills built from the toolbox, and Challenges built from them (S6-P8,
+// |Q661 (a), |M669, |M846; reworked from Jeremy's answers in chat, Nov 6:
+// "the trash receptacle thing should be a litter skill, not a challenge. the
+// challenges are supposed to be built out of existing skills.").
+// - A skill like Trash receptacles: in the Litter Class Skills sheet (from the
+//   top panel, or the Skills button while collecting), once it's unlocked, with
+//   its Send form: Use my location, a photo, a note. Each one is reviewed.
+// - A Challenge, on Your quests: a skill and a goal, with dates, XP for each
+//   one and a finishing multiplier. A Walk goal's skill is collecting.
+// - Admin Mode: Skills and Challenges, one screen each; a Builder or above
+//   makes, changes and retires them.
 window.LitterChallenges = function (app) {
   'use strict';
   var $ = app.$, G = window.LitterGeo;
-  var mine = null, admin = null, editing = null;
+  var mine = null, skills = null, admin = null, editing = null, mode = 'challenges';
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -24,8 +30,12 @@ window.LitterChallenges = function (app) {
     return 'Any time';
   }
   function rewards(c) {
-    if (c.kind === 'Walk goal') return c.xpPer + ' XP for each 0.01 mi, up to ' + c.milesGoal + ' mi' + (c.mult > 1 ? '; ×' + c.mult + ' once you\'ve collected ' + c.milesGoal + ' mi' + (c.segGoal ? ' across ' + c.segGoal + ' different segments' : '') : '') + '.';
-    return c.xpEach + ' XP for each one approved' + (c.xpNear && c.near ? ', or ' + c.xpNear + ' XP within ' + c.near + ' m of a public segment' : '') + '.';
+    var mult = c.mult > 1 ? '; ×' + c.mult + ' once it\'s done' : '';
+    if (c.kind === 'Walk goal') return c.xpPer + ' XP for each 0.01 mi, up to ' + c.milesGoal + ' mi' + (c.segGoal ? ' across ' + c.segGoal + ' different segments' : '') + mult + '.';
+    return c.xpOne + ' XP for each one approved with ' + (c.skillName || c.skill) + ', up to ' + c.goal + mult + '.';
+  }
+  function skillRewards(s) {
+    return s.xpEach + ' XP for each one approved' + (s.xpNear && s.near ? ', or ' + s.xpNear + ' XP within ' + s.near + ' m of a public segment' : '') + '.';
   }
 
   /* ── Your Challenges, on Your quests ── */
@@ -50,38 +60,55 @@ window.LitterChallenges = function (app) {
     list.forEach(function (c) { box.appendChild(card(c)); });
   }
   function card(c) {
-    var d = el('details', 'lt-challenge' + (c.locked ? ' lt-locked' : ''));
+    var d = el('details', 'lt-challenge');
     d.id = 'chl-' + c.id;
-    var head = el('summary', 'lt-challenge-head', c.name + (c.locked ? ' · Unlocks at Level ' + c.level : c.kind === 'Walk goal' && c.goal ? ' · ' + c.goal.xp + ' XP' : ''));
-    d.appendChild(head);
+    var g = c.progress || {};
+    d.appendChild(el('summary', 'lt-challenge-head', c.name + ' · ' + (g.xp || 0) + ' XP' + (g.done ? ' · Done!' : '')));
     d.appendChild(el('p', null, c.says));
     if (c.why) d.appendChild(el('p', 'muted small', c.why));
     d.appendChild(el('p', 'small', dates(c) + ' · ' + rewards(c)));
     if (c.state === 'Retired' || !c.live) d.appendChild(el('p', 'small lt-challenge-closed', 'Not open now.'));
-    if (c.kind === 'Walk goal' && c.goal) {
-      var g = c.goal;
-      d.appendChild(el('p', 'lt-challenge-goal', Math.round(g.miles * 100) / 100 + ' of ' + c.milesGoal + ' mi' + (c.segGoal ? ' · ' + g.segments + ' of ' + c.segGoal + ' different segments' : '') +
-        ' · ' + g.xp + ' XP' + (g.done ? ' · Done!' : '')));
-      var bar = el('div', 'lt-challenge-bar'), fill = el('div', 'lt-challenge-fill');
-      fill.style.width = Math.min(100, c.milesGoal ? g.miles / c.milesGoal * 100 : 0) + '%';
-      bar.appendChild(fill);
-      d.appendChild(bar);
-    }
-    if (c.kind === 'Items') {
-      if (c.locked) d.appendChild(el('p', 'small lt-lock-note', 'Unlocks at Level ' + c.level + '. You\'re at Level ' + (mine ? mine.level : 0) + '.'));
-      else if (c.live) d.appendChild(sendForm(c));
-      if (c.mine.length) {
-        d.appendChild(el('p', 'lt-challenge-sub', 'What you\'ve sent'));
-        c.mine.slice().reverse().forEach(function (x) {
-          d.appendChild(el('p', 'small lt-challenge-item ' + x.state.toLowerCase(), when(x.sent) + ' · ' + (x.state === 'Approved' ? 'Approved, ' + x.xp + ' XP' : x.state === 'Declined' ? 'Declined' + (x.why ? ': "' + x.why + '"' : '') : 'Waiting for a review') +
-            (x.note ? ' · "' + x.note + '"' : '')));
-        });
-      }
-    }
+    var have = c.kind === 'Walk goal' ? g.miles || 0 : g.count || 0, goal = c.kind === 'Walk goal' ? c.milesGoal : c.goal;
+    d.appendChild(el('p', 'lt-challenge-goal', c.kind === 'Walk goal'
+      ? Math.round(have * 100) / 100 + ' of ' + goal + ' mi' + (c.segGoal ? ' · ' + (g.segments || 0) + ' of ' + c.segGoal + ' different segments' : '')
+      : have + ' of ' + goal + ' approved · use ' + (c.skillName || c.skill) + ' from Litter Class Skills'));
+    var bar = el('div', 'lt-challenge-bar'), fill = el('div', 'lt-challenge-fill');
+    fill.style.width = Math.min(100, goal ? have / goal * 100 : 0) + '%';
+    bar.appendChild(fill);
+    d.appendChild(bar);
     return d;
   }
 
-  // The toolbox: what this Challenge asks for, in its order: place, photo, note.
+  /* ── Skills built from the toolbox, in the Litter Class Skills sheet ── */
+
+  // The sheet was drawn: fill each skill's Send form from what's loaded, and
+  // (when the sheet opens) load it fresh.
+  function skillsShown(fresh) {
+    fillSkills();
+    if (!fresh) return;
+    app.api('toolSkillsLoad', { token: app.myToken() }).then(function (d) { skills = d; fillSkills(); }, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+    });
+  }
+  function fillSkills() {
+    ((skills && skills.skills) || []).forEach(function (s) {
+      var box = document.querySelector('#skl-' + s.id + ' .lt-skill-tool');
+      if (!box) return;
+      box.textContent = '';
+      if (s.why) box.appendChild(el('p', 'muted small', s.why));
+      box.appendChild(el('p', 'small', skillRewards(s)));
+      if (!s.locked && s.state === 'Open') box.appendChild(sendForm(s));
+      if (s.mine.length) {
+        box.appendChild(el('p', 'lt-challenge-sub', 'What you\'ve sent'));
+        s.mine.slice().reverse().forEach(function (x) {
+          box.appendChild(el('p', 'small lt-challenge-item ' + x.state.toLowerCase(), when(x.sent) + ' · ' + (x.state === 'Approved' ? 'Approved, ' + x.xp + ' XP' : x.state === 'Declined' ? 'Declined' + (x.why ? ': "' + x.why + '"' : '') : 'Waiting for a review') +
+            (x.note ? ' · "' + x.note + '"' : '')));
+        });
+      }
+    });
+  }
+
+  // The toolbox: what this skill asks for, in its order: place, photo, note.
   function sendForm(c) {
     var f = el('div', 'lt-challenge-send'), got = { lat: null, lon: null, acc: null, photo: '' };
     var has = function (a) { return c.actions.indexOf(a) !== -1; };
@@ -139,17 +166,12 @@ window.LitterChallenges = function (app) {
     send.type = 'button';
     send.addEventListener('click', function () {
       app.busy(send, err.id, function () {
-        return app.api('challengeSend', { token: app.myToken(), challengeId: c.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: note ? note.value : '' }).then(function (d) {
-          mine = d;
-          draw();
-          var again = $('chl-' + c.id);
-          if (again) {
-            again.open = true;
-            // Said on the Challenge itself, not in a notice over the top bar.
-            var said = el('p', 'small lt-challenge-sent', 'Sent. An admin reviews it, and its XP comes once it\'s approved.');
-            var form = again.querySelector('.lt-challenge-send');
-            if (form) form.parentNode.insertBefore(said, form);
-          }
+        return app.api('toolSkillSend', { token: app.myToken(), skillId: c.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: note ? note.value : '' }).then(function (d) {
+          skills = d;
+          fillSkills();
+          // Said on the skill itself, not in a notice over the top bar.
+          var box = document.querySelector('#skl-' + c.id + ' .lt-skill-tool');
+          if (box) box.insertBefore(el('p', 'small lt-challenge-sent', 'Sent. An admin reviews it, and its XP comes once it\'s approved.'), box.firstChild);
         });
       });
     });
@@ -178,33 +200,49 @@ window.LitterChallenges = function (app) {
     });
   }
 
-  /* ── Admin Mode: building them ── */
+  /* ── Admin Mode: the Skills screen and the Challenges screen ── */
 
-  function openAdmin() {
+  function openAdmin(which) {
+    mode = which || 'challenges';
     app.show('v-challenges-admin');
     window.scrollTo(0, 0);
     editing = null;
     $('cha-form').hidden = true;
     $('cha-list').textContent = '';
-    $('cha-note').textContent = 'Loading the Challenges…';
-    return app.api('challengesAdmin', { token: app.myToken() }).then(useAdmin, function (err) {
+    $('cha-title').textContent = mode === 'skills' ? 'Skills' : 'Challenges';
+    $('cha-add').textContent = mode === 'skills' ? 'Add a skill' : 'Add a Challenge';
+    $('cha-note').textContent = 'Loading…';
+    return app.api(mode === 'skills' ? 'toolSkillsAdmin' : 'challengesAdmin', { token: app.myToken() }).then(useAdmin, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
       $('cha-note').textContent = err.message;
     });
   }
   function useAdmin(d) {
     admin = d;
-    var box = $('cha-list');
+    var box = $('cha-list'), sk = mode === 'skills', list = sk ? d.skills : d.challenges;
     box.textContent = '';
-    $('cha-note').textContent = d.canBuild ? 'Each Challenge earns XP. Add one, or change one.' : 'A Builder or above makes and changes Challenges; here they are as they stand.';
+    $('cha-note').textContent = d.canBuild
+      ? (sk ? 'Each skill is built from the toolbox: what players send, its XP, and the level it opens at. Players use it from Litter Class Skills.'
+        : 'Each Challenge is built from a skill and a goal, and earns XP. A Walk goal\'s skill is collecting.')
+      : 'A Builder or above makes and changes these; here they are as they stand.';
     $('cha-add').hidden = !d.canBuild;
-    d.challenges.forEach(function (c) {
+    if (!sk) {
+      var sel = $('cha-skill');
+      sel.textContent = '';
+      (d.skills || []).forEach(function (s) { var o = el('option', null, s.name); o.value = s.id; sel.appendChild(o); });
+    }
+    list.forEach(function (c) {
       var s = el('section', 'card lt-cha-item' + (c.state === 'Retired' ? ' retired' : ''));
       s.id = 'cha-' + c.id;
       s.appendChild(el('p', 'lt-col-head', c.name));
-      s.appendChild(el('p', 'small', c.state + ' · ' + c.kind + (c.kind === 'Items' ? ' · ' + c.actions.join(', ') + ' · opens at Level ' + c.level : '') + ' · ' + dates(c)));
-      s.appendChild(el('p', 'small', rewards(c)));
-      if (c.kind === 'Items') s.appendChild(el('p', 'muted small', c.sent + ' sent' + (c.waiting ? ', ' + c.waiting + ' waiting in Reviews' : '') + '.'));
+      if (sk) {
+        s.appendChild(el('p', 'small', c.state + ' · ' + c.actions.join(', ') + ' · ' + (c.level ? 'opens at Level ' + c.level : 'open to everyone')));
+        s.appendChild(el('p', 'small', skillRewards(c)));
+        s.appendChild(el('p', 'muted small', c.sent + ' sent' + (c.waiting ? ', ' + c.waiting + ' waiting in Reviews' : '') + '.'));
+      } else {
+        s.appendChild(el('p', 'small', c.state + ' · ' + c.kind + (c.kind === 'Skill goal' ? ' · ' + c.skillName : '') + ' · ' + dates(c)));
+        s.appendChild(el('p', 'small', rewards(c)));
+      }
       if (d.canBuild) {
         var row = el('div', 'lt-cha-buttons');
         var ch = el('button', 'btn btn-secondary lt-cha-change', 'Change'), rt = el('button', 'btn btn-secondary lt-cha-retire', c.state === 'Retired' ? 'Open again' : 'Retire');
@@ -212,7 +250,9 @@ window.LitterChallenges = function (app) {
         ch.addEventListener('click', function () { edit(c); });
         rt.addEventListener('click', function () {
           rt.disabled = true;
-          app.api('challengeRetire', { token: app.myToken(), challengeId: c.id, retire: c.state !== 'Retired' }).then(function (d2) {
+          var body = { token: app.myToken(), retire: c.state !== 'Retired' };
+          body[sk ? 'skillId' : 'challengeId'] = c.id;
+          app.api(sk ? 'toolSkillRetire' : 'challengeRetire', body).then(function (d2) {
             useAdmin(d2);
             sayOn(c.id, c.state === 'Retired' ? 'Open again.' : 'Retired. What it earned stays earned.');
           }, function (err) { rt.disabled = false; app.notice(err.message); });
@@ -223,23 +263,30 @@ window.LitterChallenges = function (app) {
       box.appendChild(s);
     });
   }
-  // What just happened, said on the Challenge itself (not a notice over the top bar).
+  // What just happened, said on the item itself (not a notice over the top bar).
   function sayOn(id, words) {
     var s = id && $('cha-' + id);
     if (!s) return;
     s.appendChild(el('p', 'small lt-cha-said', words));
     s.scrollIntoView({ block: 'nearest' });
   }
-  // The form: one for both kinds; what a kind doesn't use is hidden.
+  // The form: one for skills and both kinds of Challenge; what isn't used is hidden.
   function edit(c) {
     editing = c || null;
-    var v = c || { name: '', kind: 'Items', says: '', why: '', actions: ['Place', 'Photo'], near: 20, xpEach: 1, xpNear: 0, level: 0, milesGoal: '', segGoal: 0, xpPer: 0.1, mult: 1, from: 0, to: 0 };
-    $('cha-form-title').textContent = c ? 'Change ' + c.name : 'Add a Challenge';
-    $('cha-name').value = v.name; $('cha-kind').value = v.kind; $('cha-says').value = v.says; $('cha-why').value = v.why || '';
-    $('cha-from').value = ymd(v.from); $('cha-to').value = ymd(v.to);
-    Array.prototype.forEach.call(document.querySelectorAll('#cha-actions input'), function (x) { x.checked = v.actions.indexOf(x.value) !== -1; });
-    $('cha-near').value = v.near; $('cha-xp-each').value = v.xpEach; $('cha-xp-near').value = v.xpNear; $('cha-level').value = v.level;
-    $('cha-miles').value = v.milesGoal; $('cha-segs').value = v.segGoal; $('cha-xp-per').value = v.xpPer; $('cha-mult').value = v.mult;
+    var sk = mode === 'skills';
+    var v = c || (sk ? { name: '', says: '', why: '', actions: ['Place', 'Photo'], near: 20, xpEach: 1, xpNear: 0, level: 0 }
+      : { name: '', kind: 'Walk goal', says: '', why: '', milesGoal: '', segGoal: 0, xpPer: 0.1, skill: '', goal: '', xpOne: 1, mult: 1, from: 0, to: 0 });
+    $('cha-form-title').textContent = c ? 'Change ' + c.name : sk ? 'Add a skill' : 'Add a Challenge';
+    $('cha-name').value = v.name; $('cha-says').value = v.says; $('cha-why').value = v.why || '';
+    if (sk) {
+      Array.prototype.forEach.call(document.querySelectorAll('#cha-actions input'), function (x) { x.checked = v.actions.indexOf(x.value) !== -1; });
+      $('cha-near').value = v.near; $('cha-xp-each').value = v.xpEach; $('cha-xp-near').value = v.xpNear; $('cha-level').value = v.level;
+    } else {
+      $('cha-kind').value = v.kind; $('cha-from').value = ymd(v.from); $('cha-to').value = ymd(v.to);
+      $('cha-miles').value = v.milesGoal; $('cha-segs').value = v.segGoal; $('cha-xp-per').value = v.xpPer;
+      if (v.skill) $('cha-skill').value = v.skill;
+      $('cha-goal').value = v.goal; $('cha-xp-one').value = v.xpOne; $('cha-mult').value = v.mult;
+    }
     $('cha-err').textContent = '';
     kindShown();
     $('cha-form').hidden = false;
@@ -247,35 +294,44 @@ window.LitterChallenges = function (app) {
     $('cha-name').focus();
   }
   function kindShown() {
-    var items = $('cha-kind').value === 'Items';
-    $('cha-items-box').hidden = !items;
-    $('cha-walk-box').hidden = items;
+    var sk = mode === 'skills', walk = $('cha-kind').value === 'Walk goal';
+    $('cha-items-box').hidden = !sk;
+    $('cha-kind-row').hidden = sk; $('cha-dates').hidden = sk; $('cha-mult-row').hidden = sk;
+    $('cha-walk-box').hidden = sk || !walk;
+    $('cha-skill-box').hidden = sk || walk;
   }
   $('cha-kind').addEventListener('change', kindShown);
   $('cha-add').addEventListener('click', function () { edit(null); });
   $('cha-cancel').addEventListener('click', function () { $('cha-form').hidden = true; editing = null; });
   $('cha-save').addEventListener('click', function () {
-    var x = { id: editing ? editing.id : '', name: $('cha-name').value, kind: $('cha-kind').value, says: $('cha-says').value, why: $('cha-why').value,
-      from: $('cha-from').value, to: $('cha-to').value,
-      actions: Array.prototype.filter.call(document.querySelectorAll('#cha-actions input'), function (i) { return i.checked; }).map(function (i) { return i.value; }),
-      near: $('cha-near').value, xpEach: $('cha-xp-each').value, xpNear: $('cha-xp-near').value, level: $('cha-level').value,
-      milesGoal: $('cha-miles').value, segGoal: $('cha-segs').value, xpPer: $('cha-xp-per').value, mult: $('cha-mult').value };
+    var sk = mode === 'skills', x;
+    if (sk) {
+      x = { id: editing ? editing.id : '', name: $('cha-name').value, says: $('cha-says').value, why: $('cha-why').value,
+        actions: Array.prototype.filter.call(document.querySelectorAll('#cha-actions input'), function (i) { return i.checked; }).map(function (i) { return i.value; }),
+        near: $('cha-near').value, xpEach: $('cha-xp-each').value, xpNear: $('cha-xp-near').value, level: $('cha-level').value };
+    } else {
+      x = { id: editing ? editing.id : '', name: $('cha-name').value, kind: $('cha-kind').value, says: $('cha-says').value, why: $('cha-why').value,
+        from: $('cha-from').value, to: $('cha-to').value, milesGoal: $('cha-miles').value, segGoal: $('cha-segs').value, xpPer: $('cha-xp-per').value,
+        skill: $('cha-skill').value, goal: $('cha-goal').value, xpOne: $('cha-xp-one').value, mult: $('cha-mult').value };
+    }
     var was = editing;
     app.busy($('cha-save'), 'cha-err', function () {
-      return app.api('challengeSave', { token: app.myToken(), challenge: x }).then(function (d) {
+      return app.api(sk ? 'toolSkillSave' : 'challengeSave', sk ? { token: app.myToken(), skill: x } : { token: app.myToken(), challenge: x }).then(function (d) {
         $('cha-form').hidden = true;
         editing = null;
         useAdmin(d);
-        var id = was ? was.id : (d.challenges[d.challenges.length - 1] || {}).id;
-        sayOn(id, was ? 'Changed.' : 'Made, and open to players now.');
+        var list = sk ? d.skills : d.challenges;
+        var id = was ? was.id : (list[list.length - 1] || {}).id;
+        sayOn(id, was ? 'Changed.' : sk ? 'Made: players find it in Litter Class Skills.' : 'Made, and open to players now.');
       });
     });
   });
 
-  // The Challenges button, in the Admin Mode box while Admin Mode is on.
-  function sync() { $('me-go-challenges').hidden = !$('cl-sim').checked; }
+  // The Skills and Challenges buttons, in the Admin Mode box while Admin Mode is on.
+  function sync() { $('me-go-challenges').hidden = !$('cl-sim').checked; $('me-go-skills-admin').hidden = !$('cl-sim').checked; }
   $('cl-sim').addEventListener('change', sync);
-  $('me-go-challenges').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); openAdmin(); });
+  $('me-go-challenges').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); openAdmin('challenges'); });
+  $('me-go-skills-admin').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); openAdmin('skills'); });
   $('cha-back').addEventListener('click', function () { if (app.back) app.back(); });
 
   // An item's photo in Reviews, fetched when asked for.
@@ -286,5 +342,5 @@ window.LitterChallenges = function (app) {
     }, function (err) { button.disabled = false; app.notice(err.message); });
   }
 
-  return { load: load, openAdmin: openAdmin, sync: sync, photoInto: photoInto, cellOf: function (lat, lon) { return G.cellAt(lat, lon); } };
+  return { load: load, openAdmin: openAdmin, sync: sync, skillsShown: skillsShown, photoInto: photoInto, cellOf: function (lat, lon) { return G.cellAt(lat, lon); } };
 };

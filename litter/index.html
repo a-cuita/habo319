@@ -110,6 +110,8 @@
           <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
           <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
           <!-- Challenges in Admin Mode (S6-P8): a Builder or above builds them. -->
+          <!-- Skills built from the toolbox in Admin Mode (S6-P8's rework, Jeremy's "(a)", Nov 6): a Builder or above builds them. -->
+          <button class="btn btn-secondary" id="me-go-skills-admin" type="button" hidden>Skills</button>
           <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Challenges</button>
           <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)): a Builder or above makes them. -->
           <button class="btn btn-secondary" id="me-go-achievements" type="button" hidden>Achievements</button>
@@ -271,6 +273,8 @@
     </div>
     <div id="cl-actions">
       <button class="btn btn-primary" id="cl-pulse-btn" type="button">Litter pulse</button>
+      <!-- Skills while collecting (S6-P8's rework, Jeremy, Nov 6): Litter pulse stays its own button; this opens the Litter Class Skills sheet. -->
+      <button class="btn btn-secondary" id="cl-skills-btn" type="button" hidden>Skills</button>
       <p class="err" id="cl-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
       <div class="lt-discard-row"><button class="link-btn lt-danger-link" id="cl-discard" type="button">Discard this collection</button></div>
@@ -653,19 +657,21 @@
   <!-- Challenges in Admin Mode (S6-P8, |M669, |M846): each built from the toolbox, with its XP. -->
   <div id="v-challenges-admin" hidden>
     <section class="card">
-      <h2>Challenges</h2>
+      <h2 id="cha-title">Challenges</h2>
       <p class="muted small" id="cha-note"></p>
       <button class="btn btn-primary" id="cha-add" type="button" hidden>Add a Challenge</button>
     </section>
     <section class="card" id="cha-form" hidden>
       <h2 id="cha-form-title">Add a Challenge</h2>
       <div class="ig"><label for="cha-name">Name</label><input id="cha-name" maxlength="80"></div>
-      <div class="ig"><label for="cha-kind">Kind</label>
-        <select id="cha-kind"><option value="Items">Items: players send a place, a photo or a note</option><option value="Walk goal">Walk goal: counted from their walks</option></select></div>
+      <div class="ig" id="cha-kind-row"><label for="cha-kind">Kind</label>
+        <select id="cha-kind"><option value="Walk goal">Walk goal: collecting, counted from their walks</option><option value="Skill goal">Skill goal: so many approved with a skill</option></select></div>
       <div class="ig"><label for="cha-says">What the screen says: what to do</label><textarea id="cha-says" rows="3" maxlength="1000"></textarea></div>
       <div class="ig"><label for="cha-why">Why (shown under it)</label><textarea id="cha-why" rows="2" maxlength="1000"></textarea></div>
-      <div class="ig"><label for="cha-from">From (blank: from now)</label><input id="cha-from" type="date"></div>
-      <div class="ig"><label for="cha-to">To (blank: no end)</label><input id="cha-to" type="date"></div>
+      <div id="cha-dates">
+        <div class="ig"><label for="cha-from">From (blank: from now)</label><input id="cha-from" type="date"></div>
+        <div class="ig"><label for="cha-to">To (blank: no end)</label><input id="cha-to" type="date"></div>
+      </div>
       <div id="cha-items-box">
         <fieldset class="ig lt-cha-actions" id="cha-actions"><legend>What players send</legend>
           <label><input type="checkbox" value="Place"> A place: Use my location</label>
@@ -681,8 +687,13 @@
         <div class="ig"><label for="cha-miles">Miles goal</label><input id="cha-miles" type="number" min="0" max="1000" step="0.1" inputmode="decimal"></div>
         <div class="ig"><label for="cha-segs">Different segments (0: any)</label><input id="cha-segs" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
         <div class="ig"><label for="cha-xp-per">XP for each 0.01 mi</label><input id="cha-xp-per" type="number" min="0" max="100" step="0.05" inputmode="decimal"></div>
-        <div class="ig"><label for="cha-mult">Finishing multiplier (1: none)</label><input id="cha-mult" type="number" min="1" max="10" step="0.1" inputmode="decimal"></div>
       </div>
+      <div id="cha-skill-box" hidden>
+        <div class="ig"><label for="cha-skill">Built from the skill</label><select id="cha-skill"></select></div>
+        <div class="ig"><label for="cha-goal">Goal: how many approved</label><input id="cha-goal" type="number" min="1" max="10000" step="1" inputmode="numeric"></div>
+        <div class="ig"><label for="cha-xp-one">XP for each one approved (on top of the skill's own)</label><input id="cha-xp-one" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
+      </div>
+      <div class="ig" id="cha-mult-row"><label for="cha-mult">Finishing multiplier (1: none)</label><input id="cha-mult" type="number" min="1" max="10" step="0.1" inputmode="decimal"></div>
       <button class="btn btn-primary" id="cha-save" type="button">Save</button>
       <button class="btn btn-secondary" id="cha-cancel" type="button">Cancel</button>
       <p class="err" id="cha-err" role="alert"></p>
@@ -894,13 +905,13 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
 <script src="share.js?v=2"></script>
-<script src="collect.js?v=49"></script>
+<script src="collect.js?v=50"></script>
 <script src="map.js?v=32"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=4"></script>
 <script src="reviews.js?v=4"></script>
 <script src="forum.js?v=4"></script>
-<script src="challenges.js?v=1"></script>
+<script src="challenges.js?v=2"></script>
 <script src="wiki.js?v=2"></script>
 <script src="achievements.js?v=1"></script>
 <script src="litter.js?v=25"></script>

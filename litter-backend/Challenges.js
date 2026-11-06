@@ -1,26 +1,23 @@
 /**
  * Challenges (S6-P8, |Q661 (a), |M669, |M846): one task an admin builds in
- * Admin Mode that earns XP. A Quest groups Challenges (|Q661 (a)).
- *
- * Two kinds, built from a toolbox of what a phone can do:
- * - Items: the player sends things built from the toolbox's actions (a place
- *   from the phone's GPS, a photo, a note), each reviewed in Reviews. An
- *   approved one earns the Challenge's XP each, or its XP near a segment
- *   when it's within that many metres of a public segment.
- * - Walk goal: miles collected across different segments, between the
- *   Challenge's dates, counted from walks with their GPX track: XP per
+ * Admin Mode that earns XP, built from a skill and a goal (S6-P8's rework,
+ * Jeremy in chat, Nov 6: "the challenges are supposed to be built out of
+ * existing skills"; his "(a)" to building one from a skill and a goal, with
+ * dates, XP for each one and a finishing multiplier). Two kinds:
+ * - Walk goal: collecting is the skill. Miles collected across different
+ *   segments, between its dates, from walks with their GPX track: XP per
  *   0.01 mi up to the goal, times the finishing multiplier once the miles
  *   and the segments are both met.
- * The fields an admin fills in say what the screen says (Says), when (From
- * and To, blank for any time), where (near a segment), and why (Why). An
- * Items Challenge opens at a level, a Litter Class Skill of its own (0 opens
- * it to everyone). The first, seeded once, is trash receptacles (|Q655).
+ * - Skill goal: a skill built from the toolbox (ToolSkills.js), like Trash
+ *   receptacles: so many approved between its dates, XP for each one (on top
+ *   of the skill's own), times the finishing multiplier once the goal is met.
+ * A Quest groups Challenges (|Q661 (a)). Players see them on Your quests.
+ * What players send with a skill is kept in the Challenge items tab.
  */
 var CHALLENGE_COL = { id: 1, name: 2, says: 3, why: 4, kind: 5, actions: 6, near: 7, xpEach: 8, xpNear: 9, milesGoal: 10, segGoal: 11, xpPer: 12, mult: 13,
-  from: 14, to: 15, level: 16, state: 17, by: 18, made: 19 };
-var ITEM_COL = { id: 1, challenge: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12 };
-var CHALLENGE_KINDS = ['Items', 'Walk goal'];
-var CHALLENGE_ACTIONS = ['Place', 'Photo', 'Note'];
+  from: 14, to: 15, level: 16, state: 17, by: 18, made: 19, skill: 20, goal: 21, xpOne: 22 };
+var ITEM_COL = { id: 1, skill: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12 };
+var CHALLENGE_KINDS = ['Walk goal', 'Skill goal'];
 var SETTING_CHALLENGE_PHOTOS = 'Challenge photos folder';
 var CHALLENGE_PHOTO_MAX = 2500000;   // characters of a photo sent, about 1.8 MB
 
@@ -30,17 +27,17 @@ function challengesAll_() {
   return readRows_(TABS.challenges, CHALLENGE_COL).map(function (r) {
     var d = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : 0; };
     var n = function (k) { var v = Number(r.get(k)); return r.get(k) === '' || !isFinite(v) ? 0 : v; };
-    return { row: r.row, id: r.get('id'), name: r.get('name'), says: r.get('says'), why: r.get('why'), kind: r.get('kind') === 'Walk goal' ? 'Walk goal' : 'Items',
-      actions: String(r.get('actions')).split(/\s*,\s*/).filter(function (a) { return CHALLENGE_ACTIONS.indexOf(a) !== -1; }),
-      near: n('near'), xpEach: n('xpEach'), xpNear: n('xpNear'), milesGoal: n('milesGoal'), segGoal: Math.floor(n('segGoal')), xpPer: n('xpPer'), mult: n('mult') || 1,
-      from: d('from'), to: d('to'), level: Math.max(0, Math.floor(n('level'))), state: /^\s*r/i.test(r.get('state')) ? 'Retired' : 'Open', by: r.get('by'), made: d('made') };
-  }).filter(function (c) { return c.id; });
+    var kind = String(r.get('kind')).trim();
+    return { row: r.row, id: r.get('id'), name: r.get('name'), says: r.get('says'), why: r.get('why'), kind: CHALLENGE_KINDS.indexOf(kind) !== -1 ? kind : 'Items',
+      milesGoal: n('milesGoal'), segGoal: Math.floor(n('segGoal')), xpPer: n('xpPer'), mult: n('mult') || 1, skill: r.get('skill'), goal: Math.floor(n('goal')), xpOne: n('xpOne'),
+      from: d('from'), to: d('to'), state: /^\s*r/i.test(r.get('state')) ? 'Retired' : 'Open', moved: /^\s*moved/i.test(r.get('state')), by: r.get('by'), made: d('made') };
+  }).filter(function (c) { return c.id && !c.moved && c.kind !== 'Items'; });
 }
 
 function challengeItemsAll_() {
   return readRows_(TABS.challengeItems, ITEM_COL).map(function (r) {
     var t = r.get('sent');
-    return { row: r.row, id: r.get('id'), challenge: r.get('challenge'), account: r.get('account'), sent: t instanceof Date ? t.getTime() : 0,
+    return { row: r.row, id: r.get('id'), skill: r.get('skill'), account: r.get('account'), sent: t instanceof Date ? t.getTime() : 0,
       lat: r.get('lat') === '' ? null : Number(r.get('lat')), lon: r.get('lon') === '' ? null : Number(r.get('lon')), acc: r.get('acc') === '' ? null : Number(r.get('acc')),
       photo: r.get('photo'), note: r.get('note'), state: r.get('state') || 'Waiting', near: r.get('near'), xp: Number(r.get('xp')) || 0 };
   }).filter(function (x) { return x.id; });
@@ -83,89 +80,57 @@ function walkGoal_(c, accountId) {
   return { miles: round_(miles, 3), segments: n, done: done, xp: round_(xp, 2) };
 }
 
-// The XP a player's Challenges earned: approved items, and walk goals.
+// A skill goal's progress for one player: approved ones sent in its dates.
+function skillGoal_(c, accountId, items) {
+  var from = c.from || 0, to = c.to ? c.to + DAY_MS : Infinity;
+  var n = (items || challengeItemsAll_()).filter(function (x) {
+    return x.skill === c.skill && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to;
+  }).length;
+  var done = c.goal > 0 && n >= c.goal, counted = c.goal > 0 ? Math.min(n, c.goal) : n;
+  return { count: n, done: done, xp: round_(counted * c.xpOne * (done ? c.mult : 1), 2) };
+}
+
+// The XP from skills and Challenges: approved items (their skill's XP), walk
+// goals, and skill goals.
 function challengeXp_(accountId) {
-  var xp = 0;
-  challengeItemsAll_().forEach(function (x) { if (x.account === accountId && x.state === 'Approved') xp += x.xp; });
-  challengesAll_().forEach(function (c) { if (c.kind === 'Walk goal') xp += walkGoal_(c, accountId).xp; });
+  var xp = 0, items = challengeItemsAll_();
+  items.forEach(function (x) { if (x.account === accountId && x.state === 'Approved') xp += x.xp; });
+  challengesAll_().forEach(function (c) { xp += c.kind === 'Walk goal' ? walkGoal_(c, accountId).xp : skillGoal_(c, accountId, items).xp; });
   return round_(xp, 2);
 }
 
-// What an approved item earns, by its Challenge's fields.
-function itemXp_(c, item) { return item.near && c.xpNear ? c.xpNear : c.xpEach; }
+// What an approved item earns, by its skill's fields.
+function itemXp_(s, item) { return item.near && s.xpNear ? s.xpNear : s.xpEach; }
 
-// Each open Items Challenge that opens at a level, as a Litter Class Skill
-// (|Q655): listed with the others, and named on the level-up screen.
+// Each open skill built from the toolbox, listed with the Litter Class
+// Skills, and named on the level-up screen when it opens at a level.
 function challengeSkills_() {
-  var now = Date.now();
-  return challengesAll_().filter(function (c) { return c.kind === 'Items' && c.level > 0 && challengeLive_(c, now); }).map(function (c) {
-    return { key: 'challenge:' + c.id, name: c.name + ' (a Challenge)', say: c.says, level: c.level };
+  return toolSkillsAll_().filter(function (s) { return s.state === 'Open'; }).map(function (s) {
+    return { key: 'skill:' + s.id, name: s.name, say: s.says, level: s.level };
   });
 }
 
-/* ── The player's side ── */
+/* ── The player's side: Your quests ── */
 
-function challengeView_(c, account, level, items, now, why) {
-  var mine = items.filter(function (x) { return x.challenge === c.id && x.account === account.id; }).map(function (x) {
-    return { id: x.id, sent: x.sent, state: x.state, xp: x.state === 'Approved' ? x.xp : 0, note: x.note, near: x.near, lat: x.lat, lon: x.lon,
-      why: x.state === 'Declined' ? (why[x.id] || '') : '' };
-  });
-  return { id: c.id, name: c.name, says: c.says, why: c.why, kind: c.kind, actions: c.actions, near: c.near, xpEach: c.xpEach, xpNear: c.xpNear,
-    milesGoal: c.milesGoal, segGoal: c.segGoal, xpPer: c.xpPer, mult: c.mult, from: c.from, to: c.to, level: c.kind === 'Items' ? c.level : 0,
-    live: challengeLive_(c, now), locked: c.kind === 'Items' && level < c.level, state: c.state, mine: mine,
-    goal: c.kind === 'Walk goal' ? walkGoal_(c, account.id) : null };
+function challengeView_(c, account, items, now, skills) {
+  var sk = skills[c.skill];
+  return { id: c.id, name: c.name, says: c.says, why: c.why, kind: c.kind, milesGoal: c.milesGoal, segGoal: c.segGoal, xpPer: c.xpPer, mult: c.mult,
+    skill: c.skill, skillName: sk ? sk.name : c.skill, goal: c.goal, xpOne: c.xpOne, from: c.from, to: c.to, live: challengeLive_(c, now), state: c.state,
+    progress: c.kind === 'Walk goal' ? walkGoal_(c, account.id) : skillGoal_(c, account.id, items) };
 }
 
-// Your Challenges: each one open now, and any you've sent something to.
+// Your Challenges: each one open now, and any you've earned XP from.
 function challengesLoad_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
   return challengesFor_(account);
 }
 function challengesFor_(account) {
-  var now = Date.now(), items = challengeItemsAll_(), level = levelOf_(xpOf_(account.id), levelRanges_());
-  // A declined item's note, which the player sees.
-  var why = {};
-  reviewRows_().forEach(function (m) { if (/^CI\d+$/.test(m.segment) && m.move === REVIEW_DECIDE.decline) why[m.segment] = m.note; });
-  var list = challengesAll_().filter(function (c) {
-    return challengeLive_(c, now) || items.some(function (x) { return x.challenge === c.id && x.account === account.id; });
-  }).map(function (c) { return challengeView_(c, account, level, items, now, why); });
-  return { challenges: list, level: level, canBuild: !!account.rank && rankAtLeast_(account.rank, 'Builder') };
-}
-
-// An item sent for a Challenge: its place, its photo, its note.
-function challengeSend_(req) {
-  ensureSchema_();
-  var account = requireAccount_(req.token);
-  var c = challengesAll_().filter(function (x) { return x.id === clean_(req.challengeId, 20); })[0];
-  if (!c) throw new Error('That Challenge isn\'t here any more.');
-  if (c.kind !== 'Items') throw new Error(c.name + ' is counted from your walks: there\'s nothing to send.');
-  if (!challengeLive_(c, Date.now())) throw new Error(c.name + ' isn\'t open now.');
-  var level = levelOf_(xpOf_(account.id), levelRanges_());
-  if (level < c.level) throw new Error(c.name + ' unlocks at Level ' + c.level + '. You\'re at Level ' + level + '.');
-  var lat = req.lat == null || req.lat === '' ? null : Number(req.lat), lon = req.lon == null || req.lon === '' ? null : Number(req.lon);
-  var acc = req.acc == null || req.acc === '' ? null : Number(req.acc), note = clean_(req.note, 1000), photo = String(req.photo || '');
-  if (c.actions.indexOf('Place') !== -1 && !(isFinite(lat) && isFinite(lon) && lat !== null && Math.abs(lat) <= 90 && Math.abs(lon) <= 180)) throw new Error('Add its place: press Use my location.');
-  if (c.actions.indexOf('Photo') !== -1 && !photo) throw new Error('Add its photo.');
-  if (c.actions.indexOf('Note') !== -1 && c.actions.length === 1 && !note) throw new Error('Write its note.');
-  if (photo && (photo.length > CHALLENGE_PHOTO_MAX || !/^data:image\/(jpeg|png);base64,[A-Za-z0-9+/=]+$/.test(photo))) throw new Error('That photo can\'t be sent. Take it again.');
-  var fileId = '';
-  if (photo) {
-    var type = /^data:image\/png/.test(photo) ? 'image/png' : 'image/jpeg';
-    var blob = Utilities.newBlob(Utilities.base64Decode(photo.split(',')[1]), type, c.name + ' ' + (account.handle || account.id) + ' ' + Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HHmm') + (type === 'image/png' ? '.png' : '.jpg'));
-    fileId = challengePhotosFolder_().createFile(blob).getId();
-  }
-  var near = c.actions.indexOf('Place') !== -1 ? nearSegment_(lat, lon, c.near) : '';
-  return withLock_(function () {
-    var sheet = getDb_().getSheetByName(TABS.challengeItems.name);
-    var ids = challengeItemsAll_().map(function (x) { return x.id; });
-    var row = blankRow_(TABS.challengeItems);
-    row[ITEM_COL.id - 1] = nextId_('CI', ids); row[ITEM_COL.challenge - 1] = c.id; row[ITEM_COL.account - 1] = account.id; row[ITEM_COL.sent - 1] = new Date();
-    row[ITEM_COL.lat - 1] = lat == null ? '' : round_(lat, 6); row[ITEM_COL.lon - 1] = lon == null ? '' : round_(lon, 6); row[ITEM_COL.acc - 1] = acc == null || !isFinite(acc) ? '' : Math.round(acc);
-    row[ITEM_COL.photo - 1] = fileId; row[ITEM_COL.note - 1] = safeCell_(note); row[ITEM_COL.state - 1] = 'Waiting'; row[ITEM_COL.near - 1] = near; row[ITEM_COL.xp - 1] = '';
-    sheet.getRange(lastRowWith_(sheet, ITEM_COL.id) + 1, 1, 1, row.length).setValues([row]);
-    return challengesFor_(account);
-  });
+  var now = Date.now(), items = challengeItemsAll_(), skills = {};
+  toolSkillsAll_().forEach(function (s) { skills[s.id] = s; });
+  var list = challengesAll_().map(function (c) { return challengeView_(c, account, items, now, skills); })
+    .filter(function (v) { return v.live || v.progress.xp > 0; });
+  return { challenges: list, canBuild: !!account.rank && rankAtLeast_(account.rank, 'Builder') };
 }
 
 // Where the photos go: a folder beside the litter Sheet, made the first time.
@@ -206,14 +171,14 @@ function challengesAdmin_(req) {
   return challengesAdminView_(account);
 }
 function challengesAdminView_(account) {
-  var items = challengeItemsAll_();
   return { challenges: challengesAll_().map(function (c) {
     var out = {};
     Object.keys(c).forEach(function (k) { if (k !== 'row') out[k] = c[k]; });
-    out.sent = items.filter(function (x) { return x.challenge === c.id; }).length;
-    out.waiting = items.filter(function (x) { return x.challenge === c.id && x.state === 'Waiting'; }).length;
+    var sk = toolSkillsAll_().filter(function (x) { return x.id === c.skill; })[0];
+    out.skillName = sk ? sk.name : c.skill;
     return out;
-  }), canBuild: rankAtLeast_(account.rank, 'Builder'), kinds: CHALLENGE_KINDS, actions: CHALLENGE_ACTIONS };
+  }), canBuild: rankAtLeast_(account.rank, 'Builder'), kinds: CHALLENGE_KINDS,
+    skills: toolSkillsAll_().filter(function (s) { return s.state === 'Open'; }).map(function (s) { return { id: s.id, name: s.name }; }) };
 }
 
 // A Challenge made or changed, by a Builder or above.
@@ -224,15 +189,15 @@ function challengeSave_(req) {
   var x = req.challenge || {};
   var name = clean_(x.name, 80), says = clean_(x.says, 1000), why = clean_(x.why, 1000), kind = CHALLENGE_KINDS.indexOf(x.kind) !== -1 ? x.kind : '';
   if (!name) throw new Error('Give it a name.');
-  if (!kind) throw new Error('Choose what kind it is: Items or Walk goal.');
+  if (!kind) throw new Error('Choose what kind it is: Walk goal or Skill goal.');
   if (!says) throw new Error('Say what the screen says: what to do.');
   var num = function (k, label, max, whole) {
     var v = x[k] === '' || x[k] == null ? 0 : Number(x[k]);
     if (!isFinite(v) || v < 0 || v > max || (whole && Math.floor(v) !== v)) throw new Error(label + ' is ' + (whole ? 'a whole number ' : '') + 'from 0 to ' + max + '.');
     return v;
   };
-  var actions = (Array.isArray(x.actions) ? x.actions : []).filter(function (a) { return CHALLENGE_ACTIONS.indexOf(a) !== -1; });
-  if (kind === 'Items' && !actions.length) throw new Error('Choose what the player sends: a place, a photo, a note, or more than one.');
+  var skill = kind === 'Skill goal' ? toolSkillsAll_().filter(function (s) { return s.id === clean_(x.skill, 20) && s.state === 'Open'; })[0] : null;
+  if (kind === 'Skill goal' && !skill) throw new Error('Choose the skill it\'s built from.');
   var day = function (k, label) {
     var v = String(x[k] || '').trim();
     if (!v) return '';
@@ -241,15 +206,15 @@ function challengeSave_(req) {
   };
   var from = day('from', 'From'), to = day('to', 'To');
   if (from && to && to.getTime() < from.getTime()) throw new Error('To comes after From.');
+  var walk = kind === 'Walk goal';
   var fields = {
-    name: name, says: says, why: why, kind: kind, actions: kind === 'Items' ? actions.join(', ') : '',
-    near: kind === 'Items' ? num('near', 'Near a segment (metres)', 500, false) : '', xpEach: kind === 'Items' ? num('xpEach', 'XP each', 100, false) : '',
-    xpNear: kind === 'Items' ? num('xpNear', 'XP near a segment', 100, false) : '', milesGoal: kind === 'Walk goal' ? num('milesGoal', 'Miles goal', 1000, false) : '',
-    segGoal: kind === 'Walk goal' ? num('segGoal', 'Different segments', 100, true) : '', xpPer: kind === 'Walk goal' ? num('xpPer', 'XP per 0.01 mi', 100, false) : '',
-    mult: kind === 'Walk goal' ? (num('mult', 'Finishing multiplier', 10, false) || 1) : '', from: from, to: to,
-    level: kind === 'Items' ? num('level', 'Opens at level', SKILL_LEVEL_MAX, true) : ''
+    name: name, says: says, why: why, kind: kind, milesGoal: walk ? num('milesGoal', 'Miles goal', 1000, false) : '',
+    segGoal: walk ? num('segGoal', 'Different segments', 100, true) : '', xpPer: walk ? num('xpPer', 'XP per 0.01 mi', 100, false) : '',
+    skill: walk ? '' : skill.id, goal: walk ? '' : num('goal', 'The goal', 10000, true), xpOne: walk ? '' : num('xpOne', 'XP for each one', 100, false),
+    mult: num('mult', 'Finishing multiplier', 10, false) || 1, from: from, to: to
   };
-  if (kind === 'Walk goal' && !(fields.milesGoal > 0)) throw new Error('Say the miles goal.');
+  if (walk && !(fields.milesGoal > 0)) throw new Error('Say the miles goal.');
+  if (!walk && !(fields.goal > 0)) throw new Error('Say the goal: how many approved.');
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.challenges.name), all = challengesAll_();
     var id = clean_(x.id, 20), had = id ? all.filter(function (c) { return c.id === id; })[0] : null;
@@ -257,7 +222,7 @@ function challengeSave_(req) {
     var row = had ? sheet.getRange(had.row, 1, 1, TABS.challenges.header.length).getValues()[0] : blankRow_(TABS.challenges);
     Object.keys(fields).forEach(function (k) { row[CHALLENGE_COL[k] - 1] = typeof fields[k] === 'string' ? safeCell_(fields[k]) : fields[k]; });
     if (!had) {
-      row[CHALLENGE_COL.id - 1] = nextId_('CH', all.map(function (c) { return c.id; }));
+      row[CHALLENGE_COL.id - 1] = nextId_('CH', readRows_(TABS.challenges, CHALLENGE_COL).map(function (r) { return r.get('id'); }));   // moved rows keep their ids
       row[CHALLENGE_COL.state - 1] = 'Open'; row[CHALLENGE_COL.by - 1] = account.handle || account.email; row[CHALLENGE_COL.made - 1] = new Date();
     }
     var at = had ? had.row : lastRowWith_(sheet, CHALLENGE_COL.id) + 1;
@@ -286,9 +251,9 @@ function challengeRetire_(req) {
 
 function challengeReviewItems_(handles, rows, now) {
   var byId = {};
-  challengesAll_().forEach(function (c) { byId[c.id] = c; });
+  toolSkillsAll_().forEach(function (s) { byId[s.id] = s; });
   return challengeItemsAll_().map(function (x) {
-    var c = byId[x.challenge] || { name: x.challenge, xpEach: 0, xpNear: 0 };
+    var c = byId[x.skill] || { id: x.skill, name: x.skill, xpEach: 0, xpNear: 0 };
     var moves = rows.filter(function (m) { return m.segment === x.id; });
     var decided = moves.filter(function (m) { return m.move === REVIEW_DECIDE.approve || m.move === REVIEW_DECIDE.decline; }).pop();
     var rec = moves.filter(function (m) { return m.move === REVIEW_RECOMMEND.Approve || m.move === REVIEW_RECOMMEND.Decline; }).pop();
@@ -300,13 +265,13 @@ function challengeReviewItems_(handles, rows, now) {
   }).filter(function (r) { return r.open || (r.decidedAt && now - r.decidedAt <= REVIEW_SHOWN_DAYS * DAY_MS); });
 }
 
-// A move on an item: its XP is the Challenge's, not typed in.
+// A move on an item: its XP is its skill's, not typed in.
 function challengeItemMove_(account, id, kind, move, note) {
   return withLock_(function () {
     var x = challengeItemsAll_().filter(function (i) { return i.id === id; })[0];
     if (!x) throw new Error('That item isn\'t here any more.');
     if (x.state !== 'Waiting') throw new Error('That item was ' + x.state.toLowerCase() + ' already. Reload the screen.');
-    var c = challengesAll_().filter(function (i) { return i.id === x.challenge; })[0] || { xpEach: 0, xpNear: 0 };
+    var c = toolSkillsAll_().filter(function (i) { return i.id === x.skill; })[0] || { xpEach: 0, xpNear: 0 };
     var xp = itemXp_(c, x);
     var sheet = getDb_().getSheetByName(TABS.reviews.name);
     var row = blankRow_(TABS.reviews);
@@ -323,20 +288,10 @@ function challengeItemMove_(account, id, kind, move, note) {
   });
 }
 
-/* ── Seeded once: trash receptacles (|Q655, |M669) ── */
+/* ── Once: Trash receptacles was seeded here as a Challenge; it's a skill
+   now, moved or seeded by toolSkillsOnce_ (ToolSkills.js) ── */
 
 function challengesOnce_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('CHALLENGES_SEEDED')) return;
-  var sheet = getDb_().getSheetByName(TABS.challenges.name);
-  if (lastRowWith_(sheet, CHALLENGE_COL.id) < 2) {
-    var row = blankRow_(TABS.challenges);
-    var put = { id: 'CH001', name: 'Trash receptacles', kind: 'Items', actions: 'Place, Photo, Note',
-      says: 'Find a public trash can or bin. Stand beside it, press Use my location, take its photo, and send it. An admin checks each one.',
-      why: 'Where the bins are tells HABO where litter has somewhere to go, and where it doesn\'t.',
-      near: 20, xpEach: 1, xpNear: 2, level: 1, state: 'Open', by: 'HABO', made: new Date() };
-    Object.keys(put).forEach(function (k) { row[CHALLENGE_COL[k] - 1] = put[k]; });
-    sheet.getRange(2, 1, 1, row.length).setValues([row]);
-  }
-  props.setProperty('CHALLENGES_SEEDED', new Date().toISOString());
+  if (!props.getProperty('CHALLENGES_SEEDED')) props.setProperty('CHALLENGES_SEEDED', new Date().toISOString());
 }
