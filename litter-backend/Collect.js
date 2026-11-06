@@ -692,7 +692,7 @@ function collectSettings_() {
     breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(),
     levels: levelRanges_(),
     // Litter Class Skills (S5-P29): each with the level it opens at.
-    skills: classSkills_(),
+    skills: classSkills_().concat(challengeSkills_()),   // and each Items Challenge that opens at a level (S6-P8)
     // Fields as areas (S5-P13 part 2): how far a track scans, and the share that collects a field.
     reach: minutesSetting_(SETTING_REACH, 15), fieldCover: Math.min(100, minutesSetting_(SETTING_FIELD_COVER, 70)),
     sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };

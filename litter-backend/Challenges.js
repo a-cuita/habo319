@@ -94,6 +94,15 @@ function challengeXp_(accountId) {
 // What an approved item earns, by its Challenge's fields.
 function itemXp_(c, item) { return item.near && c.xpNear ? c.xpNear : c.xpEach; }
 
+// Each open Items Challenge that opens at a level, as a Litter Class Skill
+// (|Q655): listed with the others, and named on the level-up screen.
+function challengeSkills_() {
+  var now = Date.now();
+  return challengesAll_().filter(function (c) { return c.kind === 'Items' && c.level > 0 && challengeLive_(c, now); }).map(function (c) {
+    return { key: 'challenge:' + c.id, name: c.name + ' (a Challenge)', say: c.says, level: c.level };
+  });
+}
+
 /* ── The player's side ── */
 
 function challengeView_(c, account, level, items, now, why) {
