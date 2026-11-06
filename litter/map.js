@@ -939,6 +939,8 @@ window.LitterMap = function (app) {
       more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
       partialLines(g).forEach(function (t) { more.appendChild(el('p', 'lt-plan-seg', t)); });
+      // How the rate is worked out, in the Wiki (S6-P9, |Q665 (a)).
+      if (app.wikiLink) more.appendChild(app.wikiLink('rate'));
       box.appendChild(more);
       info.addEventListener('click', function (e) { e.stopPropagation(); more.hidden = !more.hidden; info.setAttribute('aria-expanded', String(!more.hidden)); });
       // Its small map, tapped to open larger (S5-P11, |C691), in place of See it on the map.

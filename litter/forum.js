@@ -324,5 +324,5 @@ window.LitterForum = function (app) {
   $('v-report').addEventListener('submit', sendReport);
   $('rp-cancel').addEventListener('click', function () { if (app.back) app.back(); });
 
-  return { open: open, sync: sync, openReview: openReview, signedOut: function () { told = false; } };
+  return { open: open, sync: sync, openReview: openReview, openTopic: openTopic, signedOut: function () { told = false; } };
 };

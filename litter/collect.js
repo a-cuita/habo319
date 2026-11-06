@@ -298,6 +298,7 @@ window.LitterCollect = function (app) {
     $('cl-sim-say').textContent = say;
     $('cl-sim-info').title = say;
     $('cl-sim-say').hidden = true;
+    $('cl-sim-wiki').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
     $('cl-sim').checked = adminAllowed() && load(SIM_KEY) === true;
     if (app.syncWorkshop) app.syncWorkshop();
@@ -2723,6 +2724,7 @@ window.LitterCollect = function (app) {
   $('cl-sim-info').addEventListener('click', function () {
     var open = $('cl-sim-say').hidden;
     $('cl-sim-say').hidden = !open;
+    $('cl-sim-wiki').hidden = !open;
     this.setAttribute('aria-expanded', String(open));
   });
   $('sf-cells').addEventListener('click', editCells);

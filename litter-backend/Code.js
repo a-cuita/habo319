@@ -198,6 +198,13 @@ var TABS = {
   },
   // Ground off a plan a player asked to add to a public segment (S5-U17,
   // |M711): reviewed like a segment submitted to be public.
+  // The Wiki (S6-P9): its live pages, and admins' drafts waiting on the Forum.
+  wiki: {
+    name: 'Wiki',
+    header: ['Page ID', 'Title', 'Text', 'State', 'Edit of', 'By', 'Drafted', 'Forum topic', 'Live since'],
+    widths: [70, 220, 520, 80, 70, 100, 150, 80, 150],
+    formats: { 3: '@', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
+  },
   // Challenges (S6-P8): what admins build, and what players send for them.
   challenges: {
     name: 'Challenges',
@@ -290,7 +297,10 @@ function actions_() {
     challengePhoto: challengePhoto_,
     challengesAdmin: challengesAdmin_,
     challengeSave: challengeSave_,
-    challengeRetire: challengeRetire_
+    challengeRetire: challengeRetire_,
+    // The Wiki (S6-P9).
+    wikiLoad: wikiLoad_,
+    wikiDraft: wikiDraft_
   };
 }
 
@@ -438,7 +448,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -479,6 +489,7 @@ function ensureSchema_(force) {
     ratesRuleOnce_();
     fieldsAreaOnce_();
     challengesOnce_();
+    wikiOnce_();
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);

@@ -74,7 +74,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-wiki-page', 'v-wiki-draft', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -640,7 +640,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -684,6 +684,21 @@
     back: function () { showAccount(state.account); }
   });
 
+  /* ── The Wiki (S6-P9, wiki.js) ── */
+
+  var wiki = window.LitterWiki({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); },
+    openTopic: function (id) { forum.openTopic(id); },
+    // Where a ℹ️'s link was pressed: ← on its Wiki page comes back to that screen, where it was.
+    here: function () {
+      var v = VIEWS.filter(function (x) { return !$(x).hidden; })[0], y = window.scrollY;
+      return v ? function () { show(v); window.scrollTo(0, y); } : null;
+    }
+  });
+
   /* ── The admins' forum, and players' reports (S5-P28, forum.js) ── */
 
   var forum = window.LitterForum({
@@ -704,6 +719,7 @@
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
     openSummary: function (id, button) { collect.openPast(id, button); },
     levelNow: function () { return collect.levelNow(); },
+    wikiLink: function (which) { return wiki.link(which); },
     planLabel: planLabel,
     pickedPlanCells: function () { return collect.pickedCells(); },
     onPlans: function (d) { collect.onPlans(d); },
@@ -715,6 +731,10 @@
   });
 
   /* ── Wiring ── */
+
+  // The map's ℹ️ and Admin Mode's, each with a link to its Wiki page (S6-P9, |Q665 (a)).
+  $('mp-info-say').appendChild(wiki.link('map'));
+  $('cl-sim-wiki').appendChild(wiki.link('admin'));
 
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
