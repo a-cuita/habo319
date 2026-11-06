@@ -424,7 +424,7 @@ window.LitterMap = function (app) {
       sh.addEventListener('click', function () {
         var me = app.me && app.me();
         sh.disabled = true;
-        window.LitterShare.walkPicture({ started: c.started, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
+        window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
           handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
           .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
             function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
