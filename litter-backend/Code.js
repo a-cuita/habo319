@@ -198,6 +198,20 @@ var TABS = {
   },
   // Ground off a plan a player asked to add to a public segment (S5-U17,
   // |M711): reviewed like a segment submitted to be public.
+  // Challenges (S6-P8): what admins build, and what players send for them.
+  challenges: {
+    name: 'Challenges',
+    header: ['Challenge ID', 'Name', 'Says', 'Why', 'Kind', 'Actions', 'Near a segment (m)', 'XP each', 'XP near a segment', 'Miles goal', 'Different segments',
+      'XP per 0.01 mi', 'Finishing multiplier', 'From', 'To', 'Opens at level', 'State', 'Made by', 'Made'],
+    widths: [90, 160, 320, 260, 80, 140, 80, 60, 80, 70, 80, 70, 80, 100, 100, 70, 70, 100, 150],
+    formats: { 3: '@', 4: '@', 14: 'yyyy-mm-dd', 15: 'yyyy-mm-dd', 19: 'yyyy-mm-dd h:mm' }
+  },
+  challengeItems: {
+    name: 'Challenge items',
+    header: ['Item ID', 'Challenge ID', 'Account ID', 'Sent', 'Latitude', 'Longitude', 'Accuracy (m)', 'Photo', 'Note', 'State', 'Near segment', 'XP'],
+    widths: [80, 90, 90, 150, 90, 90, 80, 260, 300, 80, 90, 50],
+    formats: { 4: 'yyyy-mm-dd h:mm', 8: '@', 9: '@' }
+  },
   additions: {
     name: 'Segment additions',
     header: ['Addition ID', 'Segment ID', 'Asked by', 'Asked', 'Squares', 'Miles', 'Note', 'State'],
@@ -269,7 +283,14 @@ function actions_() {
     forumReview: forumReview_,
     forumUnread: forumUnread_,
     forumDigestSave: forumDigestSave_,
-    reportSend: reportSend_
+    reportSend: reportSend_,
+    // Challenges (S6-P8).
+    challengesLoad: challengesLoad_,
+    challengeSend: challengeSend_,
+    challengePhoto: challengePhoto_,
+    challengesAdmin: challengesAdmin_,
+    challengeSave: challengeSave_,
+    challengeRetire: challengeRetire_
   };
 }
 
@@ -417,7 +438,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -457,6 +478,7 @@ function ensureSchema_(force) {
     classSkillsOnce_();
     ratesRuleOnce_();
     fieldsAreaOnce_();
+    challengesOnce_();
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
@@ -634,6 +656,7 @@ function missingSettings_(ss) {
     [SETTING_EMAILS_FROM, DEFAULT_EMAILS_FROM],
     [SETTING_CHECKIN_SHEET, DEFAULT_CHECKIN_SHEET],
     [SETTING_SIGNATURES_FOLDER, ''],
+    [SETTING_CHALLENGE_PHOTOS, ''],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_DIGEST_HOUR, '7'],
     [SETTING_SUNSET_WARN, '60'],

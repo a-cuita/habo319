@@ -234,6 +234,7 @@ function settingNotes_() {
    [SETTING_EMAILS_FROM, 'The address the sign-up codes and the signed waivers are emailed from.'],
    [SETTING_CHECKIN_SHEET, 'The volunteer check-in\'s Sheet: a new account is matched to its volunteer there by email, and a collection to the event it was during.'],
    [SETTING_SIGNATURES_FOLDER, 'The Drive folder each signed waiver is saved to. Blank: one is made the first time.'],
+   [SETTING_CHALLENGE_PHOTOS, 'The Drive folder each photo sent for a Challenge is saved to (S6-P8). Blank: one is made the first time.'],
    [SETTING_PUBLIC_URL, 'The litter page\'s public address, for HABO\'s records. Nothing in the app reads it today.']
   ].forEach(function (x) { out[x[0]] = x[1] + sheetOnly; });
   settingGroups_().forEach(function (g) {

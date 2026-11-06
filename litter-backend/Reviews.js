@@ -133,6 +133,8 @@ function reviewsView_(account) {
       decidedAt: decided ? decided.time : 0, open: open, moves: moves.map(function (x) { return { time: x.time, by: x.by, rank: x.rank, move: x.move, xp: x.xp, note: x.note }; }) };
     if (open || (item.decidedAt && now - item.decidedAt <= REVIEW_SHOWN_DAYS * DAY_MS)) list.push(item);
   });
+  // Each item sent for a Challenge (S6-P8).
+  challengeReviewItems_(handles, rows, now).forEach(function (x) { list.push(x); });
   list.sort(function (a, b) { return (b.open - a.open) || (a.open ? a.proposed - b.proposed : b.decidedAt - a.decidedAt); });
   return { reviews: list, rank: account.rank, maxXp: reviewMaxXp_(), canDecide: rankAtLeast_(account.rank, 'Builder') };
 }
@@ -147,16 +149,19 @@ function reviewMove_(req) {
   var xp = req.xp === '' || req.xp == null ? null : Number(req.xp);
   if (xp != null && (!isFinite(xp) || xp < 0 || xp > max)) throw new Error('The XP is from 0 to ' + max + '.');
   var move;
+  // An item sent for a Challenge earns the Challenge's XP, not a typed one (S6-P8).
+  var item = /^CI\d+$/.test(String(req.segmentId || ''));
   if (kind === 'recommend') {
     move = REVIEW_RECOMMEND[String(req.recommend || '')];
     if (!move) throw new Error('Recommend Approve or Decline.');
-    if (move === REVIEW_RECOMMEND.Approve && xp == null) throw new Error('Say the XP it should earn, from 0 to ' + max + '.');
+    if (move === REVIEW_RECOMMEND.Approve && xp == null && !item) throw new Error('Say the XP it should earn, from 0 to ' + max + '.');
   } else if (kind === 'approve' || kind === 'decline') {
     if (!rankAtLeast_(account.rank, 'Builder')) throw new Error('A Builder or above approves or declines; an Apprentice recommends.');
     move = REVIEW_DECIDE[kind];
-    if (kind === 'approve' && xp == null) throw new Error('Say the XP it earns, from 0 to ' + max + '.');
+    if (kind === 'approve' && xp == null && !item) throw new Error('Say the XP it earns, from 0 to ' + max + '.');
     if (kind === 'decline' && !note) throw new Error('Say why in the note: the player sees it.');
   } else throw new Error('That isn\'t a move on a review.');
+  if (item) return challengeItemMove_(account, String(req.segmentId), kind, move, note);
   if (/^AD\d+$/.test(String(req.segmentId || ''))) return additionMove_(account, String(req.segmentId), kind, move, xp, note);
   return withLock_(function () {
     var g = segmentsAll_().filter(function (x) { return x.id === clean_(req.segmentId, 20); })[0];
