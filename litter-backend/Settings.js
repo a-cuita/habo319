@@ -30,6 +30,8 @@ function settingGroups_() {
     [SETTING_RATING_XP_3, 'XP for a visual rating within 3', 'Within 3 of the Litter Index.', 'number', 'XP', 0, 100],
     [SETTING_RATING_BONUS, 'Rating XP bonus', 'A close rating also earns the Litter Index divided by this.', 'number', '', 1, 100],
     [SETTING_TYPES_XP, 'XP for a stretch\'s litter types', 'A weighing with its litter types filled in earns this.', 'number', 'XP', 0, 100],
+    [SETTING_TIME_PEAK, 'Time bonus a day after', 'Collecting a segment again a day after its clock started multiplies the walk\'s rating and litter-type XP by this; it comes down evenly to none by the day below.', 'number', '×', 1, 10],
+    [SETTING_TIME_ENDS, 'Time bonus gone after', 'From a day, the time bonus comes down evenly to none by this many days.', 'number', 'days', 1, 60],
     [SETTING_QUEST_STEP_XP, 'XP for each first quest step', 'Each of the first quest\'s six steps earns this.', 'number', 'XP', 0, 100],
     [SETTING_QUEST_DONE_XP, 'XP for finishing the first quest', 'Finishing all six earns this more.', 'number', 'XP', 0, 100],
     [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100],

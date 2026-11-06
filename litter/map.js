@@ -319,6 +319,7 @@ window.LitterMap = function (app) {
   function showMine() {
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
+      timeBonus = d.timeBonus || timeBonus;
       colours = d.colours || colours;
       dark = d.dark || dark;
       drawMine();
@@ -860,9 +861,18 @@ window.LitterMap = function (app) {
     return '';
   }
   function leftWords(g) { return g.left < 1 ? 'less than a day left' : round(g.left, 1) + ' days left'; }
+  // The time bonus if it's collected now (S6-P3 item 5, |Q679): from a day
+  // after its clock started, the most, coming down to none by its last day.
+  var timeBonus = null;
+  function timeMult(g) {
+    var t = timeBonus, d = g.days;
+    if (!t || d == null || !(d >= 1) || !(t.ends > 1) || d >= t.ends) return 1;
+    return Math.round((t.peak - (t.peak - 1) * (d - 1) / (t.ends - 1)) * 100) / 100;
+  }
   function needLine(g, need) {
+    var m = need === 'due' ? timeMult(g) : 1;
     return need === 'finish' ? 'Finish it · ' + g.finish + '% cleaned · ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' h left'
-      : need === 'due' ? 'Due · ' + leftWords(g)
+      : need === 'due' ? 'Due · ' + leftWords(g) + (m > 1 ? ' · ×' + m + ' XP now' : '')
       : need === 'reset' ? 'Rate Reset · collect to restart'
       : need === 'never' ? 'Not cleaned yet' : '';
   }

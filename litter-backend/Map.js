@@ -114,7 +114,7 @@ function myCollections_(req) {
     })
     .sort(function (a, b) { return b.started - a.started; });
   return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id) };
+    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id), timeBonus: timeBonus_() };
 }
 
 /* ── The colours ── */

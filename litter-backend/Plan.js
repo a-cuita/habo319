@@ -25,6 +25,9 @@ var SETTING_RATING_XP_2 = 'XP for a visual rating within 2';
 var SETTING_RATING_XP_3 = 'XP for a visual rating within 3';
 var SETTING_RATING_BONUS = 'Rating XP bonus: the Litter Index divided by';
 var SETTING_TYPES_XP = 'XP for a stretch\'s litter types';
+// The time bonus (S6-P3 item 5, |Q679; from |Q481, item 1 of |S5-P4).
+var SETTING_TIME_PEAK = 'Time bonus: XP multiplier a day after';
+var SETTING_TIME_ENDS = 'Time bonus: gone after (days)';
 var PLAN_REPLACED = 'Replaced';
 
 /* ── Called from the page ── */
@@ -226,9 +229,9 @@ function xpOf_(accountId) {
   var plan = cols.reduce(function (t, q) { return t + (Number(q.get('xp')) || 0); }, 0);
   var ended = {};
   cols.forEach(function (q) { if (q.get('status') === 'Ended') ended[q.get('id')] = true; });
-  var x = xpSettings_();
+  var x = xpSettings_(), mult = walkMults_();
   var stretches = readRows_(TABS.stretches).reduce(function (t, q) {
-    return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) : t;
+    return q.get('account') === accountId && ended[q.get('collection')] ? t + stretchXp_(stretchOf_(q), x) * (mult[q.get('collection')] || 1) : t;
   }, 0);
   var me = readAccounts_().filter(function (a) { return a.id === accountId; })[0];
   return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId) + challengeXp_(accountId), 2);   // and Challenges' (S6-P8)
@@ -239,7 +242,7 @@ function xpOf_(accountId) {
 // track is saved, and its weighings' only once it's Ended. `xp`: the
 // player's whole XP, for the page to see what's new.
 function walkXp_(collectionId, accountId) {
-  var out = { plan: 0, ratings: 0, types: 0, total: 0, counts: false, xp: xpOf_(accountId) };
+  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId) };
   var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === collectionId; })[0];
   if (!q || !String(q.get('track')).trim() || q.get('simulated') === 'Yes') return out;
   out.counts = true;
@@ -253,8 +256,31 @@ function walkXp_(collectionId, accountId) {
       out.ratings += all - types;
       out.types += types;
     });
+    // The time bonus on its ratings and litter types (S6-P3 item 5).
+    out.mult = walkMults_()[collectionId] || 1;
+    out.bonus = round_((out.ratings + out.types) * (out.mult - 1), 2);
   }
-  out.total = round_(out.plan + out.ratings + out.types, 2);
+  out.total = round_(out.plan + out.ratings + out.types + out.bonus, 2);
+  return out;
+}
+
+// The time bonus: collecting a segment again a day after its clock started
+// multiplies the walk's rating and litter-type XP by the most (×2 to start),
+// coming down evenly to none (×1) by its last day (4 to start). Under a day,
+// none: those walks give no rate, and aren't to be encouraged (|Q481).
+function timeBonus_() { return { peak: Math.max(1, minutesSetting_(SETTING_TIME_PEAK, 2)), ends: minutesSetting_(SETTING_TIME_ENDS, 4) }; }
+function timeMult_(days, t) {
+  if (days == null || !(days >= 1) || !(t.ends > 1) || days >= t.ends) return 1;
+  return round_(t.peak - (t.peak - 1) * (days - 1) / (t.ends - 1), 2);
+}
+// Each walk's multiplier: the highest from the rates it gave.
+function walkMults_() {
+  var t = timeBonus_(), out = {};
+  ratesAll_().forEach(function (r) {
+    if (r.notCounted || r.simulated) return;
+    var m = timeMult_(r.days, t);
+    if (!out[r.collection] || m > out[r.collection]) out[r.collection] = m;
+  });
   return out;
 }
 

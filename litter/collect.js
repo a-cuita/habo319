@@ -514,6 +514,8 @@ window.LitterCollect = function (app) {
     lines.textContent = '';
     if (!w.counts) { total.textContent = 'XP comes once your GPX track is saved.'; return; }
     var parts = [['Planning it', w.plan], ['Your ratings', w.ratings], ['Litter types', w.types]];
+    // The time bonus on its ratings and litter types (S6-P3 item 5).
+    if (w.mult > 1) parts.push(['Time bonus (×' + w.mult + ')', w.bonus]);
     var animate = shownWalkXp[col.id] !== w.total && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
     shownWalkXp[col.id] = w.total;
     var rows = parts.map(function (p) {

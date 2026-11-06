@@ -675,6 +675,8 @@ function missingSettings_(ss) {
     [SETTING_RATING_XP_3, '1'],
     [SETTING_RATING_BONUS, '5'],
     [SETTING_TYPES_XP, '1'],
+    [SETTING_TIME_PEAK, '2'],
+    [SETTING_TIME_ENDS, '4'],
     [SETTING_QUEST_STEP_XP, '1'],
     [SETTING_QUEST_DONE_XP, '5'],
     [SETTING_REVIEW_XP, '15'],
