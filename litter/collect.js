@@ -40,7 +40,8 @@ window.LitterCollect = function (app) {
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
   var WALK_KEY = 'habo-litter-walkplan';  // the walk's plan chosen on this phone: its segments' ids (S5-P9, S5-P12)
-  var SIM_KEY = 'habo-litter-sim';   // the Simulated walk switch, kept on this computer (S5-U2)
+  var SIM_KEY = 'habo-litter-sim';   // the Admin Mode switch, kept on this computer (S5-U2)
+  var SIM_SAY_HEAD = document.getElementById('cl-sim-say').textContent;   // a Head Builder's words for Admin Mode
   var lastTap = null;           // where the map was last clicked
   var SIM_SAY = 'A simulated walk: the line you drew stands in for your GPX track. It sets where you walked, and the miles.';
 
@@ -287,12 +288,16 @@ window.LitterCollect = function (app) {
     closeStartAsks();
     $('cl-hours').textContent = '';
     showPlanLine();
-    $('cl-sim-box').hidden = !simAllowed();
-    // Admin Mode, named with the account's rank (S5-P13, Q563).
+    // Admin Mode for every rank, each named with its own (S5-P28, |Q639 (a), |Q563):
+    // simulated walks and Measure again stay a Head Builder's.
+    $('cl-sim-box').hidden = !adminAllowed();
     $('cl-sim-name').textContent = 'Admin Mode: ' + ((app.me && app.me() && app.me().rank) || '');
+    var say = simAllowed() ? SIM_SAY_HEAD : 'While this is on, on this computer, the page turns dark, and Settings, Reviews and the Forum show here.';
+    $('cl-sim-say').textContent = say;
+    $('cl-sim-info').title = say;
     $('cl-sim-say').hidden = true;
     $('cl-sim-info').setAttribute('aria-expanded', 'false');
-    $('cl-sim').checked = simOn();
+    $('cl-sim').checked = adminAllowed() && load(SIM_KEY) === true;
     if (app.syncWorkshop) app.syncWorkshop();
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
@@ -824,6 +829,7 @@ window.LitterCollect = function (app) {
   // point, as you go (Q497, Q498). Each point is a check-in; the end of the
   // line is where you are. No GPS and no recorder.
   function simAllowed() { var a = app.me && app.me(); return !!a && a.rank === 'Head Builder'; }
+  function adminAllowed() { var a = app.me && app.me(); return !!a && !!a.rank; }
   function simOn() { return simAllowed() && load(SIM_KEY) === true; }
   function simDraws() { return !!(c && c.sim && !c.ended && !picking && !pulse && !$('v-collect').hidden); }
   function simEnd() {

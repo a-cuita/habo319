@@ -454,3 +454,7 @@ body.lt-has-back .lt-notices { top: 48px; }
 .lt-ft-history summary { font-weight: 800; cursor: pointer; }
 .lt-ft-move { margin: 4px 0; }
 .lt-review-forum { margin-top: 8px; }
+/* The Forum's email digest (S5-P28 round 2): asked first, then under the topics. */
+.lt-forum-ask { border: 2px solid var(--primary); }
+.lt-forum-cadence { display: flex; gap: 16px; flex-wrap: wrap; margin: 8px 0; font-weight: 700; }
+.lt-forum-cadence label { display: flex; gap: 6px; align-items: center; }

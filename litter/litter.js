@@ -90,8 +90,14 @@
     if (!state.account || state.account.rank !== 'Head Builder') return false;
     try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
   }
+  // Admin Mode's dark look, for every rank (S5-P28, |Q639 (a)); builderMode()
+  // above stays a Head Builder's, for simulated walks and Measure again.
+  function adminMode() {
+    if (!state.account || !state.account.rank) return false;
+    try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
+  }
   function paintMode() {
-    document.documentElement.classList.toggle('lt-builder', builderMode());
+    document.documentElement.classList.toggle('lt-builder', adminMode());
     if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();
   }
 

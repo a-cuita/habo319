@@ -49,6 +49,10 @@ window.LitterForum = function (app) {
     $('forum-note').textContent = (open === 1 ? '1 topic is' : open + ' topics are') + ' still open. ' +
       (list.canVote ? 'As a ' + list.rank + ', you vote on Decisions and move players\' reports.' : 'As an ' + list.rank + ', you read and reply; a Builder or above votes and moves reports.');
     if (!shown.length) box.appendChild(el('p', 'card muted small', list.topics.length ? 'None to show: change what\'s shown above.' : 'No topics yet. Start one above.'));
+    // The email digest (|Q635 (a)): asked the first time you open the Forum,
+    // then changed here, under the topics (|Q638 (a)).
+    var dg = digestBox();
+    if (!list.digest || !list.digest.asked) box.appendChild(dg);
     shown.forEach(function (t) {
       var b = el('button', 'card lt-forum-row' + (t.unread || !t.seen ? ' lt-forum-new' : ''));
       b.type = 'button';
@@ -62,6 +66,44 @@ window.LitterForum = function (app) {
       b.addEventListener('click', function () { openTopic(t.id); });
       box.appendChild(b);
     });
+    if (list.digest && list.digest.asked) box.appendChild(dg);
+  }
+  function hourWords(h) { return h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : (h - 12) + ' PM'; }
+  function digestBox() {
+    var d = list.digest || { cadence: 'Off', asked: false, hour: 7 };
+    var c = el('section', 'card lt-forum-digest' + (d.asked ? '' : ' lt-forum-ask'));
+    c.id = 'forum-digest';
+    c.appendChild(el('h3', 'lt-ft-sub', d.asked ? 'Your email digest' : 'Email you new replies in the Forum?'));
+    c.appendChild(el('p', 'muted small', 'The new replies by others, in topics you haven\'t read since, grouped by topic with a link to each. Daily goes at ' + hourWords(d.hour) +
+      '; Weekly, on Monday at ' + hourWords(d.hour) + '. Nothing new, no email.'));
+    var row = el('div', 'lt-forum-cadence');
+    ['Off', 'Daily', 'Weekly'].forEach(function (k) {
+      var l = el('label');
+      var r = el('input');
+      r.type = 'radio'; r.name = 'forum-cadence'; r.value = k; r.checked = d.asked ? d.cadence === k : false;
+      l.appendChild(r); l.appendChild(document.createTextNode(' ' + k));
+      row.appendChild(l);
+    });
+    c.appendChild(row);
+    if (d.asked && d.result) c.appendChild(el('p', 'muted small', 'Last: ' + d.result));
+    var err = el('p', 'err');
+    err.id = 'forum-digest-err';
+    var save = el('button', 'btn btn-primary lt-forum-digest-save', 'Save');
+    save.type = 'button';
+    save.addEventListener('click', function () {
+      var pick = c.querySelector('input[name="forum-cadence"]:checked');
+      if (!pick) { err.textContent = 'Choose Off, Daily or Weekly.'; return; }
+      app.busy(save, err.id, function () {
+        return app.api('forumDigestSave', { token: app.myToken(), cadence: pick.value }).then(function (r) {
+          list.digest = r.digest;
+          drawList();
+          app.notice(pick.value === 'Off' ? 'Your Forum digest is off.' : 'Your Forum digest: ' + pick.value + ', at ' + hourWords(r.digest.hour) + (pick.value === 'Weekly' ? ' on Mondays.' : '.'));
+        });
+      });
+    });
+    c.appendChild(save);
+    c.appendChild(err);
+    return c;
   }
   function newForm(show) {
     $('forum-form').hidden = !show;
@@ -243,8 +285,19 @@ window.LitterForum = function (app) {
 
   /* ── In Admin Mode: the Forum button, and new replies as a notice (|Q620) ── */
 
+  // A topic from the digest's link (?forum=T001): opened once you're signed in.
+  var linked = (function () { try { return new URLSearchParams(location.search).get('forum') || ''; } catch (e) { return ''; } })();
+  function fromLink() {
+    var a = app.me && app.me();
+    if (!linked || !a || !a.rank) return;
+    var id = linked;
+    linked = '';
+    try { history.replaceState(null, '', location.pathname); } catch (e) { /* the link stays in the bar */ }
+    openTopic(id);
+  }
   function adminOn() { var a = app.me && app.me(); return !!(a && a.rank) && $('cl-sim').checked; }
   function sync() {
+    fromLink();
     $('me-go-forum').hidden = !adminOn();
     if (!adminOn() || told) return;
     told = true;

@@ -154,7 +154,8 @@ function forumView_(account) {
       closes: t.closes, replies: mine.length, unread: mine.filter(function (r) { return r.by !== account.id && r.written > read; }).length, seen: !!reads[t.id] };
   });
   list.sort(function (a, b) { return b.active - a.active; });
-  return { topics: list, rank: account.rank, canVote: rankAtLeast_(account.rank, 'Builder'), canMove: rankAtLeast_(account.rank, 'Builder'), states: FORUM_STATES };
+  return { topics: list, rank: account.rank, canVote: rankAtLeast_(account.rank, 'Builder'), canMove: rankAtLeast_(account.rank, 'Builder'), states: FORUM_STATES,
+    digest: digestView_(account.id) };
 }
 function handleOf_(a, id) { return a ? (a.handle || a.first) : id; }
 
@@ -365,4 +366,151 @@ function forumUnread_(req) {
   var topics = {};
   news.forEach(function (r) { topics[r.topic] = true; });
   return { replies: news.length, topics: Object.keys(topics).length };
+}
+
+/* ── The email digest (S5-P28 round 2, |Q634 to |Q638, all (a)) ──
+ * Each admin's digest is Off, Daily or Weekly, asked the first time they
+ * open the Forum, and changed there (no link in the email changes it, since
+ * mail scanners open links). It holds the new replies by others, in topics
+ * the admin hasn't read since, grouped by topic with a link to each. It goes
+ * at one hour of the day, set in Settings (Monday at that hour for Weekly),
+ * from an hourly trigger you add once in the Apps Script editor. Coalition
+ * Builder's advice (|M817): the cutoff moves only after a send that worked,
+ * or a check that found nothing new; a missed hour catches up later that day.
+ */
+var DIGEST_COL = { by: 1, cadence: 2, asked: 3, since: 4, sent: 5, result: 6 };
+var DIGEST_CADENCES = ['Off', 'Daily', 'Weekly'];
+var SETTING_DIGEST_HOUR = 'Forum digest hour';
+
+function digestRows_() {
+  return readRows_(TABS.forumDigest, DIGEST_COL).map(function (r) {
+    return { row: r.row, by: r.get('by'), cadence: DIGEST_CADENCES.indexOf(r.get('cadence')) >= 0 ? r.get('cadence') : 'Off', asked: ms_(r.get('asked')),
+      since: ms_(r.get('since')), sent: ms_(r.get('sent')), result: r.get('result') };
+  });
+}
+function digestOf_(accountId) { return digestRows_().filter(function (d) { return d.by === accountId; })[0] || null; }
+function digestView_(accountId) {
+  var d = digestOf_(accountId);
+  return { cadence: d ? d.cadence : 'Off', asked: !!(d && d.asked), hour: digestHour_(), result: d ? d.result : '' };
+}
+function digestHour_() {
+  var n = Number(getSetting_(SETTING_DIGEST_HOUR));
+  return getSetting_(SETTING_DIGEST_HOUR).trim() !== '' && n >= 0 && n <= 23 ? Math.floor(n) : 7;
+}
+function digestWrite_(d, fields) {
+  var sheet = getDb_().getSheetByName(TABS.forumDigest.name);
+  Object.keys(fields).forEach(function (k) { sheet.getRange(d.row, DIGEST_COL[k]).setValue(fields[k]); });
+}
+
+// An admin's choice, from the Forum: Off, Daily or Weekly.
+function forumDigestSave_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  requireAdmin_(account);
+  var cadence = String(req.cadence || '');
+  if (DIGEST_CADENCES.indexOf(cadence) === -1) throw new Error('Choose Off, Daily or Weekly.');
+  return withLock_(function () {
+    var d = digestOf_(account.id), now = new Date();
+    if (!d) {
+      var sheet = getDb_().getSheetByName(TABS.forumDigest.name);
+      // Last sent counts as now, so the first one goes at the next time it's due, not at once.
+      sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, 6).setValues([[account.id, cadence, now, now, now, '']]);
+    } else {
+      var fields = { cadence: cadence, asked: d.asked ? new Date(d.asked) : now };
+      // Changed: it goes at its next time, not at once. Turned on from Off:
+      // only replies from now on. Daily to Weekly keeps what's waiting.
+      if (d.cadence !== cadence) fields.sent = now;
+      if (d.cadence === 'Off' && cadence !== 'Off') fields.since = now;
+      digestWrite_(d, fields);
+    }
+    logChange_(account.email, 'Forum digest', account.id, 'Cadence', d ? d.cadence : '', cadence);
+    return { digest: digestView_(account.id) };
+  });
+}
+
+// When this admin's digest was last due: today at the hour (Daily), or this
+// week's Monday at the hour (Weekly). Null for Off.
+function digestDueAt_(cadence, now, hour) {
+  if (cadence !== 'Daily' && cadence !== 'Weekly') return null;
+  var tz = Session.getScriptTimeZone();
+  var day = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  if (cadence === 'Weekly') {
+    // Back to this week's Monday, by the calendar date alone.
+    var p = day.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    d = new Date(d.getTime() - ((d.getUTCDay() + 6) % 7) * DAY_MS);
+    day = d.getUTCFullYear() + '-' + ('0' + (d.getUTCMonth() + 1)).slice(-2) + '-' + ('0' + d.getUTCDate()).slice(-2);
+  }
+  return Utilities.parseDate(day + ' ' + ('0' + hour).slice(-2) + ':00', tz, 'yyyy-MM-dd HH:mm');
+}
+
+// What one admin's digest holds now: new replies by others, newer than both
+// the cutoff and when the admin last read each topic, grouped by topic,
+// the most recently active first.
+function digestItems_(account, since, topics, replies, people) {
+  var reads = forumReads_(account.id), byTopic = {};
+  replies.forEach(function (r) {
+    var read = reads[r.topic] ? reads[r.topic].read : 0;
+    if (r.by === account.id || r.written <= since || r.written <= read) return;
+    (byTopic[r.topic] = byTopic[r.topic] || []).push(r);
+  });
+  return Object.keys(byTopic).map(function (id) {
+    var t = topics.filter(function (x) { return x.id === id; })[0] || { id: id, title: id, kind: '' };
+    var list = byTopic[id].sort(function (a, b) { return a.written - b.written; });
+    return { id: id, title: t.title, kind: t.kind, last: list[list.length - 1].written,
+      replies: list.map(function (r) { var p = people[r.by]; return { by: p ? (p.handle || p.first) : r.by, written: r.written, text: r.text.length > 300 ? r.text.slice(0, 299) + '…' : r.text }; }) };
+  }).sort(function (a, b) { return b.last - a.last; });
+}
+
+function digestMail_(account, groups) {
+  var n = groups.reduce(function (t, g) { return t + g.replies.length; }, 0);
+  var url = String(getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL).trim();
+  var tz = Session.getScriptTimeZone();
+  var when = function (ms) { return Utilities.formatDate(new Date(ms), tz, 'MMM d, h:mm a'); };
+  var link = function (g) { return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'forum=' + encodeURIComponent(g.id); };
+  var subject = 'HABO Forum: ' + (n === 1 ? '1 new reply' : n + ' new replies') + ' in ' + (groups.length === 1 ? '1 topic' : groups.length + ' topics');
+  var foot = 'To change this email or turn it off, open the Forum in Admin Mode: Your email digest. Replying to this email doesn\'t post in the Forum.';
+  var plain = ['New replies in the HABO Forum, by others, in topics you haven\'t read since.', '']
+    .concat([].concat.apply([], groups.map(function (g) {
+      return [g.title + ' (' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')', link(g)]
+        .concat(g.replies.map(function (r) { return '  ' + r.by + ', ' + when(r.written) + ': ' + r.text; })).concat(['']);
+    }))).concat([foot]).join('\n');
+  var html = '<p>New replies in the HABO Forum, by others, in topics you haven\'t read since.</p>' + groups.map(function (g) {
+    return '<h3 style="margin:16px 0 4px"><a href="' + htmlEscape_(link(g)) + '">' + htmlEscape_(g.title) + '</a> <span style="color:#666;font-weight:normal">(' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')</span></h3>' +
+      g.replies.map(function (r) { return '<p style="margin:4px 0 8px"><b>' + htmlEscape_(r.by) + '</b>, ' + htmlEscape_(when(r.written)) + '<br>' + htmlEscape_(r.text).replace(/\n/g, '<br>') + '</p>'; }).join('');
+  }).join('') + '<p style="color:#666;font-size:13px;margin-top:20px">' + htmlEscape_(foot) + '</p>';
+  // sendMail_ answers { ok, why } rather than throwing: a failure keeps the cutoff.
+  var r = sendMail_(account.email, subject, plain, html);
+  if (!r.ok) throw new Error(r.why || 'the email didn\'t go');
+  return n;
+}
+
+// Each hour, from the trigger you add once in the Apps Script editor
+// (Triggers, Add Trigger, forumDigestTick, Time-driven, Hour timer, Every
+// hour): each admin whose digest is due gets it, or nothing if nothing's new.
+function forumDigestTick() {
+  ensureSchema_();
+  var now = new Date(), hour = digestHour_();
+  var due = digestRows_().filter(function (d) {
+    var at = digestDueAt_(d.cadence, now, hour);
+    return at && now.getTime() >= at.getTime() && d.sent < at.getTime();
+  });
+  if (!due.length) return 0;
+  var people = {};
+  readAccounts_().forEach(function (a) { people[a.id] = a; });
+  var topics = forumTopics_(), replies = forumReplies_(), sent = 0;
+  due.forEach(function (d) {
+    var account = people[d.by];
+    if (!account || !account.rank || !account.email) { digestWrite_(d, { sent: now, result: 'Not an admin now: nothing sent.' }); return; }
+    var groups = digestItems_(account, d.since, topics, replies, people);
+    if (!groups.length) { digestWrite_(d, { sent: now, since: now, result: 'Nothing new: no email.' }); return; }
+    try {
+      var n = digestMail_(account, groups);
+      digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + n + (n === 1 ? ' reply.' : ' replies.') });
+      sent++;
+    } catch (e) {
+      // The cutoff stays, so these replies go in the next digest.
+      digestWrite_(d, { result: 'Not sent: ' + String(e && e.message || e).slice(0, 200) });
+    }
+  });
+  return sent;
 }

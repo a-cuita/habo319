@@ -166,6 +166,14 @@ var TABS = {
     widths: [150, 80, 90, 130, 100, 100, 360],
     formats: { 1: 'yyyy-mm-dd h:mm', 7: '@' }
   },
+  // Each admin's email digest (S5-P28 round 2): Off, Daily or Weekly, when
+  // they were asked, the cutoff, when it last went, and how that went.
+  forumDigest: {
+    name: 'Forum Digest',
+    header: ['Account ID', 'Digest', 'Asked', 'Since', 'Last sent', 'Last result'],
+    widths: [90, 80, 150, 150, 150, 320],
+    formats: { 3: 'yyyy-mm-dd h:mm', 4: 'yyyy-mm-dd h:mm', 5: 'yyyy-mm-dd h:mm', 6: '@' }
+  },
   forumReads: {
     name: 'Forum Reads',
     header: ['Account ID', 'Topic ID', 'Read'],
@@ -260,6 +268,7 @@ function actions_() {
     forumVote: forumVote_,
     forumReview: forumReview_,
     forumUnread: forumUnread_,
+    forumDigestSave: forumDigestSave_,
     reportSend: reportSend_
   };
 }
@@ -557,6 +566,7 @@ function missingSettings_(ss) {
     [SETTING_CHECKIN_SHEET, DEFAULT_CHECKIN_SHEET],
     [SETTING_SIGNATURES_FOLDER, ''],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
+    [SETTING_DIGEST_HOUR, '7'],
     [SETTING_SUNSET_WARN, '60'],
     [SETTING_NO_START, '15'],
     [SETTING_AUTO_END, '12'],

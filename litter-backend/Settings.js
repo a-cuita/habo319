@@ -8,6 +8,7 @@
  *   Collecting safety: Head Builder.
  *   XP, Levels and class skills, and Segments and rates: Architect and up.
  *   The map's look and the sayings: Builder and up.
+ *   Forum (the digest's hour): Head Builder.
  * Every change goes in the Changes tab, with who made it.
  */
 
@@ -55,6 +56,9 @@ function settingGroups_() {
     [SETTING_CONF_NAMES, 'Confidence names', 'Four names, with commas between: for no rate in the window, then low, moderate and established.', 'names', 4],
     [SETTING_RATE_TOP, 'Rate map top', 'The rate the map\'s top colour stands for.', 'number', 'lb per mile per day', 0.1, 100],
     [SETTING_APART, 'Plan segments far apart', 'A plan with segments farther apart than this gets a notice.', 'number', 'mi', 0.1, 50]] },
+  // The Forum's email digest (S5-P28 round 2, |Q637 (a)): the hour it goes.
+  { key: 'forum', title: 'Forum', rank: 'Head Builder', items: [
+    [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
   { key: 'look', title: 'The map\'s look and the sayings', rank: 'Builder', items: [
     [SETTING_COLOUR_0, 'Map colour at 0', 'The Litter Index scale\'s colour at 0.', 'colour'],
     [SETTING_COLOUR_5, 'Map colour at 5', 'At 5.', 'colour'],
