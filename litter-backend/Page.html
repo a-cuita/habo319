@@ -576,6 +576,31 @@ body.lt-has-back .lt-notices { top: 48px; }
 .lt-set-range .lt-set-number { width: 100%; min-width: 0; }
 .lt-set-range .btn { width: auto; min-height: 40px; padding: 8px 10px; margin: 0; }
 .lt-set-range-head span { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); }
+
+/* The admins' forum (S5-P28): topics as cards, newest activity first, each
+   with its kind and state; a topic's replies, vote and moves. */
+.lt-forum-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0 10px; }
+.lt-forum-closed { display: flex; gap: 6px; align-items: center; font-size: 0.95rem; }
+.lt-forum-kinds label { display: block; margin: 6px 0; }
+.lt-forum-row { display: block; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.lt-forum-row.lt-forum-new { border-left: 5px solid var(--primary); }
+.lt-forum-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.lt-forum-kind { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-dim); }
+.lt-forum-kind-decision { background: #ede9fe; color: #5b21b6; }
+.lt-forum-kind-report { background: #ffedd5; color: #9a3412; }
+.lt-forum-kind-review { background: #dcfce7; color: #166534; }
+.lt-forum-state { font-size: 0.88rem; font-weight: 700; color: var(--text-dim); }
+.lt-forum-title { font-weight: 700; margin: 6px 0 2px; }
+.lt-ft-title { margin: 8px 0 4px; }
+.lt-ft-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+.lt-ft-sub { margin: 0 0 6px; font-size: 1.05rem; }
+.lt-ft-count { font-weight: 800; font-size: 1.1rem; margin: 4px 0; }
+.lt-ft-votes, .lt-ft-movebtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.lt-ft-votes .btn, .lt-ft-movebtns .btn { width: auto; flex: 1 1 auto; margin: 4px 0; }
+.lt-ft-link { margin-top: 6px; }
+.lt-ft-history summary { font-weight: 800; cursor: pointer; }
+.lt-ft-move { margin: 4px 0; }
+.lt-review-forum { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -1090,6 +1115,11 @@ body.lt-has-back .lt-notices { top: 48px; }
           <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
           <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
         </section>
+        <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
+        <section class="card">
+          <button class="btn btn-secondary" id="me-report-issue" type="button">Report an Issue</button>
+          <button class="btn btn-secondary" id="me-report-idea" type="button">Submit an Idea</button>
+        </section>
         <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
              It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
         <section class="card" id="cl-sim-box" hidden>
@@ -1103,6 +1133,8 @@ body.lt-has-back .lt-notices { top: 48px; }
           <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
           <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
           <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
+          <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
+          <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -1181,6 +1213,73 @@ body.lt-has-back .lt-notices { top: 48px; }
     <div id="reviews-list"></div>
     <button class="lt-fab-back" id="reviews-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
+
+  <!-- The admins' forum (S5-P28, forum.js): its topics, newest activity first, and a topic in full. -->
+  <div id="v-forum" hidden>
+    <section class="card">
+      <h2>Forum</h2>
+      <p class="muted small" id="forum-note"></p>
+      <div class="lt-forum-tools">
+        <select class="lt-set-choice" id="forum-kind" aria-label="Which kind">
+          <option value="">Every kind</option><option value="Discussion">Discussions</option><option value="Decision">Decisions</option><option value="Report">Reports</option><option value="Review">Reviews</option>
+        </select>
+        <label class="lt-forum-closed"><input type="checkbox" id="forum-closed"> Closed ones too</label>
+      </div>
+      <button class="btn btn-primary" id="forum-new" type="button">Start a topic</button>
+    </section>
+    <form class="card" id="forum-form" hidden>
+      <h2>Start a topic</h2>
+      <div class="lt-forum-kinds">
+        <label><input type="radio" name="forum-new-kind" value="Discussion" checked> <b>Discussion</b>: talked through, then Done.</label>
+        <label><input type="radio" name="forum-new-kind" value="Decision"> <b>Decision</b>: a proposal, talked through, then put to a vote.</label>
+      </div>
+      <div class="ig">
+        <label for="forum-title">Title</label>
+        <input id="forum-title" maxlength="100" autocomplete="off">
+      </div>
+      <div class="ig">
+        <label for="forum-text" id="forum-text-label">What it's about</label>
+        <textarea id="forum-text" maxlength="4000" rows="5"></textarea>
+      </div>
+      <button class="btn btn-primary" id="forum-open" type="submit">Create</button>
+      <button class="btn btn-secondary" id="forum-cancel" type="button">Cancel</button>
+      <p class="err" id="forum-err" role="alert"></p>
+    </form>
+    <div id="forum-list"></div>
+    <button class="lt-fab-back" id="forum-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
+  <div id="v-forum-topic" hidden>
+    <section class="card" id="ft-head"></section>
+    <section class="card" id="ft-vote" hidden></section>
+    <section class="card" id="ft-moves" hidden></section>
+    <div id="ft-replies"></div>
+    <section class="card">
+      <div class="ig">
+        <label for="ft-text">Your reply</label>
+        <textarea id="ft-text" maxlength="4000" rows="4"></textarea>
+      </div>
+      <button class="btn btn-primary" id="ft-send" type="button">Reply</button>
+      <p class="err" id="ft-err" role="alert"></p>
+    </section>
+    <details class="card lt-ft-history" id="ft-history"><summary>History</summary><div id="ft-history-list"></div></details>
+    <button class="lt-fab-back" id="ft-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
+  <!-- A player's report (S5-P28, |Q593): Report an Issue or Submit an Idea, from the top menu. -->
+  <form id="v-report" hidden>
+    <section class="card">
+      <h2 id="rp-title">Report an Issue</h2>
+      <p class="muted small" id="rp-say"></p>
+      <div class="ig">
+        <label for="rp-text" id="rp-label">What happened?</label>
+        <textarea id="rp-text" maxlength="4000" rows="6"></textarea>
+      </div>
+      <button class="btn btn-primary" id="rp-send" type="submit">Send</button>
+      <button class="btn btn-secondary" id="rp-cancel" type="button">Cancel</button>
+      <p class="err" id="rp-err" role="alert"></p>
+    </section>
+  </form>
 
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
   <div id="v-quests" hidden>
@@ -6027,6 +6126,13 @@ window.LitterReviews = function (app) {
       box.appendChild(list);
     }
     if (r.open) box.appendChild(form(r));
+    // Talked through in the Forum (S5-P28): its topic, linked both ways.
+    if (app.openForum) {
+      var f = el('button', 'btn btn-secondary lt-review-forum', 'Open in the Forum');
+      f.type = 'button';
+      f.addEventListener('click', function () { app.openForum(r.id); });
+      box.appendChild(f);
+    }
     return box;
   }
 
@@ -6078,6 +6184,283 @@ window.LitterReviews = function (app) {
   $('reviews-back').addEventListener('click', function () { if (app.back) app.back(); });
 
   return { open: open, sync: sync };
+};
+</script>
+<script>
+// The admins' forum in Admin Mode (S5-P28, |Q617 to |Q620, |Q626 to |Q630):
+// topics of four kinds, newest activity first, each with its states, its
+// replies and its history; votes on a Decision; a player's reports, from
+// Report an Issue and Submit an Idea in the top menu; and a notice when
+// someone replies in a topic you opened or replied in.
+window.LitterForum = function (app) {
+  'use strict';
+  var $ = app.$;
+  var list = null, topic = null, told = false;
+  var CLOSED = ['Done', 'Passed', 'Failed', 'Withdrawn', 'Won\'t do', 'Approved', 'Declined', 'Closed'];
+  var MOVE_WORDS = { Open: 'Reopen', Done: 'Mark Done', Voting: 'Put to a vote', Withdrawn: 'Withdraw', New: 'Mark New', Seen: 'Mark Seen',
+    Planned: 'Mark Planned', 'Won\'t do': 'Mark Won\'t do', Decision: 'Make it a Decision' };
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function button(label, cls, go) {
+    var b = el('button', cls, label);
+    b.type = 'button';
+    b.addEventListener('click', go);
+    return b;
+  }
+  function when(ms) {
+    return new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  }
+  function failed(err, where) {
+    if (err.code === 'signed-out') return app.signedOut();
+    $(where).textContent = err.message;
+  }
+  function kindWords(t) { return t.kind === 'Report' ? (t.of === 'Idea' ? 'Idea' : 'Issue') : t.kind; }
+
+  /* ── The list ── */
+
+  function open() {
+    app.show('v-forum');
+    $('forum-form').hidden = true;
+    $('forum-list').textContent = '';
+    $('forum-note').textContent = 'Loading the Forum…';
+    return app.api('forumLoad', { token: app.myToken() }).then(function (d) { list = d; drawList(); }, function (err) { failed(err, 'forum-note'); });
+  }
+  function drawList() {
+    var box = $('forum-list'), kind = $('forum-kind').value, closed = $('forum-closed').checked;
+    box.textContent = '';
+    var shown = list.topics.filter(function (t) { return (!kind || t.kind === kind) && (closed || CLOSED.indexOf(t.state) === -1); });
+    var open = list.topics.filter(function (t) { return CLOSED.indexOf(t.state) === -1; }).length;
+    $('forum-note').textContent = (open === 1 ? '1 topic is' : open + ' topics are') + ' still open. ' +
+      (list.canVote ? 'As a ' + list.rank + ', you vote on Decisions and move players\' reports.' : 'As an ' + list.rank + ', you read and reply; a Builder or above votes and moves reports.');
+    if (!shown.length) box.appendChild(el('p', 'card muted small', list.topics.length ? 'None to show: change what\'s shown above.' : 'No topics yet. Start one above.'));
+    shown.forEach(function (t) {
+      var b = el('button', 'card lt-forum-row' + (t.unread || !t.seen ? ' lt-forum-new' : ''));
+      b.type = 'button';
+      b.dataset.id = t.id;
+      var top = el('div', 'lt-forum-top');
+      top.appendChild(el('span', 'lt-forum-kind lt-forum-kind-' + t.kind.toLowerCase(), kindWords(t)));
+      top.appendChild(el('span', 'lt-forum-state', t.state));
+      b.appendChild(top);
+      b.appendChild(el('p', 'lt-forum-title', t.title));
+      b.appendChild(el('p', 'muted small', 'By ' + t.by + ' · ' + (t.replies === 1 ? '1 reply' : t.replies + ' replies') + (t.unread ? ' · ' + t.unread + ' new' : !t.seen ? ' · new to you' : '') + ' · ' + when(t.active)));
+      b.addEventListener('click', function () { openTopic(t.id); });
+      box.appendChild(b);
+    });
+  }
+  function newForm(show) {
+    $('forum-form').hidden = !show;
+    $('forum-new').hidden = show;
+    $('forum-err').textContent = '';
+    if (show) { $('forum-title').value = ''; $('forum-text').value = ''; newKind(); $('forum-title').focus(); }
+  }
+  function newKind() {
+    var k = document.querySelector('input[name="forum-new-kind"]:checked').value;
+    $('forum-text-label').textContent = k === 'Decision' ? 'What you propose' : 'What it\'s about';
+  }
+  function create(e) {
+    e.preventDefault();
+    var k = document.querySelector('input[name="forum-new-kind"]:checked').value;
+    app.busy($('forum-open'), 'forum-err', function () {
+      return app.api('forumOpen', { token: app.myToken(), kind: k, title: $('forum-title').value, text: $('forum-text').value }).then(function (d) {
+        newForm(false);
+        drawTopic(d.topic);
+      });
+    });
+  }
+
+  /* ── A topic ── */
+
+  function openTopic(id) {
+    app.show('v-forum-topic');
+    $('ft-head').textContent = 'Loading…';
+    ['ft-vote', 'ft-moves'].forEach(function (x) { $(x).hidden = true; });
+    $('ft-replies').textContent = '';
+    return app.api('forumTopic', { token: app.myToken(), topicId: id }).then(function (d) { drawTopic(d.topic); }, function (err) { failed(err, 'ft-head'); });
+  }
+  function drawTopic(t) {
+    topic = t;
+    app.show('v-forum-topic');
+    var head = $('ft-head');
+    head.textContent = '';
+    var top = el('div', 'lt-forum-top');
+    top.appendChild(el('span', 'lt-forum-kind lt-forum-kind-' + t.kind.toLowerCase(), t.kind === 'Report' ? t.ofWords : t.kind));
+    top.appendChild(el('span', 'lt-forum-state', t.state));
+    head.appendChild(top);
+    head.appendChild(el('h2', 'lt-ft-title', t.title));
+    head.appendChild(el('p', 'muted small', 'Opened by ' + t.by + (t.byRank ? ' (' + t.byRank + ')' : '') + ' · ' + when(t.opened)));
+    if (t.text) head.appendChild(el('p', 'lt-ft-text', t.text));
+    // Linked both ways: a review, the idea a Decision came from, the Decision an idea became.
+    if (t.kind === 'Review') {
+      head.appendChild(el('p', 'small', 'A review in Reviews: ' + (t.linkName || t.link) + '. It moves there; talk it through here.'));
+      head.appendChild(button('Open in Reviews', 'btn btn-secondary lt-ft-link', function () { if (app.openReviews) app.openReviews(); }));
+    }
+    if (t.kind === 'Decision' && t.link) head.appendChild(button('From an idea: ' + (t.linkName || t.link), 'btn btn-secondary lt-ft-link', function () { openTopic(t.link); }));
+    if (t.kind === 'Report' && t.decision) head.appendChild(button('Its Decision: ' + t.decisionName, 'btn btn-secondary lt-ft-link', function () { openTopic(t.decision); }));
+    drawVote(t);
+    drawMoves(t);
+    var box = $('ft-replies');
+    box.textContent = '';
+    t.replies.forEach(function (r) {
+      var c = el('section', 'card lt-ft-reply');
+      c.appendChild(el('p', 'muted small', r.by + (r.rank ? ' (' + r.rank + ')' : '') + ' · ' + when(r.written)));
+      c.appendChild(el('p', 'lt-ft-text', r.text));
+      box.appendChild(c);
+    });
+    $('ft-text').value = '';
+    $('ft-err').textContent = '';
+    var h = $('ft-history-list');
+    h.textContent = '';
+    t.history.forEach(function (x) {
+      h.appendChild(el('p', 'small lt-ft-move', when(x.time) + ' · ' + x.by + ': ' + x.move + (x.from || x.to ? ' (' + (x.from ? x.from + ' to ' : '') + x.to + ')' : '') + (x.note ? '. ' + x.note : '')));
+    });
+  }
+  // A Decision's vote: the count as it goes, and your vote if you may vote.
+  function drawVote(t) {
+    var box = $('ft-vote');
+    box.textContent = '';
+    box.hidden = t.kind !== 'Decision' || t.state === 'Discussing' || t.state === 'Withdrawn';
+    if (box.hidden) return;
+    var n = t.votes;
+    box.appendChild(el('h3', 'lt-ft-sub', t.state === 'Voting' ? 'Voting until the end of ' + niceDay(t.closes) : 'The vote: ' + t.state));
+    box.appendChild(el('p', 'lt-ft-count', 'Approve ' + n.Approve + ' · Reject ' + n.Reject + ' · Abstain ' + n.Abstain));
+    box.appendChild(el('p', 'muted small', t.voted + ' of the ' + t.voters + ' who may vote ' + (t.voted === 1 ? 'has' : 'have') + ' voted. More Approve than Reject passes it; Abstain doesn\'t count.' +
+      (t.state === 'Voting' ? ' It closes at the end of its day, or once everyone who may vote has.' : '')));
+    if (t.state !== 'Voting') return;
+    if (!t.canVote) { box.appendChild(el('p', 'small', 'A Builder or above votes; you read and reply.')); return; }
+    box.appendChild(el('p', 'small lt-ft-mine', t.myVote ? 'Your vote: ' + t.myVote + '. You can change it until the vote closes.' : 'You haven\'t voted yet.'));
+    var row = el('div', 'lt-ft-votes');
+    ['Approve', 'Reject', 'Abstain'].forEach(function (v) {
+      var b = button(v, 'btn ' + (t.myVote === v ? 'btn-primary' : 'btn-secondary') + ' lt-ft-vote', function () {
+        app.busy(b, 'ft-err', function () {
+          // The screen shows it: your vote, the count, and the result once it closes.
+          return app.api('forumVote', { token: app.myToken(), topicId: t.id, vote: v }).then(function (d) { drawTopic(d.topic); });
+        });
+      });
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  }
+  function niceDay(day) {
+    var p = String(day || '').split('-');
+    return p.length === 3 ? new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }) + '.' : day + '.';
+  }
+  function today(plus) {
+    var d = new Date(Date.now() + (plus || 0) * 864e5);
+    return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2);
+  }
+  // What you may do with it now: each a button, with a note if you like.
+  function drawMoves(t) {
+    var box = $('ft-moves');
+    box.textContent = '';
+    box.hidden = !t.can.length;
+    if (box.hidden) return;
+    var note = null, day = null;
+    if (t.can.indexOf('Voting') !== -1) {
+      var d = el('div', 'ig');
+      var l = el('label', null, 'The vote closes at the end of');
+      l.htmlFor = 'ft-closes';
+      day = el('input');
+      day.type = 'date'; day.id = 'ft-closes'; day.min = today(0); day.value = today(7);
+      d.appendChild(l); d.appendChild(day);
+      box.appendChild(d);
+    }
+    if (t.kind === 'Report' || t.kind === 'Discussion' || t.can.indexOf('Withdrawn') !== -1) {
+      var n = el('div', 'ig');
+      var nl = el('label', null, 'A note with it (optional)');
+      nl.htmlFor = 'ft-note';
+      note = el('input');
+      note.id = 'ft-note'; note.maxLength = 500; note.autocomplete = 'off';
+      n.appendChild(nl); n.appendChild(note);
+      box.appendChild(n);
+    }
+    var row = el('div', 'lt-ft-movebtns');
+    t.can.forEach(function (to) {
+      var b = button(MOVE_WORDS[to] || to, 'btn btn-secondary lt-ft-moveto', function () {
+        if (to === 'Withdrawn' && !window.confirm('Withdraw "' + t.title + '"? Its vote, if open, closes with it.')) return;
+        app.busy(b, 'ft-err', function () {
+          return app.api('forumMove', { token: app.myToken(), topicId: t.id, to: to, note: note ? note.value : '', closes: day ? day.value : '' }).then(function (d) { drawTopic(d.topic); });
+        });
+      });
+      b.dataset.to = to;
+      row.appendChild(b);
+    });
+    box.appendChild(row);
+  }
+  function reply() {
+    var b = $('ft-send');
+    app.busy(b, 'ft-err', function () {
+      return app.api('forumReply', { token: app.myToken(), topicId: topic.id, text: $('ft-text').value }).then(function (d) { drawTopic(d.topic); });
+    });
+  }
+
+  // A review's topic, from Reviews: made the first time it's asked for.
+  function openReview(id, b) {
+    return app.api('forumReview', { token: app.myToken(), reviewId: id }).then(function (d) { drawTopic(d.topic); }, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      app.notice(err.message);
+    });
+  }
+
+  /* ── A player's report (|Q593) ── */
+
+  var reportOf = 'Issue';
+  function openReport(of) {
+    reportOf = of;
+    if (app.closePanel) app.closePanel();
+    app.notice('');
+    app.show('v-report');
+    $('rp-title').textContent = of === 'Idea' ? 'Submit an Idea' : 'Report an Issue';
+    $('rp-say').textContent = of === 'Idea' ? 'Your idea goes to HABO\'s admins, who talk it through.' : 'What went wrong goes to HABO\'s admins, who look into it.';
+    $('rp-label').textContent = of === 'Idea' ? 'Your idea' : 'What happened? Say which screen you were on, and what you pressed.';
+    $('rp-text').value = '';
+    $('rp-err').textContent = '';
+  }
+  function sendReport(e) {
+    e.preventDefault();
+    app.busy($('rp-send'), 'rp-err', function () {
+      return app.api('reportSend', { token: app.myToken(), of: reportOf, text: $('rp-text').value }).then(function () {
+        if (app.back) app.back();
+        app.notice(reportOf === 'Idea' ? 'Sent to HABO\'s admins. Thank you for the idea.' : 'Sent to HABO\'s admins. Thank you for telling us.');
+      });
+    });
+  }
+
+  /* ── In Admin Mode: the Forum button, and new replies as a notice (|Q620) ── */
+
+  function adminOn() { var a = app.me && app.me(); return !!(a && a.rank) && $('cl-sim').checked; }
+  function sync() {
+    $('me-go-forum').hidden = !adminOn();
+    if (!adminOn() || told) return;
+    told = true;
+    app.api('forumUnread', { token: app.myToken() }).then(function (d) {
+      if (!d.replies) return;
+      app.notice('Forum: ' + (d.replies === 1 ? '1 new reply' : d.replies + ' new replies') + ' in ' + (d.topics === 1 ? 'a topic' : d.topics + ' topics') + ' you opened or replied in.',
+        { key: 'forum', buttons: [{ label: 'Open the Forum', go: open }] });
+    }, function () { told = false; });
+  }
+
+  $('cl-sim').addEventListener('change', sync);
+  $('me-go-forum').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
+  $('forum-back').addEventListener('click', function () { if (app.back) app.back(); });
+  $('ft-back').addEventListener('click', function () { open(); });
+  $('forum-new').addEventListener('click', function () { newForm(true); });
+  $('forum-cancel').addEventListener('click', function () { newForm(false); });
+  $('forum-form').addEventListener('submit', create);
+  Array.prototype.forEach.call(document.querySelectorAll('input[name="forum-new-kind"]'), function (r) { r.addEventListener('change', newKind); });
+  $('forum-kind').addEventListener('change', function () { if (list) drawList(); });
+  $('forum-closed').addEventListener('change', function () { if (list) drawList(); });
+  $('ft-send').addEventListener('click', reply);
+  $('me-report-issue').addEventListener('click', function () { openReport('Issue'); });
+  $('me-report-idea').addEventListener('click', function () { openReport('Idea'); });
+  $('v-report').addEventListener('submit', sendReport);
+  $('rp-cancel').addEventListener('click', function () { if (app.back) app.back(); });
+
+  return { open: open, sync: sync, openReview: openReview, signedOut: function () { told = false; } };
 };
 </script>
 <script>
@@ -6150,7 +6533,7 @@ window.LitterReviews = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -6689,7 +7072,7 @@ window.LitterReviews = function (app) {
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -6719,7 +7102,18 @@ window.LitterReviews = function (app) {
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); },
     smallMap: function (title, cells, opts) { return mapper.smallMap(title, cells, opts); },
-    drawSmallMaps: function (root) { mapper.drawSmallMaps(root); }
+    drawSmallMaps: function (root) { mapper.drawSmallMaps(root); },
+    openForum: function (id) { forum.openReview(id); }
+  });
+
+  /* ── The admins' forum, and players' reports (S5-P28, forum.js) ── */
+
+  var forum = window.LitterForum({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); },
+    openReviews: function () { reviews.open(); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

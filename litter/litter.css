@@ -429,3 +429,28 @@ body.lt-has-back .lt-notices { top: 48px; }
 .lt-set-range .lt-set-number { width: 100%; min-width: 0; }
 .lt-set-range .btn { width: auto; min-height: 40px; padding: 8px 10px; margin: 0; }
 .lt-set-range-head span { font-size: 0.85rem; font-weight: 700; color: var(--text-dim); }
+
+/* The admins' forum (S5-P28): topics as cards, newest activity first, each
+   with its kind and state; a topic's replies, vote and moves. */
+.lt-forum-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0 10px; }
+.lt-forum-closed { display: flex; gap: 6px; align-items: center; font-size: 0.95rem; }
+.lt-forum-kinds label { display: block; margin: 6px 0; }
+.lt-forum-row { display: block; width: 100%; text-align: left; font: inherit; color: var(--text); cursor: pointer; }
+.lt-forum-row.lt-forum-new { border-left: 5px solid var(--primary); }
+.lt-forum-top { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.lt-forum-kind { font-size: 0.78rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 2px 8px; border-radius: 999px; background: var(--surface-2); color: var(--text-dim); }
+.lt-forum-kind-decision { background: #ede9fe; color: #5b21b6; }
+.lt-forum-kind-report { background: #ffedd5; color: #9a3412; }
+.lt-forum-kind-review { background: #dcfce7; color: #166534; }
+.lt-forum-state { font-size: 0.88rem; font-weight: 700; color: var(--text-dim); }
+.lt-forum-title { font-weight: 700; margin: 6px 0 2px; }
+.lt-ft-title { margin: 8px 0 4px; }
+.lt-ft-text { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; }
+.lt-ft-sub { margin: 0 0 6px; font-size: 1.05rem; }
+.lt-ft-count { font-weight: 800; font-size: 1.1rem; margin: 4px 0; }
+.lt-ft-votes, .lt-ft-movebtns { display: flex; gap: 8px; flex-wrap: wrap; }
+.lt-ft-votes .btn, .lt-ft-movebtns .btn { width: auto; flex: 1 1 auto; margin: 4px 0; }
+.lt-ft-link { margin-top: 6px; }
+.lt-ft-history summary { font-weight: 800; cursor: pointer; }
+.lt-ft-move { margin: 4px 0; }
+.lt-review-forum { margin-top: 8px; }

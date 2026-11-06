@@ -139,6 +139,39 @@ var TABS = {
     header: ['Skill', 'Level', 'What it does'],
     widths: [260, 70, 480]
   },
+  // The admins' forum (S5-P28, Forum.js): its topics, their replies, the
+  // votes on Decisions, every move on a topic, and when each admin last read
+  // each topic.
+  forumTopics: {
+    name: 'Forum Topics',
+    header: ['Topic ID', 'Kind', 'Title', 'State', 'Opened by', 'Opened', 'Updated', 'Text', 'Report of', 'Link', 'Vote closes'],
+    widths: [80, 100, 280, 100, 90, 150, 150, 420, 90, 80, 100],
+    formats: { 3: '@', 6: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 8: '@', 11: '@' }
+  },
+  forumReplies: {
+    name: 'Forum Replies',
+    header: ['Reply ID', 'Topic ID', 'By', 'Written', 'Text'],
+    widths: [80, 80, 90, 150, 520],
+    formats: { 4: 'yyyy-mm-dd h:mm', 5: '@' }
+  },
+  forumVotes: {
+    name: 'Forum Votes',
+    header: ['Topic ID', 'Account ID', 'Vote', 'Voted'],
+    widths: [80, 90, 90, 150],
+    formats: { 4: 'yyyy-mm-dd h:mm' }
+  },
+  forumHistory: {
+    name: 'Forum History',
+    header: ['Time', 'Topic ID', 'By', 'Move', 'From', 'To', 'Note'],
+    widths: [150, 80, 90, 130, 100, 100, 360],
+    formats: { 1: 'yyyy-mm-dd h:mm', 7: '@' }
+  },
+  forumReads: {
+    name: 'Forum Reads',
+    header: ['Account ID', 'Topic ID', 'Read'],
+    widths: [90, 80, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm' }
+  },
   // Quests (S5-P20, |C722): one row for each player's quest: when it
   // started, the steps ticked, when it finished, and the XP it gave.
   quests: {
@@ -217,7 +250,17 @@ function actions_() {
     questTick: questTick_,
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
-    myCollections: myCollections_
+    myCollections: myCollections_,
+    // The admins' forum, and players' reports (S5-P28).
+    forumLoad: forumLoad_,
+    forumTopic: forumTopic_,
+    forumOpen: forumOpen_,
+    forumReply: forumReply_,
+    forumMove: forumMove_,
+    forumVote: forumVote_,
+    forumReview: forumReview_,
+    forumUnread: forumUnread_,
+    reportSend: reportSend_
   };
 }
 

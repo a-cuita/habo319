@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=38">
+<link rel="stylesheet" href="litter.css?v=39">
 </head>
 <body>
 
@@ -521,6 +521,11 @@
           <button class="btn btn-secondary" id="me-go-plans" type="button">Segments</button>
           <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
         </section>
+        <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
+        <section class="card">
+          <button class="btn btn-secondary" id="me-report-issue" type="button">Report an Issue</button>
+          <button class="btn btn-secondary" id="me-report-idea" type="button">Submit an Idea</button>
+        </section>
         <!-- Admin Mode (S5-P13, Q555, Q563): a Head Builder's switch, named with the rank, kept on this computer.
              It was the Simulated walk switch (S5-U2). Its words show on mouse-over (C588), or on a tap. -->
         <section class="card" id="cl-sim-box" hidden>
@@ -534,6 +539,8 @@
           <button class="btn btn-secondary" id="me-go-settings" type="button" hidden>Settings</button>
           <!-- Reviews in Admin Mode (S5-P19 B, |Q593 (a)): segments submitted to be public. -->
           <button class="btn btn-secondary" id="me-go-reviews" type="button" hidden>Reviews</button>
+          <!-- The admins' forum in Admin Mode (S5-P28, |Q617 (a)): every admin, Apprentice and up. -->
+          <button class="btn btn-secondary" id="me-go-forum" type="button" hidden>Forum</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
         </section>
         <div class="center"><button class="link-btn" id="me-signout" type="button">Sign out on this phone</button></div>
@@ -613,6 +620,73 @@
     <button class="lt-fab-back" id="reviews-back" type="button" aria-label="Back" title="Back">←</button>
   </div>
 
+  <!-- The admins' forum (S5-P28, forum.js): its topics, newest activity first, and a topic in full. -->
+  <div id="v-forum" hidden>
+    <section class="card">
+      <h2>Forum</h2>
+      <p class="muted small" id="forum-note"></p>
+      <div class="lt-forum-tools">
+        <select class="lt-set-choice" id="forum-kind" aria-label="Which kind">
+          <option value="">Every kind</option><option value="Discussion">Discussions</option><option value="Decision">Decisions</option><option value="Report">Reports</option><option value="Review">Reviews</option>
+        </select>
+        <label class="lt-forum-closed"><input type="checkbox" id="forum-closed"> Closed ones too</label>
+      </div>
+      <button class="btn btn-primary" id="forum-new" type="button">Start a topic</button>
+    </section>
+    <form class="card" id="forum-form" hidden>
+      <h2>Start a topic</h2>
+      <div class="lt-forum-kinds">
+        <label><input type="radio" name="forum-new-kind" value="Discussion" checked> <b>Discussion</b>: talked through, then Done.</label>
+        <label><input type="radio" name="forum-new-kind" value="Decision"> <b>Decision</b>: a proposal, talked through, then put to a vote.</label>
+      </div>
+      <div class="ig">
+        <label for="forum-title">Title</label>
+        <input id="forum-title" maxlength="100" autocomplete="off">
+      </div>
+      <div class="ig">
+        <label for="forum-text" id="forum-text-label">What it's about</label>
+        <textarea id="forum-text" maxlength="4000" rows="5"></textarea>
+      </div>
+      <button class="btn btn-primary" id="forum-open" type="submit">Create</button>
+      <button class="btn btn-secondary" id="forum-cancel" type="button">Cancel</button>
+      <p class="err" id="forum-err" role="alert"></p>
+    </form>
+    <div id="forum-list"></div>
+    <button class="lt-fab-back" id="forum-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
+  <div id="v-forum-topic" hidden>
+    <section class="card" id="ft-head"></section>
+    <section class="card" id="ft-vote" hidden></section>
+    <section class="card" id="ft-moves" hidden></section>
+    <div id="ft-replies"></div>
+    <section class="card">
+      <div class="ig">
+        <label for="ft-text">Your reply</label>
+        <textarea id="ft-text" maxlength="4000" rows="4"></textarea>
+      </div>
+      <button class="btn btn-primary" id="ft-send" type="button">Reply</button>
+      <p class="err" id="ft-err" role="alert"></p>
+    </section>
+    <details class="card lt-ft-history" id="ft-history"><summary>History</summary><div id="ft-history-list"></div></details>
+    <button class="lt-fab-back" id="ft-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
+  <!-- A player's report (S5-P28, |Q593): Report an Issue or Submit an Idea, from the top menu. -->
+  <form id="v-report" hidden>
+    <section class="card">
+      <h2 id="rp-title">Report an Issue</h2>
+      <p class="muted small" id="rp-say"></p>
+      <div class="ig">
+        <label for="rp-text" id="rp-label">What happened?</label>
+        <textarea id="rp-text" maxlength="4000" rows="6"></textarea>
+      </div>
+      <button class="btn btn-primary" id="rp-send" type="submit">Send</button>
+      <button class="btn btn-secondary" id="rp-cancel" type="button">Cancel</button>
+      <p class="err" id="rp-err" role="alert"></p>
+    </section>
+  </form>
+
   <!-- Your quests (S5-P20, |C719): each quest done, with its XP; tap one for its date, time, how long it took and its rewards. -->
   <div id="v-quests" hidden>
     <section class="card lt-quest" id="my-quests">
@@ -661,7 +735,8 @@
 <script src="map.js?v=26"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=3"></script>
-<script src="reviews.js?v=2"></script>
-<script src="litter.js?v=18"></script>
+<script src="reviews.js?v=3"></script>
+<script src="forum.js?v=1"></script>
+<script src="litter.js?v=19"></script>
 </body>
 </html>

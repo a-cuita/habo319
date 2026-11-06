@@ -65,6 +65,13 @@ window.LitterReviews = function (app) {
       box.appendChild(list);
     }
     if (r.open) box.appendChild(form(r));
+    // Talked through in the Forum (S5-P28): its topic, linked both ways.
+    if (app.openForum) {
+      var f = el('button', 'btn btn-secondary lt-review-forum', 'Open in the Forum');
+      f.type = 'button';
+      f.addEventListener('click', function () { app.openForum(r.id); });
+      box.appendChild(f);
+    }
     return box;
   }
 
