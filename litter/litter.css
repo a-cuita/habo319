@@ -396,13 +396,19 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
    sticks to the top. */
 body.lt-has-back .lt-me-bar > .lt-me-toggle { padding-left: max(52px, calc(50vw - 222px)); }
 .lt-me-bar[hidden] { display: none; }
-/* Settings' lock (S6-P7): floating at the bottom right, over the sections. */
-.lt-fab-lock { position: fixed; right: 14px; bottom: 18px; z-index: 1150; min-height: 48px; padding: 0 18px; border-radius: 24px; border: 2px solid #b45309;
-  background: #fef3c7; color: #78350f; font: inherit; font-size: 1rem; font-weight: 800; cursor: pointer; box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25); }
-.lt-fab-lock.lt-fab-lock-open { border-color: var(--border); background: var(--surface); color: var(--text); }
+/* Settings' lock (S6-P7, |M892): a full-width bar across the bottom, showing
+   the state it's in: blue "🔒locked" in plain type; red "🔓UNLOCKED" in bold,
+   italics and underlined. */
+.lt-fab-lock { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1150; width: 100%; min-height: 56px; margin: 0; padding: 0 18px env(safe-area-inset-bottom);
+  border: 0; border-radius: 0; background: #1d4ed8; color: #fff; font: inherit; font-size: 1.1rem; font-weight: 400; font-style: normal; text-decoration: none;
+  cursor: pointer; box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.25); }
+.lt-fab-lock.lt-lockbar-open { background: #b91c1c; font-weight: 800; font-style: italic; text-decoration: underline; }
+body.lt-has-lockbar { padding-bottom: 76px; }
 .lt-fab-lock:focus-visible { outline: 3px solid var(--primary); outline-offset: 2px; }
 [hidden] .lt-fab-lock, .lt-fab-lock[hidden] { display: none; }
 .lt-set-locked input, .lt-set-locked select, .lt-set-locked textarea { opacity: 0.75; cursor: not-allowed; }
+/* Locked, a tap on a box lands on its row, which says why (S6-P7). */
+.lt-set-locked .lt-set-group input, .lt-set-locked .lt-set-group select, .lt-set-locked .lt-set-group textarea, .lt-set-locked .lt-set-group button { pointer-events: none; }
 .lt-set-locked .lt-set-save { display: none; }
 #settings-list { padding-bottom: 72px; }
 /* Weigh-in pins (S5-U17, |Q566 (a)). */
@@ -420,6 +426,8 @@ body.lt-has-back .lt-me-bar > .lt-me-toggle { padding-left: max(52px, calc(50vw 
 .lt-piece.done { opacity: 0.75; }
 .lt-piece-n span { display: inline-block; min-width: 22px; padding: 1px 5px; border-radius: 11px; color: #fff; font-weight: 800; font-size: 0.8rem; text-align: center; border: 2px solid #fff; }
 body.lt-has-back .lt-notices { top: 48px; }
+/* With the top bar at the very top (S6-P4), notices start just under it, never over it. */
+body.lt-has-bar .lt-notices, body.lt-has-bar.lt-has-back .lt-notices { top: calc(var(--bar-h, 64px) + 6px); }
 .lt-weigh-pin { pointer-events: none; }
 /* The live dot's ring stands off the map (S5-U17, |C794). */
 .leaflet-pane path.lt-here-dot { filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45)); }

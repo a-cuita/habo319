@@ -82,6 +82,11 @@
   // before, and not while a collection is going, where the collecting
   // screen stays as it was.
   var NO_BAR = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-collect'];
+  // The bar's height, so notices start just under it (S6-P4).
+  function barHeight() {
+    var h = $('me-bar').hidden ? 0 : $('me-toggle').getBoundingClientRect().height;
+    if (h) document.documentElement.style.setProperty('--bar-h', Math.round(h) + 'px');
+  }
   // Admin screens (S6-P19, |M888): never shown outside Admin Mode, by any
   // button or back; asked for without it, the main page shows instead.
   var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft'];
@@ -91,11 +96,14 @@
       id = 'v-welcome';
     }
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    // Settings' lock bar pads the page only on Settings (S6-P7).
+    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar');
     var bar = !!state.account && NO_BAR.indexOf(id) === -1;
     if (bar) fillBar(state.account);
     else if (!$('me-panel').hidden) panel(false);
     $('me-bar').hidden = !bar;
     document.body.classList.toggle('lt-has-bar', bar);
+    barHeight();
     // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
     document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));
     paintMode();
@@ -768,6 +776,8 @@
     $(id).addEventListener('click', function () { $('me-star-say').hidden = !$('me-star-say').hidden; });
   });
   window.addEventListener('resize', fitPanel);
+  window.addEventListener('resize', barHeight);
+  if (window.ResizeObserver) new ResizeObserver(barHeight).observe($('me-toggle'));
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });

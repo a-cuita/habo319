@@ -50,12 +50,18 @@ window.LitterSettings = function (app) {
     var box = $('settings-list'), btn = $('settings-lock');
     box.classList.toggle('lt-set-locked', on);
     Array.prototype.forEach.call(box.querySelectorAll('input, select, textarea, button'), function (x) { x.disabled = on; });
+    // The bar shows the state it's in (S6-P7, |M892): blue "🔒locked", or red
+    // "🔓UNLOCKED"; a press changes it. The words under the heading are gone.
     btn.hidden = !groups.length;
-    btn.textContent = on ? '🔓 Unlock' : '🔒 Lock';
-    btn.setAttribute('aria-label', on ? 'Unlock Settings to change them' : 'Lock Settings');
-    btn.classList.toggle('lt-fab-lock-open', !on);
-    if (groups.length) $('settings-note').textContent = on ? 'Locked, so nothing changes by mistake. Press 🔓 Unlock to change a setting.' : 'Unlocked. Open a section, change what you need, and press its Save. Save locks it again.';
+    document.body.classList.toggle('lt-has-lockbar', !!groups.length);
+    btn.textContent = on ? '🔒locked' : '🔓UNLOCKED';
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    btn.setAttribute('aria-label', on ? 'Settings are locked. Press to unlock them.' : 'Settings are unlocked. Press to lock them.');
+    btn.classList.toggle('lt-lockbar-open', !on);
+    // Unlocked, the "Locked…" notice no longer applies: it goes.
+    if (!on) Array.prototype.forEach.call(document.querySelectorAll('#notice .lt-nt[data-key="settings-locked"]'), function (n) { n.remove(); });
   }
+  var LOCKED_SAY = 'Locked, so nothing changes by mistake. Press 🔒locked at the bottom to unlock.';
 
   function section(g) {
     var d = el('details', 'card lt-set-group');
@@ -218,6 +224,11 @@ window.LitterSettings = function (app) {
   $('me-go-settings').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
   $('settings-back').addEventListener('click', function () { if (app.back) app.back(); });
   $('settings-lock').addEventListener('click', function () { lock(!locked); });
+  // A tap on a locked box says why it won't change (S6-P7, |M892).
+  $('settings-list').addEventListener('click', function (e) {
+    if (!locked || e.target.closest('summary')) return;
+    if (e.target.closest('.lt-set-group') && !e.target.closest('summary')) app.notice(LOCKED_SAY, { key: 'settings-locked' });
+  });
 
   return { open: open, sync: sync };
 };
