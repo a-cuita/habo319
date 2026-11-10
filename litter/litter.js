@@ -28,12 +28,18 @@
   // |Q642 (a)): these only read, or write only the Forum. Any other action
   // marks the main page to load again the next time it shows.
   var SAME_MAIN = ['collectLoad', 'start', 'mapLoad', 'settingsLoad', 'reviewsLoad', 'myCollections', 'handleFree', 'forumUnread', 'forumTopic',
-    'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend'];
+    'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend',
+    // S6's screens that only read (S6-P2 round 2, |M890).
+    'challengesLoad', 'challengesAdmin', 'toolSkillsLoad', 'toolSkillsAdmin', 'achievementsAdmin', 'wikiLoad', 'challengePhoto'];
   var changedAt = Date.now();
-  function marks(action) { if (SAME_MAIN.indexOf(action) === -1) changedAt = Date.now(); }
+  function marks(action, d) {
+    // Badges only reads, unless it just earned one: that changes your XP.
+    if (action === 'achievementsLoad' && !(d && d.earnedNow && d.earnedNow.length)) return;
+    if (SAME_MAIN.indexOf(action) === -1) changedAt = Date.now();
+  }
   function api(action, data, quiet) {
     if (!quiet) workStart();
-    return ask(action, data).then(function (d) { marks(action); if (!quiet) workEnd(); return d; }, function (err) { marks(action); if (!quiet) workEnd(); throw err; });
+    return ask(action, data).then(function (d) { marks(action, d); if (!quiet) workEnd(); return d; }, function (err) { marks(action); if (!quiet) workEnd(); throw err; });
   }
   function ask(action, data) {
     var body = JSON.stringify(Object.assign({ action: action }, data || {}));
