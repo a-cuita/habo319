@@ -109,6 +109,8 @@
     else if (!$('me-panel').hidden) panel(false);
     $('me-bar').hidden = !bar;
     document.body.classList.toggle('lt-has-bar', bar);
+    // Its own class (S6-P4): lt-has-bar is also the litter pulse's bottom bar.
+    document.body.classList.toggle('lt-has-topbar', bar);
     barHeight();
     // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
     document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));

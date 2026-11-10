@@ -293,6 +293,9 @@ window.LitterForum = function (app) {
     var id = linked;
     linked = '';
     try { history.replaceState(null, '', location.pathname); } catch (e) { /* the link stays in the bar */ }
+    // The topic is an admin screen, shown only in Admin Mode (S6-P19): an
+    // admin's link turns it on first, as the switch in the top panel would.
+    if (!$('cl-sim').checked) { $('cl-sim').checked = true; $('cl-sim').dispatchEvent(new Event('change')); }
     openTopic(id);
   }
   function adminOn() { var a = app.me && app.me(); return !!(a && a.rank) && $('cl-sim').checked; }

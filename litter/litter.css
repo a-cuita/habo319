@@ -213,8 +213,8 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 /* The top bar across the whole screen (S6-P4, |M891): wider than the cards, so
    it reads as apart from them; its words stay in line with the cards. The
    header comes off whenever the bar shows. */
-body.lt-has-bar { padding-top: 0; }
-body.lt-has-bar > header.brand { display: none; }
+body.lt-has-topbar { padding-top: 0; }
+body.lt-has-topbar > header.brand { display: none; }
 .lt-me-bar { width: 100vw; margin-left: calc(50% - 50vw); margin-right: calc(50% - 50vw); }
 .lt-me-bar > .lt-me-toggle { border-radius: 0; border-left: 0; border-right: 0; border-top: 0; padding: 12px max(16px, calc(50vw - 222px)); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.14); }
 .lt-me-bar > .lt-me-panel { left: max(6px, calc(50% - 240px)); right: max(6px, calc(50% - 240px)); }
@@ -427,7 +427,7 @@ body.lt-has-lockbar { padding-bottom: 76px; }
 .lt-piece-n span { display: inline-block; min-width: 22px; padding: 1px 5px; border-radius: 11px; color: #fff; font-weight: 800; font-size: 0.8rem; text-align: center; border: 2px solid #fff; }
 body.lt-has-back .lt-notices { top: 48px; }
 /* With the top bar at the very top (S6-P4), notices start just under it, never over it. */
-body.lt-has-bar .lt-notices, body.lt-has-bar.lt-has-back .lt-notices { top: calc(var(--bar-h, 64px) + 6px); }
+body.lt-has-topbar .lt-notices, body.lt-has-topbar.lt-has-back .lt-notices { top: calc(var(--bar-h, 64px) + 6px); }
 .lt-weigh-pin { pointer-events: none; }
 /* The live dot's ring stands off the map (S5-U17, |C794). */
 .leaflet-pane path.lt-here-dot { filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.45)); }
