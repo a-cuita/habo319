@@ -82,7 +82,14 @@
   // before, and not while a collection is going, where the collecting
   // screen stays as it was.
   var NO_BAR = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-collect'];
+  // Admin screens (S6-P19, |M888): never shown outside Admin Mode, by any
+  // button or back; asked for without it, the main page shows instead.
+  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft'];
   function show(id) {
+    if (ADMIN_VIEWS.indexOf(id) !== -1 && !adminMode()) {
+      if (state.account) { showAccount(state.account); return; }
+      id = 'v-welcome';
+    }
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     var bar = !!state.account && NO_BAR.indexOf(id) === -1;
     if (bar) fillBar(state.account);
@@ -114,6 +121,8 @@
   }
   function paintMode() {
     document.documentElement.classList.toggle('lt-builder', adminMode());
+    // Admin Mode turned off on an admin screen: straight to the main page (S6-P19, |M888).
+    if (!adminMode() && state.account && ADMIN_VIEWS.some(function (v) { return !$(v).hidden; })) { showAccount(state.account); return; }
     if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();
   }
 
