@@ -471,12 +471,22 @@ function tabValues_(tab, idCol, shown) {
 // asks the owner to allow what the code needs first, timers included; then
 // this says whether timers are allowed, and touches nothing in the Sheet, so
 // the live version keeps running on the Sheet as it is until the Deploy.
+// The web app doesn't ask on its own, so the page asks Google for the link
+// that does: Allow opens Google's own permission screen.
 function allowPage_() {
-  var ok = true;
-  try { ScriptApp.getProjectTriggers(); } catch (err) { ok = false; }
-  var say = ok ? 'Allowed. The litter app can make its own timer for the email digest now. Nothing else changed; you can close this page.'
-    : 'Not allowed yet: Google hasn\'t allowed the litter app to make its timer. Open this link again and press Allow.';
-  return HtmlService.createHtmlOutput('<p style="font:18px/1.4 sans-serif;margin:24px">' + say + '</p>').setTitle('HABO litter: allowed');
+  var url = '';
+  try {
+    var info = ScriptApp.getAuthorizationInfo(ScriptApp.AuthMode.FULL);
+    if (info.getAuthorizationStatus() === ScriptApp.AuthorizationStatus.REQUIRED) url = info.getAuthorizationUrl() || '';
+  } catch (err) { url = ''; }
+  var ok = !url;
+  if (ok) { try { ScriptApp.getProjectTriggers(); } catch (err) { ok = false; } }
+  var style = '<style>body{font:18px/1.45 sans-serif;margin:24px;max-width:560px}a.allow{display:inline-block;margin:12px 0;padding:14px 28px;background:#15803d;color:#fff;border-radius:10px;font-weight:700;text-decoration:none}</style>';
+  var body = ok ? '<p>Allowed. The litter app can make its own timer for the email digest now. Nothing else changed; you can close this page.</p>'
+    : url ? '<p>Not allowed yet. Press Allow: Google\'s own screen opens in a new tab. Choose your account and press Allow there (if it says Google hasn\'t verified the app, press Advanced, then the "Go to" link). Then open this link again: it says "Allowed."</p>'
+      + '<a class="allow" target="_blank" rel="noopener" href="' + url.replace(/&/g, '&amp;').replace(/"/g, '&quot;') + '">Allow</a>'
+    : '<p>Not allowed yet, and Google gave no link to allow it from here. Tell Claude what this page says.</p>';
+  return HtmlService.createHtmlOutput(style + body).setTitle('HABO litter: allow');
 }
 
 function health_() {
