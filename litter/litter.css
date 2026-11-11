@@ -713,3 +713,8 @@ body.lt-pulse-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) { .lt-drawer.lt-pop .lt-drawer-box { animation: none; } }
 .lt-pf-note { margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #dbeafe; color: #1e3a8a; font-weight: 700; }
 .lt-pf-note[hidden] { display: none; }
+/* Split and join, under the pieces' map (S6-U25 item 5). */
+.lt-pieces-tools { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 4px; }
+.lt-pieces-tools[hidden] { display: none; }
+.lt-pieces-tools .btn { flex: 1 1 auto; width: auto; margin-top: 0; }
+#sm-pieces-split.on { background: #fde68a; border-color: #b45309; color: #78350f; }

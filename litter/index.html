@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=58">
+<link rel="stylesheet" href="litter.css?v=59">
 </head>
 <body>
 
@@ -541,9 +541,14 @@
       <h2>Ground off your plan</h2>
       <p id="sm-offplan-say"></p>
       <div class="lt-map-box"><div class="lt-pieces-map" id="sm-pieces-map"></div></div>
+      <!-- Split and join (S6-U25 item 5, |M904): right under the map, so the map and its buttons are in view together. -->
+      <div class="lt-pieces-tools" id="sm-pieces-tools" hidden>
+        <button class="btn btn-secondary" id="sm-pieces-split" type="button" aria-pressed="false">Split</button>
+        <button class="btn btn-primary" id="sm-pieces-join" type="button" disabled>Join the picked pieces</button>
+        <button class="btn btn-secondary" id="sm-pieces-undo" type="button" disabled>Undo</button>
+      </div>
       <p class="muted small" id="sm-pieces-hint"></p>
       <div id="sm-pieces"></div>
-      <button class="btn btn-secondary" id="sm-pieces-join" type="button" hidden>Join the ticked pieces</button>
       <p class="err" id="sm-offplan-err" role="alert"></p>
     </section>
     <form class="card" id="sm-fix" novalidate hidden>
@@ -1013,8 +1018,8 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
 <script src="share.js?v=4"></script>
-<script src="collect.js?v=57"></script>
-<script src="map.js?v=36"></script>
+<script src="collect.js?v=59"></script>
+<script src="map.js?v=37"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=6"></script>
 <script src="reviews.js?v=4"></script>

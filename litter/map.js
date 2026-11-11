@@ -406,6 +406,21 @@ window.LitterMap = function (app) {
     more.hidden = true;
     more.appendChild(el('p', 'lt-col-facts', Math.round(c.active) + ' min active · ' + c.hours + ' volunteer hour' + (c.hours === 1 ? '' : 's')));
     if (c.hoursNote) more.appendChild(el('p', 'muted small', c.hoursNote));
+    // Its XP, line by line (S6-U25 item 4, |M904): here, not behind Fix it.
+    var xp = c.xpParts;
+    if (xp && !c.simulated) {
+      var xb = el('div', 'lt-walk-xp lt-col-xp');
+      xb.appendChild(el('p', 'lt-walk-xp-head', 'Its XP'));
+      if (!xp.counts) xb.appendChild(el('p', 'small', 'XP comes once your GPX track is saved.'));
+      else {
+        var xl = el('ul', 'lt-walk-xp-lines');
+        [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
+          .forEach(function (r) { var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li); });
+        xb.appendChild(xl);
+        xb.appendChild(el('p', 'lt-walk-xp-total', 'Total: ' + round(c.xp, 2) + ' XP'));
+      }
+      more.appendChild(xb);
+    }
     var ul = el('ul', 'lt-col-stretches');
     c.stretchList.forEach(function (s) {
       var li = el('li');

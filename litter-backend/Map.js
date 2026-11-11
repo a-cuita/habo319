@@ -130,7 +130,7 @@ function myCollections_(req) {
   // Each walk's XP, counted as your XP counts it (S6-P28 line 1, |S6-U25 item 4):
   // planning it, and once Ended its weighings', times its time bonus; only
   // with its GPX track saved, and never a simulated one.
-  var x = xpSettings_(), mult = walkMults_();
+  var x = xpSettings_(), bonuses = walkBonuses_();
   var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; })
     .map(function (q) {
       var col = collectionOf_(q);
@@ -138,9 +138,16 @@ function myCollections_(req) {
       col.editableUntil = ended + editHours * 3600000;
       col.editable = Date.now() < col.editableUntil;
       var sts = (byCollection[col.id] || []).map(stretchOf_).sort(function (a, b) { return a.n - b.n; });
-      var counts = !!String(q.get('track')).trim() && q.get('simulated') !== 'Yes';
-      col.xp = !counts ? 0 : round_((Number(q.get('xp')) || 0) + (q.get('status') === 'Ended'
-        ? sts.reduce(function (t, st) { return t + stretchXp_(st, x); }, 0) * (mult[col.id] || 1) : 0), 2);
+      var counts = !!String(q.get('track')).trim() && q.get('simulated') !== 'Yes', ended = q.get('status') === 'Ended', b = bonuses[col.id];
+      // Its XP line by line, under it in Your collections, not behind Fix it (S6-U25 item 4, |M904).
+      var p = { counts: counts, plan: counts ? Number(q.get('xp')) || 0 : 0, ratings: 0, types: 0, mult: b ? b.mult : 1, kind: b ? b.kind : '', bonus: 0 };
+      if (counts && ended) sts.forEach(function (st) {
+        var all = stretchXp_(st, x), t = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
+        p.ratings += all - t; p.types += t;
+      });
+      p.bonus = round_((p.ratings + p.types) * (p.mult - 1), 2);
+      col.xpParts = p;
+      col.xp = !counts ? 0 : round_(p.plan + p.ratings + p.types + p.bonus, 2);
       col.stretchList = sts.map(stretchViewOf_);
       delete col.row;
       return col;
