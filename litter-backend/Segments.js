@@ -594,12 +594,16 @@ function fieldsAreaOnce_() {
 // how it was partly cleaned, in one world: { id, name, kind, squares, miles,
 // rate, median, average, shows, count, confidence, level, arrow, due, partly,
 // days, groups: [{ pct, dir, days }] }.
-function segmentSummaries_(sim, accountId) {
+// `range` (Maps, S6-U26, |Q724 (a), |Q725 (a)): the days chosen, { since, until }
+// in ms; a segment's rate and the walks behind it come from those days, not
+// the rate window.
+function segmentSummaries_(sim, accountId, range) {
   if (sim && !accountId) return [];   // a simulated world is always someone's
   // Kept between requests until something's written (S6-P1, kept_ in Code.js).
-  return kept_('segments:' + (sim ? 'sim:' + accountId : 'public'), function () { return segmentSummariesWorked_(sim, accountId); });
+  var key = 'segments:' + (sim ? 'sim:' + accountId : 'public') + (range ? ':' + range.since + '-' + range.until : '');
+  return kept_(key, function () { return segmentSummariesWorked_(sim, accountId, range); });
 }
-function segmentSummariesWorked_(sim, accountId) {
+function segmentSummariesWorked_(sim, accountId, range) {
   var now = Date.now();
   var counted = rateCollections_(sim, accountId);
   var rows = readRows_(TABS.stretches);
@@ -626,7 +630,8 @@ function segmentSummariesWorked_(sim, accountId) {
   var level = function (n) { return n === 0 ? 0 : n <= low ? 1 : n <= moderate ? 2 : 3; };
   return segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).map(function (g) {
     var own = rates.filter(function (r) { return r.segment === g.id; });
-    var recentRows = own.filter(function (r) { return now - r.collected <= win; });
+    var inside = function (r) { return range ? r.collected >= range.since && r.collected < range.until : now - r.collected <= win; };
+    var recentRows = own.filter(inside);
     var recent = recentRows.map(function (r) { return r.rate; });
     // The walks that gave it a rate in the window, newest first, for the map's pop-up (|M650);
     // and how many there were not counted (S5-P13).
@@ -642,7 +647,7 @@ function segmentSummariesWorked_(sim, accountId) {
       });
       return { collected: r.collected, rate: r.rate, by: who || 'a volunteer', idx: idx };
     });
-    var notCountedN = allRates.filter(function (r) { return r.segment === g.id && r.notCounted && now - r.collected <= win; }).length;
+    var notCountedN = allRates.filter(function (r) { return r.segment === g.id && r.notCounted && inside(r); }).length;
     // Two weeks ago, over the same length of window: the arrow's comparison.
     var then = now - 14 * DAY_MS;
     var earlier = own.filter(function (r) { return r.collected <= then && then - r.collected <= win; }).length;

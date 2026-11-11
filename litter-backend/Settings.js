@@ -17,17 +17,38 @@
 // choices, and for a number, its lowest and highest]. Made when first asked
 // for, since the names come from the other files.
 function settingGroups_() {
+  // Categories, each its own screen (S6-P32, |Q727): a short list first, each
+  // with a line on what's in it; tap one, and only its settings show.
   return [
-  { key: 'safety', title: 'Collecting safety', rank: 'Head Builder', items: [
+  { key: 'safety', title: 'Safety', says: 'The waiver and gear renewal, sunset, when a walk starts and ends on its own, the "Did you mean" weight.', rank: 'Head Builder', items: [
     [SETTING_SUNSET_WARN, 'Sunset warning', 'How long before sunset the page warns you to wrap up.', 'number', 'minutes before sunset', 0, 240],
     [SETTING_NO_START, 'No new collection', 'From this long before sunset, Start collecting waits for morning.', 'number', 'minutes before sunset', 0, 240],
     [SETTING_AUTO_END, 'A collection left alone ends after', 'A collection with no litter pulse for this long ends by itself.', 'number', 'hours', 1, 48],
     [SETTING_EDIT_HOURS, 'A collection can be changed for', 'How long after it ends a player can still fix a collection.', 'number', 'hours', 1, 720],
-    // S6-U25 item 1 (|Q704 (a)): a slip like 1,700 lb caught before it's saved; Yes keeps it.
     [SETTING_HEAVY_LB, 'Ask "Did you mean…?" above', 'A litter pulse whose scale shows more than this asks "Did you mean …?" before it goes on. Yes keeps it, for a big cleanup bag.', 'number', 'lb', 1, 10000],
-    // S6-P30 (|Q716): the waiver signed again, and the safety gear confirmed, this often.
     [SETTING_WAIVER_RENEW, 'Renew the waiver and safety gear every', 'Each player signs the waiver again, and confirms their safety gear, this often. 0: never.', 'number', 'months', 0, 24]] },
-  { key: 'xp', title: 'XP', rank: 'Architect', items: [
+  { key: 'walks', title: 'Walks and weighing', says: 'Break questions, pieces that add up, when a weighing counts for a segment, paths and fields covered, how far a track scans.', rank: 'Architect', items: [
+    [SETTING_BREAK_AFTER, 'Break question after', 'Once a player has this many collections, a weighing far slower than their usual pace asks if they took a break.', 'number', 'collections', 1, 100],
+    [SETTING_PIECES, 'Pieces add up within', 'Walks that each clean part of a segment, each this soon after the one before, add up to one collection.', 'number', 'hours', 1, 168],
+    [SETTING_INSIDE, 'A weighing counts for a segment when inside', 'A weighing\'s pounds count for a segment when this share of its squares is on it.', 'number', '%', 1, 100],
+    [SETTING_NEAR, 'Near enough to a segment', 'How close to a segment\'s squares counts as on it.', 'number', 'm', 0, 100],
+    [SETTING_COVER, 'Path collected when covered', 'A walk collects a path when it comes near this share of its squares.', 'number', '%', 1, 100],
+    [SETTING_FIELD_COVER, 'Field collected when scanned', 'A walk collects a field when it scans this share of it.', 'number', '%', 1, 100],
+    [SETTING_REACH, 'A track scans each side', 'On a field, how far either side of your track counts as scanned.', 'number', 'm', 1, 100],
+    [SETTING_PART_M, 'Part of a segment', 'A segment is cut into parts this long, for how it was partly cleaned.', 'number', 'm', 10, 500],
+    [SETTING_APART, 'Plan segments far apart', 'A plan with segments farther apart than this gets a notice.', 'number', 'mi', 0.1, 50]] },
+  { key: 'rates', title: 'Rates', says: 'When a segment is due, the gap and window for a rate, how a rate shows, confidence, the rate map\'s top.', rank: 'Architect', items: [
+    [SETTING_DUE_FROM, 'Segment due from', 'A segment shows on The Priority Segment List from this long after its clock started.', 'number', 'days', 0, 30],
+    [SETTING_DUE_TO, 'Segment due until', 'Later than this, it\'s a Rate Reset: the next collection measures no rate and starts the clock again.', 'number', 'days', 1, 60],
+    [SETTING_FINISH, 'Finish it shows from', 'A segment partly cleaned shows "Finish it" once this much of it is.', 'number', '% cleaned', 0, 100],
+    [SETTING_MIN_GAP, 'Shortest gap for a rate', 'A collection sooner than this after the clock started is a pickup: no rate, and its pounds go into the next.', 'number', 'hours', 1, 168],
+    [SETTING_RATE_WINDOW, 'Rate window', 'A segment\'s rate is from its rates in this many days.', 'number', 'days', 1, 365],
+    [SETTING_RATE_SHOWS, 'Segment rate shows', 'Which of its rates a segment shows.', 'choice', ['Median', 'Average', 'Both']],
+    [SETTING_CONF_LOW, 'Confidence Low up to', 'Up to this many rates in the window, its confidence is the second name below.', 'number', 'rates', 1, 100],
+    [SETTING_CONF_MODERATE, 'Confidence Moderate up to', 'Up to this many, the third name; more, the fourth.', 'number', 'rates', 1, 100],
+    [SETTING_CONF_NAMES, 'Confidence names', 'Four names, with commas between: for no rate in the window, then low, moderate and established.', 'names', 4],
+    [SETTING_RATE_TOP, 'Rate map top', 'The rate the map\'s top colour stands for.', 'number', 'lb per mile per day', 0.1, 100]] },
+  { key: 'xp', title: 'XP and bonuses', says: 'XP for planning, ratings and litter types; the time and left-alone bonuses; the first quest; a segment made public.', rank: 'Architect', items: [
     [SETTING_PLAN_XP, 'XP for each planned collection', 'A collection started from a plan earns this.', 'number', 'XP', 0, 100],
     [SETTING_RATING_XP_1, 'XP for a visual rating within 1', 'A visual rating within 1 of the Litter Index earns this.', 'number', 'XP', 0, 100],
     [SETTING_RATING_XP_2, 'XP for a visual rating within 2', 'Within 2 of the Litter Index.', 'number', 'XP', 0, 100],
@@ -36,70 +57,48 @@ function settingGroups_() {
     [SETTING_TYPES_XP, 'XP for a stretch\'s litter types', 'A weighing with its litter types filled in earns this.', 'number', 'XP', 0, 100],
     [SETTING_TIME_PEAK, 'Time bonus a day after', 'Collecting a segment again a day after its clock started multiplies the walk\'s rating and litter-type XP by this; it comes down evenly to none by the day below.', 'number', '×', 1, 10],
     [SETTING_TIME_ENDS, 'Time bonus gone after', 'From a day, the time bonus comes down evenly to none by this many days.', 'number', 'days', 1, 60],
-    // S6-P3 item 4 (|Q690 (a)): the other end of the time bonus.
     [SETTING_ALONE_DAYS, 'Left-alone bonus after', 'A walk that collects squares of a public segment nobody has collected for this many days, or ever, earns the bonus below. 0: no left-alone bonus.', 'number', 'days', 0, 365],
     [SETTING_ALONE_MULT, 'Left-alone bonus', 'Multiplies that walk\'s rating and litter-type XP by this. Where the time bonus is more, it counts instead.', 'number', '×', 1, 10],
     [SETTING_QUEST_STEP_XP, 'XP for each first quest step', 'Each of the first quest\'s six steps earns this.', 'number', 'XP', 0, 100],
     [SETTING_QUEST_DONE_XP, 'XP for finishing the first quest', 'Finishing all six earns this more.', 'number', 'XP', 0, 100],
-    [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100],
-    [SETTING_BREAK_AFTER, 'Break question after', 'Once a player has this many collections, a weighing far slower than their usual pace asks if they took a break.', 'number', 'collections', 1, 100]] },
+    [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100]] },
   // Levels and class skills (S5-P29, |Q612 to |Q615): the Levels tab's
   // ranges and each Litter Class Skill's level, kept in their own tabs.
-  { key: 'skills', title: 'Levels and class skills', rank: 'Architect', custom: true, items: [] },
-  { key: 'segments', title: 'Segments and rates', rank: 'Architect', items: [
-    [SETTING_DUE_FROM, 'Segment due from', 'A segment shows on The Priority Segment List from this long after its clock started.', 'number', 'days', 0, 30],
-    [SETTING_DUE_TO, 'Segment due until', 'Later than this, it\'s a Rate Reset: the next collection measures no rate and starts the clock again.', 'number', 'days', 1, 60],
-    [SETTING_MIN_GAP, 'Shortest gap for a rate', 'A collection sooner than this after the clock started is a pickup: no rate, and its pounds go into the next.', 'number', 'hours', 1, 168],
-    [SETTING_PIECES, 'Pieces add up within', 'Walks that each clean part of a segment, each this soon after the one before, add up to one collection.', 'number', 'hours', 1, 168],
-    [SETTING_FINISH, 'Finish it shows from', 'A segment partly cleaned shows "Finish it" once this much of it is.', 'number', '% cleaned', 0, 100],
-    [SETTING_COVER, 'Path collected when covered', 'A walk collects a path when it comes near this share of its squares.', 'number', '%', 1, 100],
-    [SETTING_REACH, 'A track scans each side', 'On a field, how far either side of your track counts as scanned.', 'number', 'm', 1, 100],
-    [SETTING_FIELD_COVER, 'Field collected when scanned', 'A walk collects a field when it scans this share of it.', 'number', '%', 1, 100],
-    [SETTING_INSIDE, 'A weighing counts for a segment when inside', 'A weighing\'s pounds count for a segment when this share of its squares is on it.', 'number', '%', 1, 100],
-    [SETTING_NEAR, 'Near enough to a segment', 'How close to a segment\'s squares counts as on it.', 'number', 'm', 0, 100],
-    [SETTING_PART_M, 'Part of a segment', 'A segment is cut into parts this long, for how it was partly cleaned.', 'number', 'm', 10, 500],
-    [SETTING_RATE_WINDOW, 'Rate window', 'A segment\'s rate is from its rates in this many days.', 'number', 'days', 1, 365],
-    [SETTING_RATE_SHOWS, 'Segment rate shows', 'Which of its rates a segment shows.', 'choice', ['Median', 'Average', 'Both']],
-    [SETTING_CONF_LOW, 'Confidence Low up to', 'Up to this many rates in the window, its confidence is the second name below.', 'number', 'rates', 1, 100],
-    [SETTING_CONF_MODERATE, 'Confidence Moderate up to', 'Up to this many, the third name; more, the fourth.', 'number', 'rates', 1, 100],
-    [SETTING_CONF_NAMES, 'Confidence names', 'Four names, with commas between: for no rate in the window, then low, moderate and established.', 'names', 4],
-    [SETTING_RATE_TOP, 'Rate map top', 'The rate the map\'s top colour stands for.', 'number', 'lb per mile per day', 0.1, 100],
-    [SETTING_APART, 'Plan segments far apart', 'A plan with segments farther apart than this gets a notice.', 'number', 'mi', 0.1, 50]] },
-  // The Forum's email digest (S5-P28 round 2, |Q637 (a)): the hour it goes.
-  { key: 'forum', title: 'Forum', rank: 'Head Builder', items: [
-    [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
-  // What's on the share picture, one choice for everyone (S6-P5 round 2, |Q685 (a)):
-  // a layout, then each part on or off on top of it (|Q686); the app's name (|Q687 (a)).
-  { key: 'share', title: 'The share picture', rank: 'Builder', items: [
-    [SETTING_SHARE_LAYOUT, 'Layout', 'What the picture shows to start with. Full: everything. Map and numbers: no handle, date or times. Map only: the map, the date and times, and the app\'s name.', 'choice', SHARE_LAYOUTS]]
-    .concat(SHARE_PARTS.map(function (p) { return [p[1], p[1].replace('Share picture: ', '').replace(/^./, function (c) { return c.toUpperCase(); }), 'On or off, whatever the layout; or as the layout has it.', 'choice', SHARE_PART_CHOICES]; }))
-    .concat([[SETTING_APP_NAME, 'The app\'s name', 'On the share picture and the badges\' pictures. A new name needs no build.', 'text', 40]]) },
-  { key: 'look', title: 'The map\'s look and the sayings', rank: 'Builder', items: [
+  { key: 'skills', title: 'Levels and skills', says: 'The level table, and the level each Litter Class Skill opens at.', rank: 'Architect', custom: true, items: [] },
+  { key: 'look', title: 'The map\'s look', says: 'Its colours, how readings fade, the paused track, the rating marks.', rank: 'Builder', items: [
     [SETTING_COLOUR_0, 'Map colour at 0', 'The Litter Index scale\'s colour at 0.', 'colour'],
     [SETTING_COLOUR_5, 'Map colour at 5', 'At 5.', 'colour'],
     [SETTING_COLOUR_10, 'Map colour at 10', 'At 10 and above.', 'colour'],
     [SETTING_PLAN_COLOUR, 'Map colour: plan', 'The band around your chosen plan.', 'colour'],
     [SETTING_MAP_FADE, 'Readings fade out after', 'On the map, a square\'s Litter Index fades as it ages, and is gone after this many days. Its numbers stay in the pop-ups and the rates. The main page\'s map shows this many days; the Maps screen, the days each player chooses.', 'number', 'days', 1, 365],
-    // S6-U26 (|Q702): the words for your rating against the Litter Index.
     [SETTING_DIFF_MARK, 'Rating "on the mark" within', 'On the map\'s Rating against Litter Index layer: a weighing\'s Litter Index minus your rating, within this either way, is on the mark.', 'number', '±', 0, 10],
     [SETTING_DIFF_SLIGHT, 'Rating "slightly" off up to', 'Beyond on the mark and up to this either way: slightly lenient (you rated it cleaner than it measured) or slightly critical. Beyond this: lenient or critical.', 'number', '±', 0, 10],
     [SETTING_PAUSED_COLOUR, 'Paused track colour', 'Where a GPX track was paused.', 'colour']]
-    .concat(DARK_SETTINGS.map(function (d) { return [d[1], d[1], 'The same, in Admin Mode\'s dark look.', 'colour']; }))
-    .concat([[SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]]) }
+    .concat(DARK_SETTINGS.map(function (d) { return [d[1], d[1], 'The same, in Admin Mode\'s dark look.', 'colour']; })) },
+  // What's on the share picture, one choice for everyone (S6-P5 round 2, |Q685 (a)):
+  // a layout, then each part on or off on top of it (|Q686); the app's name (|Q687 (a)).
+  { key: 'share', title: 'Sharing', says: 'The share picture, with its preview, and the app\'s name.', rank: 'Builder', items: [
+    [SETTING_SHARE_LAYOUT, 'Layout', 'What the picture shows to start with. Full: everything. Map and numbers: no handle, date or times. Map only: the map, the date and times, and the app\'s name.', 'choice', SHARE_LAYOUTS]]
+    .concat(SHARE_PARTS.map(function (p) { return [p[1], p[1].replace('Share picture: ', '').replace(/^./, function (c) { return c.toUpperCase(); }), 'On or off, whatever the layout; or as the layout has it.', 'choice', SHARE_PART_CHOICES]; }))
+    .concat([[SETTING_APP_NAME, 'The app\'s name', 'On the share picture and the badges\' pictures. A new name needs no build.', 'text', 40]]) },
+  // The Forum's email digest (S5-P28 round 2, |Q637 (a)): the hour it goes.
+  { key: 'forum', title: 'Forum and email', says: 'The hour the Forum\'s digest goes, and its timer.', rank: 'Head Builder', items: [
+    [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
+  { key: 'sayings', title: 'Sayings', says: 'What the page says while a walk starts.', rank: 'Builder', items: [
+    [SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]] }
   ];
 }
-
 function aRank_(rank) { return (/^[AEIOU]/.test(rank) ? 'an ' : 'a ') + rank; }
 function rankAtLeast_(rank, need) { return RANKS.indexOf(rank) >= 0 && RANKS.indexOf(rank) >= RANKS.indexOf(need); }
 
 // The groups this account may change, with each setting's value now.
 function settingsGroupsFor_(account) {
   return settingGroups_().filter(function (g) { return rankAtLeast_(account.rank, g.rank); }).map(function (g) {
-    if (g.custom) return { key: g.key, title: g.title, rank: g.rank, custom: true, items: [],
+    if (g.custom) return { key: g.key, title: g.title, says: g.says || '', rank: g.rank, custom: true, items: [],
       levels: levelRanges_().map(function (r) { return [r[0], r[1] == null ? '' : r[1], r[2]]; }), skills: classSkills_() };
     // The Forum's group says how many digest timers there are (S6-P16).
     var note = g.key === 'forum' ? digestTimerState_() : null;
-    var out = { key: g.key, title: g.title, rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
+    var out = { key: g.key, title: g.title, says: g.says || '', rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
       return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
         min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null,

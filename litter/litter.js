@@ -105,7 +105,7 @@
     }
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     // Settings' lock bar pads the page only on Settings (S6-P7).
-    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar');
+    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar', 'lt-set-bg-locked', 'lt-set-bg-open');
     var bar = !!state.account && NO_BAR.indexOf(id) === -1;
     if (bar) fillBar(state.account);
     else if (!$('me-panel').hidden) panel(false);

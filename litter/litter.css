@@ -374,6 +374,15 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 
 /* Settings in Admin Mode (S5-P19 A): a section at a time, each setting with its words and its box. */
 .lt-set-group summary { font-weight: 800; font-size: 1.05rem; cursor: pointer; padding: 2px 0; }
+/* The categories as a list (S6-P32): each its name and a line on what's in it; opened, its own screen. */
+.lt-set-title { display: block; }
+.lt-set-says { display: block; font-weight: 400; font-size: 0.85rem; color: var(--text-dim); margin-top: 2px; }
+.lt-set-group[open] .lt-set-says { display: none; }
+.lt-set-all { width: auto; margin-top: 8px; }
+.lt-set-group[hidden] { display: none; }
+.lt-set-group > summary { list-style: none; position: relative; padding-right: 24px; }
+.lt-set-group > summary::-webkit-details-marker { display: none; }
+.lt-set-group:not([open]) > summary::after { content: '›'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 1.6rem; font-weight: 400; color: var(--text-dim); }
 .lt-set-group[open] summary { margin-bottom: 6px; }
 .lt-set-item { border-top: 1px solid var(--border); padding: 10px 0; }
 .lt-set-label { display: block; font-weight: 700; }
@@ -571,14 +580,19 @@ body.lt-sheet-open { overflow: hidden; }
 #cha-form .btn + .btn { margin-top: 8px; }
 
 /* The Wiki (S6-P9). */
-.lt-wiki-item { display: block; width: 100%; text-align: left; margin: 0 0 8px; }
+/* The Wiki as a plain contents list, like Wikipedia's (S6-P9, |Q726 (a)): each section a heading, its pages as links. */
+.lt-wiki-item { display: inline; background: none; border: 0; padding: 0; margin: 0; font: inherit; font-size: 1rem; color: var(--primary); text-align: left; cursor: pointer; line-height: 1.4; }
+.lt-wiki-item:hover, .lt-wiki-item:focus-visible { text-decoration: underline; }
+.lt-wiki-toc { list-style: none; margin: 0 0 6px; padding: 0 0 0 4px; }
+.lt-wiki-toc li { margin: 0 0 8px; }
+.lt-wiki-hits-list li { margin-bottom: 12px; }
 /* A line from the backend on a Settings group: the digest's timer (S6-P16). */
 .lt-set-note { margin: 4px 0 8px; }
 .lt-set-warn { color: #b91c1c; font-weight: 700; }
 /* The Wiki's sections, search, and where a page is (S6-P9 round 2). */
 #wiki-search { width: 100%; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; }
 .lt-wiki-section { margin: 0 0 14px; }
-.lt-wiki-section h3 { margin: 4px 0 8px; font-size: 1rem; }
+.lt-wiki-section h3 { margin: 4px 0 8px; font-size: 1.05rem; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .lt-wiki-hit { display: flex; flex-direction: column; gap: 2px; }
 .lt-wiki-hit-where { font-size: 0.8rem; color: var(--muted, #6b7280); }
 .lt-wiki-hit-line { font-size: 0.85rem; font-weight: 400; color: var(--muted, #4b5563); }
@@ -734,3 +748,7 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
 /* The share picture's preview in Settings (S6-P5, |C914). */
 .lt-set-preview { margin: 14px 0 4px; }
 .lt-set-preview-pic { display: block; width: min(100%, 320px); height: auto; aspect-ratio: 1080 / 1350; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: #e5e7eb; }
+/* Settings' background shows its lock (S6-P7, |M894, |Q684 (a)): near-black
+   navy while locked, maroon while unlocked, behind the sections. */
+body.lt-set-bg-locked { background: #0b1324; }
+body.lt-set-bg-open { background: #4a0d1c; }

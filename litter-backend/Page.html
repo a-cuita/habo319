@@ -521,6 +521,15 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 
 /* Settings in Admin Mode (S5-P19 A): a section at a time, each setting with its words and its box. */
 .lt-set-group summary { font-weight: 800; font-size: 1.05rem; cursor: pointer; padding: 2px 0; }
+/* The categories as a list (S6-P32): each its name and a line on what's in it; opened, its own screen. */
+.lt-set-title { display: block; }
+.lt-set-says { display: block; font-weight: 400; font-size: 0.85rem; color: var(--text-dim); margin-top: 2px; }
+.lt-set-group[open] .lt-set-says { display: none; }
+.lt-set-all { width: auto; margin-top: 8px; }
+.lt-set-group[hidden] { display: none; }
+.lt-set-group > summary { list-style: none; position: relative; padding-right: 24px; }
+.lt-set-group > summary::-webkit-details-marker { display: none; }
+.lt-set-group:not([open]) > summary::after { content: '›'; position: absolute; right: 2px; top: 50%; transform: translateY(-50%); font-size: 1.6rem; font-weight: 400; color: var(--text-dim); }
 .lt-set-group[open] summary { margin-bottom: 6px; }
 .lt-set-item { border-top: 1px solid var(--border); padding: 10px 0; }
 .lt-set-label { display: block; font-weight: 700; }
@@ -718,14 +727,19 @@ body.lt-sheet-open { overflow: hidden; }
 #cha-form .btn + .btn { margin-top: 8px; }
 
 /* The Wiki (S6-P9). */
-.lt-wiki-item { display: block; width: 100%; text-align: left; margin: 0 0 8px; }
+/* The Wiki as a plain contents list, like Wikipedia's (S6-P9, |Q726 (a)): each section a heading, its pages as links. */
+.lt-wiki-item { display: inline; background: none; border: 0; padding: 0; margin: 0; font: inherit; font-size: 1rem; color: var(--primary); text-align: left; cursor: pointer; line-height: 1.4; }
+.lt-wiki-item:hover, .lt-wiki-item:focus-visible { text-decoration: underline; }
+.lt-wiki-toc { list-style: none; margin: 0 0 6px; padding: 0 0 0 4px; }
+.lt-wiki-toc li { margin: 0 0 8px; }
+.lt-wiki-hits-list li { margin-bottom: 12px; }
 /* A line from the backend on a Settings group: the digest's timer (S6-P16). */
 .lt-set-note { margin: 4px 0 8px; }
 .lt-set-warn { color: #b91c1c; font-weight: 700; }
 /* The Wiki's sections, search, and where a page is (S6-P9 round 2). */
 #wiki-search { width: 100%; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; }
 .lt-wiki-section { margin: 0 0 14px; }
-.lt-wiki-section h3 { margin: 4px 0 8px; font-size: 1rem; }
+.lt-wiki-section h3 { margin: 4px 0 8px; font-size: 1.05rem; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
 .lt-wiki-hit { display: flex; flex-direction: column; gap: 2px; }
 .lt-wiki-hit-where { font-size: 0.8rem; color: var(--muted, #6b7280); }
 .lt-wiki-hit-line { font-size: 0.85rem; font-weight: 400; color: var(--muted, #4b5563); }
@@ -881,6 +895,10 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
 /* The share picture's preview in Settings (S6-P5, |C914). */
 .lt-set-preview { margin: 14px 0 4px; }
 .lt-set-preview-pic { display: block; width: min(100%, 320px); height: auto; aspect-ratio: 1080 / 1350; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: #e5e7eb; }
+/* Settings' background shows its lock (S6-P7, |M894, |Q684 (a)): near-black
+   navy while locked, maroon while unlocked, behind the sections. */
+body.lt-set-bg-locked { background: #0b1324; }
+body.lt-set-bg-open { background: #4a0d1c; }
 </style>
 </head>
 <body>
@@ -1362,7 +1380,7 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
   <div class="lt-scrim" id="cl-ready" role="dialog" aria-modal="true" aria-labelledby="cl-ready-title" hidden>
     <div class="lt-scrim-box">
       <p class="lt-scrim-title" id="cl-ready-title">Ready to start collecting?</p>
-      <p class="lt-modal-say">Your collection starts when you press Start collecting.</p>
+      <p class="lt-modal-say">First, what you're carrying. Then you start your GPX recording, and your collection starts.</p>
       <!-- What you're carrying today (S6-P30, |Q425): a bag and a scale, or a litter pulse can't be weighed. -->
       <div class="lt-carry" id="cl-carry">
         <p class="lt-carry-title">What you're carrying today</p>
@@ -1371,7 +1389,7 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
         <label class="choice-row lt-carry-scale"><input type="checkbox" id="cl-carry-scale"> My scale</label>
         <p class="muted small" id="cl-carry-hint">Pick your bag (one or more) and your scale. A litter pulse can't be weighed without them.</p>
       </div>
-      <button class="btn btn-accent" id="cl-ready-go" type="button">Start collecting</button>
+      <button class="btn btn-accent" id="cl-ready-go" type="button">Next</button>
       <div class="center"><button class="link-btn" id="cl-ready-cancel" type="button">Cancel</button></div>
     </div>
   </div>
@@ -1603,8 +1621,10 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
   <!-- Settings (S5-P19 A, |M676): in Admin Mode, the Settings tab's groups your rank may change, a section at a time. -->
   <div id="v-settings" hidden>
     <section class="card">
-      <h2>Settings</h2>
+      <h2 id="settings-title">Settings</h2>
       <p class="muted small" id="settings-note"></p>
+      <!-- Back to the list of categories (S6-P32, |Q727). -->
+      <button class="btn btn-secondary lt-set-all" id="settings-all" type="button" hidden>← All settings</button>
     </section>
     <div id="settings-list"></div>
     <button class="lt-fab-back" id="settings-back" type="button" aria-label="Back" title="Back">←</button>
@@ -2534,7 +2554,7 @@ var LitterGeo = (function () {
 window.LitterShare = (function () {
   'use strict';
   var G = window.LitterGeo;
-  var W = 1080, H = 1350, MAP_H = 880, TILE = 256;
+  var W = 1080, H = 1350, TILE = 256;
   var TILES = 'https://tile.openstreetmap.org/';
 
   // Can this browser hand a picture to the phone's share sheet?
@@ -2575,8 +2595,15 @@ window.LitterShare = (function () {
   }
 
   // The map part: OpenStreetMap's tiles, the walk's squares, and its track.
+  // How tall the map is: the whole picture less what the words under it need,
+  // so a layout with fewer parts gives the map the room (S6-P5, |C936).
+  // Everything on: 880 of 1350, as before; nothing under it: all of it.
+  function mapHeight(look, walk) {
+    var lines = (look.numbers ? 74 : 0) + (look.index && walkIndex(walk) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (look.name ? 90 : 0);
+    return lines ? H - 112 - lines : H;
+  }
   function drawMap(ctx, walk, L) {
-    var look = L || current;
+    var look = L || current, MAP_H = mapHeight(look, walk);
     ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, 0, W, MAP_H);
     var b = extent(walk);
@@ -2633,7 +2660,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H);
       return drawn > 0;
     });
   }
@@ -2641,7 +2668,7 @@ window.LitterShare = (function () {
   // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
   // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
   // a bar, in the map's bottom-left corner.
-  function drawScale(ctx, colours) {
+  function drawScale(ctx, colours, MAP_H) {
     var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     roundRect(ctx, x, y, w, h, 14); ctx.fill();
@@ -2687,7 +2714,8 @@ window.LitterShare = (function () {
 
   // The words under the map.
   function drawWords(ctx, walk, L) {
-    var look = L || current;
+    var look = L || current, MAP_H = mapHeight(look, walk);
+    if (MAP_H >= H) return;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, MAP_H, W, H - MAP_H);
     ctx.fillStyle = '#15803d';
@@ -5678,13 +5706,16 @@ window.LitterCollect = function (app) {
 
   /* ── Wiring ── */
 
-  // A new collection asks for your GPX recording first; going back to one doesn't.
+  // A new collection asks what you're carrying first, then for your GPX
+  // recording, so nobody's recording while they go back for gear (S6-P30,
+  // |C944); going back to one doesn't ask.
   $('cl-start').addEventListener('click', function () {
     if ((c && !c.ended) || (!c && account && account.open)) return start($('cl-start'));
     $('cl-start-err').textContent = '';
-    $('cl-rec').hidden = false;
+    carryOpen();
+    $('cl-ready').hidden = false;
   });
-  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); $('cl-rec').hidden = true; carryOpen(); $('cl-ready').hidden = false; });
+  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); closeStartAsks(); start($('cl-start')); });
   $('cl-rec-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-carry-bags').addEventListener('click', function (e) {
     var b = e.target.closest('.lt-carry-bag');
@@ -5696,8 +5727,8 @@ window.LitterCollect = function (app) {
   $('cl-carry-same').addEventListener('click', function () { carrySet(carryLast); });
   $('cl-ready-go').addEventListener('click', function () {
     carrying = simOn() ? null : carryPicked();
-    closeStartAsks();
-    start($('cl-start'));
+    $('cl-ready').hidden = true;
+    $('cl-rec').hidden = false;
   });
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
@@ -7503,6 +7534,7 @@ window.LitterSettings = function (app) {
 
   function open() {
     locked = true;
+    openKey = '';
     app.show('v-settings');
     window.scrollTo(0, 0);
     $('settings-list').textContent = '';
@@ -7519,9 +7551,27 @@ window.LitterSettings = function (app) {
   function draw() {
     var box = $('settings-list');
     box.textContent = '';
-    $('settings-note').textContent = groups.length ? 'Open a section, change what you need, and press its Save.' : 'Your rank has no settings to change yet.';
+    $('settings-note').textContent = groups.length ? 'Choose a category.' : 'Your rank has no settings to change yet.';
     groups.forEach(function (g) { box.appendChild(section(g)); });
     lock(locked);
+    screenFor(groups.some(function (g) { return g.key === openKey; }) ? openKey : '', true);
+  }
+
+  // The categories as screens (S6-P32, |Q727): the list, or one category on
+  // its own with "← All settings" above it.
+  function screenFor(key, keepScroll) {
+    openKey = key;
+    Array.prototype.forEach.call(document.querySelectorAll('#settings-list .lt-set-group'), function (o) {
+      var mine = !!key && o.id === 'set-' + key;
+      o.hidden = !!key && !mine;
+      if (mine && !o.open) o.open = true;
+      if (!key && o.open) o.open = false;
+    });
+    $('settings-all').hidden = !key;
+    $('settings-note').hidden = !!key;
+    var g = groups.filter(function (x) { return x.key === key; })[0];
+    $('settings-title').textContent = g ? g.title : 'Settings';
+    if (!keepScroll) window.scrollTo(0, 0);
   }
 
   // Locked: every box shows its value, and nothing in a section (its boxes,
@@ -7535,6 +7585,10 @@ window.LitterSettings = function (app) {
     // "🔓UNLOCKED"; a press changes it. The words under the heading are gone.
     btn.hidden = !groups.length;
     document.body.classList.toggle('lt-has-lockbar', !!groups.length);
+    // The page behind Settings shows the lock's state (S6-P7, |M894, |Q684 (a)):
+    // near-black navy while locked, maroon while unlocked.
+    document.body.classList.toggle('lt-set-bg-locked', !!groups.length && on);
+    document.body.classList.toggle('lt-set-bg-open', !!groups.length && !on);
     btn.textContent = on ? '🔒locked' : '🔓UNLOCKED';
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.setAttribute('aria-label', on ? 'Settings are locked. Press to unlock them.' : 'Settings are unlocked. Press to lock them.');
@@ -7548,15 +7602,18 @@ window.LitterSettings = function (app) {
     var d = el('details', 'card lt-set-group');
     d.id = 'set-' + g.key;
     d.open = g.key === openKey;
-    d.appendChild(el('summary', 'lt-set-head', g.title));
+    // A category in the list: its name, and a line on what's in it (S6-P32, |Q727).
+    var head = el('summary', 'lt-set-head');
+    head.appendChild(el('span', 'lt-set-title', g.title));
+    if (g.says) head.appendChild(el('span', 'lt-set-says', g.says));
+    d.appendChild(head);
     d.appendChild(el('p', 'muted small', 'Changed by ' + (/^[AEIOU]/.test(g.rank) ? 'an ' : 'a ') + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
     // A line the backend adds, like the digest's timer on Forum (S6-P16).
     if (g.note) { var nt = el('p', 'small lt-set-note' + (g.noteWarn ? ' lt-set-warn' : ''), g.note); nt.id = 'set-note-' + g.key; d.appendChild(nt); }
-    // One section open at a time.
+    // Opened, a category is a screen of its own; closed, the list again.
     d.addEventListener('toggle', function () {
-      if (!d.open) { if (openKey === g.key) openKey = ''; return; }
-      openKey = g.key;
-      Array.prototype.forEach.call(document.querySelectorAll('.lt-set-group'), function (o) { if (o !== d) o.open = false; });
+      if (d.open) { if (openKey !== g.key) screenFor(g.key); }
+      else if (openKey === g.key) screenFor('');
     });
     var rows = g.custom ? skillsSection(g, d) : g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
     var err = el('p', 'err');
@@ -7748,6 +7805,7 @@ window.LitterSettings = function (app) {
   $('cl-sim').addEventListener('change', sync);
   $('me-go-settings').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
   $('settings-back').addEventListener('click', function () { if (app.back) app.back(); });
+  $('settings-all').addEventListener('click', function () { screenFor(''); });
   $('settings-lock').addEventListener('click', function () { lock(!locked); });
   // A tap on a locked box says why it won't change (S6-P7, |M892).
   $('settings-list').addEventListener('click', function (e) {
@@ -8866,8 +8924,9 @@ window.LitterWiki = function (app) {
       .sort(function (a, b) { return (a.place || 999) - (b.place || 999) || a.title.localeCompare(b.title); });
   }
   function sectionOf(p) { return sections().filter(function (s) { return s.id === p.section; })[0] || null; }
+  // A page in the contents, a plain link, like Wikipedia's (S6-P9, |Q726 (a)).
   function pageButton(p, label) {
-    var b = el('button', 'btn btn-secondary lt-wiki-item');
+    var b = el('button', 'lt-wiki-item');
     b.type = 'button';
     b.id = 'wiki-go-' + p.id;
     if (label) b.appendChild(label); else b.textContent = p.title;
@@ -8889,7 +8948,7 @@ window.LitterWiki = function (app) {
         box.appendChild(el('h3', null, s.name));
         var ps = pagesIn(s.id);
         if (!ps.length) box.appendChild(el('p', 'muted small', 'No pages yet.'));
-        ps.forEach(function (p) { box.appendChild(pageButton(p)); });
+        else box.appendChild(toc(ps));
         list.appendChild(box);
       });
       var known = {};
@@ -8898,7 +8957,7 @@ window.LitterWiki = function (app) {
       if (other.length) {
         var box = el('div', 'lt-wiki-section');
         box.appendChild(el('h3', null, sections().length ? 'Other pages' : 'Pages'));
-        other.forEach(function (p) { box.appendChild(pageButton(p)); });
+        box.appendChild(toc(other));
         list.appendChild(box);
       }
     }
@@ -8930,6 +8989,7 @@ window.LitterWiki = function (app) {
     var hits = data.pages.filter(function (p) { return p.title.toLowerCase().indexOf(lq) !== -1 || String(p.text).toLowerCase().indexOf(lq) !== -1; });
     var head = el('p', 'muted small lt-wiki-hits', hits.length ? hits.length + ' page' + (hits.length === 1 ? '' : 's') + ' with "' + q + '"' : 'No page has "' + q + '".');
     list.appendChild(head);
+    var ul = el('ul', 'lt-wiki-toc lt-wiki-hits-list');
     hits.forEach(function (p) {
       var s = sectionOf(p);
       var label = el('span', 'lt-wiki-hit');
@@ -8937,8 +8997,16 @@ window.LitterWiki = function (app) {
       label.appendChild(marked(p.title, q));
       var line = lineWith(p.text, q);
       if (line) { var l = el('span', 'lt-wiki-hit-line'); l.appendChild(marked(line, q)); label.appendChild(l); }
-      list.appendChild(pageButton(p, label));
+      var li = el('li');
+      li.appendChild(pageButton(p, label));
+      ul.appendChild(li);
     });
+    list.appendChild(ul);
+  }
+  function toc(pages) {
+    var ul = el('ul', 'lt-wiki-toc');
+    pages.forEach(function (p) { var li = el('li'); li.appendChild(pageButton(p)); ul.appendChild(li); });
+    return ul;
   }
   // In Admin Mode: the drafts, newest first, each with its Forum vote.
   function drawDrafts() {
@@ -9629,7 +9697,7 @@ window.LitterScroll = function (app) {
     }
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     // Settings' lock bar pads the page only on Settings (S6-P7).
-    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar');
+    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar', 'lt-set-bg-locked', 'lt-set-bg-open');
     var bar = !!state.account && NO_BAR.indexOf(id) === -1;
     if (bar) fillBar(state.account);
     else if (!$('me-panel').hidden) panel(false);

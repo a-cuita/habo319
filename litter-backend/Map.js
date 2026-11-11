@@ -144,7 +144,9 @@ function mapLoad_(req) {
     ratings: Object.keys(rated).map(function (cell) { return [cell, round_(rated[cell].sum / rated[cell].n, 1), rated[cell].n]; }),
     mine: viewer ? Object.keys(mine).map(function (cell) { var m = mine[cell]; return [cell, m.rating, m.index == null ? null : round_(m.index, 1), day(m.ended)]; }) : null,
     diffBands: { mark: minutesSetting_(SETTING_DIFF_MARK, 0.5), slight: minutesSetting_(SETTING_DIFF_SLIGHT, 1.5) },
-    segments: segmentSummaries_(false), simSegments: viewer ? segmentSummaries_(true, viewer.id) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+    // The days you chose decide the segments' rates and the walks in their pop-ups too (|Q724 (a), |Q725 (a)).
+    segments: segmentSummaries_(false, null, chosen ? { since: since, until: until } : null),
+    simSegments: viewer ? segmentSummaries_(true, viewer.id, chosen ? { since: since, until: until } : null) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
 }
 
 // This account's collections, newest first, each with its stretches.

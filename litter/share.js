@@ -7,7 +7,7 @@
 window.LitterShare = (function () {
   'use strict';
   var G = window.LitterGeo;
-  var W = 1080, H = 1350, MAP_H = 880, TILE = 256;
+  var W = 1080, H = 1350, TILE = 256;
   var TILES = 'https://tile.openstreetmap.org/';
 
   // Can this browser hand a picture to the phone's share sheet?
@@ -48,8 +48,15 @@ window.LitterShare = (function () {
   }
 
   // The map part: OpenStreetMap's tiles, the walk's squares, and its track.
+  // How tall the map is: the whole picture less what the words under it need,
+  // so a layout with fewer parts gives the map the room (S6-P5, |C936).
+  // Everything on: 880 of 1350, as before; nothing under it: all of it.
+  function mapHeight(look, walk) {
+    var lines = (look.numbers ? 74 : 0) + (look.index && walkIndex(walk) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (look.name ? 90 : 0);
+    return lines ? H - 112 - lines : H;
+  }
   function drawMap(ctx, walk, L) {
-    var look = L || current;
+    var look = L || current, MAP_H = mapHeight(look, walk);
     ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, 0, W, MAP_H);
     var b = extent(walk);
@@ -106,7 +113,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H);
       return drawn > 0;
     });
   }
@@ -114,7 +121,7 @@ window.LitterShare = (function () {
   // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
   // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
   // a bar, in the map's bottom-left corner.
-  function drawScale(ctx, colours) {
+  function drawScale(ctx, colours, MAP_H) {
     var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     roundRect(ctx, x, y, w, h, 14); ctx.fill();
@@ -160,7 +167,8 @@ window.LitterShare = (function () {
 
   // The words under the map.
   function drawWords(ctx, walk, L) {
-    var look = L || current;
+    var look = L || current, MAP_H = mapHeight(look, walk);
+    if (MAP_H >= H) return;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, MAP_H, W, H - MAP_H);
     ctx.fillStyle = '#15803d';

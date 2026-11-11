@@ -2824,13 +2824,16 @@ window.LitterCollect = function (app) {
 
   /* ── Wiring ── */
 
-  // A new collection asks for your GPX recording first; going back to one doesn't.
+  // A new collection asks what you're carrying first, then for your GPX
+  // recording, so nobody's recording while they go back for gear (S6-P30,
+  // |C944); going back to one doesn't ask.
   $('cl-start').addEventListener('click', function () {
     if ((c && !c.ended) || (!c && account && account.open)) return start($('cl-start'));
     $('cl-start-err').textContent = '';
-    $('cl-rec').hidden = false;
+    carryOpen();
+    $('cl-ready').hidden = false;
   });
-  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); $('cl-rec').hidden = true; carryOpen(); $('cl-ready').hidden = false; });
+  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); closeStartAsks(); start($('cl-start')); });
   $('cl-rec-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-carry-bags').addEventListener('click', function (e) {
     var b = e.target.closest('.lt-carry-bag');
@@ -2842,8 +2845,8 @@ window.LitterCollect = function (app) {
   $('cl-carry-same').addEventListener('click', function () { carrySet(carryLast); });
   $('cl-ready-go').addEventListener('click', function () {
     carrying = simOn() ? null : carryPicked();
-    closeStartAsks();
-    start($('cl-start'));
+    $('cl-ready').hidden = true;
+    $('cl-rec').hidden = false;
   });
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });

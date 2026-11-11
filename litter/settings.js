@@ -22,6 +22,7 @@ window.LitterSettings = function (app) {
 
   function open() {
     locked = true;
+    openKey = '';
     app.show('v-settings');
     window.scrollTo(0, 0);
     $('settings-list').textContent = '';
@@ -38,9 +39,27 @@ window.LitterSettings = function (app) {
   function draw() {
     var box = $('settings-list');
     box.textContent = '';
-    $('settings-note').textContent = groups.length ? 'Open a section, change what you need, and press its Save.' : 'Your rank has no settings to change yet.';
+    $('settings-note').textContent = groups.length ? 'Choose a category.' : 'Your rank has no settings to change yet.';
     groups.forEach(function (g) { box.appendChild(section(g)); });
     lock(locked);
+    screenFor(groups.some(function (g) { return g.key === openKey; }) ? openKey : '', true);
+  }
+
+  // The categories as screens (S6-P32, |Q727): the list, or one category on
+  // its own with "← All settings" above it.
+  function screenFor(key, keepScroll) {
+    openKey = key;
+    Array.prototype.forEach.call(document.querySelectorAll('#settings-list .lt-set-group'), function (o) {
+      var mine = !!key && o.id === 'set-' + key;
+      o.hidden = !!key && !mine;
+      if (mine && !o.open) o.open = true;
+      if (!key && o.open) o.open = false;
+    });
+    $('settings-all').hidden = !key;
+    $('settings-note').hidden = !!key;
+    var g = groups.filter(function (x) { return x.key === key; })[0];
+    $('settings-title').textContent = g ? g.title : 'Settings';
+    if (!keepScroll) window.scrollTo(0, 0);
   }
 
   // Locked: every box shows its value, and nothing in a section (its boxes,
@@ -54,6 +73,10 @@ window.LitterSettings = function (app) {
     // "🔓UNLOCKED"; a press changes it. The words under the heading are gone.
     btn.hidden = !groups.length;
     document.body.classList.toggle('lt-has-lockbar', !!groups.length);
+    // The page behind Settings shows the lock's state (S6-P7, |M894, |Q684 (a)):
+    // near-black navy while locked, maroon while unlocked.
+    document.body.classList.toggle('lt-set-bg-locked', !!groups.length && on);
+    document.body.classList.toggle('lt-set-bg-open', !!groups.length && !on);
     btn.textContent = on ? '🔒locked' : '🔓UNLOCKED';
     btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     btn.setAttribute('aria-label', on ? 'Settings are locked. Press to unlock them.' : 'Settings are unlocked. Press to lock them.');
@@ -67,15 +90,18 @@ window.LitterSettings = function (app) {
     var d = el('details', 'card lt-set-group');
     d.id = 'set-' + g.key;
     d.open = g.key === openKey;
-    d.appendChild(el('summary', 'lt-set-head', g.title));
+    // A category in the list: its name, and a line on what's in it (S6-P32, |Q727).
+    var head = el('summary', 'lt-set-head');
+    head.appendChild(el('span', 'lt-set-title', g.title));
+    if (g.says) head.appendChild(el('span', 'lt-set-says', g.says));
+    d.appendChild(head);
     d.appendChild(el('p', 'muted small', 'Changed by ' + (/^[AEIOU]/.test(g.rank) ? 'an ' : 'a ') + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
     // A line the backend adds, like the digest's timer on Forum (S6-P16).
     if (g.note) { var nt = el('p', 'small lt-set-note' + (g.noteWarn ? ' lt-set-warn' : ''), g.note); nt.id = 'set-note-' + g.key; d.appendChild(nt); }
-    // One section open at a time.
+    // Opened, a category is a screen of its own; closed, the list again.
     d.addEventListener('toggle', function () {
-      if (!d.open) { if (openKey === g.key) openKey = ''; return; }
-      openKey = g.key;
-      Array.prototype.forEach.call(document.querySelectorAll('.lt-set-group'), function (o) { if (o !== d) o.open = false; });
+      if (d.open) { if (openKey !== g.key) screenFor(g.key); }
+      else if (openKey === g.key) screenFor('');
     });
     var rows = g.custom ? skillsSection(g, d) : g.items.map(function (it) { var r = item(g, it); d.appendChild(r.box); return r; });
     var err = el('p', 'err');
@@ -267,6 +293,7 @@ window.LitterSettings = function (app) {
   $('cl-sim').addEventListener('change', sync);
   $('me-go-settings').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(); });
   $('settings-back').addEventListener('click', function () { if (app.back) app.back(); });
+  $('settings-all').addEventListener('click', function () { screenFor(''); });
   $('settings-lock').addEventListener('click', function () { lock(!locked); });
   // A tap on a locked box says why it won't change (S6-P7, |M892).
   $('settings-list').addEventListener('click', function (e) {

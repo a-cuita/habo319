@@ -50,8 +50,9 @@ window.LitterWiki = function (app) {
       .sort(function (a, b) { return (a.place || 999) - (b.place || 999) || a.title.localeCompare(b.title); });
   }
   function sectionOf(p) { return sections().filter(function (s) { return s.id === p.section; })[0] || null; }
+  // A page in the contents, a plain link, like Wikipedia's (S6-P9, |Q726 (a)).
   function pageButton(p, label) {
-    var b = el('button', 'btn btn-secondary lt-wiki-item');
+    var b = el('button', 'lt-wiki-item');
     b.type = 'button';
     b.id = 'wiki-go-' + p.id;
     if (label) b.appendChild(label); else b.textContent = p.title;
@@ -73,7 +74,7 @@ window.LitterWiki = function (app) {
         box.appendChild(el('h3', null, s.name));
         var ps = pagesIn(s.id);
         if (!ps.length) box.appendChild(el('p', 'muted small', 'No pages yet.'));
-        ps.forEach(function (p) { box.appendChild(pageButton(p)); });
+        else box.appendChild(toc(ps));
         list.appendChild(box);
       });
       var known = {};
@@ -82,7 +83,7 @@ window.LitterWiki = function (app) {
       if (other.length) {
         var box = el('div', 'lt-wiki-section');
         box.appendChild(el('h3', null, sections().length ? 'Other pages' : 'Pages'));
-        other.forEach(function (p) { box.appendChild(pageButton(p)); });
+        box.appendChild(toc(other));
         list.appendChild(box);
       }
     }
@@ -114,6 +115,7 @@ window.LitterWiki = function (app) {
     var hits = data.pages.filter(function (p) { return p.title.toLowerCase().indexOf(lq) !== -1 || String(p.text).toLowerCase().indexOf(lq) !== -1; });
     var head = el('p', 'muted small lt-wiki-hits', hits.length ? hits.length + ' page' + (hits.length === 1 ? '' : 's') + ' with "' + q + '"' : 'No page has "' + q + '".');
     list.appendChild(head);
+    var ul = el('ul', 'lt-wiki-toc lt-wiki-hits-list');
     hits.forEach(function (p) {
       var s = sectionOf(p);
       var label = el('span', 'lt-wiki-hit');
@@ -121,8 +123,16 @@ window.LitterWiki = function (app) {
       label.appendChild(marked(p.title, q));
       var line = lineWith(p.text, q);
       if (line) { var l = el('span', 'lt-wiki-hit-line'); l.appendChild(marked(line, q)); label.appendChild(l); }
-      list.appendChild(pageButton(p, label));
+      var li = el('li');
+      li.appendChild(pageButton(p, label));
+      ul.appendChild(li);
     });
+    list.appendChild(ul);
+  }
+  function toc(pages) {
+    var ul = el('ul', 'lt-wiki-toc');
+    pages.forEach(function (p) { var li = el('li'); li.appendChild(pageButton(p)); ul.appendChild(li); });
+    return ul;
   }
   // In Admin Mode: the drafts, newest first, each with its Forum vote.
   function drawDrafts() {
