@@ -17,7 +17,31 @@
  */
 
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
-  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26, shared: 27 };
+  pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26, shared: 27, carrying: 28 };
+
+// What you're carrying today, asked before each walk (S6-P30 item 2): your
+// bags, more than one at once, and your scale; kept on the walk, and
+// offered next time as Same as last time.
+var CARRY_BAGS = ['Grocery bag', 'Kitchen bag (13 gal)', 'Contractor or yard bag (42 gal)', '5-gallon bucket', 'Wheeled cart'];
+function carryText_(c) {
+  if (!c || typeof c !== 'object') return '';
+  var bags = (Array.isArray(c.bags) ? c.bags : []).filter(function (b) { return CARRY_BAGS.indexOf(b) !== -1; });
+  if (!bags.length && !c.scale) return '';
+  return bags.join(' + ') + '; ' + (c.scale ? 'scale' : 'no scale');
+}
+function carryOf_(text) {
+  var t = String(text || '').trim();
+  if (!t) return null;
+  var parts = t.split('; ');
+  return { bags: parts[0] ? parts[0].split(' + ').filter(function (b) { return CARRY_BAGS.indexOf(b) !== -1; }) : [], scale: parts[1] === 'scale' };
+}
+// The last walk's, for Same as last time.
+function lastCarrying_(accountId) {
+  var mine = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && String(q.get('carrying')).trim(); });
+  if (!mine.length) return null;
+  mine.sort(function (a, b) { return (a.get('started') instanceof Date ? a.get('started').getTime() : 0) - (b.get('started') instanceof Date ? b.get('started').getTime() : 0); });
+  return carryOf_(mine[mine.length - 1].get('carrying'));
+}
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
   discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
@@ -123,6 +147,7 @@ function collectStart_(req) {
     var rec = Number(req.recordingAt);
     row[COLLECTION_COL.recording - 1] = rec > now.getTime() - 3 * 3600000 && rec <= now.getTime() + 60000 ? new Date(rec) : '';
     row[COLLECTION_COL.simulated - 1] = simulated ? 'Yes' : '';
+    row[COLLECTION_COL.carrying - 1] = carryText_(req.carrying);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     markWalkPlan_(plan.id, id);
     if (simulated) refreshSimulations_();
@@ -312,7 +337,9 @@ function collectLoad_(req) {
     plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
     quest: quest, quests: [quest], walk: col ? walkXp_(col.id, account.id) : null,
     // Badges just reached, and the weekly streak (S6-P6).
-    earned: earned, streak: streakOf_(account.id)
+    earned: earned, streak: streakOf_(account.id),
+    // What you carried last time, and the bags to choose from (S6-P30).
+    carrying: { bags: CARRY_BAGS, last: lastCarrying_(account.id) }
   };
 }
 

@@ -616,3 +616,15 @@ section.card.lt-ach-item { border-top: 0; padding: 16px; }
 .lt-ach-bar { height: 8px; border-radius: 4px; background: var(--border); overflow: hidden; margin: 4px 0; }
 .lt-ach-fill { height: 100%; background: #b45309; }
 .lt-ach-share { margin-top: 6px; }
+
+/* Your safety gear with the waiver, and what you're carrying today (S6-P30). */
+.lt-gear-without { margin-top: 10px; padding: 10px 12px; border-left: 4px solid #b45309; background: rgba(180, 83, 9, 0.08); border-radius: 6px; }
+.lt-gear-say { margin: 0 0 8px; font-size: 0.95rem; }
+.lt-carry { text-align: left; margin: 0 0 14px; }
+.lt-carry-title { font-weight: 700; margin: 0 0 8px; }
+.lt-carry-same { width: 100%; margin-bottom: 10px; white-space: normal; }
+.lt-carry-bags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.lt-carry-bag { border: 2px solid var(--border); background: var(--surface); color: var(--text); border-radius: 999px; padding: 8px 12px; font: inherit; font-size: 0.95rem; cursor: pointer; min-height: 40px; }
+.lt-carry-bag[aria-pressed="true"] { border-color: var(--accent); background: var(--accent); color: #fff; }
+.lt-carry-bag[aria-pressed="true"]::before { content: '✓ '; }
+#cl-ready-go:disabled { opacity: 0.5; }

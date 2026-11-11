@@ -312,6 +312,7 @@ window.LitterCollect = function (app) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
       pace = d.pace || null;
       setTypes(d.types);
+      if (d.carrying) { carryBags = d.carrying.bags || carryBags; carryLast = d.carrying.last || null; }
       gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
       if (app.onEarned) app.onEarned(d);   // badges just reached, and the weekly streak (S6-P6)
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
@@ -745,6 +746,46 @@ window.LitterCollect = function (app) {
   var recordingAt = null;
   function closeStartAsks() { $('cl-rec').hidden = true; $('cl-ready').hidden = true; }
 
+  // What you're carrying today (S6-P30, |Q672): your bags, more than one at
+  // once, and your scale, asked every walk with Same as last time in one tap.
+  // A litter pulse can't be weighed without them, so Start waits (|Q425).
+  // A simulated walk carries nothing.
+  var carryBags = ['Grocery bag', 'Kitchen bag (13 gal)', 'Contractor or yard bag (42 gal)', '5-gallon bucket', 'Wheeled cart'];
+  var carryLast = null, carrying = null;
+  function carryPicked() {
+    return {
+      bags: Array.prototype.filter.call($('cl-carry-bags').children, function (b) { return b.getAttribute('aria-pressed') === 'true'; }).map(function (b) { return b.dataset.bag; }),
+      scale: $('cl-carry-scale').checked
+    };
+  }
+  function carrySet(c) {
+    Array.prototype.forEach.call($('cl-carry-bags').children, function (b) { b.setAttribute('aria-pressed', String(!!c && c.bags.indexOf(b.dataset.bag) !== -1)); });
+    $('cl-carry-scale').checked = !!(c && c.scale);
+    carryCheck();
+  }
+  function carryCheck() {
+    var p = carryPicked(), sim = simOn(), ok = sim || (p.bags.length > 0 && p.scale);
+    $('cl-ready-go').disabled = !ok;
+    $('cl-carry-hint').hidden = ok;
+  }
+  function carryOpen() {
+    var sim = simOn(), box = $('cl-carry-bags');
+    $('cl-carry').hidden = sim;
+    if (!box.children.length || box.children.length !== carryBags.length) {
+      box.textContent = '';
+      carryBags.forEach(function (name) {
+        var b = document.createElement('button');
+        b.type = 'button'; b.className = 'lt-carry-bag'; b.dataset.bag = name; b.textContent = name;
+        b.setAttribute('aria-pressed', 'false');
+        box.appendChild(b);
+      });
+    }
+    var last = carryLast && carryLast.bags && carryLast.bags.length ? carryLast : null;
+    $('cl-carry-same').hidden = !last;
+    if (last) $('cl-carry-same').textContent = 'Same as last time: ' + last.bags.join(' + ') + (last.scale ? ', and your scale' : '');
+    carrySet(null);
+  }
+
   function startAt(cell, pos, sim) {
     showBusy(STARTING);
     return startHere(cell, pos, sim).then(hideBusy, function (err) { hideBusy(); throw err; });
@@ -756,8 +797,10 @@ window.LitterCollect = function (app) {
       return Promise.reject(new Error('No new collection can start from ' + settings.noStartMin + ' minutes before sunset until sunrise.'));
     }
     var chosen = walkPlan();
-    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planIds: chosen.map(function (x) { return x.id; }) }).then(function (d) {
+    var carry = sim || pickingUp ? null : carrying;
+    return app.api('collectStart', { token: app.myToken(), cell: cell, key: uid(), recordingAt: recordingAt, simulated: !!sim, planIds: chosen.map(function (x) { return x.id; }), carrying: carry }).then(function (d) {
       recordingAt = null;
+      if (carry) carryLast = carry;
       // The plan goes with the collection now (Q552).
       if (!d.already) setWalkPlan(null);
       // More than one segment: pause while travelling between them (Q559).
@@ -2660,9 +2703,21 @@ window.LitterCollect = function (app) {
     $('cl-start-err').textContent = '';
     $('cl-rec').hidden = false;
   });
-  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); $('cl-rec').hidden = true; $('cl-ready').hidden = false; });
+  $('cl-rec-yes').addEventListener('click', function () { recordingAt = Date.now(); $('cl-rec').hidden = true; carryOpen(); $('cl-ready').hidden = false; });
   $('cl-rec-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
-  $('cl-ready-go').addEventListener('click', function () { closeStartAsks(); start($('cl-start')); });
+  $('cl-carry-bags').addEventListener('click', function (e) {
+    var b = e.target.closest('.lt-carry-bag');
+    if (!b) return;
+    b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true'));
+    carryCheck();
+  });
+  $('cl-carry-scale').addEventListener('change', carryCheck);
+  $('cl-carry-same').addEventListener('click', function () { carrySet(carryLast); });
+  $('cl-ready-go').addEventListener('click', function () {
+    carrying = simOn() ? null : carryPicked();
+    closeStartAsks();
+    start($('cl-start'));
+  });
   $('cl-ready-cancel').addEventListener('click', function () { recordingAt = null; closeStartAsks(); });
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);

@@ -300,8 +300,9 @@
       state.mapShows = d.mapShows || state.mapShows;
       if (d.account) {
         state.account = d.account;
-        // A collection still going on this phone opens where it was (Q282).
-        if (d.account.waiverCurrent && collect.resume()) return;
+        // A collection still going on this phone opens where it was (Q282);
+        // the waiver's renewal coming due doesn't stop it (S6-P30).
+        if ((d.account.waiverCurrent || d.account.waiverRenew) && collect.resume()) return;
         return showAccount(d.account);
       }
       if (d.signedOut) return signedOut();
@@ -365,11 +366,61 @@
     $(boxId).textContent = name ? 'Signed as ' + name + ', ' + today + '.' : 'Your name and today\'s date go with your signature.';
   }
 
+  /* ── Your safety gear, with the waiver (S6-P30) ── */
+
+  // Each piece, and how to find what the waiver says of it (|Q414, |Q417).
+  var GEAR = [['gloves', 'gloves', /glove/i], ['shoes', 'closed-toe shoes', /shoe|footwear/i], ['visible', 'a safety vest or a brightly coloured shirt', /vest|bright|visib|reflective/i]];
+
+  function gearReset(p) {
+    GEAR.forEach(function (g) { $(p + '-gear-' + g[0]).checked = false; });
+    $(p + '-gear-understand').checked = false;
+    delete $(p + '-gear').dataset.touched;
+    gearShow(p);
+  }
+
+  // The waiver's own sentences on it, word for word; none found, nothing quoted.
+  function waiverSays(re) {
+    var t = String((state.waiver || {}).text || '').replace(/\s+/g, ' ');
+    return (t.match(/[^.!?]+[.!?]+/g) || []).map(function (x) { return x.trim().replace(/^[-•]\s*/, ''); }).filter(function (x) { return re.test(x); });
+  }
+
+  // Anything not ticked: the waiver's words for it, and I understand; shown
+  // once they've ticked something, or pressed to sign.
+  function gearShow(p) {
+    var not = $(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
+    var box = $(p + '-gear-words');
+    box.textContent = '';
+    not.forEach(function (g) {
+      var say = waiverSays(g[2]);
+      var line = document.createElement('p');
+      line.className = 'lt-gear-say';
+      line.textContent = 'Without ' + g[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
+      box.appendChild(line);
+    });
+    $(p + '-gear-without').hidden = !not.length;
+  }
+
+  function gearAsk(p) {
+    var g = {};
+    GEAR.forEach(function (x) { g[x[0]] = $(p + '-gear-' + x[0]).checked; });
+    g.understood = $(p + '-gear-understand').checked;
+    return g;
+  }
+
+  function gearProblem(p) {
+    var g = gearAsk(p);
+    if (GEAR.every(function (x) { return g[x[0]]; }) || g.understood) return '';
+    $(p + '-gear').dataset.touched = '1';
+    gearShow(p);
+    return 'Tick what you have, or tick "I understand" under your safety gear.';
+  }
+
   /* ── Setting up ── */
 
   function startSetup() {
     notice('');
     showWaiver('su');
+    gearShow('su');
     if (!$('su-shows').childNodes.length) showsChoices('su-shows', 'su-shows', 'Handle');
     setupSignedAs();
     show('v-setup');
@@ -386,13 +437,14 @@
     var ask = {
       firstName: $('su-first').value, lastName: $('su-last').value, email: $('su-email').value,
       handle: $('su-handle').value, mapShows: picked('su-shows') || 'Handle', adult: $('su-adult').checked,
-      agree: $('su-agree').checked, waiverPrint: (state.waiver || {}).fingerprint || ''
+      agree: $('su-agree').checked, waiverPrint: (state.waiver || {}).fingerprint || '', gear: gearAsk('su')
     };
     if (!ask.firstName.trim() || !ask.lastName.trim()) { err.textContent = 'Please enter your first and last name.'; return; }
     if (!ask.email.trim()) { err.textContent = 'Please enter your email. Your codes and your copy of the waiver come there.'; return; }
     if (!ask.handle.trim()) { err.textContent = 'Please pick a handle.'; return; }
     if (!ask.adult) { err.textContent = 'Accounts are for people 18 or older. A family collects under a parent\'s account.'; return; }
     if (!ask.agree) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
+    if (gearProblem('su')) { err.textContent = gearProblem('su'); return; }
     var sig = sigs['su-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
     ask.signature = sig.canvas.toDataURL('image/png');
@@ -449,6 +501,13 @@
 
   function startResign() {
     showWaiver('rs');
+    // Renewing it, every so many months (S6-P30, |Q716), or its words changed.
+    var renew = !!(state.account && state.account.waiverRenew), months = (state.account || {}).renewMonths;
+    $('rs-head').textContent = renew ? 'Time to renew your waiver' : 'The waiver has been updated.';
+    $('rs-say').textContent = renew ? 'Every ' + (months === 1 ? 'month' : months + ' months') + ', each player signs the waiver again and confirms their safety gear. We\'ll email you a copy.'
+      : 'You must acknowledge and sign the new version. We\'ll email you a copy.';
+    $('rs-submit').textContent = renew ? 'Sign the waiver again' : 'Sign the new waiver';
+    gearReset('rs');
     $('rs-agree').checked = false;
     $('rs-err').textContent = '';
     show('v-resign');
@@ -461,9 +520,10 @@
     e.preventDefault();
     var err = $('rs-err');
     if (!$('rs-agree').checked) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
+    if (gearProblem('rs')) { err.textContent = gearProblem('rs'); return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png') };
+    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs') };
     busy($('rs-submit'), 'rs-err', function () {
       return api('signWaiver', ask).then(function (d) {
         showAccount(d.account);
@@ -833,6 +893,9 @@
   });
   $('sc-back').addEventListener('click', function () { notice(''); show('v-setup'); });
   $('v-resign').addEventListener('submit', submitResign);
+  ['su', 'rs'].forEach(function (p) {
+    GEAR.forEach(function (g) { $(p + '-gear-' + g[0]).addEventListener('change', function () { $(p + '-gear').dataset.touched = '1'; gearShow(p); }); });
+  });
   $('rs-signout').addEventListener('click', signOut);
   $('v-signin').addEventListener('submit', submitSignin);
   $('si-resend').addEventListener('click', function () {

@@ -11,7 +11,21 @@
  */
 
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
-  waiver: 10, waiverPrint: 11, signedName: 12, signature: 13, volunteer: 14, updated: 15, status: 16, quest: 17, questDone: 18 };
+  waiver: 10, waiverPrint: 11, signedName: 12, signature: 13, volunteer: 14, updated: 15, status: 16, quest: 17, questDone: 18, gear: 19, gearAt: 20 };
+
+// Renewing the waiver, and confirming your safety gear with it (S6-P30, |Q671,
+// |Q716): every 2 months to start, a setting (0: never). Its renewal shows as
+// the waiver to sign again; a walk already going isn't stopped by it.
+var SETTING_WAIVER_RENEW = 'Renew the waiver and safety gear every';
+var SAFETY_GEAR = [['gloves', 'Gloves, with me (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt']];
+function waiverRenewDue_(a) {
+  var months = minutesSetting_(SETTING_WAIVER_RENEW, 2);
+  // Signed, as the Sheet shows it: yyyy-mm-dd, or m/d/yyyy.
+  var s = String(a.signed || ''), m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s), n = m ? null : /^(\d{1,2})\/(\d{1,2})\/(\d{4})/.exec(s);
+  if (!(months > 0) || (!m && !n)) return false;
+  var due = m ? new Date(Number(m[1]), Number(m[2]) - 1 + months, Number(m[3])) : new Date(Number(n[3]), Number(n[1]) - 1 + months, Number(n[2]));
+  return Date.now() >= due.getTime();
+}
 var DEVICE_COL = { id: 1, account: 2, secret: 3, at: 4, used: 5, how: 6, ended: 7 };
 
 // What the public map shows for an account (Q244, Q259, Q318). The map
@@ -58,6 +72,7 @@ function setUp_(req) {
   if (req.adult !== true) throw new Error('Accounts are for people 18 or older. A family collects under a parent\'s account.');
   var w = requireWaiverSigned_(req);
   var signature = signatureBytes_(req.signature);
+  var gear = gearOf_(req);   // the safety gear, at sign-up too (S6-P30)
   requireUnique_(readAccounts_(), a, '');
   var scope = 'setup:' + digestHex_(a.email).slice(0, 24);
   if (!String(req.code || '').trim()) {
@@ -82,6 +97,7 @@ function setUp_(req) {
     row[ACCOUNT_COL.adult - 1] = 'Yes';
     row[ACCOUNT_COL.updated - 1] = now;
     row[ACCOUNT_COL.status - 1] = 'Active';
+    if (gear) { row[ACCOUNT_COL.gear - 1] = gearText_(gear); row[ACCOUNT_COL.gearAt - 1] = now; }
     var sheet = getDb_().getSheetByName(TABS.accounts.name);
     var at = lastRowWith_(sheet, ACCOUNT_COL.id) + 1;
     sheet.getRange(at, 1, 1, TABS.accounts.header.length).setValues([TABS.accounts.header.map(function (h, i) { return row[i] == null ? '' : row[i]; })]);
@@ -105,7 +121,14 @@ function signWaiver_(req) {
   var account = requireAccount_(req.token);
   var w = requireWaiverSigned_(req);
   var signature = signatureBytes_(req.signature);
-  var signing = withLock_(function () { return recordSignature_(account, w, signature, new Date()); });
+  // Your safety gear, confirmed with it (S6-P30): what's not ticked is at
+  // your own risk, said and understood (|Q425 (a)).
+  var gear = gearOf_(req);
+  var signing = withLock_(function () {
+    var now = new Date(), done = recordSignature_(account, w, signature, now);
+    if (gear) getDb_().getSheetByName(TABS.accounts.name).getRange(account.row, ACCOUNT_COL.gear, 1, 2).setValues([[gearText_(gear), now]]);
+    return done;
+  });
   var copy = emailWaiverCopy_(account, signing);
   return { account: accountView_(readAccounts_().filter(function (x) { return x.id === account.id; })[0]), copySent: copy.ok };
 }
@@ -183,7 +206,7 @@ function readAccounts_() {
       row: i + 2, id: get('id'), first: get('first'), last: get('last'), email: get('email').toLowerCase(),
       handle: get('handle'), shows: get('shows'), signed: get('signed'), waiver: get('waiver'), waiverPrint: get('waiverPrint'),
       volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status')),
-      quest: get('quest'), questDone: get('questDone')
+      quest: get('quest'), questDone: get('questDone'), gear: get('gear'), gearAt: get('gearAt')
     };
   }).filter(function (a) { return a.id; });
 }
@@ -200,7 +223,12 @@ function accountView_(a) {
   var w = currentWaiver_();
   return {
     id: a.id, firstName: a.first, lastName: a.last, email: a.email, handle: a.handle, mapShows: a.shows,
-    created: a.created, waiverSigned: a.signed, waiverTitle: a.waiver, waiverCurrent: !!w.fingerprint && a.waiverPrint === w.fingerprint,
+    created: a.created, waiverSigned: a.signed, waiverTitle: a.waiver,
+    // Current: the waiver's words as they are now, signed within the renewal's
+    // months (S6-P30); due only for its renewal, it says so.
+    waiverCurrent: !!w.fingerprint && a.waiverPrint === w.fingerprint && !waiverRenewDue_(a),
+    waiverRenew: !!w.fingerprint && a.waiverPrint === w.fingerprint && waiverRenewDue_(a),
+    renewMonths: minutesSetting_(SETTING_WAIVER_RENEW, 2), gear: a.gear || '', gearAt: a.gearAt || '',
     matched: !!a.volunteer, rank: a.rank || ''
   };
 }
@@ -262,7 +290,26 @@ function requireWaiverSigned_(req) {
 
 // Nothing else on the page until the waiver's new words are signed.
 function requireCurrentWaiver_(account) {
-  if (!accountView_(account).waiverCurrent) throw coded_('waiver-new', 'The waiver has been updated. You must acknowledge and sign the new version.');
+  var v = accountView_(account);
+  if (v.waiverCurrent) return;
+  // Its renewal come due (S6-P30): the same screen, saying why.
+  if (v.waiverRenew) throw coded_('waiver-new', 'Time to renew your waiver: sign it again, and confirm your safety gear.');
+  throw coded_('waiver-new', 'The waiver has been updated. You must acknowledge and sign the new version.');
+}
+
+// The safety gear ticked with a signing (S6-P30), checked: what's not
+// ticked needs I understand. None sent (an older page): nothing recorded.
+function gearOf_(req) {
+  var gear = req.gear && typeof req.gear === 'object' ? req.gear : null;
+  if (gear && SAFETY_GEAR.some(function (g) { return gear[g[0]] !== true; }) && gear.understood !== true) {
+    throw new Error('Tick "I understand": going without what you didn\'t tick is at your own risk.');
+  }
+  return gear;
+}
+function gearText_(gear) {
+  var have = SAFETY_GEAR.filter(function (g) { return gear[g[0]] === true; }).map(function (g) { return g[1]; });
+  var not = SAFETY_GEAR.filter(function (g) { return gear[g[0]] !== true; }).map(function (g) { return g[1]; });
+  return (have.join('; ') || 'None ticked') + (not.length ? ' · without, at own risk: ' + not.join('; ') : '');
 }
 
 /* ── The check-in's volunteer record (S5-P26): found, or made at sign-up ── */

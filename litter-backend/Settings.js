@@ -22,7 +22,9 @@ function settingGroups_() {
     [SETTING_SUNSET_WARN, 'Sunset warning', 'How long before sunset the page warns you to wrap up.', 'number', 'minutes before sunset', 0, 240],
     [SETTING_NO_START, 'No new collection', 'From this long before sunset, Start collecting waits for morning.', 'number', 'minutes before sunset', 0, 240],
     [SETTING_AUTO_END, 'A collection left alone ends after', 'A collection with no litter pulse for this long ends by itself.', 'number', 'hours', 1, 48],
-    [SETTING_EDIT_HOURS, 'A collection can be changed for', 'How long after it ends a player can still fix a collection.', 'number', 'hours', 1, 720]] },
+    [SETTING_EDIT_HOURS, 'A collection can be changed for', 'How long after it ends a player can still fix a collection.', 'number', 'hours', 1, 720],
+    // S6-P30 (|Q716): the waiver signed again, and the safety gear confirmed, this often.
+    [SETTING_WAIVER_RENEW, 'Renew the waiver and safety gear every', 'Each player signs the waiver again, and confirms their safety gear, this often. 0: never.', 'number', 'months', 0, 24]] },
   { key: 'xp', title: 'XP', rank: 'Architect', items: [
     [SETTING_PLAN_XP, 'XP for each planned collection', 'A collection started from a plan earns this.', 'number', 'XP', 0, 100],
     [SETTING_RATING_XP_1, 'XP for a visual rating within 1', 'A visual rating within 1 of the Litter Index earns this.', 'number', 'XP', 0, 100],
