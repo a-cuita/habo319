@@ -356,6 +356,7 @@ function actions_() {
 // The web app's own link opens the litter page (how it's tried on the dev
 // link); ?health=1 runs the health check, which also sets up the Sheet.
 function doGet(e) {
+  if (e && e.parameter && e.parameter.allow) return allowPage_();
   if (e && e.parameter && e.parameter.health) return respond_(health_);
   ensureSchema_();
   return HtmlService.createHtmlOutputFromFile('Page')
@@ -464,6 +465,18 @@ function tabValues_(tab, idCol, shown) {
     if (keep) readMemo_[key] = values;
   }
   return values.map(function (row) { return row.slice(); });
+}
+
+// The owner's one press (S6-P16): the dev link opened with ?allow=1. Google
+// asks the owner to allow what the code needs first, timers included; then
+// this says whether timers are allowed, and touches nothing in the Sheet, so
+// the live version keeps running on the Sheet as it is until the Deploy.
+function allowPage_() {
+  var ok = true;
+  try { ScriptApp.getProjectTriggers(); } catch (err) { ok = false; }
+  var say = ok ? 'Allowed. The litter app can make its own timer for the email digest now. Nothing else changed; you can close this page.'
+    : 'Not allowed yet: Google hasn\'t allowed the litter app to make its timer. Open this link again and press Allow.';
+  return HtmlService.createHtmlOutput('<p style="font:18px/1.4 sans-serif;margin:24px">' + say + '</p>').setTitle('HABO litter: allowed');
 }
 
 function health_() {
