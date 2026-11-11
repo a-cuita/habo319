@@ -23,6 +23,8 @@ function settingGroups_() {
     [SETTING_NO_START, 'No new collection', 'From this long before sunset, Start collecting waits for morning.', 'number', 'minutes before sunset', 0, 240],
     [SETTING_AUTO_END, 'A collection left alone ends after', 'A collection with no litter pulse for this long ends by itself.', 'number', 'hours', 1, 48],
     [SETTING_EDIT_HOURS, 'A collection can be changed for', 'How long after it ends a player can still fix a collection.', 'number', 'hours', 1, 720],
+    // S6-U25 item 1 (|Q704 (a)): a slip like 1,700 lb caught before it's saved; Yes keeps it.
+    [SETTING_HEAVY_LB, 'Ask "Did you mean…?" above', 'A litter pulse whose scale shows more than this asks "Did you mean …?" before it goes on. Yes keeps it, for a big cleanup bag.', 'number', 'lb', 1, 10000],
     // S6-P30 (|Q716): the waiver signed again, and the safety gear confirmed, this often.
     [SETTING_WAIVER_RENEW, 'Renew the waiver and safety gear every', 'Each player signs the waiver again, and confirms their safety gear, this often. 0: never.', 'number', 'months', 0, 24]] },
   { key: 'xp', title: 'XP', rank: 'Architect', items: [

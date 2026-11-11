@@ -19,6 +19,9 @@
 var COLLECTION_COL = { id: 1, account: 2, handle: 3, started: 4, startCell: 5, ended: 6, endCell: 7, status: 8, stretches: 9,
   pounds: 10, miles: 11, active: 12, hours: 13, hoursNote: 14, lastPressed: 15, updated: 16, key: 17, hidden: 18, hiddenBy: 19, plan: 20, xp: 21, reason: 22, track: 23, checkins: 24, recording: 25, simulated: 26, shared: 27, carrying: 28 };
 
+// A scale reading above this asks "Did you mean …?" first (S6-U25 item 1, |Q704 (a)).
+var SETTING_HEAVY_LB = 'Litter pulse: ask "Did you mean" above (lb)';
+
 // What you're carrying today, asked before each walk (S6-P30 item 2): your
 // bags, more than one at once, and your scale; kept on the walk, and
 // offered next time as Same as last time.
@@ -727,7 +730,7 @@ function minutesSetting_(name, fallback) {
 
 function collectSettings_() {
   return { sunsetWarnMin: minutesSetting_(SETTING_SUNSET_WARN, 60), noStartMin: minutesSetting_(SETTING_NO_START, 15),
-    autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48),
+    autoEndHours: minutesSetting_(SETTING_AUTO_END, 12), editHours: minutesSetting_(SETTING_EDIT_HOURS, 48), heavyLb: minutesSetting_(SETTING_HEAVY_LB, 50),
     breakAfter: minutesSetting_(SETTING_BREAK_AFTER, 10), planXp: minutesSetting_(SETTING_PLAN_XP, 1), apartMi: minutesSetting_(SETTING_APART, 1), colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(),
     levels: levelRanges_(),
     // Litter Class Skills (S5-P29): each with the level it opens at.
