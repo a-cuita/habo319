@@ -284,8 +284,11 @@ function fillSettingNotes_(ss) {
   if (last < 2) return;
   var rows = sheet.getRange(2, 1, last - 1, 3).getValues(), notes = settingNotes_(), changed = false;
   var col = rows.map(function (r) {
-    var note = notes[String(r[0]).trim()];
-    if (note && !String(r[2]).trim()) { changed = true; return [note]; }
+    var note = notes[String(r[0]).trim()], had = String(r[2]).trim();
+    if (note && !had) { changed = true; return [note]; }
+    // One the app wrote, naming where it's changed, follows Settings' categories
+    // when they're renamed (S6-P32); a note of your own is kept.
+    if (note && had !== note && / In Admin Mode: Settings, [^.]+, by an? [A-Za-z ]+\.$/.test(had)) { changed = true; return [note]; }
     return [r[2]];
   });
   if (changed) sheet.getRange(2, 3, col.length, 1).setWrap(true).setValues(col);
