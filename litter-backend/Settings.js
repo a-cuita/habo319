@@ -81,7 +81,9 @@ function settingsGroupsFor_(account) {
   return settingGroups_().filter(function (g) { return rankAtLeast_(account.rank, g.rank); }).map(function (g) {
     if (g.custom) return { key: g.key, title: g.title, rank: g.rank, custom: true, items: [],
       levels: levelRanges_().map(function (r) { return [r[0], r[1] == null ? '' : r[1], r[2]]; }), skills: classSkills_() };
-    return { key: g.key, title: g.title, rank: g.rank, items: g.items.map(function (it) {
+    // The Forum's group says how many digest timers there are (S6-P16).
+    var note = g.key === 'forum' ? digestTimerState_() : null;
+    return { key: g.key, title: g.title, rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
       return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
         min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : null,

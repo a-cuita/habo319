@@ -69,6 +69,8 @@ window.LitterSettings = function (app) {
     d.open = g.key === openKey;
     d.appendChild(el('summary', 'lt-set-head', g.title));
     d.appendChild(el('p', 'muted small', 'Changed by ' + (/^[AEIOU]/.test(g.rank) ? 'an ' : 'a ') + g.rank + (g.rank === 'Head Builder' ? '.' : ' or above.')));
+    // A line the backend adds, like the digest's timer on Forum (S6-P16).
+    if (g.note) { var nt = el('p', 'small lt-set-note' + (g.noteWarn ? ' lt-set-warn' : ''), g.note); nt.id = 'set-note-' + g.key; d.appendChild(nt); }
     // One section open at a time.
     d.addEventListener('toggle', function () {
       if (!d.open) { if (openKey === g.key) openKey = ''; return; }

@@ -560,6 +560,9 @@ body.lt-sheet-open { overflow: hidden; }
 
 /* The Wiki (S6-P9). */
 .lt-wiki-item { display: block; width: 100%; text-align: left; margin: 0 0 8px; }
+/* A line from the backend on a Settings group: the digest's timer (S6-P16). */
+.lt-set-note { margin: 4px 0 8px; }
+.lt-set-warn { color: #b91c1c; font-weight: 700; }
 /* The Wiki's sections, search, and where a page is (S6-P9 round 2). */
 #wiki-search { width: 100%; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font: inherit; }
 .lt-wiki-section { margin: 0 0 14px; }

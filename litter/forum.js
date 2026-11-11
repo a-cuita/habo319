@@ -98,6 +98,8 @@ window.LitterForum = function (app) {
           list.digest = r.digest;
           drawList();
           app.notice(pick.value === 'Off' ? 'Your Forum digest is off.' : 'Your Forum digest: ' + pick.value + ', at ' + hourWords(r.digest.hour) + (pick.value === 'Weekly' ? ' on Mondays.' : '.'));
+          // Its timer couldn't be made: said plainly, not hidden (S6-P16).
+          if (r.timer && !r.timer.ok && pick.value !== 'Off') app.notice(r.timer.say, { key: 'digest-timer' });
         });
       });
     });

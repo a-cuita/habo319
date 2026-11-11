@@ -427,8 +427,52 @@ function forumDigestSave_(req) {
       digestWrite_(d, fields);
     }
     logChange_(account.email, 'Forum digest', account.id, 'Cadence', d ? d.cadence : '', cadence);
-    return { digest: digestView_(account.id) };
+    // The digest's own timer (S6-P16): made when anyone's digest is on,
+    // removed when every one is off. If Google hasn't allowed the app to make
+    // it, the save says so, rather than "saved" with no timer (|M961, point 4).
+    var timer = digestTimerSync_();
+    return { digest: digestView_(account.id), timer: timer };
   });
+}
+
+/* ── The digest's own timer (S6-P16, Coalition Builder's |M961) ── */
+
+// The app makes its hourly timer itself; nobody adds one in the editor. Any
+// old one goes first, so there's only ever one. Making it needs Google's
+// "script.scriptapp" allowance, given once by the owner.
+var DIGEST_HANDLER = 'forumDigestTick';
+function digestTriggers_() {
+  return ScriptApp.getProjectTriggers().filter(function (t) { return t.getHandlerFunction() === DIGEST_HANDLER; });
+}
+function digestTimerSync_() {
+  try {
+    var on = digestRows_().some(function (d) { return d.cadence === 'Daily' || d.cadence === 'Weekly'; });
+    digestTriggers_().forEach(function (t) { ScriptApp.deleteTrigger(t); });
+    if (on) ScriptApp.newTrigger(DIGEST_HANDLER).timeBased().everyHours(1).create();
+    return digestTimerState_(on);
+  } catch (e) {
+    return { ok: false, count: 0, say: 'The digest can\'t send yet: Google hasn\'t allowed the app to make its hourly timer (' + String(e && e.message || e).slice(0, 160) + ').' };
+  }
+}
+// How many timers there are, in words: one is right; none while digests
+// are on, or more than one, is a warning (|M961, point 4).
+function digestTimerState_(on) {
+  try {
+    if (on === undefined) on = digestRows_().some(function (d) { return d.cadence === 'Daily' || d.cadence === 'Weekly'; });
+    var n = digestTriggers_().length;
+    if (n === 1) return { ok: true, count: 1, say: 'The digest\'s timer: 1, every hour.' };
+    if (!n) return { ok: !on, count: 0, say: on ? 'The digest\'s timer: none, so no digest goes. Save anyone\'s digest choice in the Forum to make it.' : 'The digest\'s timer: none, since every digest is off.' };
+    return { ok: false, count: n, say: 'The digest\'s timer: ' + n + ', where there should be 1. Save anyone\'s digest choice in the Forum to put it right.' };
+  } catch (e) {
+    return { ok: false, count: 0, say: 'The digest\'s timer can\'t be read: Google hasn\'t allowed the app to manage its timers yet.' };
+  }
+}
+// Each run stays under the day's email allowance (|M961, point 4): free
+// Gmail sends to about 100 people a day; the digest stops at 90.
+var DIGEST_DAILY_CAP = 90;
+function digestSentToday_(now) {
+  var tz = Session.getScriptTimeZone(), today = Utilities.formatDate(now, tz, 'yyyy-MM-dd');
+  return digestRows_().filter(function (d) { return d.sent && /^Sent /.test(String(d.result || '')) && Utilities.formatDate(new Date(d.sent), tz, 'yyyy-MM-dd') === today; }).length;
 }
 
 // When this admin's digest was last due: today at the hour (Daily), or this
@@ -487,9 +531,8 @@ function digestMail_(account, groups) {
   return n;
 }
 
-// Each hour, from the trigger you add once in the Apps Script editor
-// (Triggers, Add Trigger, forumDigestTick, Time-driven, Hour timer, Every
-// hour): each admin whose digest is due gets it, or nothing if nothing's new.
+// Each hour, from the timer the app makes itself (S6-P16): each admin whose
+// digest is due gets it, or nothing if nothing's new.
 // The Forum's own writes, under the lock: they touch nothing kept_ keeps,
 // so what's kept stays kept (S6-P1).
 function forumLock_(fn) { return withLock_(fn, true); }
@@ -506,9 +549,10 @@ function forumDigestTick() {
   if (!due.length) return 0;
   var people = {};
   readAccounts_().forEach(function (a) { people[a.id] = a; });
-  var topics = forumTopics_(), replies = forumReplies_(), sent = 0;
+  var topics = forumTopics_(), replies = forumReplies_(), sent = 0, room = DIGEST_DAILY_CAP - digestSentToday_(now);
   due.forEach(function (d) {
     var account = people[d.by];
+    if (room <= 0) { digestWrite_(d, { result: 'Not sent: the day\'s email allowance is used; it goes in the next one.' }); return; }
     if (!account || !account.rank || !account.email) { digestWrite_(d, { sent: now, result: 'Not an admin now: nothing sent.' }); return; }
     var groups = digestItems_(account, d.since, topics, replies, people);
     if (!groups.length) { digestWrite_(d, { sent: now, since: now, result: 'Nothing new: no email.' }); return; }
@@ -516,6 +560,7 @@ function forumDigestTick() {
       var n = digestMail_(account, groups);
       digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + n + (n === 1 ? ' reply.' : ' replies.') });
       sent++;
+      room--;
     } catch (e) {
       // The cutoff stays, so these replies go in the next digest.
       digestWrite_(d, { result: 'Not sent: ' + String(e && e.message || e).slice(0, 200) });
