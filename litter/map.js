@@ -21,6 +21,9 @@ window.LitterMap = function (app) {
   // line in every square's pop-up (Q482).
   var planColour = '#7c3aed';
   var realSegs = [], simSegs = [], rateTop = 5, mode = 'index', lastCells = [];
+  // Visual ratings (S6-U26): everyone's average by square, yours, and the
+  // bands for your rating against the Litter Index (settings).
+  var ratingsAll = [], ratingsMine = null, bands = { mark: 0.5, slight: 1.5 }, chosen = false;
   // In Head Builder mode, the simulated world's segments (Q529).
   function segList() { return app.builderMode && app.builderMode() ? simSegs : realSegs; }
   // Head Builder mode's own colours, from the Settings tab (S5-U2 round 3, Q528).
@@ -47,7 +50,14 @@ window.LitterMap = function (app) {
     bar.style.background = 'linear-gradient(to right, ' + scale().join(', ') + ')';
     box.appendChild(bar);
     var marks = el('div', 'lt-legend-marks');
-    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb/mi·day⁻¹'] : ['0 · clean', '5', '10 or more · heavy'])
+    if (mode === 'diff') {
+      // Critical to lenient, on the mark in the middle (|Q702 (b)).
+      bar.style.background = 'linear-gradient(to right, ' + DIFF_COLOURS.join(', ') + ')';
+      ['Critical', 'On the mark', 'Lenient'].forEach(function (t) { marks.appendChild(el('span', null, t)); });
+      box.appendChild(marks);
+      return;
+    }
+    (mode === 'rate' ? ['0', String(round(rateTop / 2, 2)), rateTop + ' or more lb/mi·day⁻¹'] : /^rating/.test(mode) ? ['0 · spotless', '5', '10 · the worst'] : ['0 · clean', '5', '10 or more · heavy'])
       .forEach(function (t) { marks.appendChild(el('span', null, t)); });
     box.appendChild(marks);
   }
@@ -75,6 +85,11 @@ window.LitterMap = function (app) {
     realSegs = d.segments || [];
     simSegs = d.simSegments || [];
     rateTop = d.rateTop || rateTop;
+    ratingsAll = d.ratings || [];
+    ratingsMine = d.mine || null;
+    bands = d.diffBands || bands;
+    chosen = !!d.chosen;
+    showRange(d);
     legend($('mp-legend'));
   }
 
@@ -112,6 +127,7 @@ window.LitterMap = function (app) {
     setTimeout(function () { map.invalidateSize(); }, 0);
     return app.api('mapLoad', { token: app.myToken ? app.myToken() : '' }).then(function (d) {
       useLoad(d);
+      mapsLayers();
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
       lastCells = (d.cells || []).concat(opts.own || []);
       draw(lastCells);
@@ -151,10 +167,12 @@ window.LitterMap = function (app) {
       showPlan(app.pickedPlanCells ? app.pickedPlanCells() : []);
       return Promise.resolve();
     }
-    var fresh = loaded && Date.now() - loadedAt < 120000;
+    // Not the Maps screen's chosen days (S6-U26): the main page keeps to its own range.
+    var fresh = loaded && !loaded.chosen && Date.now() - loadedAt < 120000;
     if (!fresh) $('mp-note').textContent = 'Loading the map…';
     return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', { token: app.myToken ? app.myToken() : '' })).then(function (d) {
       useLoad(d);
+      mapsLayers();
       lastCells = d.cells || [];
       draw(lastCells);
       drawnOnMain = true;
@@ -237,7 +255,7 @@ window.LitterMap = function (app) {
   // squares, opened from it, don't fade.
   var fadeDays = 30;
   function fadeOf(x) {
-    if (!x[2] || !/^\d{4}-\d{2}-\d{2}$/.test(String(x[2]))) return 1;
+    if (chosen || !x[2] || !/^\d{4}-\d{2}-\d{2}$/.test(String(x[2]))) return 1;   // the days you chose: none fade
     var p = String(x[2]).split('-'), day = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2])).getTime();
     var age = Math.max(0, (Date.now() - day) / 86400000 - 0.5);
     return Math.max(0, 1 - age / fadeDays);
@@ -245,6 +263,8 @@ window.LitterMap = function (app) {
   function draw(cells) {
     layer.clearLayers();
     if (mode === 'rate') return drawRates();
+    if (/^rating/.test(mode)) return drawRatings();
+    if (mode === 'diff') return drawDiff();
     cells.forEach(function (x) {
       var c = G.indexColour(x[1], scale()), f = fadeOf(x);
       if (!(f > 0)) return;
@@ -290,6 +310,88 @@ window.LitterMap = function (app) {
       });
     });
   }
+  // A visual rating layer (S6-U26 item 2): yours, each square your latest
+  // rating there; or everyone's average, never by handle (|Q703 (a)).
+  function drawRatings() {
+    var mineOnly = mode === 'rating-mine', list = mineOnly ? (ratingsMine || []) : ratingsAll;
+    list.forEach(function (x) {
+      var v = Number(x[1]), c = G.indexColour(v, scale());
+      var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rating-square' });
+      r.bindPopup(function () {
+        var box = el('div', 'lt-pop');
+        box.appendChild(el('strong', null, mineOnly ? 'Your visual rating' : 'Visual rating: everyone\'s average'));
+        box.appendChild(el('div', null, mineOnly ? v + ' on ' + day(x[3]) + (x[2] != null ? '; its Litter Index ' + x[2] : '') : v + ', from ' + x[2] + (x[2] === 1 ? ' rating' : ' ratings')));
+        return box;
+      });
+      r.addTo(layer);
+    });
+    $('mp-note').textContent = list.length ? '' : mineOnly ? 'None of your ratings in these days.' : 'No ratings in these days.';
+  }
+  // Your rating against the Litter Index (S6-U26 item 3): each square's
+  // latest Litter Index minus your rating there, in words. Lenient: you
+  // rated it cleaner than it measured; critical: dirtier.
+  var DIFF_COLOURS = ['#b91c1c', '#f97316', '#16a34a', '#38bdf8', '#1d4ed8'];
+  function diffWords(d) {
+    var a = Math.abs(d), side = d > 0 ? 'lenient' : 'critical';
+    if (a <= bands.mark) return { words: 'on the mark', colour: DIFF_COLOURS[2] };
+    if (a <= bands.slight) return { words: 'slightly ' + side, colour: d > 0 ? DIFF_COLOURS[3] : DIFF_COLOURS[1] };
+    return { words: side, colour: d > 0 ? DIFF_COLOURS[4] : DIFF_COLOURS[0] };
+  }
+  function drawDiff() {
+    var list = (ratingsMine || []).filter(function (x) { return x[2] != null; }), sum = 0;
+    list.forEach(function (x) {
+      var d = round(Number(x[2]) - Number(x[1]), 1), w = diffWords(d);
+      sum += d;
+      var r = L.rectangle(G.cellBounds(x[0]), { color: w.colour, weight: 1, opacity: 0.9, fillColor: w.colour, fillOpacity: 0.7, className: 'lt-diff-square' });
+      r.bindPopup(function () {
+        var box = el('div', 'lt-pop');
+        box.appendChild(el('strong', null, 'Your rating against the Litter Index'));
+        box.appendChild(el('div', null, 'Litter Index ' + x[2] + ', your rating ' + x[1] + ' (' + day(x[3]) + '): ' + (d > 0 ? '+' : '') + d + ', ' + w.words + '.'));
+        return box;
+      });
+      r.addTo(layer);
+    });
+    if (!list.length) { $('mp-note').textContent = 'None of your rated weighings with a Litter Index in these days.'; return; }
+    var avg = round(sum / list.length, 2);
+    $('mp-note').textContent = 'On average, over ' + list.length + (list.length === 1 ? ' square' : ' squares') + ': ' + (avg > 0 ? '+' : '') + avg + ', ' + diffWords(avg).words + '.';
+  }
+  // The days shown, on the Maps screen.
+  function showRange(d) {
+    if (!$('mp-from')) return;
+    $('mp-from').value = d.from || '';
+    $('mp-to').value = d.to || '';
+    $('mp-range').textContent = d.chosen ? (d.from || d.to ? 'Showing ' + (d.from ? day(d.from) : 'the start') + ' to ' + (d.to ? day(d.to) : 'today') + '.' : 'Showing every day.')
+      : 'Showing the last ' + d.fadeDays + ' days, as on the main page, older readings fading.';
+  }
+  function loadRange(range) {
+    $('mp-note').textContent = 'Loading the map…';
+    return app.api('mapLoad', Object.assign({ token: app.myToken ? app.myToken() : '' }, range)).then(function (d) {
+      useLoad(d);
+      lastCells = d.cells || [];
+      draw(lastCells);
+      if (mode === 'index') $('mp-note').textContent = lastCells.length ? lastCells.length.toLocaleString('en-US') + (lastCells.length === 1 ? ' cell has' : ' cells have') + ' a reading in these days.' : 'No readings in these days.';
+    }, function (err) { $('mp-note').textContent = err.message; });
+  }
+  function ymdOf(ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+  if ($('mp-dates')) {
+    var rangeNow = function () { return loadRange({ from: $('mp-from').value, to: $('mp-to').value, all: !$('mp-from').value && !$('mp-to').value }); };
+    $('mp-from').addEventListener('change', rangeNow);
+    $('mp-to').addEventListener('change', rangeNow);
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-dates [data-days]'), function (b) {
+      b.addEventListener('click', function () {
+        var n = b.dataset.days;
+        loadRange(n === 'all' ? { all: true } : { from: ymdOf(Date.now() - (Number(n) - 1) * 86400000), to: ymdOf(Date.now()) });
+      });
+    });
+  }
+  // The Maps screen's own layers: not on the main page's map; yours only when signed in.
+  function mapsLayers() {
+    Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-maps'), function (b) {
+      b.hidden = onMain || (b.dataset.layer !== 'rating-all' && !ratingsMine);
+    });
+    if ((onMain && (/^rating/.test(mode) || mode === 'diff')) || ((mode === 'rating-mine' || mode === 'diff') && !ratingsMine)) setMode('index');
+  }
+
   function setMode(m) {
     mode = m;
     if (map) map.closePopup();
@@ -301,12 +403,17 @@ window.LitterMap = function (app) {
     infoWords();
     if (layer) draw(lastCells);
     var n = segList().length;
-    $('mp-note').textContent = m === 'rate' ? (n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.') : '';
+    // The rating layers say their own (S6-U26).
+    if (m === 'rate') $('mp-note').textContent = n ? n + ' accepted segment' + (n === 1 ? '' : 's') + '. Tap one for its rate.' : 'No accepted segments yet.';
+    else if (m === 'index') $('mp-note').textContent = '';
   }
 
   // The ℹ️'s words for the layer showing (|C671): what a square's colour means.
   var SQUARE_SIZE = 'Each square is 1/160 of a mile (about 33 ft) on a side.';
   var COLOUR_WORDS = {
+    'rating-mine': 'A square\'s colour is your latest visual rating there, in the days shown: 0 spotless to 10 the worst you\'ve seen. Only you see yours.',
+    'rating-all': 'A square\'s colour is everyone\'s visual ratings there, averaged, in the days shown. No one\'s rating shows by name.',
+    diff: 'A square\'s colour is its Litter Index minus your visual rating there. Green: on the mark. Blue: lenient, you rated it cleaner than it measured. Orange and red: critical, you rated it dirtier. Tap a square for its numbers.',
     index: 'A square\'s colour is its latest Litter Index: the pounds collected there, for the miles walked and the time it took. Tap a square for its reading, the day it was collected, and who collected it.',
     rate: 'Only public segments are coloured. A square\'s colour is its segment\'s accumulation rate: the pounds of litter that build up on each mile of it each day. A field\'s miles are the walk it takes to scan all of it. Some of it may be litter that was hidden last time, under leaves or in the grass. Grey: no recent rate. Tap a square for its segment\'s rate and the walks that gave it.'
   };

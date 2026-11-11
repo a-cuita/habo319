@@ -721,3 +721,11 @@ body.lt-pulse-open { overflow: hidden; }
 /* No pull-to-refresh while a litter pulse is open (S6-U25 item 2), and the wheel's swipe stays in the wheel. */
 html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; }
 .lt-wheel { overscroll-behavior-x: contain; }
+/* Maps (S6-U26): the days shown. */
+.lt-map-dates .row2 { margin-bottom: 4px; }
+.lt-map-quick { display: flex; gap: 6px; flex-wrap: wrap; }
+.lt-map-quick .btn { flex: 1 1 auto; width: auto; margin-top: 0; padding: 8px 10px; }
+#mp-range { margin: 6px 0 0; }
+.lt-layer-opt[hidden] { display: none; }
+.lt-map-dates .row2 > .ig { min-width: 0; }
+.lt-map-dates input[type="date"] { width: 100%; min-width: 0; box-sizing: border-box; }

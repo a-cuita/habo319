@@ -41,6 +41,11 @@ function shareLook_() {
 }
 // A reading fades on the map as it ages, gone after this many days (S6-P1, |Q678, |Q673).
 var SETTING_MAP_FADE = 'Map: readings fade out after (days)';
+// Your rating against the Litter Index (S6-U26 item 3, |Q702 (b)): within
+// the first, on the mark; to the second, slightly lenient or critical;
+// beyond it, lenient or critical. Settings, not fixed (Jeremy, on |Q702).
+var SETTING_DIFF_MARK = 'Map: rating on the mark within (±)';
+var SETTING_DIFF_SLIGHT = 'Map: rating slightly off up to (±)';
 var SETTING_COLOUR_5 = 'Map colour at 5';
 var SETTING_COLOUR_10 = 'Map colour at 10';
 var SETTING_BREAK_AFTER = 'Break question after (collections)';
@@ -95,26 +100,50 @@ function mapLoad_(req) {
   readRows_(TABS.collections).forEach(function (q) {
     if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && !q.get('hidden') && q.get('simulated') !== 'Yes') open[q.get('id')] = true;
   });
-  // Each cell's latest reading: the stretch that ended last.
-  var latest = {};
+  var tz = Session.getScriptTimeZone();
+  // The dates shown (S6-U26 item 1): on the Maps screen, the days you choose;
+  // else the main page's range, the fade setting (S6-P1, |Q678): a reading
+  // older isn't drawn, so it isn't sent; its numbers stay in the pop-ups'
+  // tables and the rates.
+  var fade = Math.max(1, minutesSetting_(SETTING_MAP_FADE, 30)), since = Date.now() - fade * 86400000, until = Infinity, chosen = false;
+  var ymd = function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? Utilities.parseDate(v + ' 00:00', tz, 'yyyy-MM-dd HH:mm').getTime() : null; };
+  if (req && (ymd(req.from) != null || ymd(req.to) != null || req.all)) {
+    chosen = true;
+    since = req.all ? 0 : ymd(req.from) != null ? ymd(req.from) : 0;
+    until = ymd(req.to) != null ? ymd(req.to) + DAY_MS : Infinity;
+  }
+  // Each cell's latest reading in those dates: the stretch that ended last;
+  // and everyone's visual ratings there, and yours (S6-U26 items 2 and 3).
+  var latest = {}, rated = {}, mine = {};
   readRows_(TABS.stretches).forEach(function (q) {
-    if (!open[q.get('collection')] || q.get('discarded') === 'Yes' || q.get('index') === '') return;
+    if (!open[q.get('collection')] || q.get('discarded') === 'Yes') return;
     var ended = q.get('ended') instanceof Date ? q.get('ended').getTime() : 0;
+    if (ended < since || ended >= until) return;
+    var idx = q.get('index') === '' ? null : Number(q.get('index')), rating = q.get('rating') === '' ? null : Number(q.get('rating'));
+    var own = viewer && q.get('account') === viewer.id;
     String(q.get('cells')).split(/\s+/).filter(String).forEach(function (cell) {
-      var was = latest[cell];
-      if (was && was.ended > ended) return;
-      latest[cell] = { ended: ended, index: Number(q.get('index')), who: shown[q.get('account')] || '' };
+      if (idx != null) {
+        var was = latest[cell];
+        if (!was || was.ended <= ended) latest[cell] = { ended: ended, index: idx, who: shown[q.get('account')] || '' };
+      }
+      if (rating != null) {
+        var r = rated[cell] = rated[cell] || { sum: 0, n: 0 };
+        r.sum += rating; r.n++;
+        if (own && (!mine[cell] || mine[cell].ended <= ended)) mine[cell] = { ended: ended, rating: rating, index: idx };
+      }
     });
   });
-  var tz = Session.getScriptTimeZone();
-  // Faded out (S6-P1, |Q678): a reading older than the setting isn't drawn,
-  // so it isn't sent; its numbers stay in the pop-ups' tables and the rates.
-  var fade = Math.max(1, minutesSetting_(SETTING_MAP_FADE, 30)), since = Date.now() - fade * 86400000;
-  var cells = Object.keys(latest).filter(function (cell) { return latest[cell].ended >= since; }).map(function (cell) {
+  var day = function (ms) { return Utilities.formatDate(new Date(ms), tz, 'yyyy-MM-dd'); };
+  var cells = Object.keys(latest).map(function (cell) {
     var x = latest[cell];
-    return [cell, round_(x.index, 1), Utilities.formatDate(new Date(x.ended), tz, 'yyyy-MM-dd'), x.who];
+    return [cell, round_(x.index, 1), day(x.ended), x.who];
   });
-  return { fadeDays: fade, colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
+  return { fadeDays: fade, chosen: chosen, from: since > 0 ? day(since) : '', to: until < Infinity ? day(until - DAY_MS) : '',
+    colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
+    // Everyone's average only, never by handle (|Q703 (a)); yours only to you.
+    ratings: Object.keys(rated).map(function (cell) { return [cell, round_(rated[cell].sum / rated[cell].n, 1), rated[cell].n]; }),
+    mine: viewer ? Object.keys(mine).map(function (cell) { var m = mine[cell]; return [cell, m.rating, m.index == null ? null : round_(m.index, 1), day(m.ended)]; }) : null,
+    diffBands: { mark: minutesSetting_(SETTING_DIFF_MARK, 0.5), slight: minutesSetting_(SETTING_DIFF_SLIGHT, 1.5) },
     segments: segmentSummaries_(false), simSegments: viewer ? segmentSummaries_(true, viewer.id) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
 }
 

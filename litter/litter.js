@@ -878,6 +878,8 @@
   $('go-setup').addEventListener('click', startSetup);
   $('go-signin').addEventListener('click', startSignin);
   $('go-map').addEventListener('click', function () { mapper.open({ back: function () { show('v-welcome'); } }); });
+  // Maps (S6-U26): the days you choose, and every layer.
+  $('me-go-maps').addEventListener('click', function () { panel(false); notice(''); mapper.open({ back: function () { showAccount(state.account); } }); });
   $('me-toggle').addEventListener('click', function () { panel($('me-panel').hidden); });
   // The ⭐'s words show on mouse-over (its title), or on a tap (|C665).
   ['me-handle-star', 'me-name-star'].forEach(function (id) {
