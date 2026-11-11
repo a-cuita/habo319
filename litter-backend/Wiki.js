@@ -8,15 +8,42 @@
  * A page's text: a blank line between paragraphs; a line starting "- " is a
  * point in a list; {{sources}} shows the Sources tab's sources.
  */
-var WIKI_COL = { id: 1, title: 2, text: 3, state: 4, of: 5, by: 6, drafted: 7, topic: 8, live: 9 };
+var WIKI_COL = { id: 1, title: 2, text: 3, state: 4, of: 5, by: 6, drafted: 7, topic: 8, live: 9, section: 10, place: 11 };
+var WSEC_COL = { id: 1, name: 2, place: 3, state: 4, of: 5, by: 6, drafted: 7, topic: 8, live: 9 };
+var WSEC_NAME_MAX = 40;
 var WIKI_TEXT_MAX = 8000, WIKI_TITLE_MAX = 80;
 
 function wikiRows_() {
   return readRows_(TABS.wiki, WIKI_COL).map(function (r) {
     var d = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : 0; };
     return { row: r.row, id: r.get('id'), title: r.get('title'), text: String(r.get('text')), state: r.get('state') || 'Draft', of: r.get('of'), by: r.get('by'),
-      drafted: d('drafted'), topic: r.get('topic'), live: d('live') };
+      drafted: d('drafted'), topic: r.get('topic'), live: d('live'), section: r.get('section'), place: Number(r.get('place')) || 0 };
   }).filter(function (p) { return p.id; });
+}
+
+// The sections (S6-P9 round 2): live ones, and drafts waiting on the Forum.
+function wikiSectionRows_() {
+  return readRows_(TABS.wikiSections, WSEC_COL).map(function (r) {
+    var d = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : 0; };
+    return { row: r.row, id: r.get('id'), name: r.get('name'), place: Number(r.get('place')) || 0, state: r.get('state') || 'Draft', of: r.get('of'), by: r.get('by'),
+      drafted: d('drafted'), topic: r.get('topic'), live: d('live') };
+  }).filter(function (s) { return s.id; });
+}
+function liveSections_() {
+  return wikiSectionRows_().filter(function (s) { return s.state === 'Live'; }).sort(function (a, b) { return a.place - b.place || a.name.localeCompare(b.name); });
+}
+
+// A page put at `place` in its section (0: at the end), the section's other
+// live pages moving down one to make room; places kept 1, 2, 3…
+function wikiPlace_(sheet, pageId, sectionId, place) {
+  var pages = wikiRows_().filter(function (p) { return p.state === 'Live'; });
+  var page = pages.filter(function (p) { return p.id === pageId; })[0];
+  if (!page) return;
+  var rest = pages.filter(function (p) { return p.section === sectionId && p.id !== pageId; }).sort(function (a, b) { return (a.place || 999) - (b.place || 999) || a.title.localeCompare(b.title); });
+  var at = place > 0 ? Math.min(place - 1, rest.length) : rest.length;
+  rest.splice(at, 0, page);
+  sheet.getRange(page.row, WIKI_COL.section).setValue(sectionId);
+  rest.forEach(function (p, i) { sheet.getRange(p.row, WIKI_COL.place).setValue(i + 1); });
 }
 
 // The Sources tab, for {{sources}}.
@@ -29,26 +56,46 @@ function wikiSources_() {
 }
 
 // A draft whose Forum vote has closed: taken in (a new page, or the page
-// it edits, changed), or not.
+// it edits, changed), or not. A page goes where its draft said, in its
+// section and its place (S6-P9 round 2); a section draft adds or renames one.
 function wikiSync_() {
   var drafts = wikiRows_().filter(function (p) { return p.state === 'Draft' && p.topic; });
-  if (!drafts.length) return;
+  var secDrafts = wikiSectionRows_().filter(function (s) { return s.state === 'Draft' && s.topic; });
+  if (!drafts.length && !secDrafts.length) return;
   var topics = {};
   forumTopics_().forEach(function (t) { topics[t.id] = t; });
+  var closed = function (t) { return t && (t.state === 'Passed' || t.state === 'Failed' || t.state === 'Withdrawn'); };
   var sheet = getDb_().getSheetByName(TABS.wiki.name), pages = wikiRows_();
   drafts.forEach(function (d) {
     var t = topics[d.topic];
-    if (!t || (t.state !== 'Passed' && t.state !== 'Failed' && t.state !== 'Withdrawn')) return;
+    if (!closed(t)) return;
     if (t.state !== 'Passed') { sheet.getRange(d.row, WIKI_COL.state).setValue('Not taken'); return; }
     var page = d.of ? pages.filter(function (p) { return p.id === d.of && p.state === 'Live'; })[0] : null;
     if (page) {
       sheet.getRange(page.row, WIKI_COL.title, 1, 2).setValues([[safeCell_(d.title), safeCell_(d.text)]]);
       sheet.getRange(page.row, WIKI_COL.live).setValue(new Date());
       sheet.getRange(d.row, WIKI_COL.state).setValue('Taken in');
+      if (d.section && (d.section !== page.section || d.place)) wikiPlace_(sheet, page.id, d.section, d.place);
     } else {
-      // A new page: the draft's own row goes live.
+      // A new page: the draft's own row goes live, in its place.
       sheet.getRange(d.row, WIKI_COL.state).setValue('Live');
       sheet.getRange(d.row, WIKI_COL.live).setValue(new Date());
+      if (d.section) wikiPlace_(sheet, d.id, d.section, d.place);
+    }
+  });
+  var ss = getDb_().getSheetByName(TABS.wikiSections.name), live = liveSections_();
+  secDrafts.forEach(function (d) {
+    var t = topics[d.topic];
+    if (!closed(t)) return;
+    if (t.state !== 'Passed') { ss.getRange(d.row, WSEC_COL.state).setValue('Not taken'); return; }
+    var was = d.of ? live.filter(function (s) { return s.id === d.of; })[0] : null;
+    if (was) {
+      ss.getRange(was.row, WSEC_COL.name).setValue(safeCell_(d.name));
+      ss.getRange(d.row, WSEC_COL.state).setValue('Taken in');
+    } else {
+      ss.getRange(d.row, WSEC_COL.state).setValue('Live');
+      ss.getRange(d.row, WSEC_COL.place).setValue(live.reduce(function (m, s) { return Math.max(m, s.place); }, 0) + 1);
+      ss.getRange(d.row, WSEC_COL.live).setValue(new Date());
     }
   });
 }
@@ -58,7 +105,7 @@ function wikiSync_() {
 function wikiLoad_(req) {
   ensureSchema_();
   var account = req.token ? requireAccount_(req.token) : null;
-  if (wikiRows_().some(function (p) { return p.state === 'Draft' && p.topic; })) {
+  if (wikiRows_().some(function (p) { return p.state === 'Draft' && p.topic; }) || wikiSectionRows_().some(function (x) { return x.state === 'Draft' && x.topic; })) {
     forumLock_(function () { closeVotes_(); });
     withLock_(function () { wikiSync_(); });
   }
@@ -67,13 +114,18 @@ function wikiLoad_(req) {
 function wikiView_(account) {
   var rows = wikiRows_(), topics = {};
   forumTopics_().forEach(function (t) { topics[t.id] = t; });
-  var pages = rows.filter(function (p) { return p.state === 'Live'; }).map(function (p) { return { id: p.id, title: p.title, text: p.text, live: p.live }; });
-  var out = { pages: pages, sources: wikiSources_(), admin: !!(account && account.rank) };
+  var pages = rows.filter(function (p) { return p.state === 'Live'; }).map(function (p) { return { id: p.id, title: p.title, text: p.text, live: p.live, section: p.section, place: p.place }; });
+  var secRows = wikiSectionRows_();
+  var sections = secRows.filter(function (s) { return s.state === 'Live'; }).sort(function (a, b) { return a.place - b.place; }).map(function (s) { return { id: s.id, name: s.name, place: s.place }; });
+  var out = { pages: pages, sections: sections, sources: wikiSources_(), admin: !!(account && account.rank) };
   if (out.admin) {
     out.drafts = rows.filter(function (p) { return p.state !== 'Live'; }).map(function (p) {
       var t = topics[p.topic];
-      return { id: p.id, title: p.title, of: p.of, state: p.state, topic: p.topic, vote: t ? t.state : '', drafted: p.drafted };
-    }).reverse();
+      return { kind: 'page', id: p.id, title: p.title, of: p.of, state: p.state, topic: p.topic, vote: t ? t.state : '', drafted: p.drafted, section: p.section, place: p.place };
+    }).concat(secRows.filter(function (s) { return s.state !== 'Live'; }).map(function (s) {
+      var t = topics[s.topic];
+      return { kind: 'section', id: s.id, title: s.name, of: s.of, state: s.state, topic: s.topic, vote: t ? t.state : '', drafted: s.drafted };
+    })).sort(function (a, b) { return b.drafted - a.drafted; });
   }
   return out;
 }
@@ -90,16 +142,53 @@ function wikiDraft_(req) {
   var of = clean_(req.of, 20);
   var page = of ? wikiRows_().filter(function (p) { return p.id === of && p.state === 'Live'; })[0] : null;
   if (of && !page) throw new Error('That page isn\'t here any more.');
+  // Its section and its place in it (S6-P9 round 2): the Forum's vote approves both.
+  var sections = liveSections_();
+  var sectionId = clean_(req.section, 10) || (page ? page.section : '');
+  var section = sections.filter(function (s) { return s.id === sectionId; })[0];
+  if (!section) throw new Error('Pick the section it goes in.');
+  var place = Math.max(0, Math.floor(Number(req.place) || 0));
+  var where = 'in the section "' + section.name + '", ' + (place ? 'at place ' + place : 'at the end');
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.wiki.name), ids = wikiRows_().map(function (p) { return p.id; });
     var id = nextId_('W', ids);
     var topic = topicNew_(account, 'Decision', 'Wiki: ' + (page ? 'an edit to ' + page.title : 'a new page, ' + title),
-      (page ? 'An edit to the Wiki page "' + page.title + '"' : 'A new Wiki page, "' + title + '"') + ', drafted as ' + id + '. Once this vote passes, it goes live for players.\n\n' + title + '\n\n' + text,
+      (page ? 'An edit to the Wiki page "' + page.title + '"' : 'A new Wiki page, "' + title + '"') + ', drafted as ' + id + ', ' + where + '. Once this vote passes, it goes live for players.\n\n' + title + '\n\n' + text,
       FORUM_STATES.Decision[0], '', 'wiki:' + id);
     var row = blankRow_(TABS.wiki);
     row[WIKI_COL.id - 1] = id; row[WIKI_COL.title - 1] = safeCell_(title); row[WIKI_COL.text - 1] = safeCell_(text); row[WIKI_COL.state - 1] = 'Draft';
     row[WIKI_COL.of - 1] = page ? page.id : ''; row[WIKI_COL.by - 1] = account.handle || account.email; row[WIKI_COL.drafted - 1] = new Date(); row[WIKI_COL.topic - 1] = topic;
+    row[WIKI_COL.section - 1] = section.id; row[WIKI_COL.place - 1] = place || '';
     sheet.getRange(lastRowWith_(sheet, WIKI_COL.id) + 1, 1, 1, row.length).setValues([row]);
+    var out = wikiView_(account);
+    out.topic = topic;
+    return out;
+  });
+}
+
+// A section added, or one renamed (`of`), by any admin rank: a Forum
+// Decision, like a page (S6-P9 round 2, |Q692 (a)).
+function wikiSectionDraft_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (!account.rank) throw new Error('Wiki sections are drafted by HABO\'s admins.');
+  var name = clean_(req.name, WSEC_NAME_MAX);
+  if (name.length < 2) throw new Error('Give the section a name.');
+  var sections = liveSections_();
+  var of = clean_(req.of, 10);
+  var was = of ? sections.filter(function (s) { return s.id === of; })[0] : null;
+  if (of && !was) throw new Error('That section isn\'t here any more.');
+  if (sections.some(function (s) { return s.name.toLowerCase() === name.toLowerCase() && s !== was; })) throw new Error('There\'s a section called that already.');
+  return withLock_(function () {
+    var sheet = getDb_().getSheetByName(TABS.wikiSections.name);
+    var id = nextId_('WS', wikiSectionRows_().map(function (s) { return s.id; }));
+    var topic = topicNew_(account, 'Decision', 'Wiki: ' + (was ? 'rename the section "' + was.name + '" to "' + name + '"' : 'a new section, ' + name),
+      (was ? 'The Wiki section "' + was.name + '" renamed "' + name + '"' : 'A new Wiki section, "' + name + '", after the others') + ', drafted as ' + id + '. Once this vote passes, it\'s on the Wiki for players.',
+      FORUM_STATES.Decision[0], '', 'wiki:' + id);
+    var row = blankRow_(TABS.wikiSections);
+    row[WSEC_COL.id - 1] = id; row[WSEC_COL.name - 1] = safeCell_(name); row[WSEC_COL.state - 1] = 'Draft'; row[WSEC_COL.of - 1] = was ? was.id : '';
+    row[WSEC_COL.by - 1] = account.handle || account.email; row[WSEC_COL.drafted - 1] = new Date(); row[WSEC_COL.topic - 1] = topic;
+    sheet.getRange(lastRowWith_(sheet, WSEC_COL.id) + 1, 1, 1, row.length).setValues([row]);
     var out = wikiView_(account);
     out.topic = topic;
     return out;
@@ -162,4 +251,29 @@ function wikiOnce_() {
     sheet.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
   }
   props.setProperty('WIKI_SEEDED', new Date().toISOString());
+}
+
+// The six sections to start (S6-P9 round 2, |Q708 (a)), seeded once, with
+// the first pages placed in them; a page with a section already keeps it.
+var WIKI_SECTION_SEED = ['Getting started', 'Collecting', 'Measuring', 'The map', 'XP, levels and skills', 'For admins'];
+var WIKI_SEED_PLACES = { W001: ['WS003', 2], W002: ['WS003', 1], W003: ['WS004', 1], W004: ['WS005', 2], W005: ['WS005', 1], W006: ['WS006', 1] };
+function wikiSectionsOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('WIKI_SECTIONS_SEEDED')) return;
+  var ss = getDb_().getSheetByName(TABS.wikiSections.name), now = new Date();
+  if (lastRowWith_(ss, WSEC_COL.id) < 2) {
+    var rows = WIKI_SECTION_SEED.map(function (name, i) {
+      var row = blankRow_(TABS.wikiSections);
+      row[WSEC_COL.id - 1] = 'WS' + ('00' + (i + 1)).slice(-3); row[WSEC_COL.name - 1] = name; row[WSEC_COL.place - 1] = i + 1; row[WSEC_COL.state - 1] = 'Live';
+      row[WSEC_COL.by - 1] = 'HABO'; row[WSEC_COL.drafted - 1] = now; row[WSEC_COL.live - 1] = now;
+      return row;
+    });
+    ss.getRange(2, 1, rows.length, rows[0].length).setValues(rows);
+  }
+  var sheet = getDb_().getSheetByName(TABS.wiki.name);
+  wikiRows_().forEach(function (p) {
+    var at = WIKI_SEED_PLACES[p.id];
+    if (at && !p.section && p.state === 'Live') sheet.getRange(p.row, WIKI_COL.section, 1, 2).setValues([[at[0], at[1]]]);
+  });
+  props.setProperty('WIKI_SECTIONS_SEEDED', new Date().toISOString());
 }

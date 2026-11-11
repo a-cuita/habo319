@@ -707,7 +707,18 @@
     <section class="card">
       <h2>Wiki</h2>
       <p class="muted small" id="wiki-note"></p>
+      <!-- Search, titles and text, each match with its line (S6-P9 round 2). -->
+      <input id="wiki-search" type="search" placeholder="Search the Wiki" aria-label="Search the Wiki" autocomplete="off">
       <button class="btn btn-primary" id="wiki-new" type="button" hidden>Draft a new page</button>
+      <button class="btn btn-secondary" id="wiki-new-section" type="button" hidden>Propose a section</button>
+      <div id="wiki-sec-form" hidden>
+        <p class="muted small">A new section, or a section renamed, goes to the Forum as a Decision, like a page.</p>
+        <div class="ig"><label for="wiki-sec-of">What it is</label><select id="wiki-sec-of"></select></div>
+        <div class="ig"><label for="wiki-sec-name">Its name</label><input id="wiki-sec-name" maxlength="40"></div>
+        <button class="btn btn-primary" id="wiki-sec-send" type="button">Send to the Forum</button>
+        <button class="btn btn-secondary" id="wiki-sec-cancel" type="button">Cancel</button>
+        <p class="err" id="wiki-sec-err" role="alert"></p>
+      </div>
     </section>
     <section class="card" id="wiki-list"></section>
     <section class="card" id="wiki-drafts" hidden></section>
@@ -715,9 +726,14 @@
   </div>
   <div id="v-wiki-page" hidden>
     <section class="card lt-wiki-page">
+      <p class="muted small lt-wiki-crumb" id="wiki-crumb"></p>
       <h2 id="wiki-title"></h2>
       <p class="muted small" id="wiki-when"></p>
       <div id="wiki-body"></div>
+      <div class="lt-wiki-nav">
+        <button class="btn btn-secondary" id="wiki-prev" type="button" hidden></button>
+        <button class="btn btn-secondary" id="wiki-next" type="button" hidden></button>
+      </div>
       <button class="btn btn-secondary" id="wiki-edit" type="button" hidden>Draft an edit</button>
     </section>
     <button class="lt-fab-back" id="wiki-page-back" type="button" aria-label="Back" title="Back">←</button>
@@ -727,6 +743,8 @@
       <h2 id="wd-head">Draft a new page</h2>
       <p class="muted small">It goes to the Forum as a Decision. Once its vote passes, it goes live for players.</p>
       <div class="ig"><label for="wd-title">Title</label><input id="wd-title" maxlength="80"></div>
+      <div class="ig"><label for="wd-section">Section</label><select id="wd-section"></select></div>
+      <div class="ig"><label for="wd-place">Where in the section</label><select id="wd-place"></select></div>
       <div class="ig"><label for="wd-text">What the page says</label><textarea id="wd-text" rows="14" maxlength="8000"></textarea>
         <p class="muted small">A blank line between paragraphs. Start a line with "- " for a list. {{sources}} on a line of its own shows the Sources tab's sources.</p></div>
       <button class="btn btn-primary" id="wd-send" type="button">Send to the Forum</button>
@@ -911,7 +929,7 @@
 <script src="reviews.js?v=4"></script>
 <script src="forum.js?v=5"></script>
 <script src="challenges.js?v=2"></script>
-<script src="wiki.js?v=2"></script>
+<script src="wiki.js?v=3"></script>
 <script src="achievements.js?v=1"></script>
 <script src="litter.js?v=32"></script>
 </body>

@@ -214,9 +214,17 @@ var TABS = {
   // The Wiki (S6-P9): its live pages, and admins' drafts waiting on the Forum.
   wiki: {
     name: 'Wiki',
-    header: ['Page ID', 'Title', 'Text', 'State', 'Edit of', 'By', 'Drafted', 'Forum topic', 'Live since'],
-    widths: [70, 220, 520, 80, 70, 100, 150, 80, 150],
-    formats: { 3: '@', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
+    header: ['Page ID', 'Title', 'Text', 'State', 'Edit of', 'By', 'Drafted', 'Forum topic', 'Live since', 'Section', 'Place'],
+    widths: [70, 220, 520, 80, 70, 100, 150, 80, 150, 80, 60],
+    formats: { 3: '@', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm', 10: '@' }
+  },
+  // The Wiki's sections (S6-P9 round 2, |M898): each a heading on its first
+  // screen, its pages in order; added or renamed by a Forum Decision (|Q692 (a)).
+  wikiSections: {
+    name: 'Wiki Sections',
+    header: ['Section ID', 'Name', 'Place', 'State', 'Renames', 'By', 'Drafted', 'Forum topic', 'Live since'],
+    widths: [80, 200, 60, 80, 80, 100, 150, 80, 150],
+    formats: { 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
   },
   // Challenges (S6-P8): what admins build, and what players send for them.
   challenges: {
@@ -326,6 +334,7 @@ function actions_() {
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,
     wikiDraft: wikiDraft_,
+    wikiSectionDraft: wikiSectionDraft_,
     // Streaks and achievements (S6-P6).
     achievementsLoad: achievementsLoad_,
     achievementsAdmin: achievementsAdmin_,
@@ -478,7 +487,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -521,6 +530,7 @@ function ensureSchema_(force) {
     challengesOnce_();
     toolSkillsOnce_();
     wikiOnce_();
+    wikiSectionsOnce_();
     achievementsOnce_();
     fillSettingNotes_(ss);
   });
