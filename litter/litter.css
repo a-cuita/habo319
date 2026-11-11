@@ -718,9 +718,6 @@ body.lt-pulse-open { overflow: hidden; }
 .lt-pieces-tools[hidden] { display: none; }
 .lt-pieces-tools .btn { flex: 1 1 auto; width: auto; margin-top: 0; }
 #sm-pieces-split.on { background: #fde68a; border-color: #b45309; color: #78350f; }
-/* No pull-to-refresh while a litter pulse is open (S6-U25 item 2), and the wheel's swipe stays in the wheel. */
-html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; }
-.lt-wheel { overscroll-behavior-x: contain; }
 /* Maps (S6-U26): the days shown. */
 .lt-map-dates .row2 { margin-bottom: 4px; }
 .lt-map-quick { display: flex; gap: 6px; flex-wrap: wrap; }
