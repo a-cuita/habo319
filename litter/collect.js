@@ -1410,7 +1410,7 @@ window.LitterCollect = function (app) {
       d.dataset.v = v;
       d.textContent = v === '' ? '–' : v;
       d.setAttribute('aria-label', v === '' ? 'Not rated' : v);
-      d.addEventListener('click', function () { setRating(v, 'smooth'); });
+      d.addEventListener('click', function () { wheelTouch = null; setRating(v, 'smooth'); });
       w.appendChild(d);
     });
     pad();
@@ -1418,6 +1418,15 @@ window.LitterCollect = function (app) {
       clearTimeout(wheelTimer);
       wheelTimer = setTimeout(nearestRating, 90);
     });
+    // A drag that's mostly up and down, trying to scroll, isn't a rating
+    // (S6-U25 item 2: the likeliest way a 0 got kept on Nov 8, one notch from
+    // "–"): the wheel goes back to what it was.
+    w.addEventListener('touchstart', function (e) { var t = e.touches[0]; wheelTouch = { x: t.clientX, y: t.clientY, was: $('pf-rating').value, upDown: false }; }, { passive: true });
+    w.addEventListener('touchmove', function (e) {
+      if (!wheelTouch) return;
+      var t = e.touches[0], dx = Math.abs(t.clientX - wheelTouch.x), dy = Math.abs(t.clientY - wheelTouch.y);
+      if (dy > 8 && dy > dx * 1.2) wheelTouch.upDown = true;
+    }, { passive: true });
     w.addEventListener('keydown', function (e) {
       var k = RATINGS.indexOf($('pf-rating').value);
       if (e.key === 'ArrowRight' && k < RATINGS.length - 1) { e.preventDefault(); setRating(RATINGS[k + 1], 'smooth'); }
@@ -1443,9 +1452,11 @@ window.LitterCollect = function (app) {
   }
   // The number in the middle once the wheel stops. Not while the step is
   // hidden, when every number sits at 0.
+  var wheelTouch = null;
   function nearestRating() {
     var w = $('pf-wheel');
     if (!w.clientWidth || $('cl-pulse').hidden) return;
+    if (wheelTouch && wheelTouch.upDown) { var was = wheelTouch.was; wheelTouch = null; return setRating(was, 'smooth'); }
     var mid = w.scrollLeft + w.clientWidth / 2, best = null, gap = Infinity;
     Array.prototype.forEach.call(w.querySelectorAll('.lt-wheel-n'), function (d) {
       var g = Math.abs(d.offsetLeft + d.offsetWidth / 2 - mid);
