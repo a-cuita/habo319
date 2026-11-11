@@ -28,12 +28,18 @@
   // |Q642 (a)): these only read, or write only the Forum. Any other action
   // marks the main page to load again the next time it shows.
   var SAME_MAIN = ['collectLoad', 'start', 'mapLoad', 'settingsLoad', 'reviewsLoad', 'myCollections', 'handleFree', 'forumUnread', 'forumTopic',
-    'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend'];
+    'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend',
+    // S6's screens that only read (S6-P2 round 2, |M890).
+    'challengesLoad', 'challengesAdmin', 'challengePhoto'];
   var changedAt = Date.now();
-  function marks(action) { if (SAME_MAIN.indexOf(action) === -1) changedAt = Date.now(); }
+  function marks(action, d) {
+    // Badges only reads, unless it just earned one: that changes your XP.
+    if (action === 'achievementsLoad' && !(d && d.earnedNow && d.earnedNow.length)) return;
+    if (SAME_MAIN.indexOf(action) === -1) changedAt = Date.now();
+  }
   function api(action, data, quiet) {
     if (!quiet) workStart();
-    return ask(action, data).then(function (d) { marks(action); if (!quiet) workEnd(); return d; }, function (err) { marks(action); if (!quiet) workEnd(); throw err; });
+    return ask(action, data).then(function (d) { marks(action, d); if (!quiet) workEnd(); return d; }, function (err) { marks(action); if (!quiet) workEnd(); throw err; });
   }
   function ask(action, data) {
     var body = JSON.stringify(Object.assign({ action: action }, data || {}));
@@ -82,13 +88,30 @@
   // before, and not while a collection is going, where the collecting
   // screen stays as it was.
   var NO_BAR = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-collect'];
+  // The bar's height, so notices start just under it (S6-P4).
+  function barHeight() {
+    var h = $('me-bar').hidden ? 0 : $('me-toggle').getBoundingClientRect().height;
+    if (h) document.documentElement.style.setProperty('--bar-h', Math.round(h) + 'px');
+  }
+  // Admin screens (S6-P19, |M888): never shown outside Admin Mode, by any
+  // button or back; asked for without it, the main page shows instead.
+  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin'];
   function show(id) {
+    if (ADMIN_VIEWS.indexOf(id) !== -1 && !adminMode()) {
+      if (state.account) { showAccount(state.account); return; }
+      id = 'v-welcome';
+    }
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
+    // Settings' lock bar pads the page only on Settings (S6-P7).
+    if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar');
     var bar = !!state.account && NO_BAR.indexOf(id) === -1;
     if (bar) fillBar(state.account);
     else if (!$('me-panel').hidden) panel(false);
     $('me-bar').hidden = !bar;
     document.body.classList.toggle('lt-has-bar', bar);
+    // Its own class (S6-P4): lt-has-bar is also the litter pulse's bottom bar.
+    document.body.classList.toggle('lt-has-topbar', bar);
+    barHeight();
     // A screen with the floating Back (S5-U17): notices start below it, so it can always be pressed.
     document.body.classList.toggle('lt-has-back', !!$(id).querySelector('.lt-fab-back'));
     paintMode();
@@ -114,6 +137,8 @@
   }
   function paintMode() {
     document.documentElement.classList.toggle('lt-builder', adminMode());
+    // Admin Mode turned off on an admin screen: straight to the main page (S6-P19, |M888).
+    if (!adminMode() && state.account && ADMIN_VIEWS.some(function (v) { return !$(v).hidden; })) { showAccount(state.account); return; }
     if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();
   }
 
@@ -725,6 +750,8 @@
     $(id).addEventListener('click', function () { $('me-star-say').hidden = !$('me-star-say').hidden; });
   });
   window.addEventListener('resize', fitPanel);
+  window.addEventListener('resize', barHeight);
+  if (window.ResizeObserver) new ResizeObserver(barHeight).observe($('me-toggle'));
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
   $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
