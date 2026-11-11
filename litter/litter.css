@@ -697,22 +697,6 @@ body.lt-rh-open { overflow: hidden; }
 @keyframes lt-pin-wait { from { opacity: 0.55; transform: translateY(0); } to { opacity: 1; transform: translateY(-4px); } }
 @media (prefers-reduced-motion: reduce) { .lt-pending-pin { animation: none; } }
 
-/* The litter pulse as a pop-up (S6-U25 item 1): at the top of what's in view, above the keyboard; Back, Next and Save inside it. */
-#cl-pulse:not([hidden]) { position: fixed; left: 50%; transform: translateX(-50%); top: calc(8px + var(--vv-top, 0px)); width: min(520px, calc(100% - 16px));
-  max-height: calc(var(--vv-h, 100vh) - 16px); overflow-y: auto; overscroll-behavior: contain; z-index: 3150; margin: 0; padding-bottom: 0;
-  box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.45), 0 10px 30px rgba(0, 0, 0, 0.3); }
-#cl-pulse .lt-bar { position: sticky; bottom: 0; left: auto; right: auto; z-index: 1; margin: 12px -18px 0; box-shadow: none; border-radius: 0 0 var(--radius) var(--radius); }
-#cl-pulse .lt-bar-in { padding: 10px 18px 12px; }
-body.lt-pulse-open { overflow: hidden; }
-.lt-heavy .lt-odd-q { font-size: 1.15rem; }
-/* The litter pulse's menu and its litter types: pop-ups too, not panels from the bottom (S6-U25 item 1, |M900). */
-.lt-drawer.lt-pop { z-index: 3160; align-items: flex-start; padding: calc(8px + var(--vv-top, 0px)) 8px 8px; }
-.lt-drawer.lt-pop.lt-pop-mid { align-items: center; }
-.lt-drawer.lt-pop .lt-drawer-box { border-radius: var(--radius); max-height: calc(var(--vv-h, 100vh) - 16px); padding-bottom: 16px; box-shadow: 0 12px 34px rgba(0, 0, 0, 0.32); animation: lt-pop-in 0.16s ease-out; }
-@keyframes lt-pop-in { from { transform: scale(0.94); opacity: 0; } to { transform: none; opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .lt-drawer.lt-pop .lt-drawer-box { animation: none; } }
-.lt-pf-note { margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: #dbeafe; color: #1e3a8a; font-weight: 700; }
-.lt-pf-note[hidden] { display: none; }
 /* Maps (S6-U26): the days shown. */
 .lt-map-dates .row2 { margin-bottom: 4px; }
 .lt-map-quick { display: flex; gap: 6px; flex-wrap: wrap; }

@@ -36,7 +36,7 @@ window.LitterCollect = function (app) {
   var planning = null;          // the plan being made, before a collection
   var account = null;           // what the account page last loaded: plan, planNeeded, xp
   var types = load(TYPES_KEY) || [];   // kept on the phone too, for no signal (S5)
-  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, heavyLb: 50, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
+  var settings = { sunsetWarnMin: 60, noStartMin: 15, autoEndHours: 12, editHours: 48, breakAfter: 10, planXp: 1, colours: ['#2c7bb6', '#f6e8c3', '#8c510a'] };
   var pace = null;              // your usual pace, from your own stretches (item 7)
   var sending = false;
   var WALK_KEY = 'habo-litter-walkplan';  // the walk's plan chosen on this phone: its segments' ids (S5-P9, S5-P12)
@@ -1111,7 +1111,6 @@ window.LitterCollect = function (app) {
     if (!c) return;
     showStatus();
     drill();
-    fitPulse();
     $('cl-chooser').hidden = !$('cl-chooser').hidden;
   }
   function closeChooser() { $('cl-chooser').hidden = true; }
@@ -1170,52 +1169,10 @@ window.LitterCollect = function (app) {
     return { cells: cells, meters: meters };
   }
 
-  // The litter pulse as a pop-up (S6-U25 item 1, |M900): a card at the top
-  // of what's in view, its boxes and buttons above the phone's keyboard.
-  function fitPulse() {
-    var vv = window.visualViewport, r = document.documentElement.style;
-    r.setProperty('--vv-top', (vv ? vv.offsetTop : 0) + 'px');
-    r.setProperty('--vv-h', (vv ? vv.height : window.innerHeight) + 'px');
-  }
-  fitPulse();
-  if (window.visualViewport) { window.visualViewport.addEventListener('resize', fitPulse); window.visualViewport.addEventListener('scroll', fitPulse); }
-  window.addEventListener('resize', fitPulse);
-
-  // A pulse interrupted (S6-U25 item 2, |M901): what's typed so far is kept
-  // on this phone as you go, so a reload or a dropped page opens it again
-  // where it was, and says so.
-  var PULSE_KEY = 'habo-litter-pulse-draft';
-  function keepDraft() {
-    if (!pulse || !c || c.practice) return;
-    keep(PULSE_KEY, { col: c.id, n: c.n, pulse: pulse, step: pulse.step, scale: $('pf-scale').value, types: picked(), rating: $('pf-rating').value,
-      end: $('pf-end').value, at: Date.now() });
-  }
-  function reopenDraft() {
-    var d = load(PULSE_KEY);
-    if (!d || !c || c.ended || d.col !== c.id || d.n !== c.n || Date.now() - d.at > settings.autoEndHours * 3600000) { if (d) keep(PULSE_KEY, null); return false; }
-    pulse = d.pulse;
-    stepsFor(pulse.kind);
-    openPulse();
-    $('pf-scale').value = d.scale || '';
-    Array.prototype.forEach.call(document.querySelectorAll('#pf-types input'), function (i) { i.checked = (d.types || []).indexOf(i.value) !== -1; });
-    showPicked();
-    if (d.end) $('pf-end').value = d.end;
-    pulse.step = Math.min(Math.max(0, d.step || 0), STEPS.length - 1);
-    showStep();
-    setRating(d.rating || '', 'auto');
-    keepDraft();
-    $('pf-note').textContent = 'Your litter pulse was interrupted. It\'s open again where you left off.';
-    $('pf-note').hidden = false;
-    return true;
-  }
-
   function openPulse() {
     $('cl-actions').hidden = true;
     $('cl-pulse').hidden = false;
-    document.body.classList.add('lt-pulse-open');
-    fitPulse();
-    $('pf-heavy').hidden = true;
-    $('pf-note').hidden = true;
+    document.body.classList.add('lt-has-bar');
     $('pf-title').textContent = pulse.kind === 'end' ? 'End: weigh your last bag' : pulse.kind === 'newbag' ? 'New bag: weigh this full bag' : 'Weigh the bag so far';
     $('pf-scale').value = '';
     setRating('', 'auto');
@@ -1236,11 +1193,10 @@ window.LitterCollect = function (app) {
 
   function closePulse() {
     pulse = null;
-    keep(PULSE_KEY, null);
     $('cl-pulse').hidden = true;
     $('pf-drawer').hidden = true;
     $('cl-map-box').classList.remove('strip');
-    document.body.classList.remove('lt-pulse-open');
+    document.body.classList.remove('lt-has-bar');
     $('cl-actions').hidden = false;
   }
 
@@ -1280,7 +1236,6 @@ window.LitterCollect = function (app) {
     pulse.whereMode = false;
     fitMap();
     if (STEPS[i] === 'rating') setRating($('pf-rating').value, 'auto');
-    keepDraft();
   }
   function stepCheck(i) {
     if (STEPS[i] === 'scale') return scaleError();
@@ -1290,21 +1245,8 @@ window.LitterCollect = function (app) {
   function nextStep() {
     var e = stepCheck(pulse.step);
     if (e) { $('pf-err').textContent = e; return; }
-    // An unusual weight: "Did you mean …?" first (S6-U25 item 1, |Q704 (a)).
-    if (STEPS[pulse.step] === 'scale' && heavyAsk()) return;
     pulse.step += 1;
     showStep();
-  }
-  function heavyAsk() {
-    var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
-    if (!(lbs > (settings.heavyLb || 50)) || pulse.heavyOk === scale) { $('pf-heavy').hidden = true; return false; }
-    var said = lbs.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' lb';
-    $('pf-heavy-q').textContent = 'Did you mean ' + said + '?';
-    $('pf-heavy-why').textContent = 'That\'s more than ' + (settings.heavyLb || 50) + ' lb. A slip of the decimal point is easy to make.';
-    $('pf-heavy-yes').textContent = 'Yes: ' + said;
-    $('pf-heavy').hidden = false;
-    $('pf-heavy-yes').focus();
-    return true;
   }
   function goStep(name, why) {
     pulse.step = STEPS.indexOf(name);
@@ -1342,7 +1284,6 @@ window.LitterCollect = function (app) {
   // narrows the list; when nothing matches, it can be added from the same box,
   // so a near twin of a type already there isn't added by mistake.
   function openTypes() {
-    fitPulse();
     $('pf-drawer').hidden = false;
     $('pf-type-err').textContent = '';
     filterTypes();
@@ -1372,7 +1313,6 @@ window.LitterCollect = function (app) {
   }
   function showPicked() {
     var p = picked();
-    keepDraft();
     $('pf-types-shown').textContent = p.length ? 'Ticked: ' + p.join(', ') : 'None ticked.';
     $('pf-types-open').textContent = p.length ? 'Change litter types' : 'Choose litter types';
   }
@@ -1427,7 +1367,6 @@ window.LitterCollect = function (app) {
   function wheelItem(v) { return $('pf-wheel').querySelector('.lt-wheel-n[data-v="' + v + '"]'); }
   function markRating(v) {
     $('pf-rating').value = v;
-    keepDraft();
     Array.prototype.forEach.call(document.querySelectorAll('#pf-wheel .lt-wheel-n'), function (d) {
       d.classList.toggle('on', d.dataset.v === v);
       d.setAttribute('aria-selected', d.dataset.v === v ? 'true' : 'false');
@@ -2847,12 +2786,6 @@ window.LitterCollect = function (app) {
   $('cl-back').addEventListener('click', function () { if (c && c.practice) return endPractice(); app.showAccount(); });
   $('cl-pulse').addEventListener('submit', function (e) { e.preventDefault(); savePulse(false); });
   $('pf-next').addEventListener('click', nextStep);
-  $('pf-heavy-yes').addEventListener('click', function () { pulse.heavyOk = $('pf-scale').value.trim(); $('pf-heavy').hidden = true; nextStep(); });
-  $('pf-heavy-no').addEventListener('click', function () { $('pf-heavy').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
-  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; keepDraft(); });
-  $('pf-end').addEventListener('change', keepDraft);
-  // The box in view above the keyboard once it opens.
-  $('pf-scale').addEventListener('focus', function () { setTimeout(function () { fitPulse(); $('pf-scale').scrollIntoView({ block: 'nearest' }); }, 300); });
   $('pf-back').addEventListener('click', function () { if (pulse && pulse.step > 0) { pulse.step -= 1; showStep(); } });
   $('pf-discard').addEventListener('click', function () {
     if ($('pf-why')) return;
@@ -2936,7 +2869,6 @@ window.LitterCollect = function (app) {
       if (Date.now() - last > settings.autoEndHours * 3600000 && !c.queue.length) return false;
       openCollect();
       endedElsewhere();
-      reopenDraft();   // a litter pulse interrupted, where it was (S6-U25 item 2)
       return true;
     },
     busyHere: function () { return !!(c && !c.practice && (c.queue.length || !c.ended)); },

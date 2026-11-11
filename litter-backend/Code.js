@@ -726,7 +726,6 @@ function missingSettings_(ss) {
     [SETTING_SHARE_LAYOUT, 'Full'],
     [SETTING_APP_NAME, DEFAULT_APP_NAME],
     [SETTING_WAIVER_RENEW, '2'],
-    [SETTING_HEAVY_LB, '50'],
     [SETTING_DIFF_MARK, '0.5'],
     [SETTING_DIFF_SLIGHT, '1.5'],
     [SETTING_SUNSET_WARN, '60'],

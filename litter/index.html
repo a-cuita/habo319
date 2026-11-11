@@ -318,8 +318,8 @@
       <div class="center"><button class="link-btn" id="cl-back" type="button">Back to my account</button></div>
       <div class="lt-discard-row"><button class="link-btn lt-danger-link" id="cl-discard" type="button">Discard this collection</button></div>
     </div>
-    <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse. Its menu a pop-up in the middle of the screen (S6-U25 item 1, |M900). -->
-    <div class="lt-drawer lt-pop lt-pop-mid" id="cl-chooser" hidden>
+    <!-- One Litter pulse button (S5, Oct 29, in chat): everything is done at a litter pulse; its menu a sheet from the bottom (round 2). -->
+    <div class="lt-drawer" id="cl-chooser" hidden>
       <div class="lt-drawer-box lt-chooser-box" role="dialog" aria-label="Litter pulse">
         <div class="lt-chooser-grid">
           <button class="btn btn-primary" id="cl-weigh" type="button">Weigh</button>
@@ -340,8 +340,6 @@
     </section>
     <form class="card" id="cl-pulse" novalidate hidden>
       <h2 id="pf-title">Litter pulse</h2>
-      <!-- Said inside the pop-up, where it can't be covered (S6-U25 item 2). -->
-      <p class="lt-pf-note" id="pf-note" role="status" hidden></p>
       <p class="muted small" id="pf-step-n"></p>
       <!-- One thing per screen (S3-P27, Q397), with Next and Back; four steps (S5). -->
       <div class="pf-step" data-step="scale">
@@ -349,13 +347,6 @@
         <label for="pf-scale">What the scale shows (lb)</label>
         <input id="pf-scale" inputmode="decimal" autocomplete="off">
         <p class="muted small" id="pf-bag-hint"></p>
-      </div>
-      <!-- An unusual weight (S6-U25 item 1, |Q704 (a)): asked before it goes on; Yes keeps it. -->
-      <div class="lt-odd lt-heavy" id="pf-heavy" hidden>
-        <p class="lt-odd-q" id="pf-heavy-q"></p>
-        <p class="small" id="pf-heavy-why"></p>
-        <button class="btn btn-primary" id="pf-heavy-yes" type="button"></button>
-        <button class="btn btn-secondary" id="pf-heavy-no" type="button">No: fix it</button>
       </div>
       <div class="center"><button class="link-btn lt-danger-link" id="pf-discard" type="button">Discard this weighing</button></div>
       </div>
@@ -408,8 +399,7 @@
         </div>
       </div>
     </form>
-    <!-- Litter types, a pop-up over the litter pulse, at the top of what's in view, above the keyboard (S6-U25 item 1). -->
-    <div class="lt-drawer lt-pop" id="pf-drawer" role="dialog" aria-modal="true" aria-labelledby="pf-drawer-title" hidden>
+    <div class="lt-drawer" id="pf-drawer" role="dialog" aria-modal="true" aria-labelledby="pf-drawer-title" hidden>
       <div class="lt-drawer-box">
         <h2 id="pf-drawer-title">Litter types</h2>
         <input class="lt-drawer-search" id="pf-type-search" type="search" maxlength="60" placeholder="Search, or type a new one" aria-label="Search litter types" autocomplete="off">
