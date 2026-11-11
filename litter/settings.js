@@ -133,6 +133,12 @@ window.LitterSettings = function (app) {
       s.value = it.value;
       row.appendChild(s);
       value = function () { return s.value; };
+    } else if (it.kind === 'text') {
+      // A line of words, like the app's name (S6-P5 round 2).
+      var tx = el('input', 'lt-set-text');
+      tx.id = id; tx.value = it.value; tx.autocomplete = 'off'; tx.maxLength = it.max || 60;
+      row.appendChild(tx);
+      value = function () { return tx.value; };
     } else if (it.kind === 'names') {
       var t = el('input', 'lt-set-names');
       t.id = id; t.value = it.value; t.autocomplete = 'off';

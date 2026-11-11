@@ -309,7 +309,7 @@ window.LitterCollect = function (app) {
       return Promise.resolve();
     }
     return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
-      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
       pace = d.pace || null;
       setTypes(d.types);
       gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
@@ -762,7 +762,7 @@ window.LitterCollect = function (app) {
       if (!d.already) setWalkPlan(null);
       // More than one segment: pause while travelling between them (Q559).
       if (!d.already && chosen.length > 1) app.notice('Pause the app whenever you travel between your plan\'s segments, unless you\'re collecting on the way. Your GPX recorder can keep recording.', { key: 'between' });
-      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
       pace = d.pace || pace;
       var col = d.collection;
       c = { id: col.id, grid: 160, startedAt: col.started, startCell: col.startCell, n: 1, lastCell: col.startCell, queue: [], scalePrev: 0, bagReset: false,
@@ -856,7 +856,7 @@ window.LitterCollect = function (app) {
   // drawer had nothing to tick (S5, Oct 29). Kept on the phone for no signal.
   function refreshTypes() {
     return app.api('collectLoad', { token: app.myToken(), collectionId: c && !c.practice ? c.id : '' }).then(function (d) {
-      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
+      settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
       if (syncFromHabo(d)) { drawSim(); showStatus(); }
       if (!d.types || !d.types.length) return;
       var ticked = pulse ? picked() : [];
@@ -1876,7 +1876,7 @@ window.LitterCollect = function (app) {
   function openPast(id, button) {
     app.busy(button, 'cl-start-err', function () {
       return busyWhile('Opening your collection, please wait...', function () { return app.api('collectLoad', { token: app.myToken(), collectionId: id }); }).then(function (d) {
-        settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments;
+        settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
         setTypes(d.types);
         pace = d.pace || pace;
         // Its plan's squares, from the segments it lists, so ground off it is offered in pieces again (S5-U17).
@@ -2752,6 +2752,8 @@ window.LitterCollect = function (app) {
   $('pf-where-unsure').addEventListener('click', function () { if (pulse) { pulse.breakWhere = 'Not sure'; pulse.whereMode = false; $('pf-where-shown').textContent = 'Where you were: not sure.'; fitMap(); } });
   $('sf-where-tap').addEventListener('click', function () { if (summary) { summary.whereMode = true; $('sf-where-shown').textContent = 'Tap the cell on the map.'; $('sm-view-box').scrollIntoView({ block: 'start' }); } });
   $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
+  // What the share picture shows, from Settings (S6-P5 round 2).
+  function shareLook() { if (window.LitterShare && window.LitterShare.setLook && settings && settings.share) window.LitterShare.setLook(settings.share); }
   $('sm-share').addEventListener('click', function () {
     var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
     if (!col) return;

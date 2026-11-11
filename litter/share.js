@@ -105,7 +105,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
       return drawn > 0;
     });
   }
@@ -145,6 +145,10 @@ window.LitterShare = (function () {
     return m ? t / m : null;
   }
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
+  // What the picture shows, as admins set it in Settings (S6-P5 round 2): a
+  // layout, each part on or off on top of it, and the app's name.
+  var look = { numbers: true, index: true, scale: true, when: true, who: true, name: true, appName: 'HABO Litter Collection' };
+  function setLook(l) { if (l && typeof l === 'object') look = Object.assign({}, look, l); }
   // "10:02 to 10:19 AM", or "11:50 AM to 12:20 PM".
   function times(a, b) {
     var t = function (ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
@@ -162,9 +166,11 @@ window.LitterShare = (function () {
     var x = 60, y = MAP_H + 92;
     ctx.fillStyle = '#111827';
     ctx.font = '800 70px system-ui, sans-serif';
-    ctx.fillText(round(walk.pounds || 0, 2) + ' lb  ·  ' + round(walk.miles || 0, 2) + ' mi', x, y);
-    y += 74;
-    var idx = walkIndex(walk);
+    if (look.numbers) {
+      ctx.fillText(round(walk.pounds || 0, 2) + ' lb  ·  ' + round(walk.miles || 0, 2) + ' mi', x, y);
+      y += 74;
+    }
+    var idx = look.index ? walkIndex(walk) : null;
     ctx.font = '700 44px system-ui, sans-serif';
     if (idx != null) {
       ctx.fillStyle = G.indexColour(idx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
@@ -178,14 +184,16 @@ window.LitterShare = (function () {
     ctx.fillStyle = '#374151';
     var day = new Date(walk.started || Date.now()).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     // And its time, start to end (Jeremy, Nov 6: "the time should be on there too"; "agree").
-    ctx.fillText(day + (walk.started ? '  ·  ' + times(walk.started, walk.ended) : ''), x, y);
-    y += 70;
+    if (look.when) {
+      ctx.fillText(day + (walk.started ? '  ·  ' + times(walk.started, walk.ended) : ''), x, y);
+      y += 70;
+    }
     // Your handle, with your level as a badge.
     ctx.font = '800 46px system-ui, sans-serif';
     ctx.fillStyle = '#111827';
-    var who = walk.handle || '';
-    ctx.fillText(who, x, y);
-    if (walk.level != null) {
+    var who = look.who ? walk.handle || '' : '';
+    if (who) ctx.fillText(who, x, y);
+    if (look.who && walk.level != null) {
       var hw = ctx.measureText(who).width, badge = 'Level ' + walk.level;
       ctx.font = '800 32px system-ui, sans-serif';
       var bw = ctx.measureText(badge).width + 36, bx = x + hw + 22, by = y - 38;
@@ -194,10 +202,12 @@ window.LitterShare = (function () {
       ctx.fillStyle = '#78350f';
       ctx.fillText(badge, bx + 18, by + 35);
     }
-    // HABO's name.
-    ctx.font = '800 36px system-ui, sans-serif';
-    ctx.fillStyle = '#15803d';
-    ctx.fillText('🌱 HABO Litter Collection', x, H - 50);
+    // The app's name, from Settings (S6-P5 round 2, |Q687 (a)).
+    if (look.name) {
+      ctx.font = '800 36px system-ui, sans-serif';
+      ctx.fillStyle = '#15803d';
+      ctx.fillText('🌱 ' + look.appName, x, H - 50);
+    }
   }
   function roundRect(ctx, x, y, w, h, r) {
     ctx.beginPath();
@@ -289,7 +299,7 @@ window.LitterShare = (function () {
     ctx.fillText((b.handle || '') + (b.level != null ? '  ·  Level ' + b.level : ''), W / 2, H - 150);
     ctx.font = '800 36px system-ui, sans-serif';
     ctx.fillStyle = '#15803d';
-    ctx.fillText('🌱 HABO Litter Collection', W / 2, H - 70);
+    ctx.fillText('🌱 ' + look.appName, W / 2, H - 70);
     var name = 'habo-litter-' + String(b.title || 'badge').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + ymdOf(b.when) + '.png';
     return toBlob(canvas).then(function (blob) { return deliver(blob, name, b.title || 'My HABO badge', (b.title || '') + ': ' + (b.line || '') + ' With HABO.'); });
   }
@@ -302,5 +312,5 @@ window.LitterShare = (function () {
     return y + (lines.length - 1) * step + step;
   }
 
-  return { walkPicture: walkPicture, badgePicture: badgePicture, label: label, canShare: canShare };
+  return { walkPicture: walkPicture, badgePicture: badgePicture, label: label, canShare: canShare, setLook: setLook, look: function () { return look; } };
 })();

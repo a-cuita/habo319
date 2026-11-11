@@ -712,6 +712,8 @@ function missingSettings_(ss) {
     [SETTING_CHALLENGE_PHOTOS, ''],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_DIGEST_HOUR, '7'],
+    [SETTING_SHARE_LAYOUT, 'Full'],
+    [SETTING_APP_NAME, DEFAULT_APP_NAME],
     [SETTING_SUNSET_WARN, '60'],
     [SETTING_NO_START, '15'],
     [SETTING_AUTO_END, '12'],
@@ -735,7 +737,8 @@ function missingSettings_(ss) {
     [SETTING_QUEST_DONE_XP, '5'],
     [SETTING_REVIEW_XP, '15'],
     [SETTING_START_SAYINGS, '']
-  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS).filter(function (s) { return have.indexOf(s[0]) === -1; });
+  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS,
+    SHARE_PARTS.map(function (p) { return [p[1], 'As the layout']; })).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 
 function ensureTab_(ss, tab) {

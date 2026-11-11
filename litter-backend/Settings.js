@@ -61,6 +61,12 @@ function settingGroups_() {
   // The Forum's email digest (S5-P28 round 2, |Q637 (a)): the hour it goes.
   { key: 'forum', title: 'Forum', rank: 'Head Builder', items: [
     [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
+  // What's on the share picture, one choice for everyone (S6-P5 round 2, |Q685 (a)):
+  // a layout, then each part on or off on top of it (|Q686); the app's name (|Q687 (a)).
+  { key: 'share', title: 'The share picture', rank: 'Builder', items: [
+    [SETTING_SHARE_LAYOUT, 'Layout', 'What the picture shows to start with. Full: everything. Map and numbers: no handle, date or times. Map only: the map, the date and times, and the app\'s name.', 'choice', SHARE_LAYOUTS]]
+    .concat(SHARE_PARTS.map(function (p) { return [p[1], p[1].replace('Share picture: ', '').replace(/^./, function (c) { return c.toUpperCase(); }), 'On or off, whatever the layout; or as the layout has it.', 'choice', SHARE_PART_CHOICES]; }))
+    .concat([[SETTING_APP_NAME, 'The app\'s name', 'On the share picture and the badges\' pictures. A new name needs no build.', 'text', 40]]) },
   { key: 'look', title: 'The map\'s look and the sayings', rank: 'Builder', items: [
     [SETTING_COLOUR_0, 'Map colour at 0', 'The Litter Index scale\'s colour at 0.', 'colour'],
     [SETTING_COLOUR_5, 'Map colour at 5', 'At 5.', 'colour'],
@@ -86,7 +92,7 @@ function settingsGroupsFor_(account) {
     return { key: g.key, title: g.title, rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
       return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
-        min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : null,
+        min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null,
         value: kind === 'lines' ? String(v).split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String) : String(v).trim() };
     }) };
   });
@@ -208,6 +214,12 @@ function settingValue_(it, v) {
     var c = String(v || '').trim();
     if (!/^#[0-9a-f]{6}$/i.test(c)) throw new Error(label + ' needs a colour, like #7c3aed.');
     return c.toLowerCase();
+  }
+  if (kind === 'text') {
+    var words = String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
+    if (!words) throw new Error(label + ' can\'t be empty.');
+    if (words.length > it[4]) throw new Error(label + ': at most ' + it[4] + ' letters.');
+    return words;
   }
   if (kind === 'choice') {
     var pick = String(v || '').trim();

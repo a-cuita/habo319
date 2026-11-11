@@ -19,6 +19,26 @@
  */
 
 var SETTING_COLOUR_0 = 'Map colour at 0';
+// What's on the share picture (S6-P5 round 2, |M897, |Q685 (a), |Q686, |Q687 (a)):
+// a layout to start from, then each part on or off on top of it; and the
+// app's name, a setting, so a new name needs no build.
+var SETTING_SHARE_LAYOUT = 'Share picture layout';
+var SHARE_LAYOUTS = ['Full', 'Map and numbers', 'Map only'];
+var SHARE_PART_CHOICES = ['As the layout', 'On', 'Off'];
+var SHARE_PARTS = [['numbers', 'Share picture: pounds and miles'], ['index', 'Share picture: Litter Index'], ['scale', 'Share picture: the scale'],
+  ['when', 'Share picture: date and times'], ['who', 'Share picture: handle and level'], ['name', 'Share picture: the app\'s name']];
+var SHARE_LAYOUT_PARTS = { 'Full': ['numbers', 'index', 'scale', 'when', 'who', 'name'], 'Map and numbers': ['numbers', 'index', 'scale', 'name'], 'Map only': ['when', 'name'] };
+var SETTING_APP_NAME = 'The app\'s name';
+var DEFAULT_APP_NAME = 'HABO Litter Collection';
+function shareLook_() {
+  var layout = SHARE_LAYOUTS.indexOf(String(getSetting_(SETTING_SHARE_LAYOUT)).trim()) !== -1 ? String(getSetting_(SETTING_SHARE_LAYOUT)).trim() : 'Full';
+  var out = { layout: layout, appName: String(getSetting_(SETTING_APP_NAME) || '').trim() || DEFAULT_APP_NAME };
+  SHARE_PARTS.forEach(function (p) {
+    var v = String(getSetting_(p[1]) || '').trim();
+    out[p[0]] = v === 'On' ? true : v === 'Off' ? false : SHARE_LAYOUT_PARTS[layout].indexOf(p[0]) !== -1;
+  });
+  return out;
+}
 // A reading fades on the map as it ages, gone after this many days (S6-P1, |Q678, |Q673).
 var SETTING_MAP_FADE = 'Map: readings fade out after (days)';
 var SETTING_COLOUR_5 = 'Map colour at 5';

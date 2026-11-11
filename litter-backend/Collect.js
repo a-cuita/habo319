@@ -707,7 +707,9 @@ function collectSettings_() {
     skills: classSkills_().concat(challengeSkills_()),   // and each Items Challenge that opens at a level (S6-P8)
     // Fields as areas (S5-P13 part 2): how far a track scans, and the share that collects a field.
     reach: minutesSetting_(SETTING_REACH, 15), fieldCover: Math.min(100, minutesSetting_(SETTING_FIELD_COVER, 70)),
-    sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50) };
+    sayings: String(getSetting_(SETTING_START_SAYINGS) || '').split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String).slice(0, 50),
+    // What the share picture shows, and the app's name (S6-P5 round 2).
+    share: shareLook_() };
 }
 
 function round_(n, places) { var f = Math.pow(10, places); return Math.round(Number(n) * f) / f; }
