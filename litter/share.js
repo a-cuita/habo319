@@ -52,7 +52,7 @@ window.LitterShare = (function () {
   // so a layout with fewer parts gives the map the room (S6-P5, |C936).
   // Everything on: 880 of 1350, as before; nothing under it: all of it.
   function mapHeight(look, walk) {
-    var lines = (look.numbers ? 74 : 0) + (look.index && walkIndex(walk) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (look.name ? 90 : 0);
+    var lines = (look.numbers ? 74 : 0) + (look.index && headline(walk, look) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (extrasText(walk) ? 70 : 0) + (look.name ? 90 : 0);
     return lines ? H - 112 - lines : H;
   }
   function drawMap(ctx, walk, L) {
@@ -86,8 +86,19 @@ window.LitterShare = (function () {
       ctx.beginPath(); ctx.rect(0, 0, W, MAP_H); ctx.clip();
       var drawn = 0;
       tiles.forEach(function (t) { if (t.img) { ctx.drawImage(t.img, t.x, t.y, T + 0.5, T + 0.5); drawn++; } });
-      // Each weighing's squares, in its Litter Index colour.
-      (walk.stretches || []).forEach(function (s) {
+      // In rate mode (|M1048), each segment the walk collected, in its
+      // accumulation rate's colour; else each weighing's squares, in its Litter Index colour.
+      if (rateMode(look)) (walk.segRates || []).forEach(function (g) {
+        if (g.rate == null) return;
+        ctx.fillStyle = G.indexColour(Math.min(10, g.rate / (look.rateTop || 5) * 10), walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+        ctx.globalAlpha = 0.6;
+        (g.cells || []).forEach(function (cell) {
+          var q = G.cellBounds(cell), p1 = at(q[1][0], q[0][1]), p2 = at(q[0][0], q[1][1]);
+          ctx.fillRect(p1.x, p1.y, Math.max(2, p2.x - p1.x), Math.max(2, p2.y - p1.y));
+        });
+        ctx.globalAlpha = 1;
+      });
+      if (!rateMode(look)) (walk.stretches || []).forEach(function (s) {
         if (s.discarded || s.index == null) return;
         ctx.fillStyle = G.indexColour(s.index, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
         ctx.globalAlpha = 0.6;
@@ -97,8 +108,9 @@ window.LitterShare = (function () {
         });
         ctx.globalAlpha = 1;
       });
-      // The GPX track, where you walked; the paused parts lighter.
-      G.trackRuns(walk.track || []).forEach(function (run) {
+      // The GPX track, where you walked; the paused parts lighter. It can be
+      // turned off, so the colours show (|M1048).
+      if (look.track !== false) G.trackRuns(walk.track || []).forEach(function (run) {
         ctx.beginPath();
         run.pts.forEach(function (p, i) { var q = at(p[0], p[1]); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); });
         ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -113,7 +125,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H, look);
       return drawn > 0;
     });
   }
@@ -121,14 +133,15 @@ window.LitterShare = (function () {
   // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
   // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
   // a bar, in the map's bottom-left corner.
-  function drawScale(ctx, colours, MAP_H) {
+  function drawScale(ctx, colours, MAP_H, look) {
+    var rate = rateMode(look || current), top = (look || current).rateTop || 5;
     var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     roundRect(ctx, x, y, w, h, 14); ctx.fill();
     ctx.fillStyle = '#111827';
     ctx.font = '700 26px system-ui, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('Litter Index', bx, y + 32);
+    ctx.fillText(rate ? 'Accumulation rate, lb/mi·day⁻¹' : 'Litter Index', bx, y + 32);
     var g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
     for (var i = 0; i <= 10; i++) g.addColorStop(i / 10, G.indexColour(i, colours));
     ctx.fillStyle = g;
@@ -136,9 +149,9 @@ window.LitterShare = (function () {
     ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
     ctx.font = '600 22px system-ui, sans-serif';
     ctx.fillStyle = '#374151';
-    ctx.fillText('0 clean', bx, by + bh + 26);
-    ctx.textAlign = 'center'; ctx.fillText('5', bx + bw / 2, by + bh + 26);
-    ctx.textAlign = 'right'; ctx.fillText('10+', bx + bw, by + bh + 26);
+    ctx.fillText(rate ? '0' : '0 clean', bx, by + bh + 26);
+    ctx.textAlign = 'center'; ctx.fillText(rate ? String(Math.round(top / 2 * 10) / 10) : '5', bx + bw / 2, by + bh + 26);
+    ctx.textAlign = 'right'; ctx.fillText(rate ? top + '+' : '10+', bx + bw, by + bh + 26);
     ctx.textAlign = 'left';
   }
 
@@ -153,9 +166,26 @@ window.LitterShare = (function () {
     return m ? t / m : null;
   }
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
+  function rateMode(look) { return look && look.mapShows === 'Accumulation rate'; }
+  // The walk's segments' accumulation rate, their average (|M1048).
+  function walkRate(walk) {
+    var r = (walk.segRates || []).map(function (g) { return g.rate; }).filter(function (v) { return v != null; });
+    return r.length ? r.reduce(function (a, b) { return a + b; }, 0) / r.length : null;
+  }
+  // The number under the map: the walk's Litter Index, or in rate mode its segments' rate.
+  function headline(walk, look) { return rateMode(look) ? walkRate(walk) : walkIndex(walk); }
+  // What the walk earned, on the same picture when chosen (|M1047): a level reached, and its new badges.
+  function extrasText(walk) {
+    var x = walk.extras;
+    if (!x) return '';
+    var parts = [];
+    if (x.level) parts.push('⬆ Level ' + x.level + '!');
+    (x.badges || []).forEach(function (b) { parts.push((b.badge || '🏅') + ' ' + b.name); });
+    return parts.join('  ·  ');
+  }
   // What the picture shows, as admins set it in Settings (S6-P5 round 2): a
   // layout, each part on or off on top of it, and the app's name.
-  var current = { numbers: true, index: true, scale: true, when: true, who: true, name: true, appName: 'HABO Litter Collection' };
+  var current = { numbers: true, index: true, scale: true, when: true, who: true, name: true, track: true, mapShows: 'Litter Index', rateTop: 5, appName: 'HABO Litter Collection' };
   function setLook(l) { if (l && typeof l === 'object') current = Object.assign({}, current, l); }
   // "10:02 to 10:19 AM", or "11:50 AM to 12:20 PM".
   function times(a, b) {
@@ -180,14 +210,14 @@ window.LitterShare = (function () {
       ctx.fillText(round(walk.pounds || 0, 2) + ' lb  ·  ' + round(walk.miles || 0, 2) + ' mi', x, y);
       y += 74;
     }
-    var idx = look.index ? walkIndex(walk) : null;
+    var idx = look.index ? headline(walk, look) : null, rate = rateMode(look);
     ctx.font = '700 44px system-ui, sans-serif';
     if (idx != null) {
-      ctx.fillStyle = G.indexColour(idx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+      ctx.fillStyle = G.indexColour(rate ? Math.min(10, idx / (look.rateTop || 5) * 10) : idx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
       ctx.fillRect(x, y - 36, 40, 40);
       ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x, y - 36, 40, 40);
       ctx.fillStyle = '#111827';
-      ctx.fillText('Litter Index ' + idx.toFixed(1), x + 58, y);
+      ctx.fillText(rate ? 'Accumulation rate ' + round(idx, 2) + ' lb/mi·day⁻¹' : 'Litter Index ' + idx.toFixed(1), x + 58, y);
       y += 64;
     }
     ctx.font = '500 38px system-ui, sans-serif';
@@ -211,6 +241,20 @@ window.LitterShare = (function () {
       roundRect(ctx, bx, by, bw, 48, 24); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#78350f';
       ctx.fillText(badge, bx + 18, by + 35);
+    }
+    if (look.who) y += 60;
+    // What the walk earned, when chosen (|M1047): its level and new badges, on a gold band.
+    var extra = extrasText(walk);
+    if (extra) {
+      ctx.font = '800 34px system-ui, sans-serif';
+      var ew = Math.min(W - 2 * x, ctx.measureText(extra).width + 40);
+      ctx.fillStyle = '#fef3c7'; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3;
+      roundRect(ctx, x, y - 40, ew, 54, 27); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#78350f';
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y - 40, ew - 12, 54); ctx.clip();
+      ctx.fillText(extra, x + 20, y - 2);
+      ctx.restore();
+      y += 70;
     }
     // The app's name, from Settings (S6-P5 round 2, |Q687 (a)).
     if (look.name) {

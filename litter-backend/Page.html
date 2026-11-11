@@ -1415,6 +1415,8 @@ body.lt-set-bg-open { background: #4a0d1c; }
       <!-- Badges this walk earned, and the weekly streak grown (S6-P6), with Share. -->
       <div class="lt-ach-news" id="sm-badges" hidden></div>
       <!-- Share the walk as a picture (S6-P5): the phone's share sheet, or Download picture. -->
+      <!-- The walk's new badges and level on the same picture, when it earned any (S6-P5, |M1047). -->
+      <label class="choice-row" id="sm-share-all-row" hidden><input type="checkbox" id="sm-share-all" checked> With its new badges and level</label>
       <button class="btn btn-secondary" id="sm-share" type="button" hidden>Share</button>
       <p class="muted" id="sm-wait" hidden></p>
     </section>
@@ -2599,7 +2601,7 @@ window.LitterShare = (function () {
   // so a layout with fewer parts gives the map the room (S6-P5, |C936).
   // Everything on: 880 of 1350, as before; nothing under it: all of it.
   function mapHeight(look, walk) {
-    var lines = (look.numbers ? 74 : 0) + (look.index && walkIndex(walk) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (look.name ? 90 : 0);
+    var lines = (look.numbers ? 74 : 0) + (look.index && headline(walk, look) != null ? 64 : 0) + (look.when ? 70 : 0) + (look.who ? 60 : 0) + (extrasText(walk) ? 70 : 0) + (look.name ? 90 : 0);
     return lines ? H - 112 - lines : H;
   }
   function drawMap(ctx, walk, L) {
@@ -2633,8 +2635,19 @@ window.LitterShare = (function () {
       ctx.beginPath(); ctx.rect(0, 0, W, MAP_H); ctx.clip();
       var drawn = 0;
       tiles.forEach(function (t) { if (t.img) { ctx.drawImage(t.img, t.x, t.y, T + 0.5, T + 0.5); drawn++; } });
-      // Each weighing's squares, in its Litter Index colour.
-      (walk.stretches || []).forEach(function (s) {
+      // In rate mode (|M1048), each segment the walk collected, in its
+      // accumulation rate's colour; else each weighing's squares, in its Litter Index colour.
+      if (rateMode(look)) (walk.segRates || []).forEach(function (g) {
+        if (g.rate == null) return;
+        ctx.fillStyle = G.indexColour(Math.min(10, g.rate / (look.rateTop || 5) * 10), walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+        ctx.globalAlpha = 0.6;
+        (g.cells || []).forEach(function (cell) {
+          var q = G.cellBounds(cell), p1 = at(q[1][0], q[0][1]), p2 = at(q[0][0], q[1][1]);
+          ctx.fillRect(p1.x, p1.y, Math.max(2, p2.x - p1.x), Math.max(2, p2.y - p1.y));
+        });
+        ctx.globalAlpha = 1;
+      });
+      if (!rateMode(look)) (walk.stretches || []).forEach(function (s) {
         if (s.discarded || s.index == null) return;
         ctx.fillStyle = G.indexColour(s.index, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
         ctx.globalAlpha = 0.6;
@@ -2644,8 +2657,9 @@ window.LitterShare = (function () {
         });
         ctx.globalAlpha = 1;
       });
-      // The GPX track, where you walked; the paused parts lighter.
-      G.trackRuns(walk.track || []).forEach(function (run) {
+      // The GPX track, where you walked; the paused parts lighter. It can be
+      // turned off, so the colours show (|M1048).
+      if (look.track !== false) G.trackRuns(walk.track || []).forEach(function (run) {
         ctx.beginPath();
         run.pts.forEach(function (p, i) { var q = at(p[0], p[1]); if (i) ctx.lineTo(q.x, q.y); else ctx.moveTo(q.x, q.y); });
         ctx.lineWidth = 6; ctx.lineJoin = 'round'; ctx.lineCap = 'round';
@@ -2660,7 +2674,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H, look);
       return drawn > 0;
     });
   }
@@ -2668,14 +2682,15 @@ window.LitterShare = (function () {
   // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
   // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
   // a bar, in the map's bottom-left corner.
-  function drawScale(ctx, colours, MAP_H) {
+  function drawScale(ctx, colours, MAP_H, look) {
+    var rate = rateMode(look || current), top = (look || current).rateTop || 5;
     var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     roundRect(ctx, x, y, w, h, 14); ctx.fill();
     ctx.fillStyle = '#111827';
     ctx.font = '700 26px system-ui, sans-serif';
     ctx.textAlign = 'left';
-    ctx.fillText('Litter Index', bx, y + 32);
+    ctx.fillText(rate ? 'Accumulation rate, lb/mi·day⁻¹' : 'Litter Index', bx, y + 32);
     var g = ctx.createLinearGradient(bx, 0, bx + bw, 0);
     for (var i = 0; i <= 10; i++) g.addColorStop(i / 10, G.indexColour(i, colours));
     ctx.fillStyle = g;
@@ -2683,9 +2698,9 @@ window.LitterShare = (function () {
     ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.5; ctx.strokeRect(bx, by, bw, bh);
     ctx.font = '600 22px system-ui, sans-serif';
     ctx.fillStyle = '#374151';
-    ctx.fillText('0 clean', bx, by + bh + 26);
-    ctx.textAlign = 'center'; ctx.fillText('5', bx + bw / 2, by + bh + 26);
-    ctx.textAlign = 'right'; ctx.fillText('10+', bx + bw, by + bh + 26);
+    ctx.fillText(rate ? '0' : '0 clean', bx, by + bh + 26);
+    ctx.textAlign = 'center'; ctx.fillText(rate ? String(Math.round(top / 2 * 10) / 10) : '5', bx + bw / 2, by + bh + 26);
+    ctx.textAlign = 'right'; ctx.fillText(rate ? top + '+' : '10+', bx + bw, by + bh + 26);
     ctx.textAlign = 'left';
   }
 
@@ -2700,9 +2715,26 @@ window.LitterShare = (function () {
     return m ? t / m : null;
   }
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
+  function rateMode(look) { return look && look.mapShows === 'Accumulation rate'; }
+  // The walk's segments' accumulation rate, their average (|M1048).
+  function walkRate(walk) {
+    var r = (walk.segRates || []).map(function (g) { return g.rate; }).filter(function (v) { return v != null; });
+    return r.length ? r.reduce(function (a, b) { return a + b; }, 0) / r.length : null;
+  }
+  // The number under the map: the walk's Litter Index, or in rate mode its segments' rate.
+  function headline(walk, look) { return rateMode(look) ? walkRate(walk) : walkIndex(walk); }
+  // What the walk earned, on the same picture when chosen (|M1047): a level reached, and its new badges.
+  function extrasText(walk) {
+    var x = walk.extras;
+    if (!x) return '';
+    var parts = [];
+    if (x.level) parts.push('⬆ Level ' + x.level + '!');
+    (x.badges || []).forEach(function (b) { parts.push((b.badge || '🏅') + ' ' + b.name); });
+    return parts.join('  ·  ');
+  }
   // What the picture shows, as admins set it in Settings (S6-P5 round 2): a
   // layout, each part on or off on top of it, and the app's name.
-  var current = { numbers: true, index: true, scale: true, when: true, who: true, name: true, appName: 'HABO Litter Collection' };
+  var current = { numbers: true, index: true, scale: true, when: true, who: true, name: true, track: true, mapShows: 'Litter Index', rateTop: 5, appName: 'HABO Litter Collection' };
   function setLook(l) { if (l && typeof l === 'object') current = Object.assign({}, current, l); }
   // "10:02 to 10:19 AM", or "11:50 AM to 12:20 PM".
   function times(a, b) {
@@ -2727,14 +2759,14 @@ window.LitterShare = (function () {
       ctx.fillText(round(walk.pounds || 0, 2) + ' lb  ·  ' + round(walk.miles || 0, 2) + ' mi', x, y);
       y += 74;
     }
-    var idx = look.index ? walkIndex(walk) : null;
+    var idx = look.index ? headline(walk, look) : null, rate = rateMode(look);
     ctx.font = '700 44px system-ui, sans-serif';
     if (idx != null) {
-      ctx.fillStyle = G.indexColour(idx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+      ctx.fillStyle = G.indexColour(rate ? Math.min(10, idx / (look.rateTop || 5) * 10) : idx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
       ctx.fillRect(x, y - 36, 40, 40);
       ctx.strokeStyle = '#111827'; ctx.lineWidth = 2; ctx.strokeRect(x, y - 36, 40, 40);
       ctx.fillStyle = '#111827';
-      ctx.fillText('Litter Index ' + idx.toFixed(1), x + 58, y);
+      ctx.fillText(rate ? 'Accumulation rate ' + round(idx, 2) + ' lb/mi·day⁻¹' : 'Litter Index ' + idx.toFixed(1), x + 58, y);
       y += 64;
     }
     ctx.font = '500 38px system-ui, sans-serif';
@@ -2758,6 +2790,20 @@ window.LitterShare = (function () {
       roundRect(ctx, bx, by, bw, 48, 24); ctx.fill(); ctx.stroke();
       ctx.fillStyle = '#78350f';
       ctx.fillText(badge, bx + 18, by + 35);
+    }
+    if (look.who) y += 60;
+    // What the walk earned, when chosen (|M1047): its level and new badges, on a gold band.
+    var extra = extrasText(walk);
+    if (extra) {
+      ctx.font = '800 34px system-ui, sans-serif';
+      var ew = Math.min(W - 2 * x, ctx.measureText(extra).width + 40);
+      ctx.fillStyle = '#fef3c7'; ctx.strokeStyle = '#b45309'; ctx.lineWidth = 3;
+      roundRect(ctx, x, y - 40, ew, 54, 27); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#78350f';
+      ctx.save(); ctx.beginPath(); ctx.rect(x, y - 40, ew - 12, 54); ctx.clip();
+      ctx.fillText(extra, x + 20, y - 2);
+      ctx.restore();
+      y += 70;
     }
     // The app's name, from Settings (S6-P5 round 2, |Q687 (a)).
     if (look.name) {
@@ -3390,6 +3436,8 @@ window.LitterCollect = function (app) {
     ], { duration: BURST_MS, easing: 'ease-out', fill: 'forwards' }).onfinish = land;
   }
   function levelUp(was, now) {
+    // A level reached on the walk on screen goes on its picture too (S6-P5, |M1047).
+    if (summary && !$('v-summary').hidden) { summary.levelTo = now; shareExtras(); }
     var opened = (settings.skills || []).filter(function (x) { return x.level > was && x.level <= now; });
     $('lu-level').textContent = 'Level ' + now + '!';
     $('lu-say').textContent = 'You reached Level ' + now + '.';
@@ -4501,7 +4549,7 @@ window.LitterCollect = function (app) {
   function finish(d) {
     var id = c.id;
     if (app.onEarned) app.onEarned(d);
-    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null,
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null, earned: earnedOf(d), levelTo: null,
       // The walk's plan, to offer the ground collected off it (Q560).
       planCells: c.plan ? planCells(c.plan) : [] };
     c = null;
@@ -4537,6 +4585,7 @@ window.LitterCollect = function (app) {
     showWalkXp();   // its XP, line by line (S6-P3)
     // Share it as a picture (S6-P5): a walk with its GPX track, not a simulated one.
     $('sm-share').hidden = sim || !keptTrack(col) || !window.LitterShare;
+    shareExtras();
     if (window.LitterShare) $('sm-share').textContent = window.LitterShare.label();
     var list = $('sm-list');
     list.textContent = '';
@@ -5183,6 +5232,7 @@ window.LitterCollect = function (app) {
         summary.collection = d.collection;
         if (d.walk) summary.walk = d.walk;
         if (app.onEarned) app.onEarned(d);
+        summary.earned = (summary.earned || []).concat(earnedOf(d));
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
@@ -5248,6 +5298,8 @@ window.LitterCollect = function (app) {
       if (d.stretches) summary.stretches = d.stretches;
       if (d.walk) summary.walk = d.walk;
       if (app.onEarned) app.onEarned(d);
+      summary.earned = (summary.earned || []).concat(earnedOf(d));
+      shareExtras();
       summary.stops = {};
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
@@ -5829,12 +5881,31 @@ window.LitterCollect = function (app) {
   $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
   // What the share picture shows, from Settings (S6-P5 round 2).
   function shareLook() { if (window.LitterShare && window.LitterShare.setLook && settings && settings.share) window.LitterShare.setLook(settings.share); }
+  // Badges a response says were just earned, by name, for the walk's picture (|M1047).
+  function earnedOf(d) { return ((d && d.earned) || []).map(function (b) { return { badge: b.badge, name: b.name }; }); }
+  // "With its new badges and level": shown when the walk earned any, ticked to start (|M1047).
+  function shareExtras() {
+    var has = summary && ((summary.earned && summary.earned.length) || summary.levelTo);
+    $('sm-share-all-row').hidden = !has || $('sm-share').hidden;
+    if (has) $('sm-share-all').checked = true;
+  }
+  // Each segment the walk collected, with its accumulation rate, for the picture's rate colours (|M1048).
+  function segRatesFor(stretches) {
+    var on = {};
+    (stretches || []).forEach(function (s) { if (!s.discarded) (s.cells || []).forEach(function (c) { on[c] = true; }); });
+    return (segments || []).filter(function (g) { return g.rate != null && g.squares.some(function (c) { return on[c]; }); })
+      .map(function (g) { return { cells: g.squares, rate: g.rate }; });
+  }
   $('sm-share').addEventListener('click', function () {
     var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
     if (!col) return;
     b.disabled = true;
+    var all = !$('sm-share-all-row').hidden && $('sm-share-all').checked;
+    var badges = [], seen = {};
+    (summary.earned || []).forEach(function (x) { if (!seen[x.name]) { seen[x.name] = true; badges.push(x); } });
     window.LitterShare.walkPicture({ started: col.started, ended: col.ended, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
-      handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours })
+      handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours,
+      segRates: segRatesFor(summary.stretches), extras: all ? { level: summary.levelTo, badges: badges } : null })
       .then(function (how) { b.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
         function (err) { b.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
   });
@@ -6511,8 +6582,12 @@ window.LitterMap = function (app) {
         closeMenus();
         var me = app.me && app.me();
         sh.disabled = true;
+        // Each segment it collected, with its rate, for the picture's rate colours (S6-P5, |M1048).
+        var on = {};
+        (c.stretchList || []).forEach(function (st) { if (!st.discarded) (st.cells || []).forEach(function (x) { on[x] = true; }); });
+        var segRates = realSegs.filter(function (g) { return g.rate != null && g.squares.some(function (x) { return on[x]; }); }).map(function (g) { return { cells: g.squares, rate: g.rate }; });
         window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
-          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
+          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours, segRates: segRates })
           .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
             function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
       });
@@ -7647,7 +7722,7 @@ window.LitterSettings = function (app) {
     var p = g.preview, box = el('div', 'lt-set-preview');
     box.id = 'set-share-preview';
     box.appendChild(el('p', 'lt-set-label', 'Preview'));
-    box.appendChild(el('p', 'small muted', 'A sample walk, with your handle, as the picture would be with the boxes above. Save to use it.'));
+    box.appendChild(el('p', 'small muted', 'A sample walk, with your handle, a level reached and a badge earned, as the picture would be with the boxes above. Save to use it.'));
     var canvas = el('canvas', 'lt-set-preview-pic');
     canvas.id = 'set-share-canvas';
     box.appendChild(canvas);
@@ -7656,10 +7731,12 @@ window.LitterSettings = function (app) {
     var me = app.me ? app.me() || {} : {}, now = Date.now();
     var walk = { started: now - 50 * 60000, ended: now - 15 * 60000, pounds: 3.4, miles: 1.2, handle: me.handle || 'your.handle', level: 3,
       track: [[32.36985, -86.29055], [32.37005, -86.28985], [32.37030, -86.28905], [32.37075, -86.28845], [32.37120, -86.28780]],
-      stretches: [{ index: 4.2, streetMi: 1.2, offMi: 0, cells: [] }] };
+      stretches: [{ index: 4.2, streetMi: 1.2, offMi: 0, cells: [] }], segRates: [{ cells: [], rate: 1.4 }],
+      extras: { level: 3, badges: [{ badge: '💯', name: 'The 100 lb Club' }] } };
     var look = function () {
       var v = {}; rows.forEach(function (r) { v[r.name] = r.value(); });
-      var layout = p.layouts[v[p.layoutSetting]] ? v[p.layoutSetting] : 'Full', out = { appName: String(v[p.nameSetting] || '').trim() || p.defaultName };
+      var layout = p.layouts[v[p.layoutSetting]] ? v[p.layoutSetting] : 'Full', out = { appName: String(v[p.nameSetting] || '').trim() || p.defaultName,
+        mapShows: v[p.showsSetting] === 'Accumulation rate' ? 'Accumulation rate' : 'Litter Index', rateTop: p.rateTop || 5 };
       p.parts.forEach(function (x) { var c = v[x.setting]; out[x.key] = c === 'On' ? true : c === 'Off' ? false : p.layouts[layout].indexOf(x.key) !== -1; });
       return out;
     };

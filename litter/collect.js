@@ -508,6 +508,8 @@ window.LitterCollect = function (app) {
     ], { duration: BURST_MS, easing: 'ease-out', fill: 'forwards' }).onfinish = land;
   }
   function levelUp(was, now) {
+    // A level reached on the walk on screen goes on its picture too (S6-P5, |M1047).
+    if (summary && !$('v-summary').hidden) { summary.levelTo = now; shareExtras(); }
     var opened = (settings.skills || []).filter(function (x) { return x.level > was && x.level <= now; });
     $('lu-level').textContent = 'Level ' + now + '!';
     $('lu-say').textContent = 'You reached Level ' + now + '.';
@@ -1619,7 +1621,7 @@ window.LitterCollect = function (app) {
   function finish(d) {
     var id = c.id;
     if (app.onEarned) app.onEarned(d);
-    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null,
+    summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null, earned: earnedOf(d), levelTo: null,
       // The walk's plan, to offer the ground collected off it (Q560).
       planCells: c.plan ? planCells(c.plan) : [] };
     c = null;
@@ -1655,6 +1657,7 @@ window.LitterCollect = function (app) {
     showWalkXp();   // its XP, line by line (S6-P3)
     // Share it as a picture (S6-P5): a walk with its GPX track, not a simulated one.
     $('sm-share').hidden = sim || !keptTrack(col) || !window.LitterShare;
+    shareExtras();
     if (window.LitterShare) $('sm-share').textContent = window.LitterShare.label();
     var list = $('sm-list');
     list.textContent = '';
@@ -2301,6 +2304,7 @@ window.LitterCollect = function (app) {
         summary.collection = d.collection;
         if (d.walk) summary.walk = d.walk;
         if (app.onEarned) app.onEarned(d);
+        summary.earned = (summary.earned || []).concat(earnedOf(d));
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
@@ -2366,6 +2370,8 @@ window.LitterCollect = function (app) {
       if (d.stretches) summary.stretches = d.stretches;
       if (d.walk) summary.walk = d.walk;
       if (app.onEarned) app.onEarned(d);
+      summary.earned = (summary.earned || []).concat(earnedOf(d));
+      shareExtras();
       summary.stops = {};
       summary.stretches.forEach(function (s) {
         if (s.discarded) return;
@@ -2947,12 +2953,31 @@ window.LitterCollect = function (app) {
   $('sf-where-unsure').addEventListener('click', function () { if (summary) { summary.breakWhere = 'Not sure'; summary.whereMode = false; $('sf-where-shown').textContent = 'Where you were: not sure.'; } });
   // What the share picture shows, from Settings (S6-P5 round 2).
   function shareLook() { if (window.LitterShare && window.LitterShare.setLook && settings && settings.share) window.LitterShare.setLook(settings.share); }
+  // Badges a response says were just earned, by name, for the walk's picture (|M1047).
+  function earnedOf(d) { return ((d && d.earned) || []).map(function (b) { return { badge: b.badge, name: b.name }; }); }
+  // "With its new badges and level": shown when the walk earned any, ticked to start (|M1047).
+  function shareExtras() {
+    var has = summary && ((summary.earned && summary.earned.length) || summary.levelTo);
+    $('sm-share-all-row').hidden = !has || $('sm-share').hidden;
+    if (has) $('sm-share-all').checked = true;
+  }
+  // Each segment the walk collected, with its accumulation rate, for the picture's rate colours (|M1048).
+  function segRatesFor(stretches) {
+    var on = {};
+    (stretches || []).forEach(function (s) { if (!s.discarded) (s.cells || []).forEach(function (c) { on[c] = true; }); });
+    return (segments || []).filter(function (g) { return g.rate != null && g.squares.some(function (c) { return on[c]; }); })
+      .map(function (g) { return { cells: g.squares, rate: g.rate }; });
+  }
   $('sm-share').addEventListener('click', function () {
     var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
     if (!col) return;
     b.disabled = true;
+    var all = !$('sm-share-all-row').hidden && $('sm-share-all').checked;
+    var badges = [], seen = {};
+    (summary.earned || []).forEach(function (x) { if (!seen[x.name]) { seen[x.name] = true; badges.push(x); } });
     window.LitterShare.walkPicture({ started: col.started, ended: col.ended, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
-      handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours })
+      handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours,
+      segRates: segRatesFor(summary.stretches), extras: all ? { level: summary.levelTo, badges: badges } : null })
       .then(function (how) { b.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
         function (err) { b.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
   });

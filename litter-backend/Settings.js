@@ -80,6 +80,7 @@ function settingGroups_() {
   { key: 'share', title: 'Sharing', says: 'The share picture, with its preview, and the app\'s name.', rank: 'Builder', items: [
     [SETTING_SHARE_LAYOUT, 'Layout', 'What the picture shows to start with. Full: everything. Map and numbers: no handle, date or times. Map only: the map, the date and times, and the app\'s name.', 'choice', SHARE_LAYOUTS]]
     .concat(SHARE_PARTS.map(function (p) { return [p[1], p[1].replace('Share picture: ', '').replace(/^./, function (c) { return c.toUpperCase(); }), 'On or off, whatever the layout; or as the layout has it.', 'choice', SHARE_PART_CHOICES]; }))
+    .concat([[SETTING_SHARE_SHOWS, 'The map shows', 'The squares in each weighing\'s Litter Index colour, or in the accumulation rate of each segment the walk collected.', 'choice', SHARE_SHOWS]])
     .concat([[SETTING_APP_NAME, 'The app\'s name', 'On the share picture and the badges\' pictures. A new name needs no build.', 'text', 40]]) },
   // The Forum's email digest (S5-P28 round 2, |Q637 (a)): the hour it goes.
   { key: 'forum', title: 'Forum and email', says: 'The hour the Forum\'s digest goes, and its timer.', rank: 'Head Builder', items: [
@@ -106,7 +107,7 @@ function settingsGroupsFor_(account) {
     }) };
     // The share picture's preview (S6-P5, |C914): what each layout shows, and
     // which setting is which part, so the page draws it from the boxes as they are.
-    if (g.key === 'share') out.preview = { layoutSetting: SETTING_SHARE_LAYOUT, nameSetting: SETTING_APP_NAME, layouts: SHARE_LAYOUT_PARTS,
+    if (g.key === 'share') out.preview = { layoutSetting: SETTING_SHARE_LAYOUT, nameSetting: SETTING_APP_NAME, showsSetting: SETTING_SHARE_SHOWS, rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5, layouts: SHARE_LAYOUT_PARTS,
       parts: SHARE_PARTS.map(function (p) { return { key: p[0], setting: p[1] }; }), defaultName: DEFAULT_APP_NAME };
     return out;
   });

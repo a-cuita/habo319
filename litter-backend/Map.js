@@ -26,13 +26,21 @@ var SETTING_SHARE_LAYOUT = 'Share picture layout';
 var SHARE_LAYOUTS = ['Full', 'Map and numbers', 'Map only'];
 var SHARE_PART_CHOICES = ['As the layout', 'On', 'Off'];
 var SHARE_PARTS = [['numbers', 'Share picture: pounds and miles'], ['index', 'Share picture: Litter Index'], ['scale', 'Share picture: the scale'],
-  ['when', 'Share picture: date and times'], ['who', 'Share picture: handle and level'], ['name', 'Share picture: the app\'s name']];
-var SHARE_LAYOUT_PARTS = { 'Full': ['numbers', 'index', 'scale', 'when', 'who', 'name'], 'Map and numbers': ['numbers', 'index', 'scale', 'name'], 'Map only': ['when', 'name'] };
+  ['when', 'Share picture: date and times'], ['who', 'Share picture: handle and level'], ['name', 'Share picture: the app\'s name'],
+  // The GPX track can be turned off, so the squares' colours show (S6-P5, |M1048).
+  ['track', 'Share picture: the track']];
+var SHARE_LAYOUT_PARTS = { 'Full': ['numbers', 'index', 'scale', 'when', 'who', 'name', 'track'], 'Map and numbers': ['numbers', 'index', 'scale', 'name', 'track'], 'Map only': ['when', 'name', 'track'] };
+// What the picture's squares show (|M1048): each weighing's Litter Index, or
+// the accumulation rate of each segment the walk collected.
+var SETTING_SHARE_SHOWS = 'Share picture: the map shows';
+var SHARE_SHOWS = ['Litter Index', 'Accumulation rate'];
 var SETTING_APP_NAME = 'The app\'s name';
 var DEFAULT_APP_NAME = 'HABO Litter Collection';
 function shareLook_() {
   var layout = SHARE_LAYOUTS.indexOf(String(getSetting_(SETTING_SHARE_LAYOUT)).trim()) !== -1 ? String(getSetting_(SETTING_SHARE_LAYOUT)).trim() : 'Full';
-  var out = { layout: layout, appName: String(getSetting_(SETTING_APP_NAME) || '').trim() || DEFAULT_APP_NAME };
+  var shows = String(getSetting_(SETTING_SHARE_SHOWS) || '').trim();
+  var out = { layout: layout, appName: String(getSetting_(SETTING_APP_NAME) || '').trim() || DEFAULT_APP_NAME,
+    mapShows: SHARE_SHOWS.indexOf(shows) !== -1 ? shows : 'Litter Index', rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
   SHARE_PARTS.forEach(function (p) {
     var v = String(getSetting_(p[1]) || '').trim();
     out[p[0]] = v === 'On' ? true : v === 'Off' ? false : SHARE_LAYOUT_PARTS[layout].indexOf(p[0]) !== -1;

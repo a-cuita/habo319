@@ -748,6 +748,7 @@ function missingSettings_(ss) {
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_DIGEST_HOUR, '7'],
     [SETTING_SHARE_LAYOUT, 'Full'],
+    [SETTING_SHARE_SHOWS, 'Litter Index'],
     [SETTING_APP_NAME, DEFAULT_APP_NAME],
     [SETTING_WAIVER_RENEW, '2'],
     [SETTING_HEAVY_LB, '50'],

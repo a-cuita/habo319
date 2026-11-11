@@ -135,7 +135,7 @@ window.LitterSettings = function (app) {
     var p = g.preview, box = el('div', 'lt-set-preview');
     box.id = 'set-share-preview';
     box.appendChild(el('p', 'lt-set-label', 'Preview'));
-    box.appendChild(el('p', 'small muted', 'A sample walk, with your handle, as the picture would be with the boxes above. Save to use it.'));
+    box.appendChild(el('p', 'small muted', 'A sample walk, with your handle, a level reached and a badge earned, as the picture would be with the boxes above. Save to use it.'));
     var canvas = el('canvas', 'lt-set-preview-pic');
     canvas.id = 'set-share-canvas';
     box.appendChild(canvas);
@@ -144,10 +144,12 @@ window.LitterSettings = function (app) {
     var me = app.me ? app.me() || {} : {}, now = Date.now();
     var walk = { started: now - 50 * 60000, ended: now - 15 * 60000, pounds: 3.4, miles: 1.2, handle: me.handle || 'your.handle', level: 3,
       track: [[32.36985, -86.29055], [32.37005, -86.28985], [32.37030, -86.28905], [32.37075, -86.28845], [32.37120, -86.28780]],
-      stretches: [{ index: 4.2, streetMi: 1.2, offMi: 0, cells: [] }] };
+      stretches: [{ index: 4.2, streetMi: 1.2, offMi: 0, cells: [] }], segRates: [{ cells: [], rate: 1.4 }],
+      extras: { level: 3, badges: [{ badge: '💯', name: 'The 100 lb Club' }] } };
     var look = function () {
       var v = {}; rows.forEach(function (r) { v[r.name] = r.value(); });
-      var layout = p.layouts[v[p.layoutSetting]] ? v[p.layoutSetting] : 'Full', out = { appName: String(v[p.nameSetting] || '').trim() || p.defaultName };
+      var layout = p.layouts[v[p.layoutSetting]] ? v[p.layoutSetting] : 'Full', out = { appName: String(v[p.nameSetting] || '').trim() || p.defaultName,
+        mapShows: v[p.showsSetting] === 'Accumulation rate' ? 'Accumulation rate' : 'Litter Index', rateTop: p.rateTop || 5 };
       p.parts.forEach(function (x) { var c = v[x.setting]; out[x.key] = c === 'On' ? true : c === 'Off' ? false : p.layouts[layout].indexOf(x.key) !== -1; });
       return out;
     };

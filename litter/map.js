@@ -603,8 +603,12 @@ window.LitterMap = function (app) {
         closeMenus();
         var me = app.me && app.me();
         sh.disabled = true;
+        // Each segment it collected, with its rate, for the picture's rate colours (S6-P5, |M1048).
+        var on = {};
+        (c.stretchList || []).forEach(function (st) { if (!st.discarded) (st.cells || []).forEach(function (x) { on[x] = true; }); });
+        var segRates = realSegs.filter(function (g) { return g.rate != null && g.squares.some(function (x) { return on[x]; }); }).map(function (g) { return { cells: g.squares, rate: g.rate }; });
         window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
-          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
+          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours, segRates: segRates })
           .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
             function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
       });
