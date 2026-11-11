@@ -28,6 +28,11 @@ var SETTING_TYPES_XP = 'XP for a stretch\'s litter types';
 // The time bonus (S6-P3 item 5, |Q679; from |Q481, item 1 of |S5-P4).
 var SETTING_TIME_PEAK = 'Time bonus: XP multiplier a day after';
 var SETTING_TIME_ENDS = 'Time bonus: gone after (days)';
+// The left-alone bonus (S6-P3 item 4, |Q670, |Q690 (a)): a walk that collects
+// squares of a public segment nobody has collected for this many days, or
+// ever, multiplies its rating and litter-type XP by the other.
+var SETTING_ALONE_DAYS = 'Left-alone bonus: after (days)';
+var SETTING_ALONE_MULT = 'Left-alone bonus: XP multiplier';
 var PLAN_REPLACED = 'Replaced';
 
 /* ── Called from the page ── */
@@ -256,8 +261,11 @@ function walkXp_(collectionId, accountId) {
       out.ratings += all - types;
       out.types += types;
     });
-    // The time bonus on its ratings and litter types (S6-P3 item 5).
-    out.mult = walkMults_()[collectionId] || 1;
+    // The time bonus on its ratings and litter types (S6-P3 item 5), or the
+    // left-alone bonus (item 4), whichever is more.
+    var b = walkBonuses_()[collectionId];
+    out.mult = b ? b.mult : 1;
+    out.kind = b ? b.kind : '';
     out.bonus = round_((out.ratings + out.types) * (out.mult - 1), 2);
   }
   out.total = round_(out.plan + out.ratings + out.types + out.bonus, 2);
@@ -273,13 +281,58 @@ function timeMult_(days, t) {
   if (days == null || !(days >= 1) || !(t.ends > 1) || days >= t.ends) return 1;
   return round_(t.peak - (t.peak - 1) * (days - 1) / (t.ends - 1), 2);
 }
-// Each walk's multiplier: the highest from the rates it gave.
-function walkMults_() {
+// Each walk's multiplier: the highest from the rates it gave, or the
+// left-alone bonus, whichever is more. { id: { mult, kind: 'time' or 'alone' } }
+function walkBonuses_() {
   var t = timeBonus_(), out = {};
   ratesAll_().forEach(function (r) {
     if (r.notCounted || r.simulated) return;
     var m = timeMult_(r.days, t);
-    if (!out[r.collection] || m > out[r.collection]) out[r.collection] = m;
+    if (m > 1 && (!out[r.collection] || m > out[r.collection].mult)) out[r.collection] = { mult: m, kind: 'time' };
+  });
+  var a = aloneBonus_();
+  if (a.days > 0 && a.mult > 1) {
+    var alone = walksLeftAlone_();
+    Object.keys(alone).forEach(function (id) {
+      if (alone[id] >= a.days && (!out[id] || a.mult > out[id].mult)) out[id] = { mult: a.mult, kind: 'alone' };
+    });
+  }
+  return out;
+}
+function walkMults_() {
+  var b = walkBonuses_(), out = {};
+  Object.keys(b).forEach(function (id) { out[id] = b[id].mult; });
+  return out;
+}
+
+function aloneBonus_() { return { days: minutesSetting_(SETTING_ALONE_DAYS, 14), mult: Math.max(1, minutesSetting_(SETTING_ALONE_MULT, 1.5)) }; }
+// For each real walk, ended or saved: the most days any public segment it
+// collected squares of had gone with none of its squares collected by anyone
+// before the walk started (Infinity: never). A walk touching none isn't listed.
+function walksLeftAlone_() {
+  var bySquare = {};
+  segmentsAll_().forEach(function (g) { if (g.accepted) g.squares.forEach(function (c) { (bySquare[c] = bySquare[c] || []).push(g.id); }); });
+  var walks = {}, ends = [];
+  readRows_(TABS.collections).forEach(function (q) {
+    if (q.get('simulated') === 'Yes' || q.get('status') === 'Collecting' || q.get('status') === COLLECTION_DISCARDED) return;
+    var s = q.get('started');
+    walks[q.get('id')] = { start: s instanceof Date ? s.getTime() : 0, segs: {} };
+  });
+  readRows_(TABS.stretches).forEach(function (r) {
+    var w = walks[r.get('collection')], e = r.get('ended');
+    if (!w || r.get('discarded') === 'Yes' || !(e instanceof Date)) return;
+    var segs = {};
+    String(r.get('cells')).split(/\s+/).forEach(function (c) { (bySquare[c] || []).forEach(function (id) { segs[id] = true; w.segs[id] = true; }); });
+    if (Object.keys(segs).length) ends.push({ t: e.getTime(), segs: Object.keys(segs) });
+  });
+  ends.sort(function (a, b) { return a.t - b.t; });
+  var last = {}, i = 0, out = {};
+  Object.keys(walks).sort(function (a, b) { return walks[a].start - walks[b].start; }).forEach(function (id) {
+    var w = walks[id];
+    for (; i < ends.length && ends[i].t < w.start; i++) ends[i].segs.forEach(function (g) { last[g] = ends[i].t; });
+    var most = null;
+    Object.keys(w.segs).forEach(function (g) { var d = last[g] ? (w.start - last[g]) / DAY_MS : Infinity; if (most == null || d > most) most = d; });
+    if (most != null) out[id] = most;
   });
   return out;
 }

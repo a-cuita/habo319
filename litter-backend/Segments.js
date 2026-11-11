@@ -590,6 +590,8 @@ function segmentSummariesWorked_(sim, accountId) {
   readAccounts_().forEach(function (a) { shown[a.id] = a.shows === 'Name' ? (a.first + ' ' + a.last).trim() : a.shows === 'Neither' ? '' : a.handle; });
   var k = segmentRules_();
   var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
+  // When each square was last collected, for the left-alone bonus (S6-P3 item 4).
+  var lastClean = cleanedTimes_(counted, null, null, rows);
   var low = minutesSetting_(SETTING_CONF_LOW, 2), moderate = minutesSetting_(SETTING_CONF_MODERATE, 5);
   var names = String(getSetting_(SETTING_CONF_NAMES) || '').split(',').map(function (t) { return t.trim(); });
   if (names.length !== 4 || names.some(function (t) { return !t; })) names = ['No recent rate', 'Low', 'Moderate', 'Established'];
@@ -652,7 +654,9 @@ function segmentSummariesWorked_(sim, accountId) {
       days: d == null ? null : round_(d, 1), groups: groups,
       // For The Priority Segment List (S5-P10): days left before it's past
       // "Segment due until", and whether it's past it already.
-      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to, walks: walksGave, notCounted: notCountedN };
+      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to, walks: walksGave, notCounted: notCountedN,
+      // Days since any of its squares was collected (null: never), for the left-alone bonus.
+      alone: (function () { var t = g.squares.reduce(function (m, c) { return Math.max(m, lastClean[c] || 0); }, 0); return t ? round_((now - t) / DAY_MS, 1) : null; })() };
   });
 }
 

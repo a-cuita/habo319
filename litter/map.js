@@ -332,6 +332,7 @@ window.LitterMap = function (app) {
     return app.api('myCollections', { token: app.myToken() }).then(function (d) {
       mine = d;
       timeBonus = d.timeBonus || timeBonus;
+      aloneBonus = d.aloneBonus || aloneBonus;
       colours = d.colours || colours;
       dark = d.dark || dark;
       drawMine();
@@ -948,18 +949,25 @@ window.LitterMap = function (app) {
   function leftWords(g) { return g.left < 1 ? 'less than a day left' : round(g.left, 1) + ' days left'; }
   // The time bonus if it's collected now (S6-P3 item 5, |Q679): from a day
   // after its clock started, the most, coming down to none by its last day.
-  var timeBonus = null;
+  var timeBonus = null, aloneBonus = null;
+  // The left-alone bonus (S6-P3 item 4, |Q690 (a)): none of its squares
+  // collected by anyone for the setting's days, or ever.
+  function aloneMult(g) {
+    var a = aloneBonus;
+    if (!a || !(a.days > 0) || !(a.mult > 1)) return 1;
+    return g.alone == null || g.alone >= a.days ? a.mult : 1;
+  }
   function timeMult(g) {
     var t = timeBonus, d = g.days;
     if (!t || d == null || !(d >= 1) || !(t.ends > 1) || d >= t.ends) return 1;
     return Math.round((t.peak - (t.peak - 1) * (d - 1) / (t.ends - 1)) * 100) / 100;
   }
   function needLine(g, need) {
-    var m = need === 'due' ? timeMult(g) : 1;
-    return need === 'finish' ? 'Finish it · ' + g.finish + '% cleaned · ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' h left'
-      : need === 'due' ? 'Due · ' + leftWords(g) + (m > 1 ? ' · ×' + m + ' XP now' : '')
-      : need === 'reset' ? 'Rate Reset · collect to restart'
-      : need === 'never' ? 'Not cleaned yet' : '';
+    var m = Math.max(need === 'due' ? timeMult(g) : 1, aloneMult(g)), now = m > 1 ? ' · ×' + m + ' XP now' : '';
+    return need === 'finish' ? 'Finish it · ' + g.finish + '% cleaned · ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' h left' + now
+      : need === 'due' ? 'Due · ' + leftWords(g) + now
+      : need === 'reset' ? 'Rate Reset · collect to restart' + now
+      : need === 'never' ? 'Not cleaned yet' + now : '';
   }
   function needWhy(g, need) {
     return need === 'finish' ? 'Part of it was cleaned in the last day. Collect the rest within ' + Math.max(1, Math.round(g.finishLeft || 0)) + ' hours and the pieces add up to one full collection.'
@@ -1009,6 +1017,8 @@ window.LitterMap = function (app) {
       var more = el('div', 'lt-seg-more');
       more.hidden = true;
       more.appendChild(el('p', 'small', needWhy(g, need)));
+      if (aloneMult(g) > 1 && !(need === 'due' && timeMult(g) >= aloneMult(g))) more.appendChild(el('p', 'small', (g.alone == null ? 'Nobody has collected any of it yet' : 'Nobody has collected any of it in ' + Math.floor(g.alone) + ' days')
+        + ', so a walk that collects it now earns the left-alone bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
       more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
       partialLines(g).forEach(function (t) { more.appendChild(el('p', 'lt-plan-seg', t)); });

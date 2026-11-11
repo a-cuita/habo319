@@ -30,7 +30,9 @@
   var SAME_MAIN = ['collectLoad', 'start', 'mapLoad', 'settingsLoad', 'reviewsLoad', 'myCollections', 'handleFree', 'forumUnread', 'forumTopic',
     'forumLoad', 'forumVote', 'forumReview', 'forumReply', 'forumOpen', 'forumMove', 'forumDigestSave', 'reportSend',
     // S6's screens that only read (S6-P2 round 2, |M890).
-    'challengesLoad', 'challengesAdmin', 'toolSkillsLoad', 'toolSkillsAdmin', 'achievementsAdmin', 'wikiLoad', 'challengePhoto'];
+    'challengesLoad', 'challengesAdmin', 'toolSkillsLoad', 'toolSkillsAdmin', 'achievementsAdmin', 'wikiLoad', 'challengePhoto',
+    // The rolling history only reads (S6-P3).
+    'scroll'];
   var changedAt = Date.now();
   function marks(action, d) {
     // Badges only reads, unless it just earned one: that changes your XP.
@@ -727,6 +729,7 @@
     var t = myToken();
     keepToken('');
     state.account = null;
+    scroll.signedOut();
     api('signOut', { token: t }, true).catch(function () { /* this phone forgets it either way */ });
     show('v-welcome');
     notice('You\'re signed out on this phone.');
@@ -740,6 +743,10 @@
     builderMode: builderMode, paintMode: paintMode,
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
     onEarned: function (d) { if (achievements) achievements.onEarned(d); },
+    // The rolling history (S6-P3, scroll.js): fresh once the main page loads, and where "+N XP" lands.
+    onMainLoaded: function () { if (scroll) scroll.refresh(); },
+    xpTarget: function () { return scroll ? scroll.target() : null; },
+    onXpLanded: function (n) { if (scroll) scroll.landed(n); },
     // A skill built from the toolbox, in the Litter Class Skills sheet: its Send form (S6-P8's rework, challenges.js).
     onSkillsShown: function (fresh) { if (challenges) challenges.skillsShown(fresh); },
     showAccount: function () { showAccount(state.account); },
@@ -805,6 +812,10 @@
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }
   });
+
+  /* ── The rolling history (S6-P3, scroll.js) ── */
+
+  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken });
 
   /* ── The Wiki (S6-P9, wiki.js) ── */
 

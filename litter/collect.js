@@ -315,6 +315,7 @@ window.LitterCollect = function (app) {
       if (d.carrying) { carryBags = d.carrying.bags || carryBags; carryLast = d.carrying.last || null; }
       gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
       if (app.onEarned) app.onEarned(d);   // badges just reached, and the weekly streak (S6-P6)
+      if (app.onMainLoaded) app.onMainLoaded();   // the rolling history, fresh (S6-P3)
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
         // Open on HABO but not on this phone, as after signing in again (Q409).
         open: d.collection && d.collection.status === 'Collecting' && !c ? d.collection : null };
@@ -478,18 +479,33 @@ window.LitterCollect = function (app) {
     var was = levelOf(seen, settings.levels).level, now = levelOf(xp, settings.levels).level;
     if (settings.levels && settings.levels.length && now > was) setTimeout(function () { levelUp(was, now); }, 900);
   }
+  // It stays about 3 seconds (|Q688 (a)), then lands in the rolling history:
+  // on the main page it flies into the strip; elsewhere it fades, and its
+  // line waits in the strip (S6-P3 item 2).
+  var BURST_MS = 3000;
   function burst(n, from) {
     var at = from && from.offsetParent !== null ? from : (!$('me-bar').hidden ? $('me-xpbar') : null);
     var r = at ? at.getBoundingClientRect() : { left: window.innerWidth / 2, width: 0, top: window.innerHeight / 3, height: 0 };
-    var b = document.createElement('div');
+    var b = document.createElement('div'), x = Math.max(40, Math.min(window.innerWidth - 40, r.left + r.width / 2)), y = Math.max(30, r.top + r.height / 2);
     b.className = 'lt-xp-burst';
     b.textContent = '+' + round(n, 2) + ' XP';
     b.setAttribute('aria-hidden', 'true');
-    b.style.left = Math.max(40, Math.min(window.innerWidth - 40, r.left + r.width / 2)) + 'px';
-    b.style.top = Math.max(30, r.top + r.height / 2) + 'px';
+    b.style.left = x + 'px';
+    b.style.top = y + 'px';
     document.body.appendChild(b);
     $('xp-said').textContent = '+' + round(n, 2) + ' XP';
-    setTimeout(function () { b.remove(); }, 1900);
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var land = function () { b.remove(); if (app.onXpLanded) app.onXpLanded(round(n, 2)); };
+    if (still || !b.animate) { setTimeout(land, BURST_MS); return; }
+    var to = app.xpTarget && app.xpTarget(), dx = 0, dy = -90;
+    if (to) { var t = to.getBoundingClientRect(); dx = t.left + 60 - x; dy = t.top + t.height / 2 - y; }
+    b.animate([
+      { opacity: 0, transform: 'translate(-50%, -20%) scale(0.6)', offset: 0 },
+      { opacity: 1, transform: 'translate(-50%, -70%) scale(1.3)', offset: 0.08 },
+      { opacity: 1, transform: 'translate(-50%, -90%) scale(1)', offset: 0.16 },
+      { opacity: 1, transform: 'translate(-50%, -100%) scale(1)', offset: 0.8 },
+      { opacity: to ? 0.6 : 0, transform: 'translate(calc(-50% + ' + dx + 'px), calc(-50% + ' + dy + 'px)) scale(' + (to ? 0.5 : 1) + ')', offset: 1 }
+    ], { duration: BURST_MS, easing: 'ease-out', fill: 'forwards' }).onfinish = land;
   }
   function levelUp(was, now) {
     var opened = (settings.skills || []).filter(function (x) { return x.level > was && x.level <= now; });
@@ -518,7 +534,8 @@ window.LitterCollect = function (app) {
     if (!w.counts) { total.textContent = 'XP comes once your GPX track is saved.'; return; }
     var parts = [['Planning it', w.plan], ['Your ratings', w.ratings], ['Litter types', w.types]];
     // The time bonus on its ratings and litter types (S6-P3 item 5).
-    if (w.mult > 1) parts.push(['Time bonus (×' + w.mult + ')', w.bonus]);
+    // Or the left-alone bonus (S6-P3 item 4): a segment nobody had collected in a while.
+    if (w.mult > 1) parts.push([(w.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + w.mult + ')', w.bonus]);
     // Badges it just earned (S6-P6): their XP, on top of the walk's.
     if (w.badges > 0) parts.push(['New badges', w.badges]);
     var animate = shownWalkXp[col.id] !== w.total && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);

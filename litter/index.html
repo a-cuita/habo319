@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=54">
+<link rel="stylesheet" href="litter.css?v=55">
 </head>
 <body>
 
@@ -31,6 +31,20 @@
     </div>
   </div>
   <p class="sr-only" id="xp-said" aria-live="polite"></p>
+  <!-- The rolling history, full screen (S6-P3, |Q707, |Q713 (a)): the scroll, and the prompt under it. -->
+  <div class="lt-rh" id="rh" role="dialog" aria-modal="true" aria-labelledby="rh-title" hidden>
+    <div class="lt-rh-head">
+      <h2 id="rh-title">Rolling history</h2>
+      <button class="lt-rh-close" id="rh-close" type="button" aria-label="Close the rolling history">×</button>
+    </div>
+    <div class="lt-rh-lines" id="rh-lines" role="log" aria-live="polite"></div>
+    <form class="lt-rh-prompt" id="rh-form" autocomplete="off">
+      <label class="sr-only" for="rh-in">A command</label>
+      <span class="lt-rh-caret" aria-hidden="true">&gt;</span>
+      <input id="rh-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" maxlength="60" placeholder="Type a command, or help">
+      <button class="lt-rh-enter" type="submit">Enter</button>
+    </form>
+  </div>
 
   <!-- The top bar, with your handle and its panel, on every screen once you're signed in, but not
        while a collection is going (S6-P4, |Q644). Each screen's ← stays where it is. -->
@@ -617,6 +631,11 @@
   <!-- The main page (Oct 31, field first): a panel at the top with your
        details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
+    <!-- The rolling history (S6-P3, |Q705 (a)): its newest lines, under the top bar; tap it to open it full screen, with the prompt. -->
+    <button class="lt-rh-strip" id="rh-strip" type="button" aria-label="Rolling history. Open it full screen." hidden>
+      <span class="lt-rh-strip-head" aria-hidden="true">Rolling history ▸</span>
+      <span class="lt-rh-strip-lines" id="rh-strip-lines"></span>
+    </button>
     <!-- Just earned (S6-P6, |Q647's addendum): a badge, or the weekly streak grown, with Share. -->
     <section class="card lt-ach-news" id="ach-news" hidden></section>
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
@@ -954,8 +973,8 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
 <script src="share.js?v=4"></script>
-<script src="collect.js?v=53"></script>
-<script src="map.js?v=34"></script>
+<script src="collect.js?v=54"></script>
+<script src="map.js?v=35"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=6"></script>
 <script src="reviews.js?v=4"></script>
@@ -963,6 +982,7 @@
 <script src="challenges.js?v=2"></script>
 <script src="wiki.js?v=3"></script>
 <script src="achievements.js?v=1"></script>
-<script src="litter.js?v=33"></script>
+<script src="scroll.js?v=1"></script>
+<script src="litter.js?v=34"></script>
 </body>
 </html>

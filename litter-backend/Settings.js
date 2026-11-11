@@ -34,6 +34,9 @@ function settingGroups_() {
     [SETTING_TYPES_XP, 'XP for a stretch\'s litter types', 'A weighing with its litter types filled in earns this.', 'number', 'XP', 0, 100],
     [SETTING_TIME_PEAK, 'Time bonus a day after', 'Collecting a segment again a day after its clock started multiplies the walk\'s rating and litter-type XP by this; it comes down evenly to none by the day below.', 'number', '×', 1, 10],
     [SETTING_TIME_ENDS, 'Time bonus gone after', 'From a day, the time bonus comes down evenly to none by this many days.', 'number', 'days', 1, 60],
+    // S6-P3 item 4 (|Q690 (a)): the other end of the time bonus.
+    [SETTING_ALONE_DAYS, 'Left-alone bonus after', 'A walk that collects squares of a public segment nobody has collected for this many days, or ever, earns the bonus below. 0: no left-alone bonus.', 'number', 'days', 0, 365],
+    [SETTING_ALONE_MULT, 'Left-alone bonus', 'Multiplies that walk\'s rating and litter-type XP by this. Where the time bonus is more, it counts instead.', 'number', '×', 1, 10],
     [SETTING_QUEST_STEP_XP, 'XP for each first quest step', 'Each of the first quest\'s six steps earns this.', 'number', 'XP', 0, 100],
     [SETTING_QUEST_DONE_XP, 'XP for finishing the first quest', 'Finishing all six earns this more.', 'number', 'XP', 0, 100],
     [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100],

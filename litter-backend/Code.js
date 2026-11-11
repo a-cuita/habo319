@@ -305,6 +305,7 @@ function actions_() {
     additionAsk: additionAsk_,
     simShare: simShare_,
     questTick: questTick_,
+    scroll: scroll_,   // the rolling history (S6-P3)
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
@@ -734,6 +735,8 @@ function missingSettings_(ss) {
     [SETTING_TIME_PEAK, '2'],
     [SETTING_MAP_FADE, '30'],
     [SETTING_TIME_ENDS, '4'],
+    [SETTING_ALONE_DAYS, '14'],
+    [SETTING_ALONE_MULT, '1.5'],
     [SETTING_QUEST_STEP_XP, '1'],
     [SETTING_QUEST_DONE_XP, '5'],
     [SETTING_REVIEW_XP, '15'],
