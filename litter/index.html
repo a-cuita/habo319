@@ -543,14 +543,9 @@
       <h2>Ground off your plan</h2>
       <p id="sm-offplan-say"></p>
       <div class="lt-map-box"><div class="lt-pieces-map" id="sm-pieces-map"></div></div>
-      <!-- Split and join (S6-U25 item 5, |M904): right under the map, so the map and its buttons are in view together. -->
-      <div class="lt-pieces-tools" id="sm-pieces-tools" hidden>
-        <button class="btn btn-secondary" id="sm-pieces-split" type="button" aria-pressed="false">Split</button>
-        <button class="btn btn-primary" id="sm-pieces-join" type="button" disabled>Join the picked pieces</button>
-        <button class="btn btn-secondary" id="sm-pieces-undo" type="button" disabled>Undo</button>
-      </div>
       <p class="muted small" id="sm-pieces-hint"></p>
       <div id="sm-pieces"></div>
+      <button class="btn btn-secondary" id="sm-pieces-join" type="button" hidden>Join the ticked pieces</button>
       <p class="err" id="sm-offplan-err" role="alert"></p>
     </section>
     <form class="card" id="sm-fix" novalidate hidden>
