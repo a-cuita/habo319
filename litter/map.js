@@ -362,15 +362,49 @@ window.LitterMap = function (app) {
     $('my-more').textContent = 'Show all ' + cols.length;
   }
 
+  // Compact (S6-P28, |M963, |Q715 (a)): a walk is two short lines, its day,
+  // times and XP, then its pounds, miles and a dot for each weighing, with
+  // its small map beside them; its actions are in its ⋯. Tap its lines and
+  // everything else opens in place under them; tap again to close.
   function collectionItem(c) {
     // A simulated walk is striped like the Build Board's test cards (S5-U2, |C697).
-    var box = el('div', 'lt-col' + (c.simulated ? ' lt-sim-walk' : ''));
+    var box = el('div', 'lt-col lt-col-compact' + (c.simulated ? ' lt-sim-walk' : ''));
     box.id = 'my-' + c.id;
     if (c.simulated) box.appendChild(el('p', 'lt-sim-label', 'Simulated walk'));
-    box.appendChild(el('p', 'lt-col-head', when(c.started) + (c.ended ? ' to ' + clock(c.ended) : '')));
-    box.appendChild(el('p', 'lt-col-facts', round(c.pounds, 2) + ' lb · ' + round(c.miles, 2) + ' mi · ' + Math.round(c.active) + ' min active · ' +
-      c.hours + ' volunteer hour' + (c.hours === 1 ? '' : 's')));
-    if (c.hoursNote) box.appendChild(el('p', 'muted small', c.hoursNote));
+    var top = el('div', 'lt-col-top');
+    var lines = el('div', 'lt-col-lines');
+    lines.setAttribute('role', 'button');
+    lines.tabIndex = 0;
+    lines.setAttribute('aria-expanded', 'false');
+    lines.title = 'Show everything about this walk';
+    lines.appendChild(el('p', 'lt-col-head', shortWhen(c.started, c.ended) + (c.xp ? ' · +' + round(c.xp, 2) + ' XP' : '')));
+    var short = el('p', 'lt-col-facts lt-col-short', round(c.pounds, 2) + ' lb · ' + round(c.miles, 2) + ' mi');
+    var dots = el('span', 'lt-col-dots');
+    c.stretchList.forEach(function (s) {
+      var sw = el('span', 'lt-swatch lt-col-dot' + (s.index == null ? ' none' : ''));
+      if (s.index != null) sw.style.background = G.indexColour(s.index, scale());
+      sw.title = 'Weighing ' + s.n + ': ' + (s.discarded ? 'discarded' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1));
+      dots.appendChild(sw);
+    });
+    short.appendChild(dots);
+    lines.appendChild(short);
+    top.appendChild(lines);
+    var cells = [];
+    c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (cells.indexOf(x) === -1) cells.push(x); }); });
+    if (cells.length) {
+      // Its small map, smaller, at the right; tapped, it opens large, as before (S5-P11, |C691).
+      var colourOf = {};
+      c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { colourOf[x] = s.index == null ? '#9ca3af' : G.indexColour(s.index, scale()); }); });
+      top.appendChild(smallMap(when(c.started), cells, { kind: 'walk', track: c.track, colourOf: colourOf }));
+    }
+    var actions = walkActions(c);
+    if (actions.length) top.appendChild(walkMenu(c, actions));
+    box.appendChild(top);
+    // Everything else, folded away until its lines are tapped (|Q715 (a)).
+    var more = el('div', 'lt-col-more');
+    more.hidden = true;
+    more.appendChild(el('p', 'lt-col-facts', Math.round(c.active) + ' min active · ' + c.hours + ' volunteer hour' + (c.hours === 1 ? '' : 's')));
+    if (c.hoursNote) more.appendChild(el('p', 'muted small', c.hoursNote));
     var ul = el('ul', 'lt-col-stretches');
     c.stretchList.forEach(function (s) {
       var li = el('li');
@@ -381,12 +415,79 @@ window.LitterMap = function (app) {
         (s.rating == null ? '' : ' · Visual rating ' + s.rating)));
       ul.appendChild(li);
     });
-    box.appendChild(ul);
-    if (c.track && c.track.length > 1) box.appendChild(el('p', 'muted small', 'Your GPX track is saved: its small map shows it.'));
+    more.appendChild(ul);
+    if (c.track && c.track.length > 1) more.appendChild(el('p', 'muted small', 'Your GPX track is saved: its small map shows it.'));
+    box.appendChild(more);
+    var flip = function () {
+      more.hidden = !more.hidden;
+      lines.setAttribute('aria-expanded', more.hidden ? 'false' : 'true');
+      box.classList.toggle('lt-col-open', !more.hidden);
+    };
+    lines.addEventListener('click', flip);
+    lines.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); flip(); } });
+    // A walk staff took off the public map still says so, unfolded.
     if (c.hidden) box.appendChild(el('p', 'lt-col-hidden', 'HABO\'s staff have taken this collection off the public map. It\'s still kept, with your hours.'));
+    return box;
+  }
+
+  // "Fri, Nov 6 · 10:02 to 10:19 AM" (S6-P28 line 1): the year only when it isn't this one.
+  function shortWhen(a, b) {
+    var d = new Date(a), thisYear = new Date().getFullYear() === d.getFullYear();
+    var day = d.toLocaleDateString('en-US', thisYear ? { weekday: 'short', month: 'short', day: 'numeric' } : { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    var t = function (ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+    if (!b) return day + ' · ' + t(a);
+    var ta = t(a), tb = t(b), ma = ta.slice(-2), mb = tb.slice(-2);
+    return day + ' · ' + (ma === mb ? ta.slice(0, -3) : ta) + ' to ' + tb;
+  }
+
+  // A walk's actions, for its ⋯ (S6-P28 item 4): Share and Fix it, and in
+  // Admin Mode Measure again and, on a simulated walk, Share with the other admins.
+  function walkActions(c) {
+    var out = [];
+    // Measure again (Oct 31, field first): its segment rates worked out again,
+    // with the Settings and each segment's Kind as they are now. A Head
+    // Builder's, only while Admin Mode is on (S5-P13, Q555, Q564).
+    if (c.track && c.track.length > 1 && app.builderMode && app.builderMode()) {
+      var ma = el('button', 'lt-seg-menu-item lt-col-measure', 'Measure again');
+      ma.type = 'button';
+      ma.addEventListener('click', function () {
+        closeMenus();
+        ma.disabled = true;
+        app.api('measureAgain', { token: app.myToken(), collectionId: c.id }).then(function (d) {
+          ma.disabled = false;
+          realSegs = d.segments || realSegs;
+          simSegs = d.simSegments || simSegs;
+          drawSegments();
+          app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb/mi·day⁻¹.'
+            : 'Measured again: no segment rate from this walk.');
+        }, function (err) { ma.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+      });
+      out.push(ma);
+    }
+    // Share the walk as a picture (S6-P5): one with its GPX track, not a simulated one.
+    if (window.LitterShare && c.track && c.track.length > 1 && !c.simulated) {
+      var sh = el('button', 'lt-seg-menu-item lt-col-share', window.LitterShare.label());
+      sh.type = 'button';
+      sh.addEventListener('click', function () {
+        closeMenus();
+        var me = app.me && app.me();
+        sh.disabled = true;
+        window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
+          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
+          .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
+            function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
+      });
+      out.push(sh);
+    }
+    if (c.editable) {
+      var f = el('button', 'lt-seg-menu-item lt-col-fix', 'Fix it (until ' + when(c.editableUntil) + ')');
+      f.type = 'button';
+      f.addEventListener('click', function () { closeMenus(); app.openSummary(c.id, f); });
+      out.push(f);
+    }
     // Your simulated walks are your own until you share them (S5-U2, |M665).
     if (c.simulated) {
-      var share = el('label', 'lt-sim-share');
+      var share = el('label', 'lt-seg-menu-item lt-sim-share');
       var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.checked = !!c.shared;
@@ -400,58 +501,30 @@ window.LitterMap = function (app) {
           app.notice(cb.checked ? 'Shared with the other admins.' : 'No longer shared: only you see it.');
         }, function (err) { cb.disabled = false; cb.checked = !cb.checked; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
       });
-      box.appendChild(share);
+      out.push(share);
     }
-    var row = el('div', 'lt-col-row');
-    var cells = [];
-    c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { if (cells.indexOf(x) === -1) cells.push(x); }); });
-    if (cells.length) {
-      // Its small map, tapped to open larger, with your GPX track (S5-P11, |C691).
-      var colourOf = {};
-      c.stretchList.forEach(function (s) { if (!s.discarded) s.cells.forEach(function (x) { colourOf[x] = s.index == null ? '#9ca3af' : G.indexColour(s.index, scale()); }); });
-      box.appendChild(smallMap(when(c.started), cells, { kind: 'walk', track: c.track, colourOf: colourOf }));
-    }
-    // Measure again (Oct 31, field first): its segment rates worked out again,
-    // with the Settings and each segment's Kind as they are now. A Head
-    // Builder's, only while Admin Mode is on (S5-P13, Q555, Q564).
-    if (c.track && c.track.length > 1 && app.builderMode && app.builderMode()) {
-      var ma = el('button', 'btn btn-secondary lt-col-measure', 'Measure again');
-      ma.type = 'button';
-      ma.addEventListener('click', function () {
-        ma.disabled = true;
-        app.api('measureAgain', { token: app.myToken(), collectionId: c.id }).then(function (d) {
-          ma.disabled = false;
-          realSegs = d.segments || realSegs;
-          simSegs = d.simSegments || simSegs;
-          drawSegments();
-          app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb/mi·day⁻¹.'
-            : 'Measured again: no segment rate from this walk.');
-        }, function (err) { ma.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
-      });
-      row.appendChild(ma);
-    }
-    // Share the walk as a picture (S6-P5): one with its GPX track, not a simulated one.
-    if (window.LitterShare && c.track && c.track.length > 1 && !c.simulated) {
-      var sh = el('button', 'btn btn-secondary lt-col-share', window.LitterShare.label());
-      sh.type = 'button';
-      sh.addEventListener('click', function () {
-        var me = app.me && app.me();
-        sh.disabled = true;
-        window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
-          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours })
-          .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
-            function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
-      });
-      row.appendChild(sh);
-    }
-    if (c.editable) {
-      var f = el('button', 'btn btn-secondary lt-col-fix', 'Fix it (until ' + when(c.editableUntil) + ')');
-      f.type = 'button';
-      f.addEventListener('click', function () { app.openSummary(c.id, f); });
-      row.appendChild(f);
-    }
-    if (row.childNodes.length) box.appendChild(row);
-    return box;
+    return out;
+  }
+  function walkMenu(c, actions) {
+    var wrap = el('div', 'lt-seg-more-wrap lt-col-more-wrap');
+    var b = el('button', 'lt-seg-more lt-col-more-btn', '⋯');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'More for the walk of ' + when(c.started));
+    b.setAttribute('aria-expanded', 'false');
+    var menu = el('div', 'lt-seg-menu lt-col-menu');
+    menu.hidden = true;
+    actions.forEach(function (a) { menu.appendChild(a); });
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      closeMenus();
+      menu.hidden = !open;
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    menu.addEventListener('click', function (e) { e.stopPropagation(); });
+    wrap.appendChild(b);
+    wrap.appendChild(menu);
+    return wrap;
   }
 
   /* ── Segments (S5-P9, S5-P12, M590, Q544, Q545, Q550-Q554, Q562): your

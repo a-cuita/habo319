@@ -87,6 +87,16 @@ html.lt-builder .lt-nt.working { background: #4b5563; animation: lt-work-pulse 1
 .lt-swatch.none { background: repeating-linear-gradient(45deg, #e5e7eb, #e5e7eb 3px, #fff 3px, #fff 6px); }
 .lt-col-hidden { margin-top: 6px; font-size: 0.88rem; font-weight: 600; color: #92400e; background: #fef3c7; padding: 6px 10px; border-radius: var(--radius-sm); }
 .lt-col-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+/* A compact walk (S6-P28): two short lines and a small map, its actions in ⋯, the rest unfolding in place. */
+.lt-col-top { display: flex; align-items: flex-start; gap: 10px; }
+.lt-col-lines { flex: 1; min-width: 0; cursor: pointer; border-radius: 8px; }
+.lt-col-lines:hover { background: var(--surface-2); }
+.lt-col-lines p { margin: 0 0 2px; }
+.lt-col-compact .lt-small-map { flex: none; width: 96px; height: 72px; margin: 0; }
+.lt-col-dots { display: inline-flex; flex-wrap: wrap; gap: 3px; margin-left: 8px; vertical-align: middle; }
+.lt-col-dot { width: 12px; height: 12px; }
+.lt-col-more { margin-top: 6px; }
+.lt-col-menu label.lt-seg-menu-item { display: flex; gap: 8px; align-items: center; }
 .lt-col-row .btn { width: auto; min-height: 0; padding: 8px 14px; margin-top: 0; }
 .lt-odd { margin: 10px 0; padding: 12px; border-radius: var(--radius-sm); background: #fef3c7; border: 2px solid #f59e0b; }
 .lt-odd-q { font-weight: 800; color: #92400e; margin-bottom: 4px; }

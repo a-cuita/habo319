@@ -127,13 +127,21 @@ function myCollections_(req) {
   readRows_(TABS.stretches).forEach(function (q) {
     if (q.get('account') === account.id) (byCollection[q.get('collection')] = byCollection[q.get('collection')] || []).push(q);
   });
+  // Each walk's XP, counted as your XP counts it (S6-P28 line 1, |S6-U25 item 4):
+  // planning it, and once Ended its weighings', times its time bonus; only
+  // with its GPX track saved, and never a simulated one.
+  var x = xpSettings_(), mult = walkMults_();
   var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; })
     .map(function (q) {
       var col = collectionOf_(q);
       var ended = col.ended || col.lastPressed || col.started;
       col.editableUntil = ended + editHours * 3600000;
       col.editable = Date.now() < col.editableUntil;
-      col.stretchList = (byCollection[col.id] || []).map(stretchOf_).sort(function (a, b) { return a.n - b.n; }).map(stretchViewOf_);
+      var sts = (byCollection[col.id] || []).map(stretchOf_).sort(function (a, b) { return a.n - b.n; });
+      var counts = !!String(q.get('track')).trim() && q.get('simulated') !== 'Yes';
+      col.xp = !counts ? 0 : round_((Number(q.get('xp')) || 0) + (q.get('status') === 'Ended'
+        ? sts.reduce(function (t, st) { return t + stretchXp_(st, x); }, 0) * (mult[col.id] || 1) : 0), 2);
+      col.stretchList = sts.map(stretchViewOf_);
       delete col.row;
       return col;
     })
