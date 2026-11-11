@@ -13,7 +13,10 @@
 @keyframes lt-work-pulse { 0%, 35% { background: #4b5563; color: #fff; } 65%, 100% { background: #f97316; color: transparent; } }
 .lt-nt-all { align-self: center; border: 0; border-radius: 9px; background: rgba(28, 28, 30, 0.85); color: #fff; font: inherit; font-weight: 700; padding: 6px 12px; cursor: pointer; }
 /* While HABO answers, nothing else can be pressed (S5-P16, C634). */
-.lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.12); cursor: progress; }
+/* …and the page behind is dimmed and blurred, so the wait is hard to miss (S6-U22). */
+.lt-working-scrim { position: fixed; inset: 0; z-index: 3050; background: rgba(15, 23, 42, 0.38); -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px); cursor: progress; }
+/* It starts in the middle of the screen, then floats up to the notices (S6-U22). */
+.lt-nt.working.lt-work-center { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); z-index: 3200; }
 .lt-working-scrim[hidden] { display: none; }
 /* In Admin Mode's dark look, the notices stand out from the page. */
 html.lt-builder .lt-nt { background: #3f4654; border: 1px solid #6b7280; }

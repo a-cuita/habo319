@@ -223,17 +223,40 @@
     if (!waits) { clearTimeout(scrimTimer); $('working-scrim').hidden = true; }
     showWorking();
   }
+  // It shows first in the middle of the screen, over the dimmed and blurred
+  // page, for two pulses, then floats up to the notices (S6-U22).
+  var workBar = null, floatTimer = null;
+  var CENTER_MS = 2800;   // two pulses of the bar's 1.4-second fade
   function showWorking() {
     var stack = $('notice');
-    var bar = stack.querySelector('.lt-nt.working');
-    if (waits && !bar) {
-      bar = document.createElement('div');
-      bar.className = 'lt-nt working';
-      bar.textContent = 'Working, please wait...';
-      stack.insertBefore(bar, stack.querySelector('.lt-nt-all'));
-    } else if (!waits && bar) {
-      bar.remove();
+    if (waits && !workBar) {
+      workBar = document.createElement('div');
+      workBar.className = 'lt-nt working lt-work-center';
+      workBar.setAttribute('role', 'status');
+      workBar.textContent = 'Working, please wait...';
+      document.body.appendChild(workBar);
+      clearTimeout(floatTimer);
+      floatTimer = setTimeout(function () { floatUp(workBar); }, CENTER_MS);
+    } else if (!waits && workBar) {
+      clearTimeout(floatTimer);
+      workBar.remove();
+      workBar = null;
     }
+  }
+  function floatUp(bar) {
+    if (!bar || bar !== workBar || !bar.isConnected) return;
+    var from = bar.getBoundingClientRect();
+    var stack = $('notice');
+    bar.classList.remove('lt-work-center');
+    stack.insertBefore(bar, stack.querySelector('.lt-nt-all'));
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    var to = bar.getBoundingClientRect();
+    bar.style.transition = 'none';
+    bar.style.transform = 'translate(' + Math.round(from.left - to.left) + 'px, ' + Math.round(from.top - to.top) + 'px)';
+    bar.getBoundingClientRect();
+    bar.style.transition = 'transform 0.6s ease';
+    bar.style.transform = '';
+    setTimeout(function () { bar.style.transition = ''; }, 650);
   }
 
   // Disables a button while its request runs, and shows the error under it.
