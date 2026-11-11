@@ -8,7 +8,7 @@
 window.LitterScroll = function (app) {
   'use strict';
   var $ = app.$;
-  var lines = [], pending = [], printed = [], loaded = false, asking = false;
+  var lines = [], pending = [], printed = [], loaded = false, asking = false, commands = [];
   var STRIP = 3;
 
   function el(tag, cls, text) {
@@ -58,6 +58,7 @@ window.LitterScroll = function (app) {
     paintStrip();
     return app.api('scroll', { token: app.myToken() }).then(function (d) {
       lines = d.lines || [];
+      if (d.commands) commands = d.commands;
       pending = [];
       loaded = true;
       paintStrip();
@@ -96,6 +97,15 @@ window.LitterScroll = function (app) {
     asking = true;
     $('rh-in').value = '';
     printed.push({ kind: 'cmd', text: '> ' + typed });
+    // help is answered here at once, from the commands the scroll came with (|C919).
+    var c = typed.toLowerCase().replace(/\s+/g, ' ');
+    if ((c === 'help' || c === '?') && commands.length) {
+      ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
+      asking = false;
+      paintFull();
+      $('rh-in').focus();
+      return;
+    }
     paintFull();
     app.api('scroll', { token: app.myToken(), command: typed }).then(function (d) {
       (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });

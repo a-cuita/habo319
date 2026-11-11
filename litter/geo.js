@@ -132,6 +132,61 @@ var LitterGeo = (function () {
   // of it, scanning `reach` metres each side (its area ÷ twice the reach).
   function fieldArea(points) { return points.length * FIELD_STEP * FIELD_STEP; }
   function fieldMiles(points, reach) { return reach > 0 ? fieldArea(points) / (2 * reach) / MILE_M : 0; }
+  // Its length down its middle, in metres (S6-U25 item 3, |Q723 (a)): its
+  // points thinned to a line one point wide (Zhang and Suen's thinning), then
+  // that line's length, a diagonal step counting as √2.
+  function middleLength(points) {
+    var on = {}, all = {};
+    points.forEach(function (p) { var k = Math.floor(p.y / FIELD_STEP) + '_' + Math.floor(p.x / FIELD_STEP); on[k] = true; all[k] = true; });
+    var has = function (i, j) { return !!on[i + '_' + j]; };
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (var step = 0; step < 2; step++) {
+        var gone = [];
+        Object.keys(on).forEach(function (k) {
+          var ij = k.split('_'), i = Number(ij[0]), j = Number(ij[1]);
+          var n = [has(i + 1, j), has(i + 1, j + 1), has(i, j + 1), has(i - 1, j + 1), has(i - 1, j), has(i - 1, j - 1), has(i, j - 1), has(i + 1, j - 1)];
+          var b = n.filter(Boolean).length;
+          if (b < 2 || b > 6) return;
+          var a = 0;
+          for (var t = 0; t < 8; t++) if (!n[t] && n[(t + 1) % 8]) a++;
+          if (a !== 1) return;
+          if (step === 0 ? (n[0] && n[2] && n[4]) || (n[2] && n[4] && n[6]) : (n[0] && n[2] && n[6]) || (n[0] && n[4] && n[6])) return;
+          gone.push(k);
+        });
+        gone.forEach(function (k) { delete on[k]; });
+        if (gone.length) changed = true;
+      }
+    }
+    var len = 0;
+    Object.keys(on).forEach(function (k) {
+      var ij = k.split('_'), i = Number(ij[0]), j = Number(ij[1]);
+      if (has(i, j + 1)) len += 1;
+      if (has(i + 1, j)) len += 1;
+      if (has(i + 1, j + 1) && !has(i + 1, j) && !has(i, j + 1)) len += Math.SQRT2;
+      if (has(i + 1, j - 1) && !has(i + 1, j) && !has(i, j - 1)) len += Math.SQRT2;
+      // Thinning stops short of the ends by about half the width there, so
+      // each end gets back its distance to the edge.
+      var deg = 0;
+      for (var di = -1; di <= 1; di++) for (var dj = -1; dj <= 1; dj++) if ((di || dj) && has(i + di, j + dj)) deg++;
+      if (deg <= 1) len += (2 - deg) * toEdge(i, j);
+    });
+    return len * FIELD_STEP;
+    function toEdge(i, j) {
+      for (var r = 1; r < 80; r++) {
+        for (var t = -r; t <= r; t++) {
+          if (!all[(i - r) + '_' + (j + t)] || !all[(i + r) + '_' + (j + t)] || !all[(i + t) + '_' + (j - r)] || !all[(i + t) + '_' + (j + r)]) return r - 0.5;
+        }
+      }
+      return 0;
+    }
+  }
+  // A segment's miles, one rule for paths and fields (|Q723 (a)): the walk it
+  // takes to scan all of it (its area ÷ twice the reach), or its length down
+  // its middle, whichever is longer. A street narrower than the two sides a
+  // walk scans still takes one walk down it, end to end.
+  function segmentMiles(points, reach) { return Math.max(fieldMiles(points, reach), middleLength(points) / MILE_M); }
   // Metres from p to the line a-b.
   function segDist(p, a, b) {
     var dx = b.x - a.x, dy = b.y - a.y, len = dx * dx + dy * dy;
@@ -551,7 +606,7 @@ var LitterGeo = (function () {
     trackRuns: trackRuns,
     MILE_M: MILE_M, CELL_M: CELL_M, xy: xy, toLatLon: toLatLon, dist: dist, cellAt: cellAt, cellCenter: cellCenter, centerXY: centerXY,
     cellBounds: cellBounds, outline: outline, grow: grow, lineCells: lineCells, cellOfXY: cellOfXY,
-    FIELD_STEP: FIELD_STEP, inPolygon: inPolygon, fieldPoints: fieldPoints, fieldArea: fieldArea, fieldMiles: fieldMiles, segDist: segDist,
+    FIELD_STEP: FIELD_STEP, inPolygon: inPolygon, fieldPoints: fieldPoints, fieldArea: fieldArea, fieldMiles: fieldMiles, middleLength: middleLength, segmentMiles: segmentMiles, segDist: segDist,
     fieldScan: fieldScan, scanShare: scanShare, stepBounds: stepBounds, weighPins: weighPins, pinIcon: pinIcon, lineVia: lineVia, neighbours: neighbours, overpassQuery: overpassQuery, boxAround: boxAround, compactWays: compactWays,
     Streets: Streets, reading: reading, indexColour: indexColour, sunTimes: sunTimes
   };

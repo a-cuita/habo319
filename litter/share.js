@@ -48,7 +48,8 @@ window.LitterShare = (function () {
   }
 
   // The map part: OpenStreetMap's tiles, the walk's squares, and its track.
-  function drawMap(ctx, walk) {
+  function drawMap(ctx, walk, L) {
+    var look = L || current;
     ctx.fillStyle = '#e5e7eb';
     ctx.fillRect(0, 0, W, MAP_H);
     var b = extent(walk);
@@ -147,8 +148,8 @@ window.LitterShare = (function () {
   function round(v, d) { var k = Math.pow(10, d); return Math.round(v * k) / k; }
   // What the picture shows, as admins set it in Settings (S6-P5 round 2): a
   // layout, each part on or off on top of it, and the app's name.
-  var look = { numbers: true, index: true, scale: true, when: true, who: true, name: true, appName: 'HABO Litter Collection' };
-  function setLook(l) { if (l && typeof l === 'object') look = Object.assign({}, look, l); }
+  var current = { numbers: true, index: true, scale: true, when: true, who: true, name: true, appName: 'HABO Litter Collection' };
+  function setLook(l) { if (l && typeof l === 'object') current = Object.assign({}, current, l); }
   // "10:02 to 10:19 AM", or "11:50 AM to 12:20 PM".
   function times(a, b) {
     var t = function (ms) { return new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
@@ -158,7 +159,8 @@ window.LitterShare = (function () {
   }
 
   // The words under the map.
-  function drawWords(ctx, walk) {
+  function drawWords(ctx, walk, L) {
+    var look = L || current;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, MAP_H, W, H - MAP_H);
     ctx.fillStyle = '#15803d';
@@ -219,6 +221,13 @@ window.LitterShare = (function () {
   }
 
   // The picture, as a PNG blob.
+  // The picture drawn on a canvas, with a look of its own when given (the
+  // Settings preview, |C914), else the one set.
+  function drawOn(canvas, walk, L) {
+    canvas.width = W; canvas.height = H;
+    var ctx = canvas.getContext('2d');
+    return drawMap(ctx, walk, L).then(function () { drawWords(ctx, walk, L); return canvas; });
+  }
   function picture(walk) {
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
@@ -299,7 +308,7 @@ window.LitterShare = (function () {
     ctx.fillText((b.handle || '') + (b.level != null ? '  ·  Level ' + b.level : ''), W / 2, H - 150);
     ctx.font = '800 36px system-ui, sans-serif';
     ctx.fillStyle = '#15803d';
-    ctx.fillText('🌱 ' + look.appName, W / 2, H - 70);
+    ctx.fillText('🌱 ' + current.appName, W / 2, H - 70);
     var name = 'habo-litter-' + String(b.title || 'badge').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + ymdOf(b.when) + '.png';
     return toBlob(canvas).then(function (blob) { return deliver(blob, name, b.title || 'My HABO badge', (b.title || '') + ': ' + (b.line || '') + ' With HABO.'); });
   }
@@ -312,5 +321,5 @@ window.LitterShare = (function () {
     return y + (lines.length - 1) * step + step;
   }
 
-  return { walkPicture: walkPicture, badgePicture: badgePicture, label: label, canShare: canShare, setLook: setLook, look: function () { return look; } };
+  return { walkPicture: walkPicture, badgePicture: badgePicture, label: label, canShare: canShare, setLook: setLook, look: function () { return current; }, drawOn: drawOn };
 })();

@@ -104,12 +104,12 @@ function segmentPropose_(req) {
     // ground is inside them, and its squares are the ones that ground is in.
     // A field drawn by its corners as a private segment brings them (S5-P19, |C788).
     var corners = kind === 'Field' ? fieldCorners_(Array.isArray(req.outline) && req.outline.length ? req.outline : plan.outline) : [];
-    var miles = plan.miles;
+    var miles;
     if (corners.length) {
       var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
       squares = Object.keys(ground.cells);
       miles = ground.miles;
-    }
+    } else miles = LitterGeo.segmentMiles(LitterGeo.fieldPoints({ squares: squares }), segmentRules_().reach);
     var sheet = getDb_().getSheetByName(TABS.segments.name);
     var id = nextId_('SG', segmentsAll_().map(function (s) { return s.id; }));
     var row = blankRow_(TABS.segments);
@@ -242,7 +242,17 @@ function fieldGround_(g, k) {
   var pts = LitterGeo.fieldPoints({ outline: g.outline, squares: g.squares });
   var cells = {};
   pts.forEach(function (p) { cells[LitterGeo.cellOfXY(p)] = true; });
-  return { pts: pts, cells: cells, miles: LitterGeo.fieldMiles(pts, k.reach) };
+  return { pts: pts, cells: cells, miles: LitterGeo.segmentMiles(pts, k.reach) };
+}
+
+// A segment's miles, one rule for paths and fields (S6-U25 item 3, |Q723 (a)):
+// the walk it takes to scan all of it, or its length down its middle,
+// whichever is longer (Geo.js). Worked out once a run for each segment.
+var segMilesMemo_ = {};
+function segmentMiles_(g, k) {
+  var key = g.id + '|' + g.squares.length + '|' + (g.outline || []).length + '|' + k.reach;
+  if (segMilesMemo_[key] == null) segMilesMemo_[key] = LitterGeo.segmentMiles(LitterGeo.fieldPoints({ outline: g.outline, squares: g.squares }), k.reach);
+  return segMilesMemo_[key];
 }
 
 // A square and those within `r` squares of it.
@@ -415,7 +425,7 @@ function segmentCollections_(g, walks, k, ground) {
 // the walk it takes to scan all of it.
 function pathSequence_(g, walks, k) {
   var ground = g.kind === 'Field' ? fieldGround_(g, k) : null;
-  var miles = ground ? ground.miles : g.miles;
+  var miles = ground ? ground.miles : segmentMiles_(g, k);
   var found = segmentCollections_(g, walks, k, ground);
   var events = found.events;
   var clock = null, carry = 0, carryKnown = true, waiting = [];
@@ -546,6 +556,23 @@ function fieldOutline_(req) {
 
 // Once (S5-P13 part 2): each field's miles become the walk it takes to scan
 // all of it, and every walk's rates are measured again with fields as areas.
+// Once (S6-U25 item 3, |Q723 (a)): every segment's miles by the one rule,
+// and every walk's rates measured again with them.
+function milesOneRuleOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('MILES_ONE_RULE')) return;
+  var k = segmentRules_(), sheet = getDb_().getSheetByName(TABS.segments.name);
+  segmentsAll_().filter(function (g) { return g.squares.length; }).forEach(function (g) {
+    var miles = round_(segmentMiles_(g, k), 2);
+    if (miles !== g.miles) { sheet.getRange(g.row, SEGMENT_COL.miles).setValue(miles); logChange_('Miles by one rule', 'Segment', g.id, 'Miles', g.miles, miles); }
+  });
+  measureWorld_(false, '');
+  var owners = {};
+  readRows_(TABS.collections).forEach(function (q) { if (q.get('simulated') === 'Yes') owners[q.get('account')] = true; });
+  Object.keys(owners).forEach(function (a) { measureWorld_(true, a); });
+  props.setProperty('MILES_ONE_RULE', new Date().toISOString());
+}
+
 function fieldsAreaOnce_() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('FIELDS_AREA')) return;

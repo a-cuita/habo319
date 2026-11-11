@@ -138,11 +138,11 @@ function scrollLines_(account) {
 function scrollWhen_(ms) { return Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'EEE, MMM d, h:mm a'); }
 
 // A command typed at the prompt, and its answer, a line each.
-function scrollCommand_(account, typed, got) {
+function scrollCommand_(account, typed) {
   var c = String(typed || '').trim().toLowerCase().replace(/\s+/g, ' ');
   if (c === 'help' || c === '?') return ['Commands:'].concat(SCROLL_COMMANDS.map(function (x) { return '  ' + x[0] + ': ' + x[1]; }));
   if (c === 'xp history' || c === 'xp') {
-    var ev = got.events.slice().reverse();
+    var ev = (xpEventsAll_()[account.id] || []).slice().reverse();
     if (!ev.length) return ['No XP yet. A walk with your GPX track saved earns your first.'];
     var total = round_(ev.reduce(function (t, e) { return t + e.xp; }, 0), 2);
     return ['Your XP, newest first (' + total + ' XP in all):'].concat(ev.slice(0, 100).map(function (e) { return '  +' + e.xp + ' XP · ' + scrollWhen_(e.at) + ' · ' + e.say; }))
@@ -201,8 +201,8 @@ function scrollCommand_(account, typed, got) {
 function scroll_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
-  var got = scrollLines_(account);
-  var out = { lines: got.lines };
-  if (req.command != null && String(req.command).trim()) out.answer = scrollCommand_(account, req.command, got);
-  return out;
+  // A command answers with only what it needs, not the whole scroll again
+  // (S6-P3, |C919); the page keeps the scroll it has.
+  if (req.command != null && String(req.command).trim()) return { answer: scrollCommand_(account, req.command) };
+  return { lines: scrollLines_(account).lines, commands: SCROLL_COMMANDS };
 }

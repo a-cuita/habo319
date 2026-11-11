@@ -297,7 +297,7 @@ window.LitterChallenges = function (app) {
     $('cha-form').hidden = true;
     $('qb-form').hidden = true;
     $('cha-list').textContent = '';
-    $('cha-title').textContent = mode === 'skills' ? 'Skills' : 'Quest Drafting Bench';
+    $('cha-title').textContent = mode === 'skills' ? 'Skill Builder' : 'Quest Drafting Bench';
     $('cha-add').textContent = mode === 'skills' ? 'Add a skill' : 'Draft a Quest';
     $('cha-note').textContent = 'Loading…';
     return app.api(mode === 'skills' ? 'toolSkillsAdmin' : 'challengesAdmin', { token: app.myToken() }).then(useAdmin, function (err) {

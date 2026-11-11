@@ -227,11 +227,17 @@
   }
   // It shows first in the middle of the screen, over the dimmed and blurred
   // page, for two pulses, then floats up to the notices (S6-U22).
-  var workBar = null, floatTimer = null;
+  // Waits that follow one another, like the page's first load, keep the one
+  // bar where it is: it lingers a moment after a wait ends, so the next wait
+  // finds it, rather than starting again in the middle (|C913).
+  var workBar = null, floatTimer = null, dropTimer = null;
   var CENTER_MS = 2800;   // two pulses of the bar's 1.4-second fade
+  var LINGER_MS = 300, FLOAT_MS = 900;
   function showWorking() {
-    var stack = $('notice');
-    if (waits && !workBar) {
+    if (waits) {
+      clearTimeout(dropTimer);
+      dropTimer = null;
+      if (workBar) return;
       workBar = document.createElement('div');
       workBar.className = 'lt-nt working lt-work-center';
       workBar.setAttribute('role', 'status');
@@ -239,12 +245,18 @@
       document.body.appendChild(workBar);
       clearTimeout(floatTimer);
       floatTimer = setTimeout(function () { floatUp(workBar); }, CENTER_MS);
-    } else if (!waits && workBar) {
-      clearTimeout(floatTimer);
-      workBar.remove();
-      workBar = null;
+    } else if (workBar && !dropTimer) {
+      dropTimer = setTimeout(function () {
+        dropTimer = null;
+        if (waits || !workBar) return;
+        clearTimeout(floatTimer);
+        workBar.remove();
+        workBar = null;
+      }, LINGER_MS);
     }
   }
+  // It glides from the middle up into the notices; while it moves, the
+  // notices don't scroll, so no scroll bars show (|C913).
   function floatUp(bar) {
     if (!bar || bar !== workBar || !bar.isConnected) return;
     var from = bar.getBoundingClientRect();
@@ -253,12 +265,13 @@
     stack.insertBefore(bar, stack.querySelector('.lt-nt-all'));
     if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     var to = bar.getBoundingClientRect();
+    stack.classList.add('lt-notices-float');
     bar.style.transition = 'none';
     bar.style.transform = 'translate(' + Math.round(from.left - to.left) + 'px, ' + Math.round(from.top - to.top) + 'px)';
     bar.getBoundingClientRect();
-    bar.style.transition = 'transform 0.6s ease';
+    bar.style.transition = 'transform ' + FLOAT_MS + 'ms cubic-bezier(0.22, 0.61, 0.36, 1)';
     bar.style.transform = '';
-    setTimeout(function () { bar.style.transition = ''; }, 650);
+    setTimeout(function () { bar.style.transition = ''; stack.classList.remove('lt-notices-float'); }, FLOAT_MS + 50);
   }
 
   // Disables a button while its request runs, and shows the error under it.
@@ -778,6 +791,7 @@
 
   var settings = window.LitterSettings({
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }
   });

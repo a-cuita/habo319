@@ -99,12 +99,17 @@ function settingsGroupsFor_(account) {
       levels: levelRanges_().map(function (r) { return [r[0], r[1] == null ? '' : r[1], r[2]]; }), skills: classSkills_() };
     // The Forum's group says how many digest timers there are (S6-P16).
     var note = g.key === 'forum' ? digestTimerState_() : null;
-    return { key: g.key, title: g.title, rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
+    var out = { key: g.key, title: g.title, rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
       return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
         min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null,
         value: kind === 'lines' ? String(v).split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String) : String(v).trim() };
     }) };
+    // The share picture's preview (S6-P5, |C914): what each layout shows, and
+    // which setting is which part, so the page draws it from the boxes as they are.
+    if (g.key === 'share') out.preview = { layoutSetting: SETTING_SHARE_LAYOUT, nameSetting: SETTING_APP_NAME, layouts: SHARE_LAYOUT_PARTS,
+      parts: SHARE_PARTS.map(function (p) { return { key: p[0], setting: p[1] }; }), defaultName: DEFAULT_APP_NAME };
+    return out;
   });
 }
 

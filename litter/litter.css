@@ -8,7 +8,7 @@
 .lt-nt-text { flex: 1 1 200px; }
 .lt-nt-close { border: 0; background: none; color: inherit; font: inherit; font-size: 1.5rem; line-height: 1; padding: 2px 6px; cursor: pointer; }
 .lt-nt-btn { border: 2px solid rgba(255, 255, 255, 0.75); background: transparent; color: #fff; border-radius: 9px; font: inherit; font-size: 0.9rem; font-weight: 700; padding: 6px 10px; cursor: pointer; }
-.lt-nt.working { background: #4b5563; justify-content: center; animation: lt-work-pulse 1.4s ease-in-out infinite alternate; }
+.lt-nt.working { background: #4b5563; justify-content: center; animation: lt-work-pulse 1.4s ease-in-out infinite alternate; pointer-events: none; }
 /* The working bar pulses like the Build Board's (S5-P16, M641): the words on grey, fading to a plain orange bar with no words. */
 @keyframes lt-work-pulse { 0%, 35% { background: #4b5563; color: #fff; } 65%, 100% { background: #f97316; color: transparent; } }
 .lt-nt-all { align-self: center; border: 0; border-radius: 9px; background: rgba(28, 28, 30, 0.85); color: #fff; font: inherit; font-weight: 700; padding: 6px 12px; cursor: pointer; }
@@ -18,6 +18,8 @@
 /* It starts in the middle of the screen, then floats up to the notices (S6-U22). */
 .lt-nt.working.lt-work-center { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); z-index: 3200; }
 .lt-working-scrim[hidden] { display: none; }
+/* While the bar glides up into the notices, they don't scroll, so no scroll bars flash (|C913). */
+.lt-notices.lt-notices-float { overflow: visible; }
 /* In Admin Mode's dark look, the notices stand out from the page. */
 html.lt-builder .lt-nt { background: #3f4654; border: 1px solid #6b7280; }
 html.lt-builder .lt-nt.working { background: #4b5563; animation: lt-work-pulse 1.4s ease-in-out infinite alternate; }
@@ -729,3 +731,6 @@ html:has(body.lt-pulse-open), body.lt-pulse-open { overscroll-behavior-y: none; 
 .lt-layer-opt[hidden] { display: none; }
 .lt-map-dates .row2 > .ig { min-width: 0; }
 .lt-map-dates input[type="date"] { width: 100%; min-width: 0; box-sizing: border-box; }
+/* The share picture's preview in Settings (S6-P5, |C914). */
+.lt-set-preview { margin: 14px 0 4px; }
+.lt-set-preview-pic { display: block; width: min(100%, 320px); height: auto; aspect-ratio: 1080 / 1350; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: #e5e7eb; }

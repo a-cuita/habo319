@@ -96,9 +96,45 @@ window.LitterSettings = function (app) {
         });
       });
     });
-    d.appendChild(save);
+    if (g.preview) sharePreview(g, d, rows, save);
+    else d.appendChild(save);
     d.appendChild(err);
     return d;
+  }
+
+  // The share picture's preview (S6-P5, |C914): drawn from the boxes as they
+  // are, before Save, on a sample walk with your handle, and drawn again the
+  // moment a box changes.
+  function sharePreview(g, d, rows, save) {
+    var p = g.preview, box = el('div', 'lt-set-preview');
+    box.id = 'set-share-preview';
+    box.appendChild(el('p', 'lt-set-label', 'Preview'));
+    box.appendChild(el('p', 'small muted', 'A sample walk, with your handle, as the picture would be with the boxes above. Save to use it.'));
+    var canvas = el('canvas', 'lt-set-preview-pic');
+    canvas.id = 'set-share-canvas';
+    box.appendChild(canvas);
+    d.appendChild(save);
+    d.appendChild(box);
+    var me = app.me ? app.me() || {} : {}, now = Date.now();
+    var walk = { started: now - 50 * 60000, ended: now - 15 * 60000, pounds: 3.4, miles: 1.2, handle: me.handle || 'your.handle', level: 3,
+      track: [[32.36985, -86.29055], [32.37005, -86.28985], [32.37030, -86.28905], [32.37075, -86.28845], [32.37120, -86.28780]],
+      stretches: [{ index: 4.2, streetMi: 1.2, offMi: 0, cells: [] }] };
+    var look = function () {
+      var v = {}; rows.forEach(function (r) { v[r.name] = r.value(); });
+      var layout = p.layouts[v[p.layoutSetting]] ? v[p.layoutSetting] : 'Full', out = { appName: String(v[p.nameSetting] || '').trim() || p.defaultName };
+      p.parts.forEach(function (x) { var c = v[x.setting]; out[x.key] = c === 'On' ? true : c === 'Off' ? false : p.layouts[layout].indexOf(x.key) !== -1; });
+      return out;
+    };
+    var timer = null, n = 0;
+    var redraw = function () {
+      var mine = ++n, l = look();
+      canvas.dataset.look = JSON.stringify(l);
+      if (!window.LitterShare || !window.LitterShare.drawOn) return;
+      window.LitterShare.drawOn(canvas, walk, l).then(function () { if (mine === n) canvas.dataset.drawn = String(mine); }, function () {});
+    };
+    d.addEventListener('input', function () { clearTimeout(timer); timer = setTimeout(redraw, 150); });
+    d.addEventListener('change', function () { clearTimeout(timer); timer = setTimeout(redraw, 150); });
+    redraw();
   }
 
   // One setting: its words and its box. Returns { box, name, value() }.

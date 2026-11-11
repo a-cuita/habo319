@@ -2646,7 +2646,7 @@ window.LitterCollect = function (app) {
   function fieldShape() {
     var corners = planning.corners, pts = corners.length >= 3 ? G.fieldPoints({ outline: corners }) : [], cells = [];
     pts.forEach(function (p) { var x = G.cellOfXY(p); if (cells.indexOf(x) === -1) cells.push(x); });
-    return { cells: cells, miles: G.fieldMiles(pts, settings.reach || 15) };
+    return { cells: cells, miles: G.segmentMiles(pts, settings.reach || 15) };
   }
   function planTap(cell) {
     if (planning.kind === 'Field') {

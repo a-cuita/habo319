@@ -203,8 +203,10 @@ function additionMove_(account, id, kind, move, xp, note) {
         if (!g) throw new Error('Its segment isn\'t here any more.');
         var squares = addedSquares_(g, a.squares), segs = getDb_().getSheetByName(TABS.segments.name);
         segs.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(squares.join(' '));
-        segs.getRange(g.row, SEGMENT_COL.miles).setValue(round_(g.miles + a.miles, 2));
-        logChange_(account.email, 'Segment', g.id, 'Squares', g.squares.length + ' squares, ' + g.miles + ' mi', squares.length + ' squares, ' + round_(g.miles + a.miles, 2) + ' mi, with ' + a.id + ' (' + xp + ' XP)');
+        // Its miles by the one rule, with the ground added (S6-U25 item 3, |Q723 (a)).
+        var miles = round_(segmentMiles_({ id: g.id + '+' + a.id, squares: squares, outline: g.outline }, segmentRules_()), 2);
+        segs.getRange(g.row, SEGMENT_COL.miles).setValue(miles);
+        logChange_(account.email, 'Segment', g.id, 'Squares', g.squares.length + ' squares, ' + g.miles + ' mi', squares.length + ' squares, ' + miles + ' mi, with ' + a.id + ' (' + xp + ' XP)');
         measureWorld_(false, '');
       } else logChange_(account.email, 'Segment addition', a.id, 'State', 'Waiting', 'Declined');
     }
