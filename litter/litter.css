@@ -659,3 +659,40 @@ section.card.lt-ach-item { border-top: 0; padding: 16px; }
 .lt-rh-prompt input:focus { border-bottom-color: #7dd3fc; }
 .lt-rh-enter { background: #1e293b; color: #e2e8f0; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; font: inherit; cursor: pointer; }
 body.lt-rh-open { overflow: hidden; }
+
+/* Quests on Your quests, the Quest Drafting Bench, and a skill's steps (S6-P8). */
+.lt-quest-card { border-top: 1px solid var(--border); padding: 8px 0; }
+.lt-quest-card:first-child { border-top: 0; }
+.lt-quest-chs { list-style: none; margin: 8px 0 0; padding: 0 0 0 10px; border-left: 3px solid #f59e0b; }
+.lt-quest-chs .lt-challenge { padding: 8px 0; }
+.lt-challenge-name { font-weight: 700; margin: 0 0 2px; }
+.lt-challenge.done .lt-challenge-name { color: #15803d; }
+.lt-quest-segs .link-btn { padding: 0; }
+.lt-quest-use { margin-top: 6px; }
+.lt-qb-map { height: 260px; border-radius: var(--radius-sm); margin: 6px 0; background: var(--surface-2); }
+.lt-qb-segs { display: flex; flex-direction: column; gap: 0; margin-bottom: 8px; }
+.lt-qb-segs .choice-row { display: flex; text-transform: none; letter-spacing: 0; font-size: 1rem; font-weight: 600; color: var(--text); margin: 2px 0; }
+.lt-cha-buttons .btn { flex: 1 1 auto; width: auto; margin-top: 0; }
+.lt-qb-chs { list-style: none; margin: 6px 0; padding: 0 0 0 10px; border-left: 3px solid var(--border); }
+.lt-qb-ch { padding: 6px 0; }
+.lt-qb-ch.retired { opacity: 0.6; }
+.lt-qb-ch-name { font-weight: 700; margin: 0; }
+.lt-label { display: block; font-weight: 600; margin-bottom: 2px; }
+.lt-skills-search { width: 100%; margin: 4px 0 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius-sm); font: inherit; font-size: 16px; background: var(--surface); color: var(--text); }
+.lt-skill.lt-skill-usable { border-left: 4px solid var(--accent); padding-left: 8px; }
+.lt-skill-use { margin: 6px 0; }
+.lt-skill-sent summary { cursor: pointer; }
+/* Low on the screen, so the map stays in view behind it (|Q668). */
+.lt-skill-run { position: fixed; left: 0; right: 0; bottom: 0; z-index: 2100; padding: 0 8px calc(8px + env(safe-area-inset-bottom)); pointer-events: none; }
+.lt-skill-run[hidden] { display: none; }
+.lt-skill-run-in { pointer-events: auto; max-width: 520px; margin: 0 auto; background: var(--surface); color: var(--text); border-radius: var(--radius) var(--radius) var(--radius-sm) var(--radius-sm);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.28); padding: 0 16px 14px; max-height: 62vh; overflow-y: auto; }
+.lt-skill-run-in .lt-sheet-head { background: var(--surface); }
+.lt-skill-step { font-weight: 700; font-size: 1.05rem; margin: 4px 0 10px; }
+.lt-skill-step-n { margin: 0; }
+.lt-skill-warn { color: #b45309; font-weight: 700; }
+.lt-skill-where { margin: 6px 0; }
+.lt-skill-back { display: block; margin: 8px auto 0; }
+.lt-pending-pin { background: none; border: 0; font-size: 26px; line-height: 30px; text-align: center; animation: lt-pin-wait 1.2s ease-in-out infinite alternate; }
+@keyframes lt-pin-wait { from { opacity: 0.55; transform: translateY(0); } to { opacity: 1; transform: translateY(-4px); } }
+@media (prefers-reduced-motion: reduce) { .lt-pending-pin { animation: none; } }

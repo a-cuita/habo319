@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=55">
+<link rel="stylesheet" href="litter.css?v=56">
 </head>
 <body>
 
@@ -126,7 +126,7 @@
           <!-- Challenges in Admin Mode (S6-P8): a Builder or above builds them. -->
           <!-- Skills built from the toolbox in Admin Mode (S6-P8's rework, Jeremy's "(a)", Nov 6): a Builder or above builds them. -->
           <button class="btn btn-secondary" id="me-go-skills-admin" type="button" hidden>Skills</button>
-          <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Challenges</button>
+          <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Quest Drafting Bench</button>
           <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)): a Builder or above makes them. -->
           <button class="btn btn-secondary" id="me-go-achievements" type="button" hidden>Achievements</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
@@ -707,24 +707,42 @@
   <!-- Challenges in Admin Mode (S6-P8, |M669, |M846): each built from the toolbox, with its XP. -->
   <div id="v-challenges-admin" hidden>
     <section class="card">
-      <h2 id="cha-title">Challenges</h2>
+      <h2 id="cha-title">Quest Drafting Bench</h2>
       <p class="muted small" id="cha-note"></p>
-      <button class="btn btn-primary" id="cha-add" type="button" hidden>Add a Challenge</button>
+      <button class="btn btn-primary" id="cha-add" type="button" hidden>Draft a Quest</button>
     </section>
+    <!-- A Quest (S6-P8, |M895): its name, dates and finishing bonus, and its segments picked on the map. -->
+    <section class="card" id="qb-form" hidden>
+      <h2 id="qb-form-title">Draft a Quest</h2>
+      <div class="ig"><label for="qb-name">Name</label><input id="qb-name" maxlength="80"></div>
+      <div class="ig"><label for="qb-says">What it says to players</label><textarea id="qb-says" rows="2" maxlength="1000"></textarea></div>
+      <div class="row2">
+        <div class="ig"><label for="qb-from">From (blank: from when it opens)</label><input id="qb-from" type="date"></div>
+        <div class="ig"><label for="qb-to">To (blank: no end)</label><input id="qb-to" type="date"></div>
+      </div>
+      <div class="ig"><label for="qb-bonus">Finishing bonus: XP once every Challenge is done</label><input id="qb-bonus" type="number" min="0" max="1000" step="1" inputmode="numeric"></div>
+      <div class="ig">
+        <span class="lt-label">Its segments</span>
+        <p class="muted small">Tap a segment on the map to add it, or tap it again to take it off. None: anywhere counts.</p>
+        <div class="lt-qb-map" id="qb-map" aria-label="Map of the public segments"></div>
+        <div class="lt-qb-segs" id="qb-segs"></div>
+      </div>
+      <label class="choice-row"><input type="checkbox" id="qb-test"> A test: only admins see it, and its XP isn't counted</label>
+      <button class="btn btn-primary" id="qb-save" type="button">Save the Quest</button>
+      <button class="btn btn-secondary" id="qb-cancel" type="button">Cancel</button>
+      <p class="err" id="qb-err" role="alert"></p>
+    </section>
+    <!-- A Challenge under its Quest, or a skill on the Skills screen: one form; what isn't used is hidden. -->
     <section class="card" id="cha-form" hidden>
       <h2 id="cha-form-title">Add a Challenge</h2>
-      <div class="ig"><label for="cha-name">Name</label><input id="cha-name" maxlength="80"></div>
-      <div class="ig" id="cha-kind-row"><label for="cha-kind">Kind</label>
-        <select id="cha-kind"><option value="Walk goal">Walk goal: collecting, counted from their walks</option><option value="Skill goal">Skill goal: so many approved with a skill</option></select></div>
-      <div class="ig"><label for="cha-says">What the screen says: what to do</label><textarea id="cha-says" rows="3" maxlength="1000"></textarea></div>
+      <p class="muted small" id="cha-form-quest" hidden></p>
+      <div class="ig" id="cha-kind-row"><label for="cha-kind">Built from the skill</label><select id="cha-kind"></select></div>
+      <div class="ig"><label for="cha-name" id="cha-name-label">Name</label><input id="cha-name" maxlength="80"></div>
+      <div class="ig"><label for="cha-says" id="cha-says-label">What the screen says: what to do</label><textarea id="cha-says" rows="3" maxlength="1000"></textarea></div>
       <div class="ig"><label for="cha-why">Why (shown under it)</label><textarea id="cha-why" rows="2" maxlength="1000"></textarea></div>
-      <div id="cha-dates">
-        <div class="ig"><label for="cha-from">From (blank: from now)</label><input id="cha-from" type="date"></div>
-        <div class="ig"><label for="cha-to">To (blank: no end)</label><input id="cha-to" type="date"></div>
-      </div>
       <div id="cha-items-box">
         <fieldset class="ig lt-cha-actions" id="cha-actions"><legend>What players send</legend>
-          <label><input type="checkbox" value="Place"> A place: Use my location</label>
+          <label><input type="checkbox" value="Place"> A place: Capture the place</label>
           <label><input type="checkbox" value="Photo"> A photo</label>
           <label><input type="checkbox" value="Note"> A note</label>
         </fieldset>
@@ -733,14 +751,15 @@
         <div class="ig"><label for="cha-xp-near">XP for one that near (0: the same as each)</label><input id="cha-xp-near" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
         <div class="ig"><label for="cha-level">Opens at level (0: everyone)</label><input id="cha-level" type="number" min="0" max="999" step="1" inputmode="numeric"></div>
       </div>
+      <!-- Its condition (|Q693 (a)): a distance, or different segments, or a count. -->
       <div id="cha-walk-box" hidden>
-        <div class="ig"><label for="cha-miles">Miles goal</label><input id="cha-miles" type="number" min="0" max="1000" step="0.1" inputmode="decimal"></div>
-        <div class="ig"><label for="cha-segs">Different segments (0: any)</label><input id="cha-segs" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+        <div class="ig"><label for="cha-miles">Miles on its segments (0: none)</label><input id="cha-miles" type="number" min="0" max="1000" step="0.1" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-segs">Different segments of its segments, each mostly collected (0: none)</label><input id="cha-segs" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
         <div class="ig"><label for="cha-xp-per">XP for each 0.01 mi</label><input id="cha-xp-per" type="number" min="0" max="100" step="0.05" inputmode="decimal"></div>
+        <div class="ig"><label for="cha-xp-seg">XP for each segment</label><input id="cha-xp-seg" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
       </div>
       <div id="cha-skill-box" hidden>
-        <div class="ig"><label for="cha-skill">Built from the skill</label><select id="cha-skill"></select></div>
-        <div class="ig"><label for="cha-goal">Goal: how many approved</label><input id="cha-goal" type="number" min="1" max="10000" step="1" inputmode="numeric"></div>
+        <div class="ig"><label for="cha-goal">How many approved</label><input id="cha-goal" type="number" min="1" max="10000" step="1" inputmode="numeric"></div>
         <div class="ig"><label for="cha-xp-one">XP for each one approved (on top of the skill's own)</label><input id="cha-xp-one" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
       </div>
       <div class="ig" id="cha-mult-row"><label for="cha-mult">Finishing multiplier (1: none)</label><input id="cha-mult" type="number" min="1" max="10" step="0.1" inputmode="decimal"></div>
@@ -851,7 +870,18 @@
     <div class="lt-sheet-in">
       <div class="lt-sheet-head"><strong id="skills-title">Litter Class Skills</strong><button class="lt-sheet-close" id="skills-close" type="button" aria-label="Close">×</button></div>
       <p class="muted small" id="skills-level"></p>
+      <!-- A quick menu (S6-P8 item 4, |Q668): search, and Use on each skill you can use now. -->
+      <input class="lt-skills-search" id="skills-search" type="search" placeholder="Search your skills" aria-label="Search your skills" autocomplete="off">
       <div id="cl-skills"></div>
+    </div>
+  </div>
+
+  <!-- Using a skill (S6-P8 item 4, |Q668): its steps, in a card low on the screen, so the map stays in view behind it. -->
+  <div class="lt-skill-run" id="sk-run" role="dialog" aria-labelledby="sk-run-title" hidden>
+    <div class="lt-skill-run-in">
+      <div class="lt-sheet-head"><strong id="sk-run-title"></strong><button class="lt-sheet-close" id="sk-run-close" type="button" aria-label="Close">×</button></div>
+      <div id="sk-run-body"></div>
+      <p class="err" id="sk-run-err" role="alert"></p>
     </div>
   </div>
 
@@ -929,9 +959,9 @@
       <p class="muted small" id="quests-none" hidden>No quest finished yet. Your first quest is on the main page.</p>
       <div id="quests-list"></div>
     </section>
-    <!-- Challenges (S6-P8, |Q661 (a)): one task each, that earns XP. -->
+    <!-- Quests (S6-P8, |M895): each with its Challenges as its list, and their progress. -->
     <section class="card" id="my-challenges">
-      <h2>Challenges</h2>
+      <h2>Quests</h2>
       <p class="muted small" id="challenges-note"></p>
       <div id="challenges-list"></div>
     </section>
@@ -973,16 +1003,16 @@
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=11"></script>
 <script src="share.js?v=4"></script>
-<script src="collect.js?v=54"></script>
-<script src="map.js?v=35"></script>
+<script src="collect.js?v=55"></script>
+<script src="map.js?v=36"></script>
 <script src="quest.js?v=4"></script>
 <script src="settings.js?v=6"></script>
 <script src="reviews.js?v=4"></script>
 <script src="forum.js?v=6"></script>
-<script src="challenges.js?v=2"></script>
+<script src="challenges.js?v=3"></script>
 <script src="wiki.js?v=3"></script>
 <script src="achievements.js?v=1"></script>
 <script src="scroll.js?v=1"></script>
-<script src="litter.js?v=34"></script>
+<script src="litter.js?v=35"></script>
 </body>
 </html>

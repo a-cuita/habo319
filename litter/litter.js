@@ -800,6 +800,12 @@
   var challenges = window.LitterChallenges({
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
     closePanel: function () { panel(false); },
+    // A Quest's segments on the map; its skill's Challenge opens Skills; a skill's pending pin (S6-P8).
+    openMap: function (cells) { mapper.open({ focus: cells, back: function () { show('v-quests'); } }); },
+    openSkills: function (find) { collect.openSkills(find); },
+    closeSkills: function () { collect.closeSkills(); },
+    // On the map in view: the collecting screen's, or the main page's.
+    pendingPin: function (lat, lon, label) { if (!collect.pendingPin(lat, lon, label)) mapper.pendingPin(lat, lon, label); else mapper.pendingPin(null); },
     back: function () { showAccount(state.account); }
   });
 

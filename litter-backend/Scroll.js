@@ -68,15 +68,14 @@ function xpEventsAll_() {
   var items = challengeItemsAll_(), names = {};
   toolSkillsAll_().forEach(function (s) { names[s.id] = s.name; });
   items.forEach(function (it) { if (it.state === 'Approved') add(it.account, it.sent, it.xp, (names[it.skill] || 'a skill') + ', sent and approved'); });
-  var challenges = challengesAll_();
-  if (challenges.length) {
+  // Each Challenge's XP so far, and each Quest's finishing bonus: at the last
+  // thing the player did in its dates.
+  if (challengesAll_().length) {
     readAccounts_().forEach(function (a) {
-      challenges.forEach(function (c) {
-        var got = c.kind === 'Walk goal' ? walkGoal_(c, a.id) : skillGoal_(c, a.id, items);
-        if (!got.xp) return;
-        var at = Math.min(Date.now(), c.to ? c.to + DAY_MS - 1 : Date.now());
-        (out[a.id] || []).forEach(function (e) { if (e.at >= (c.from || 0) && e.at <= at) at = Math.max(c.from || 0, e.at); });
-        add(a.id, at, got.xp, 'the Challenge "' + c.name + '"');
+      challengeGains_(a.id, items).forEach(function (g) {
+        var end = Math.min(Date.now(), g.to ? g.to + DAY_MS - 1 : Date.now()), at = g.from || end;
+        (out[a.id] || []).forEach(function (e) { if (e.at >= (g.from || 0) && e.at <= end && e.at > at) at = e.at; });
+        add(a.id, at, g.xp, g.say);
       });
     });
   }

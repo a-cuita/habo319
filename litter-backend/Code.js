@@ -230,9 +230,16 @@ var TABS = {
   challenges: {
     name: 'Challenges',
     header: ['Challenge ID', 'Name', 'Says', 'Why', 'Kind', 'Actions', 'Near a segment (m)', 'XP each', 'XP near a segment', 'Miles goal', 'Different segments',
-      'XP per 0.01 mi', 'Finishing multiplier', 'From', 'To', 'Opens at level', 'State', 'Made by', 'Made', 'Skill', 'Goal (approved)', 'XP for each one'],
-    widths: [90, 160, 320, 260, 80, 140, 80, 60, 80, 70, 80, 70, 80, 100, 100, 70, 70, 100, 150, 80, 80, 80],
+      'XP per 0.01 mi', 'Finishing multiplier', 'From', 'To', 'Opens at level', 'State', 'Made by', 'Made', 'Skill', 'Goal (approved)', 'XP for each one', 'Quest'],
+    widths: [90, 160, 320, 260, 80, 140, 80, 60, 80, 70, 80, 70, 80, 100, 100, 70, 70, 100, 150, 80, 80, 80, 80],
     formats: { 3: '@', 4: '@', 14: 'yyyy-mm-dd', 15: 'yyyy-mm-dd', 19: 'yyyy-mm-dd h:mm' }
+  },
+  // The Quest Drafting Bench (S6-P8, |M895): each Quest, its segments and its finishing bonus; its Challenges are in Challenges.
+  questBench: {
+    name: 'Quest Bench',
+    header: ['Quest ID', 'Name', 'Says', 'From', 'To', 'Segments', 'Finishing bonus (XP)', 'State', 'A test', 'Made by', 'Made'],
+    widths: [80, 180, 320, 100, 100, 220, 90, 70, 60, 100, 150],
+    formats: { 3: '@', 4: 'yyyy-mm-dd', 5: 'yyyy-mm-dd', 6: '@', 11: 'yyyy-mm-dd h:mm' }
   },
   // Litter Class Skills built from the toolbox (S6-P8's rework, Jeremy's answers in chat, Nov 6).
   toolSkills: {
@@ -332,6 +339,8 @@ function actions_() {
     challengesAdmin: challengesAdmin_,
     challengeSave: challengeSave_,
     challengeRetire: challengeRetire_,
+    questSave: questSave_,     // the Quest Drafting Bench (S6-P8)
+    questState: questState_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,
     wikiDraft: wikiDraft_,
@@ -530,6 +539,7 @@ function ensureSchema_(force) {
     fieldsAreaOnce_();
     challengesOnce_();
     toolSkillsOnce_();
+    questBenchOnce_();
     wikiOnce_();
     wikiSectionsOnce_();
     achievementsOnce_();

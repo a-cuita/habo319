@@ -1096,5 +1096,15 @@ window.LitterMap = function (app) {
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape') { closeModal(); closeMenus(); } });
   document.addEventListener('click', function (e) { if (!(e.target.closest && e.target.closest('.lt-seg-more-wrap'))) closeMenus(); });
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps };
+  // A skill's place, captured and waiting to be sent (S6-P8, |Q668): a pending pin on this map, when it's the one in view.
+  var pending = null;
+  function pendingPin(lat, lon, label) {
+    if (pending) { pending.remove(); pending = null; }
+    if (lat == null || !map || !map.getContainer().offsetParent) return false;
+    pending = L.marker([lat, lon], { icon: L.divIcon({ className: 'lt-pending-pin', html: '<span>📍</span>', iconSize: [30, 30], iconAnchor: [15, 28] }), title: (label || 'A place') + ', waiting to be sent' }).addTo(map);
+    map.panTo([lat, lon]);
+    return true;
+  }
+
+  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps, pendingPin: pendingPin };
 };

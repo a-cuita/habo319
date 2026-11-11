@@ -29,7 +29,7 @@ window.LitterCollect = function (app) {
   // go, unless it holds litter pulses that haven't reached HABO.
   if (c && c.grid !== 160 && !(c.queue && c.queue.length)) { c = null; keep(KEY, null); }
   var streets = null, streetsBox = null;
-  var map = null, layers = null;
+  var map = null, layers = null, pendingPin = null;
   var pulse = null;             // the litter pulse being filled in
   var summary = null;           // the summary after End
   var GPX_SAY = $('sm-gpx-say').textContent;
@@ -2739,8 +2739,8 @@ window.LitterCollect = function (app) {
   $('cl-chooser').addEventListener('click', function (e) { if (e.target === $('cl-chooser')) closeChooser(); });
   $('cl-plan-btn').addEventListener('click', openPlan);
   // The Litter Class Skills sheet (S5-P29, |C837): opened from the top panel, closed with ×.
-  function skillsSheet(open) {
-    if (open) showSkills();
+  function skillsSheet(open, find) {
+    if (open) { $('skills-search').value = find || ''; showSkills(); }
     $('skills-sheet').hidden = !open;
     document.body.classList.toggle('lt-sheet-open', open);
     if (open && app.onSkillsShown) app.onSkillsShown(true);   // and loaded fresh
@@ -2848,6 +2848,17 @@ window.LitterCollect = function (app) {
     openPast: openPast,
     // Litter Class Skills (S5-P29), for the Segments screen's Submit as Public Segment.
     skill: skill, gate: gate,
+    // The Skills sheet, opened at a skill (S6-P8: a Quest's Challenge), or closed for a skill's steps.
+    openSkills: function (find) { skillsSheet(true, find); },
+    closeSkills: function () { skillsSheet(false); },
+    // A skill's place, captured and waiting to be sent: a pending pin on the map behind (|Q668).
+    pendingPin: function (lat, lon, label) {
+      if (pendingPin) { pendingPin.remove(); pendingPin = null; }
+      if (lat == null || !map || !map.getContainer().offsetParent) return false;
+      pendingPin = L.marker([lat, lon], { icon: L.divIcon({ className: 'lt-pending-pin', html: '<span>📍</span>', iconSize: [30, 30], iconAnchor: [15, 28] }), title: (label || 'A place') + ', waiting to be sent' }).addTo(map);
+      map.panTo([lat, lon]);
+      return true;
+    },
     // Opening the page with a collection still going: back to it (Q282). One
     // left alone past its hours is ended where its last stretch did (Q303).
     resume: function () {
