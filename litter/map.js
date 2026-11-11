@@ -234,6 +234,13 @@ window.LitterMap = function (app) {
     t.appendChild(tr);
     return t;
   }
+  // A walk that collected a segment gives all of it its reading, whether or
+  // not its track crossed the square tapped (S6-P15, |M998): a square it
+  // missed reads as the rest of the segment did on that walk.
+  function segReading(w, g) {
+    var v = g.squares.map(function (c) { return w.idx ? w.idx[c] : null; }).filter(function (n) { return n != null; });
+    return v.length ? v.reduce(function (a, b) { return a + Number(b); }, 0) / v.length : null;
+  }
   function walksTable(g, cell) {
     var index = cell != null, walks = g.walks || [];
     if (!walks.length) return null;
@@ -243,7 +250,8 @@ window.LitterMap = function (app) {
     t.appendChild(head);
     walks.forEach(function (w) {
       var tr = el('tr', 'lt-pop-walk');
-      var v = index ? (w.idx && w.idx[cell] != null ? Number(w.idx[cell]).toFixed(1) : '—') : String(round(w.rate, 2));
+      var own = index && w.idx ? w.idx[cell] : null, seg = index && own == null ? segReading(w, g) : null;
+      var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : String(round(w.rate, 2));
       [dayWords(w.collected), w.by, v].forEach(function (x) { tr.appendChild(el('td', null, x)); });
       t.appendChild(tr);
     });
