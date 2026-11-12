@@ -567,6 +567,7 @@ function ensureSchema_(force) {
     wikiOnce_();
     wikiSectionsOnce_();
     achievementsOnce_();
+    squaresPackOnce_();   // last: after the regrids, which read squares as they were (S6-P1)
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);

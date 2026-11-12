@@ -41,7 +41,7 @@ function additionAsk_(req) {
     var id = nextId_('AD', additionsAll_().map(function (a) { return a.id; }));
     var row = blankRow_(TABS.additions);
     row[ADDITION_COL.id - 1] = id; row[ADDITION_COL.segment - 1] = g.id; row[ADDITION_COL.by - 1] = account.id; row[ADDITION_COL.asked - 1] = new Date();
-    row[ADDITION_COL.squares - 1] = cells.join(' '); row[ADDITION_COL.miles - 1] = miles; row[ADDITION_COL.note - 1] = note; row[ADDITION_COL.state - 1] = 'Waiting';
+    row[ADDITION_COL.squares - 1] = squaresPack_(cells.join(' ')); row[ADDITION_COL.miles - 1] = miles; row[ADDITION_COL.note - 1] = note; row[ADDITION_COL.state - 1] = 'Waiting';
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, row.length).setValues([row]);
     logChange_(account.email, 'Segment addition', id, 'Asked', '', cells.length + ' squares for ' + g.id);
     return { id: id, segment: g.name };
@@ -202,7 +202,7 @@ function additionMove_(account, id, kind, move, xp, note) {
         var g = segmentsAll_().filter(function (x) { return x.id === a.segment; })[0];
         if (!g) throw new Error('Its segment isn\'t here any more.');
         var squares = addedSquares_(g, a.squares), segs = getDb_().getSheetByName(TABS.segments.name);
-        segs.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(squares.join(' '));
+        segs.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(squaresPack_(squares.join(' ')));
         // Its miles by the one rule, with the ground added (S6-U25 item 3, |Q723 (a)).
         var miles = round_(segmentMiles_({ id: g.id + '+' + a.id, squares: squares, outline: g.outline }, segmentRules_()), 2);
         segs.getRange(g.row, SEGMENT_COL.miles).setValue(miles);

@@ -73,7 +73,7 @@ function planSave_(req) {
     row[PLAN_COL.account - 1] = account.id;
     row[PLAN_COL.created - 1] = now;
     row[PLAN_COL.stretches - 1] = list.length;
-    row[PLAN_COL.cells - 1] = list.map(function (s) { return s.cells.join(' '); }).join(' / ');
+    row[PLAN_COL.cells - 1] = squaresPack_(list.map(function (s) { return s.cells.join(' '); }).join(' / '));
     row[PLAN_COL.turns - 1] = list.map(function (s) { return s.turns.join(' '); }).join(' / ');
     row[PLAN_COL.miles - 1] = round_(miles, 2);
     row[PLAN_COL.updated - 1] = now;

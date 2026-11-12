@@ -184,7 +184,7 @@ function collectStretch_(req) {
     var id = nextId_('S', readRows_(TABS.stretches).map(function (q) { return q.values[0]; }));
     var put = function (k, v) { row[STRETCH_COL[k] - 1] = v; };
     put('id', id); put('collection', col.id); put('account', account.id); put('n', x.n);
-    put('started', new Date(x.started)); put('ended', new Date(x.ended)); put('cells', x.cells.join(' '));
+    put('started', new Date(x.started)); put('ended', new Date(x.ended)); put('cells', squaresPack_(x.cells.join(' ')));
     put('streetMi', round_(x.streetMi, 3)); put('offMi', round_(x.offMi, 3)); put('activeMin', round_(x.activeMin, 1));
     put('pausedMin', round_(x.pausedMin, 1)); put('breakMin', round_(x.breakMin, 1)); put('breakWhere', x.breakWhere);
     put('scale', x.scale === '' ? '' : x.scale); put('newBag', x.newBag ? 'Yes' : ''); put('pounds', x.pounds === '' ? '' : round_(x.pounds, 2));
@@ -274,7 +274,7 @@ function collectFix_(req) {
     var set = function (k, label, v) {
       var before = r.get(k);
       if (String(before) === String(v)) return;
-      sheet.getRange(r.row, STRETCH_COL[k]).setValue(v);
+      sheet.getRange(r.row, STRETCH_COL[k]).setValue(k === 'cells' ? squaresPack_(v) : v);
       logChange_(who, 'Fixed', item, label, before, v);
     };
     // Discard this stretch, with its reason (S3-P27, Q399, Q422): it keeps
@@ -451,7 +451,13 @@ function readRows_(tab, colMap) {
     tab === TABS.segments ? SEGMENT_COL : tab === TABS.rates ? RATE_COL : TYPE_COL);
   // Read once per request (S6-P1, tabValues_ in Code.js).
   return tabValues_(tab).map(function (values, i) {
-    return { row: i + 2, values: values, get: function (k) { var v = values[cols[k] - 1]; return v instanceof Date ? v : String(v == null ? '' : v).trim(); } };
+    return { row: i + 2, values: values, get: function (k) {
+      var v = values[cols[k] - 1];
+      if (v instanceof Date) return v;
+      v = String(v == null ? '' : v).trim();
+      // Squares written compactly, read back as the plain list (S6-P1, Squares.js).
+      return (k === 'cells' || k === 'squares') && v.indexOf('~') !== -1 ? squaresUnpack_(v) : v;
+    } };
   }).filter(function (r) { return String(r.values[0]).trim(); });
 }
 
@@ -506,7 +512,8 @@ function collectCheckins_(req) {
 
 // A kept track, "lat,lon;lat,lon;…", as points.
 function parseTrack_(v) {
-  return String(v || '').split(';').map(function (p) { var a = p.split(','); return a[2] === 'p' ? [Number(a[0]), Number(a[1]), 1] : [Number(a[0]), Number(a[1])]; })
+  // Written compactly, or as before (S6-P1, Squares.js).
+  return trackUnpack_(v).split(';').map(function (p) { var a = p.split(','); return a[2] === 'p' ? [Number(a[0]), Number(a[1]), 1] : [Number(a[0]), Number(a[1])]; })
     .filter(function (p) { return isFinite(p[0]) && isFinite(p[1]) && p[0] !== 0; });
 }
 
@@ -529,7 +536,7 @@ function collectTrack_(req) {
     if (pts.length > 2000) throw new Error('That track has too many points to keep.');
     // A point inside a pause is marked, so it's drawn faded (S5-P1, Q507).
     var text = pts.map(function (p) { return Number(p[0]).toFixed(5) + ',' + Number(p[1]).toFixed(5) + (p[2] ? ',p' : ''); }).join(';');
-    getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.track).setValue(text);
+    getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.track).setValue(trackPack_(text));
     // The track is the path (S5, Oct 29): each weighing's cells and miles
     // walked, as the page worked them out from the track, and its reading again.
     var list = Array.isArray(req.weighings) ? req.weighings.slice(0, 500) : [];
@@ -542,7 +549,7 @@ function collectTrack_(req) {
         var cells = cleanCells_(w.cells);
         if (!cells.length) return;
         var miles = round_(milesValue_(w.miles), 3);
-        sheet.getRange(r.row, STRETCH_COL.cells).setValue(cells.join(' '));
+        sheet.getRange(r.row, STRETCH_COL.cells).setValue(squaresPack_(cells.join(' ')));
         sheet.getRange(r.row, STRETCH_COL.streetMi, 1, 2).setValues([[miles, 0]]);
         sheet.getRange(r.row, STRETCH_COL.track).setValue('Yes');
         var lbs = r.get('pounds') === '' ? null : Number(r.get('pounds'));

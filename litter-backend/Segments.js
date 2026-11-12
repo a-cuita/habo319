@@ -118,7 +118,7 @@ function segmentPropose_(req) {
     row[SEGMENT_COL.by - 1] = account.id;
     row[SEGMENT_COL.proposed - 1] = new Date();
     row[SEGMENT_COL.plan - 1] = plan.id;
-    row[SEGMENT_COL.squares - 1] = squares.join(' ');
+    row[SEGMENT_COL.squares - 1] = squaresPack_(squares.join(' '));
     row[SEGMENT_COL.miles - 1] = round_(miles, 2);
     row[SEGMENT_COL.kind - 1] = kind;
     row[SEGMENT_COL.outline - 1] = corners.length ? outlineText_(corners) : '';
@@ -545,7 +545,7 @@ function fieldOutline_(req) {
     if (!g || g.kind !== 'Field') throw new Error('That isn\'t a field, or isn\'t here any more.');
     var ground = fieldGround_({ outline: corners, squares: [] }, segmentRules_());
     var sheet = getDb_().getSheetByName(TABS.segments.name);
-    sheet.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(Object.keys(ground.cells).join(' '));
+    sheet.getRange(g.row, SEGMENT_COL.squares).setNumberFormat('@').setValue(squaresPack_(Object.keys(ground.cells).join(' ')));
     sheet.getRange(g.row, SEGMENT_COL.miles).setValue(round_(ground.miles, 2));
     sheet.getRange(g.row, SEGMENT_COL.outline).setNumberFormat('@').setValue(outlineText_(corners));
     logChange_(account.email, 'Segment', g.id, 'Outline', g.outline.length ? g.outline.length + ' corners' : g.squares.length + ' squares', corners.length + ' corners');
