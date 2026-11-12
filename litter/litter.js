@@ -32,7 +32,9 @@
     // S6's screens that only read (S6-P2 round 2, |M890).
     'challengesLoad', 'challengesAdmin', 'toolSkillsLoad', 'toolSkillsAdmin', 'achievementsAdmin', 'wikiLoad', 'challengePhoto',
     // The rolling history only reads (S6-P3).
-    'scroll'];
+    'scroll',
+    // Cleanups, read for the list and your cleanup today (S6-P27).
+    'cleanupsLoad'];
   var changedAt = Date.now();
   function marks(action, d) {
     // Badges only reads, unless it just earned one: that changes your XP.
@@ -82,7 +84,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-cleanups', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -707,6 +709,7 @@
     show('v-account');
     collect.onAccount(quick);
     if (!quick) mapper.showMine();
+    if (!quick) cleanups.onAccount();   // your cleanup today (S6-P27)
     mapper.inline(quick);
   }
 
@@ -850,6 +853,15 @@
       var v = VIEWS.filter(function (x) { return !$(x).hidden; })[0], y = window.scrollY;
       return v ? function () { show(v); window.scrollTo(0, y); } : null;
     }
+  });
+
+  /* ── Team mode: cleanups (S6-P27, cleanups.js) ── */
+
+  var cleanups = window.LitterCleanups({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
   });
 
   /* ── The admins' forum, and players' reports (S5-P28, forum.js) ── */

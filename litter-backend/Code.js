@@ -260,6 +260,31 @@ var TABS = {
     widths: [90, 90, 90, 150, 420, 60, 300, 90],
     formats: { 1: '@', 2: '@', 4: 'yyyy-mm-dd h:mm', 5: '@', 7: '@' }
   },
+  // Team mode (S6-P27): cleanups, their teams, who's in which and on which segment, and the day's check-ins.
+  cleanups: {
+    name: 'Cleanups',
+    header: ['Cleanup ID', 'Name', 'Day', 'Starts', 'Ends', 'Segments', 'Teams register until', 'State', 'Made by', 'Made'],
+    widths: [90, 200, 100, 70, 70, 220, 150, 70, 100, 150],
+    formats: { 3: '@', 4: '@', 5: '@', 6: '@', 7: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
+  },
+  cleanupTeams: {
+    name: 'Cleanup teams',
+    header: ['Team ID', 'Cleanup ID', 'Name', 'Leaders', 'Registered by', 'Registered'],
+    widths: [80, 90, 180, 200, 100, 150],
+    formats: { 3: '@', 4: '@', 6: 'yyyy-mm-dd h:mm' }
+  },
+  cleanupPeople: {
+    name: 'Cleanup people',
+    header: ['Cleanup ID', 'Account ID', 'Team ID', 'Segment', 'Joined'],
+    widths: [90, 90, 80, 90, 150],
+    formats: { 5: 'yyyy-mm-dd h:mm' }
+  },
+  cleanupCheckins: {
+    name: 'Cleanup check-ins',
+    header: ['Check-in ID', 'Cleanup ID', 'Team ID', 'Segment ID', 'Checked in by', 'In', 'Out', 'There', 'Pounds', 'Collection ID'],
+    widths: [90, 90, 80, 90, 100, 150, 150, 220, 70, 100],
+    formats: { 6: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 8: '@' }
+  },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
     name: 'Changes',
@@ -340,6 +365,15 @@ function actions_() {
     challengeSave: challengeSave_,
     challengeRetire: challengeRetire_,
     questSave: questSave_,     // the Quest Drafting Bench (S6-P8)
+    // Team mode (S6-P27).
+    cleanupsLoad: cleanupsLoad_,
+    cleanupSave: cleanupSave_,
+    cleanupRetire: cleanupRetire_,
+    cleanupRegister: cleanupRegister_,
+    cleanupJoin: cleanupJoin_,
+    cleanupAssign: cleanupAssign_,
+    cleanupCheckIn: cleanupCheckIn_,
+    cleanupCheckOut: cleanupCheckOut_,
     questState: questState_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,
