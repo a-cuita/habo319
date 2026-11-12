@@ -285,14 +285,20 @@ window.LitterWiki = function (app) {
   }
 
   // A ℹ️'s link to its page; ← comes back to where it was pressed.
-  function link(which) {
-    var b = el('button', 'link-btn lt-wiki-link', 'Read more in the Wiki');
+  // A page found by its title, for one added after the first ones (S6-P34: Temporal confidence).
+  var TITLES = { confidence: 'Temporal confidence' };
+  function link(which, label) {
+    var b = el('button', 'link-btn lt-wiki-link', label || 'Read more in the Wiki');
     b.type = 'button';
     b.addEventListener('click', function (e) {
       e.stopPropagation();
       var from = app.here ? app.here() : null;
       if (app.closePanel) app.closePanel();
-      openPage(PAGES[which], from);
+      if (!TITLES[which]) return openPage(PAGES[which], from);
+      load().then(function (d) {
+        var p = d.pages.filter(function (x) { return x.title.toLowerCase() === TITLES[which].toLowerCase(); })[0];
+        openPage(p ? p.id : '', from);
+      }, function (err) { app.notice(err.message); });
     });
     return b;
   }

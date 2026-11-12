@@ -47,7 +47,7 @@ function lastCarrying_(accountId) {
 }
 var STRETCH_COL = { id: 1, collection: 2, account: 3, n: 4, started: 5, ended: 6, cells: 7, streetMi: 8, offMi: 9, activeMin: 10,
   pausedMin: 11, breakMin: 12, breakWhere: 13, scale: 14, newBag: 15, pounds: 16, cpue: 17, index: 18, types: 19, rating: 20,
-  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29 };
+  discarded: 21, pastSunset: 22, track: 23, received: 24, key: 25, asked: 26, turns: 27, reason: 28, pulseCell: 29, noReading: 30 };
 // The reasons Discard this stretch offers on the summary (S3-P27, Q422).
 var DISCARD_REASONS = ['Entered in error', 'I wasn\'t looking for litter', 'I couldn\'t weigh it right', 'Litter from somewhere else is in the bag'];
 // A discard's reason, as given: one of the list, or Other in a few words.
@@ -552,11 +552,22 @@ function collectTrack_(req) {
         sheet.getRange(r.row, STRETCH_COL.cells).setValue(squaresPack_(cells.join(' ')));
         sheet.getRange(r.row, STRETCH_COL.streetMi, 1, 2).setValues([[miles, 0]]);
         sheet.getRange(r.row, STRETCH_COL.track).setValue('Yes');
+        sheet.getRange(r.row, STRETCH_COL.noReading).setValue('');
         var lbs = r.get('pounds') === '' ? null : Number(r.get('pounds'));
         var rd = lbs == null ? { cpue: null, index: null } : LitterGeo.reading(lbs, miles * LitterGeo.MILE_M, Number(r.get('activeMin')));
         sheet.getRange(r.row, STRETCH_COL.cpue, 1, 2).setValues([[rd.cpue == null ? '' : round_(rd.cpue, 3), rd.index == null ? '' : round_(rd.index, 3)]]);
       });
       retotal_(col.id);
+    }
+    // A weighing the track misses (S6-P10, |Q709 (a)): why it has no reading, for Your collections.
+    var missed = Array.isArray(req.short) ? req.short.slice(0, 500) : [];
+    if (missed.length) {
+      var ssheet = getDb_().getSheetByName(TABS.stretches.name);
+      var mine = readRows_(TABS.stretches).filter(function (q) { return q.get('collection') === col.id; });
+      missed.forEach(function (m) {
+        var r = mine.filter(function (q) { return q.get('id') === clean_(m && m.id, 20); })[0];
+        if (r && r.get('discarded') !== 'Yes') ssheet.getRange(r.row, STRETCH_COL.noReading).setValue(safeCell_(clean_(m.why, 200)));
+      });
     }
     setPlanXp_(col.id);   // XP comes with the GPX track
     measureRates_(col.id);   // and a rate for each due segment it collected (S5-P3)
@@ -586,7 +597,8 @@ function stretchOf_(q) {
     rating: q.get('rating') === '' ? null : Number(q.get('rating')), discarded: q.get('discarded') === 'Yes', pastSunset: q.get('pastSunset') === 'Yes',
     newBag: q.get('newBag') === 'Yes', track: q.get('track') === 'Yes', key: q.get('key'), scale: q.get('scale') === '' ? null : Number(q.get('scale')),
     pausedMin: Number(q.get('pausedMin')) || 0, breakMin: Number(q.get('breakMin')) || 0, breakWhere: q.get('breakWhere'), asked: q.get('asked') === 'Asked',
-    turns: String(q.get('turns')).split(/\s+/).filter(String), reason: String(q.get('reason') || ''), pulseCell: String(q.get('pulseCell') || '') };
+    turns: String(q.get('turns')).split(/\s+/).filter(String), reason: String(q.get('reason') || ''), pulseCell: String(q.get('pulseCell') || ''),
+    noReading: String(q.get('noReading') || '') };   // why the GPX track gave it none (S6-P10)
 }
 
 function stretchView_(q) { return stretchViewOf_(stretchesOf_(q.get('collection')).filter(function (s) { return s.id === q.get('id'); })[0]); }

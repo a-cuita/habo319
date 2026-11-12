@@ -209,7 +209,16 @@ window.LitterMap = function (app) {
     // Fewer words (S5-P10, |C850): the walks behind the rate are in the table under it.
     var rate = g.rate == null && g.median == null ? 'no rate yet' : g.shows === 'Both' ? 'median ' + round(g.median, 2) + ', average ' + round(g.average, 2) + ' lb/mi·day⁻¹'
       : round(g.rate, 2) + ' lb/mi·day⁻¹ ' + g.shows.toLowerCase();
-    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + ' · ' + g.confidence + (ARROWS[g.arrow] || '') + (g.due ? ' · Due' : '');
+    // Its confidence goes on a line of its own (S6-P34, |C963): confidenceLine.
+    return g.name + (g.kind === 'Field' ? ' (field)' : '') + ': ' + rate + (g.due ? ' · Due' : '');
+  }
+  // "Temporal confidence: Moderate ↑", its words a link to their Wiki page (|C963).
+  function confidenceLine(g, cls) {
+    var d = el('div', cls || 'lt-pop-conf');
+    if (app.wikiLink) d.appendChild(app.wikiLink('confidence', 'Temporal confidence'));
+    else d.appendChild(document.createTextNode('Temporal confidence'));
+    d.appendChild(document.createTextNode(': ' + g.confidence + (ARROWS[g.arrow] || '')));
+    return d;
   }
   // Partly cleaned (Q532): "Partial (NE): 60% of this segment was cleaned 4 days ago".
   function partialLines(g) {
@@ -284,6 +293,7 @@ window.LitterMap = function (app) {
         box.appendChild(el('strong', null, 'Litter Index'));
         segmentsAt(x[0]).forEach(function (g) {
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          box.appendChild(confidenceLine(g));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           var tb = walksTable(g, x[0]);
           if (tb) { box.appendChild(tb); tables++; }
@@ -308,6 +318,7 @@ window.LitterMap = function (app) {
           var box = el('div', 'lt-pop');
           box.appendChild(el('strong', null, 'Accumulation rate'));
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
+          box.appendChild(confidenceLine(g));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
           var tb = walksTable(g, null);
@@ -542,7 +553,7 @@ window.LitterMap = function (app) {
       var sw = el('span', 'lt-swatch' + (s.index == null ? ' none' : ''));
       if (s.index != null) sw.style.background = G.indexColour(s.index, scale());
       li.appendChild(sw);
-      li.appendChild(document.createTextNode('Weighing ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? 'no reading' : 'Litter Index ' + round(s.index, 1)) +
+      li.appendChild(document.createTextNode('Weighing ' + s.n + ': ' + (s.discarded ? 'discarded, no reading' : s.index == null ? (s.noReading ? 'No Litter Index: ' + s.noReading : 'no reading') : 'Litter Index ' + round(s.index, 1)) +
         (s.rating == null ? '' : ' · Visual rating ' + s.rating)));
       ul.appendChild(li);
     });
@@ -606,7 +617,7 @@ window.LitterMap = function (app) {
         // Each segment it collected, with its rate, for the picture's rate colours (S6-P5, |M1048).
         var on = {};
         (c.stretchList || []).forEach(function (st) { if (!st.discarded) (st.cells || []).forEach(function (x) { on[x] = true; }); });
-        var segRates = realSegs.filter(function (g) { return g.rate != null && g.squares.some(function (x) { return on[x]; }); }).map(function (g) { return { cells: g.squares, rate: g.rate }; });
+        var segRates = realSegs.filter(function (g) { return g.squares.some(function (x) { return on[x]; }); }).map(function (g) { return { cells: g.squares, rate: g.rate == null ? null : g.rate }; });
         window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
           handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours, segRates: segRates })
           .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
@@ -1154,6 +1165,7 @@ window.LitterMap = function (app) {
       if (aloneMult(g) > 1 && !(need === 'due' && timeMult(g) >= aloneMult(g))) more.appendChild(el('p', 'small', (g.alone == null ? 'Nobody has collected any of it yet' : 'Nobody has collected any of it in ' + Math.floor(g.alone) + ' days')
         + ', so a walk that collects it now earns the left-alone bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
       more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
+      more.appendChild(confidenceLine(g, 'small lt-pop-conf'));
       if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
       partialLines(g).forEach(function (t) { more.appendChild(el('p', 'lt-plan-seg', t)); });
       // How the rate is worked out, in the Wiki (S6-P9, |Q665 (a)).

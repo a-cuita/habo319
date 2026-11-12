@@ -773,3 +773,8 @@ body.lt-set-bg-open { background: #4a0d1c; }
 .lt-cu-today { border: 2px solid #15803d; }
 #cu-in-list .choice-row { margin: 6px 0; }
 .lt-cu-mini { height: 110px; margin-top: 8px; border-radius: 8px; overflow: hidden; pointer-events: none; }
+/* A segment's temporal confidence, on a line of its own (S6-P34, |C963). */
+.lt-pop-conf { margin: 2px 0 4px; }
+.lt-pop-conf .lt-wiki-link { margin-top: 0; padding: 0; font: inherit; }
+/* The same reading as last time (S6-U33 item 3). */
+.lt-pf-same { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: #ecfdf5; border: 1px solid #15803d; font-size: 0.95em; }

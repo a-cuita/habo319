@@ -277,3 +277,35 @@ function wikiSectionsOnce_() {
   });
   props.setProperty('WIKI_SECTIONS_SEEDED', new Date().toISOString());
 }
+
+// Temporal confidence (S6-P34, |C963): a page of its own, linked from a
+// square's pop-up. Added once, in Measuring, after the rate's page; never
+// over a page of that title an admin has made.
+var WIKI_CONFIDENCE_TITLE = 'Temporal confidence';
+var WIKI_CONFIDENCE_TEXT = [
+  'A segment\'s temporal confidence says how far to trust its accumulation rate right now: how many rates it has from recent days.',
+  '',
+  '- No recent rate: none in the window (60 days to start, a setting).',
+  '- Low: 1 or 2 rates in the window.',
+  '- Moderate: 3 to 5.',
+  '- Established: 6 or more.',
+  '',
+  'The arrow compares that count with the count two weeks ago, over a window as long: ↑ more rates now, ↓ fewer, → the same.',
+  '',
+  'The window, the counts and the names are settings, in Admin Mode\'s Settings, Rates.'].join('\n');
+function wikiConfidenceOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('WIKI_CONFIDENCE')) return;
+  var sheet = getDb_().getSheetByName(TABS.wiki.name);
+  var have = readRows_(TABS.wiki, WIKI_COL);
+  if (!have.some(function (r) { return String(r.get('title')).toLowerCase() === WIKI_CONFIDENCE_TITLE.toLowerCase(); })) {
+    var now = new Date(), row = blankRow_(TABS.wiki);
+    row[WIKI_COL.id - 1] = nextId_('W', have.map(function (r) { return r.get('id'); }));
+    row[WIKI_COL.title - 1] = WIKI_CONFIDENCE_TITLE; row[WIKI_COL.text - 1] = WIKI_CONFIDENCE_TEXT; row[WIKI_COL.state - 1] = 'Live';
+    row[WIKI_COL.by - 1] = 'HABO'; row[WIKI_COL.drafted - 1] = now; row[WIKI_COL.live - 1] = now;
+    row[WIKI_COL.section - 1] = 'WS003'; row[WIKI_COL.place - 1] = 3;
+    sheet.getRange(lastRowWith_(sheet, WIKI_COL.id) + 1, 1, 1, row.length).setValues([row]);
+    forgetReads_();
+  }
+  props.setProperty('WIKI_CONFIDENCE', new Date().toISOString());
+}

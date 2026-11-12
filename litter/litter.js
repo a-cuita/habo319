@@ -884,7 +884,7 @@
     showStart: function () { if (state.account) showAccount(state.account); else show('v-welcome'); },
     openSummary: function (id, button) { collect.openPast(id, button); },
     levelNow: function () { return collect.levelNow(); },
-    wikiLink: function (which) { return wiki.link(which); },
+    wikiLink: function (which, label) { return wiki.link(which, label); },
     planLabel: planLabel,
     pickedPlanCells: function () { return collect.pickedCells(); },
     onPlans: function (d) { collect.onPlans(d); },

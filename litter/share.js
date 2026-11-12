@@ -89,8 +89,8 @@ window.LitterShare = (function () {
       // In rate mode (|M1048), each segment the walk collected, in its
       // accumulation rate's colour; else each weighing's squares, in its Litter Index colour.
       if (rateMode(look)) (walk.segRates || []).forEach(function (g) {
-        if (g.rate == null) return;
-        ctx.fillStyle = G.indexColour(Math.min(10, g.rate / (look.rateTop || 5) * 10), walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
+        // A segment with no rate yet, grey (S6-P5, |M1069 item 2).
+        ctx.fillStyle = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / (look.rateTop || 5) * 10), walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a']);
         ctx.globalAlpha = 0.6;
         (g.cells || []).forEach(function (cell) {
           var q = G.cellBounds(cell), p1 = at(q[1][0], q[0][1]), p2 = at(q[0][0], q[1][1]);
@@ -125,7 +125,7 @@ window.LitterShare = (function () {
       ctx.fillRect(W - cw - 24, MAP_H - 38, cw + 24, 38);
       ctx.fillStyle = '#374151';
       ctx.fillText(credit, W - cw - 12, MAP_H - 12);
-      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H, look);
+      if (look.scale) drawScale(ctx, walk.colours || ['#2c7bb6', '#f6e8c3', '#8c510a'], MAP_H, look, (walk.segRates || []).some(function (g) { return g.rate == null; }));
       return drawn > 0;
     });
   }
@@ -133,9 +133,9 @@ window.LitterShare = (function () {
   // The scale (Jeremy, Nov 6: "can we get the scale of the measurement in
   // the image?"; "agree" to the Litter Index, 0 to 10): the map's colours as
   // a bar, in the map's bottom-left corner.
-  function drawScale(ctx, colours, MAP_H, look) {
-    var rate = rateMode(look || current), top = (look || current).rateTop || 5;
-    var x = 24, w = 420, h = 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
+  function drawScale(ctx, colours, MAP_H, look, someGrey) {
+    var rate = rateMode(look || current), top = (look || current).rateTop || 5, grey = rate && someGrey;
+    var x = 24, w = 420, h = grey ? 140 : 104, y = MAP_H - h - 20, bx = x + 20, bw = w - 40, by = y + 44, bh = 22;
     ctx.fillStyle = 'rgba(255,255,255,0.88)';
     roundRect(ctx, x, y, w, h, 14); ctx.fill();
     ctx.fillStyle = '#111827';
@@ -153,6 +153,10 @@ window.LitterShare = (function () {
     ctx.textAlign = 'center'; ctx.fillText(rate ? String(Math.round(top / 2 * 10) / 10) : '5', bx + bw / 2, by + bh + 26);
     ctx.textAlign = 'right'; ctx.fillText(rate ? top + '+' : '10+', bx + bw, by + bh + 26);
     ctx.textAlign = 'left';
+    if (grey) {
+      ctx.fillStyle = '#9ca3af'; ctx.fillRect(bx, by + bh + 42, 22, 22);
+      ctx.fillStyle = '#374151'; ctx.fillText('Grey: no rate yet', bx + 32, by + bh + 61);
+    }
   }
 
   // A walk's Litter Index: its weighings' readings, weighted by their miles.
@@ -284,8 +288,10 @@ window.LitterShare = (function () {
     var canvas = document.createElement('canvas');
     canvas.width = W; canvas.height = H;
     var ctx = canvas.getContext('2d');
-    return drawMap(ctx, walk).then(function () {
-      drawWords(ctx, walk);
+    // The player's choices at Share, on top of Settings' (S6-P5, |Q728 (b)).
+    var L = walk.look ? Object.assign({}, current, walk.look) : undefined;
+    return drawMap(ctx, walk, L).then(function () {
+      drawWords(ctx, walk, L);
       return new Promise(function (resolve, reject) {
         try { canvas.toBlob(function (b) { if (b) resolve(b); else reject(new Error('The picture couldn\'t be made.')); }, 'image/png'); }
         catch (e) { reject(new Error('The picture couldn\'t be made.')); }
@@ -319,7 +325,39 @@ window.LitterShare = (function () {
 
   // Makes the picture, then shares it or downloads it. `walk`: { started,
   // pounds, miles, track, stretches, handle, level, colours }.
+  // Before the picture (S6-P5, |Q728 (b), |M1069): the track on or off, and
+  // what the map shows, starting from Settings, Sharing. Accumulation rate
+  // only when the walk collected a segment with a rate. Resolves with the
+  // choices, or null for Cancel.
+  function ask(walk) {
+    return new Promise(function (resolve) {
+      var hasRate = (walk.segRates || []).some(function (g) { return g.rate != null; });
+      var mk = function (tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+      var scrim = mk('div', 'lt-scrim'); scrim.id = 'sh-opts'; scrim.setAttribute('role', 'dialog'); scrim.setAttribute('aria-modal', 'true');
+      var box = mk('div', 'lt-scrim-box'); scrim.appendChild(box);
+      box.appendChild(mk('p', 'lt-scrim-title', 'Share your walk'));
+      var tl = mk('label', 'choice-row'), tc = mk('input'); tc.type = 'checkbox'; tc.id = 'sh-track'; tc.checked = current.track !== false;
+      tl.appendChild(tc); tl.appendChild(document.createTextNode(' Show the track')); box.appendChild(tl);
+      box.appendChild(mk('p', 'lt-label', 'The map shows'));
+      var radio = function (v) { var l = mk('label', 'choice-row'), r = mk('input'); r.type = 'radio'; r.name = 'sh-shows'; r.value = v; r.id = 'sh-shows-' + (v === 'Litter Index' ? 'index' : 'rate'); l.appendChild(r); l.appendChild(document.createTextNode(' ' + v)); box.appendChild(l); return r; };
+      var ri = radio('Litter Index'), rr = radio('Accumulation rate');
+      rr.disabled = !hasRate;
+      (current.mapShows === 'Accumulation rate' && hasRate ? rr : ri).checked = true;
+      if (!hasRate) box.appendChild(mk('p', 'muted small', 'None of this walk\'s segments has an accumulation rate yet, so the map shows the Litter Index.'));
+      var go = mk('button', 'btn btn-primary', 'Share'); go.type = 'button'; go.id = 'sh-go';
+      var no = mk('button', 'link-btn', 'Cancel'); no.type = 'button'; no.id = 'sh-cancel';
+      box.appendChild(go); var c = mk('div', 'center'); c.appendChild(no); box.appendChild(c);
+      var done = function (v) { scrim.remove(); resolve(v); };
+      go.addEventListener('click', function () { done({ track: tc.checked, mapShows: rr.checked && hasRate ? 'Accumulation rate' : 'Litter Index' }); });
+      no.addEventListener('click', function () { done(null); });
+      document.body.appendChild(scrim);
+    });
+  }
   function walkPicture(walk) {
+    if (!walk.look) return ask(walk).then(function (look) {
+      if (!look) return 'cancelled';
+      return walkPicture(Object.assign({}, walk, { look: look }));
+    });
     return picture(walk).then(function (blob) {
       return deliver(blob, 'habo-litter-walk-' + ymdOf(walk.started) + '.png', 'My HABO litter walk', round(walk.pounds || 0, 2) + ' lb of litter collected with HABO.');
     });

@@ -1229,6 +1229,7 @@ window.LitterCollect = function (app) {
       : c.bagReset ? 'You started a new bag after the weighing you discarded: weigh only the new bag.' : 'Include the bag. The app does the subtracting.';
     stepsFor(pulse.kind);
     $('pf-end-row').hidden = pulse.kind !== 'end';
+    $('pf-end-gpx').hidden = pulse.kind !== 'end';   // S6-P10: stop the recorder after End, not before
     if (pulse.kind === 'end') $('pf-end').value = toTimeInput(pulse.pressedAt);
     $('pf-save').textContent = pulse.kind === 'end' ? 'Save and end' : 'Save litter pulse';
     showTypes();
@@ -1266,8 +1267,10 @@ window.LitterCollect = function (app) {
   // skipped; the rating can't, as no Litter Index comes without one (Q403, S5).
   // No break step (S5-P1, C606: Pause covers breaks); the last step stays
   // only for End, with Stop the clock at.
-  var STEPS = ['scale', 'types', 'rating', 'break'];
-  function stepsFor(kind) { STEPS = kind === 'end' ? ['scale', 'types', 'rating', 'break'] : ['scale', 'types', 'rating']; }
+  // Litter types first, then the scale (S6-U33 item 2): a type picked tells
+  // what the scale may not, like a cigarette butt that weighs next to nothing.
+  var STEPS = ['types', 'scale', 'rating', 'break'];
+  function stepsFor(kind) { STEPS = kind === 'end' ? ['types', 'scale', 'rating', 'break'] : ['types', 'scale', 'rating']; }
   function showStep() {
     var i = pulse.step;
     Array.prototype.forEach.call(document.querySelectorAll('#cl-pulse .pf-step'), function (d) { d.hidden = d.dataset.step !== STEPS[i]; });
@@ -1282,7 +1285,22 @@ window.LitterCollect = function (app) {
     pulse.whereMode = false;
     fitMap();
     if (STEPS[i] === 'rating') setRating($('pf-rating').value, 'auto');
+    if (STEPS[i] === 'scale') sameNote();
     keepDraft();
+  }
+  // The same reading as your last weighing (S6-U33 item 3, |Q733 (a)): with a
+  // litter type picked, near clean, and not clean; with none, clean. It weighs
+  // 0 lb either way, as the scale read: no need to add a hundredth.
+  function sameNote() {
+    var box = $('pf-same');
+    if (!box || !c) return;
+    var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
+    var before = c.bagReset ? 0 : c.scalePrev;
+    var same = scale !== '' && lbs >= 0 && Math.abs(lbs - before) < 0.005 && (pulse && pulse.kind !== 'newbag' || before > 0);
+    box.hidden = !same;
+    if (same) box.textContent = picked().length
+      ? 'The same as your last weighing, with litter types picked: near clean. It counts as 0 lb, and as near clean, not clean.'
+      : 'The same as your last weighing, with no litter type picked: a clean stretch. If you picked something up, go Back and pick its litter type.';
   }
   function stepCheck(i) {
     if (STEPS[i] === 'scale') return scaleError();
@@ -2068,8 +2086,8 @@ window.LitterCollect = function (app) {
     var p = document.createElement('p');
     p.className = 'lt-stretch-facts';
     p.textContent = s.discarded ? 'Discarded' + (s.reason ? ' (' + s.reason + ')' : '') + ': no reading. Its time still counts.' :
-      round(s.streetMi + s.offMi, 2) + ' mi · ' + Math.round(s.activeMin) + ' min · ' + (s.pounds == null ? '?' : s.pounds) + ' lb · ' +
-      (s.index == null ? 'no reading yet' : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
+      round(s.streetMi + s.offMi, 2) + ' mi · ' + Math.round(s.activeMin) + ' min · ' + (s.pounds == null ? '?' : s.pounds) + ' lb' + (s.pounds === 0 ? (s.types.length ? ' (near clean)' : ' (clean)') : '') + ' · ' +
+      (s.index == null ? (s.noReading ? 'No Litter Index: ' + s.noReading : 'no reading yet') : 'Litter Index ' + round(s.index, 2)) + (s.rating == null ? '' : ' · Visual rating ' + s.rating) + (s.pastSunset ? ' · Past sunset: no hours' : '');
     box.appendChild(p);
     if (s.types.length) { var t = document.createElement('p'); t.className = 'muted small'; t.textContent = s.types.join(', '); box.appendChild(t); }
     if (!s.discarded) {
@@ -2077,7 +2095,7 @@ window.LitterCollect = function (app) {
       tr.className = 'muted small lt-path-say';
       var cks = summary.collection && summary.collection.checkins;
       // A walk from before check-ins (S5) has the street miles you confirmed.
-      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : cks && cks.length || s.index == null ? 'No Litter Index until you save your GPX track.'
+      tr.textContent = s.track ? 'Where you walked is from your GPX track.' : s.noReading ? 'Your GPX track is saved, but it missed this weighing. Choose another file to measure it.' : cks && cks.length || s.index == null ? 'No Litter Index until you save your GPX track.'
         : 'From the street miles you confirmed: save your GPX track for the miles you walked.';
       box.appendChild(tr);
     }
@@ -2351,19 +2369,43 @@ window.LitterCollect = function (app) {
     pts = pts.filter(function (p) { return p.t >= from && p.t <= to; });
     if (pts.length < 2) { hideBusy(); app.notice('That track has nothing between when you started recording and End. Is it the file for this walk?'); return; }
     var pauses = pausesOf(checkins);
-    var weighings = [], short = [];
-    summary.stretches.forEach(function (s) {
-      if (s.discarded) return;
+    var weighings = [], short = [], missed = [];
+    var live = summary.stretches.filter(function (s) { return !s.discarded; });
+    live.forEach(function (s, i) {
       // Only a weighing the track covers from start to end; any other has
       // no Litter Index (no GPX track, no CPUE, Jeremy, Oct 29).
       var path = covers(pts, s) ? trackPath(pts, s.started, s.ended, pauses.concat(oldPause(pts, s, pauses))) : { cells: [] };
-      if (path.cells.length) weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M });
-      else short.push(s.n);
+      if (path.cells.length) { weighings.push({ id: s.id, cells: path.cells, miles: path.meters / G.MILE_M }); return; }
+      short.push(s.n);
+      missed.push({ id: s.id, n: s.n, why: missedWhy(pts, s, i === 0, i === live.length - 1) });
     });
     pts.forEach(function (p) { p.paused = pauses.some(function (w) { return p.t > w[0] && p.t < w[1]; }); });
+    // A weighing the track misses (S6-P10): said in a box that stays until
+    // it's answered, with Choose another file, or Keep this track.
+    if (missed.length) {
+      hideBusy();
+      gpxPop(false);
+      $('sm-short-say').textContent = missed.map(function (m) { return 'Weighing ' + m.n + ': ' + m.why + '.'; }).join(' ') +
+        (missed.length === 1 ? ' That weighing gets' : ' Those weighings get') + ' no Litter Index; the others are measured as usual, and its pounds and time still count in your volunteer hours.';
+      $('sm-short').hidden = false;
+      shortKeep = function () { $('sm-short').hidden = true; saveTrack(pts, pauses, lined, weighings, short, missed); };
+      return;
+    }
+    saveTrack(pts, pauses, lined, weighings, short, missed);
+  }
+  var shortKeep = null;
+  // Which end the track missed, and by how many minutes.
+  function missedWhy(pts, s, first, last) {
+    var mins = function (ms) { var m = Math.max(1, Math.round(ms / 60000)); return m + (m === 1 ? ' minute' : ' minutes'); };
+    var lateStart = pts[0].t - s.started, earlyEnd = s.ended - pts[pts.length - 1].t;
+    if (lateStart > 120000) return 'your track starts ' + mins(lateStart) + ' after ' + (first ? 'you pressed Start' : 'this weighing began');
+    if (earlyEnd > 120000) return 'your track ends ' + mins(earlyEnd) + ' before ' + (last ? 'you pressed End' : 'its litter pulse');
+    return 'your track has no points in its time';
+  }
+  function saveTrack(pts, pauses, lined, weighings, short, missed) {
     summary.track = thinTrack(pts);
     showBusy('Saving your GPX track, please wait...');
-    app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings }).then(function (d) {
+    app.api('collectTrack', { token: app.myToken(), collectionId: summary.id, track: summary.track, weighings: weighings, short: missed }).then(function (d) {
       hideBusy();
       gpxPop(false);
       if (d.collection) summary.collection = d.collection;
@@ -2909,7 +2951,7 @@ window.LitterCollect = function (app) {
   $('pf-next').addEventListener('click', nextStep);
   $('pf-heavy-yes').addEventListener('click', function () { pulse.heavyOk = $('pf-scale').value.trim(); $('pf-heavy').hidden = true; nextStep(); });
   $('pf-heavy-no').addEventListener('click', function () { $('pf-heavy').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
-  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; keepDraft(); });
+  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; sameNote(); keepDraft(); });
   $('pf-end').addEventListener('change', keepDraft);
   // The box in view above the keyboard once it opens.
   $('pf-scale').addEventListener('focus', function () { setTimeout(function () { fitPulse(); $('pf-scale').scrollIntoView({ block: 'nearest' }); }, 300); });
@@ -2935,6 +2977,8 @@ window.LitterCollect = function (app) {
   $('pf-type-add').addEventListener('click', function () { addType($('pf-type-add')); });
   buildWheel();
   $('sm-gpx').addEventListener('change', function () { if (this.files[0]) readGpx(this.files[0]); this.value = ''; });
+  $('sm-short-keep').addEventListener('click', function () { if (shortKeep) shortKeep(); shortKeep = null; });
+  $('sm-short-other').addEventListener('click', function () { $('sm-short').hidden = true; shortKeep = null; $('sm-gpx').click(); });
   $('sm-sim-line').addEventListener('click', useLine);
   $('sm-gpx-later').addEventListener('click', function () { gpxPop(false); });
   $('cl-sim').addEventListener('change', function () { keep(SIM_KEY, this.checked || null); if (app.paintMode) app.paintMode(); showPlanLine(); if (map) drawPlan(c && c.plan); });
@@ -2965,8 +3009,9 @@ window.LitterCollect = function (app) {
   function segRatesFor(stretches) {
     var on = {};
     (stretches || []).forEach(function (s) { if (!s.discarded) (s.cells || []).forEach(function (c) { on[c] = true; }); });
-    return (segments || []).filter(function (g) { return g.rate != null && g.squares.some(function (c) { return on[c]; }); })
-      .map(function (g) { return { cells: g.squares, rate: g.rate }; });
+    // With no rate yet too: grey on the picture (S6-P5, |M1069).
+    return (segments || []).filter(function (g) { return g.squares.some(function (c) { return on[c]; }); })
+      .map(function (g) { return { cells: g.squares, rate: g.rate == null ? null : g.rate }; });
   }
   $('sm-share').addEventListener('click', function () {
     var col = summary && summary.collection, b = $('sm-share'), me = app.me && app.me();
