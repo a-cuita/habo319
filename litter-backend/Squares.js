@@ -10,10 +10,15 @@
  * squares changes. On the live Sheet, Nov 11: 348,902 characters to 51,662,
  * and the largest plan's cell from 34,561 to 5,187 (a cell holds 50,000).
  */
+// Off until S7 (|Q759 (a), Nov 12): squares and tracks are written as before,
+// and nothing already written is packed. Reading either form stays on, so a
+// packed value, if one is ever written, still reads back the same.
+var SQUARES_PACK_ON = false;
 var SQ_STEPS = { n: [1, 0], s: [-1, 0], e: [0, 1], w: [0, -1], a: [1, 1], b: [1, -1], c: [-1, 1], d: [-1, -1] };
 // A plan's stretches, " / " between them, are each packed on their own.
 function squaresPack_(text) {
   var t = String(text == null ? '' : text);
+  if (!SQUARES_PACK_ON) return t;
   if (t.indexOf('/') !== -1) return t.split(/\s*\/\s*/).map(squaresPackOne_).join(' / ');
   return squaresPackOne_(t);
 }
@@ -63,7 +68,7 @@ function squaresUnpackOne_(text) {
 // Once: what's there now, packed.
 function squaresPackOnce_() {
   var props = PropertiesService.getScriptProperties();
-  if (props.getProperty('SQUARES_PACKED')) return;
+  if (!SQUARES_PACK_ON || props.getProperty('SQUARES_PACKED')) return;
   // And each walk's GPX track (|M869).
   [[TABS.plans, PLAN_COL.cells, squaresPack_], [TABS.segments, SEGMENT_COL.squares, squaresPack_], [TABS.stretches, STRETCH_COL.cells, squaresPack_],
    [TABS.additions, ADDITION_COL.squares, squaresPack_], [TABS.collections, COLLECTION_COL.track, trackPack_]].forEach(function (x) {
@@ -91,6 +96,7 @@ function squaresPackOnce_() {
  * parseTrack_ reads either form, so nothing that uses a track changes.
  */
 function trackPack_(text) {
+  if (!SQUARES_PACK_ON) return String(text == null ? '' : text);
   var t = String(text == null ? '' : text).trim();
   if (!t || t.charAt(0) === '~') return t;
   var out = [], prev = null;
