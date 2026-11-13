@@ -255,12 +255,14 @@ function cleanupAssign_(req) {
     var who = clean_(req.accountId, 20), teams = cleanupTeamsAll_().filter(function (t) { return t.cleanup === c.id; });
     var person = cleanupPeopleAll_().filter(function (p) { return p.cleanup === c.id && p.account === who; })[0];
     if (!person) throw new Error('They aren\'t in this cleanup.');
-    var teamId = person.team || clean_(req.teamId, 20);
+    // An admin can move someone to another team (S6-P27 item 1, |Q781 (a)); a leader places only the unplaced.
+    var teamId = isCleanupAdmin_(account) && clean_(req.teamId, 20) ? clean_(req.teamId, 20) : person.team || clean_(req.teamId, 20);
     var team = teams.filter(function (t) { return t.id === teamId; })[0];
     if (!team) throw new Error('Place them in a team first.');
     if (team.leaders.indexOf(account.id) === -1 && !isCleanupAdmin_(account)) throw new Error('Only ' + team.name + '\'s leaders assign its members.');
     var seg = clean_(req.segmentId, 20);
     if (seg && c.segments.indexOf(seg) === -1) throw new Error('That segment isn\'t in this cleanup.');
+    if (team.id !== person.team) seg = clean_(req.segmentId, 20);   // moved: a new team's segment, or none yet
     cleanupPersonSet_(c.id, who, team.id, seg);
     logChange_(account.email, 'Cleanup', c.id, 'Assigned', who, (team.name) + (seg ? ': ' + seg : ''));
     return cleanupsFor_(account);
@@ -277,10 +279,21 @@ function cleanupCheckIn_(req) {
     if (cleanupDayOf_(now) !== c.day) throw new Error('Check in on the day of ' + c.name + ', ' + c.day + '.');
     var people = cleanupPeopleAll_().filter(function (p) { return p.cleanup === c.id; });
     var me = people.filter(function (p) { return p.account === account.id; })[0];
-    if (!me || !me.team || !me.segment) throw new Error('Your team\'s leaders haven\'t assigned you a segment yet.');
-    var seg = clean_(req.segmentId, 20) || me.segment;
-    if (seg !== me.segment) throw new Error('You\'re assigned to ' + me.segment + '.');
-    var crew = people.filter(function (p) { return p.team === me.team && p.segment === seg; }).map(function (p) { return p.account; });
+    var forTeam = isCleanupAdmin_(account) && clean_(req.teamId, 20);
+    var seg, crew;
+    if (forTeam) {
+      // An admin, for a team with no phone there (S6-P27 item 3, |Q781 (a)): any of its members, on any of the cleanup's segments.
+      if (!cleanupTeamsAll_().some(function (t) { return t.id === forTeam && t.cleanup === c.id; })) throw new Error('That team isn\'t in this cleanup.');
+      seg = clean_(req.segmentId, 20);
+      if (c.segments.indexOf(seg) === -1) throw new Error('Choose one of the cleanup\'s segments.');
+      me = { team: forTeam, segment: seg };
+      crew = people.filter(function (p) { return p.team === forTeam; }).map(function (p) { return p.account; });
+    } else {
+      if (!me || !me.team || !me.segment) throw new Error('Your team\'s leaders haven\'t assigned you a segment yet.');
+      seg = clean_(req.segmentId, 20) || me.segment;
+      if (seg !== me.segment) throw new Error('You\'re assigned to ' + me.segment + '.');
+      crew = people.filter(function (p) { return p.team === me.team && p.segment === seg; }).map(function (p) { return p.account; });
+    }
     var there = (Array.isArray(req.there) ? req.there : crew).map(String).filter(function (a, i, arr) { return crew.indexOf(a) !== -1 && arr.indexOf(a) === i; });
     if (!there.length) throw new Error('Tick who\'s there.');
     if (cleanupCheckinsAll_().some(function (k) { return k.cleanup === c.id && k.team === me.team && k.segment === seg && !k.outAt; })) throw new Error('Your team is checked in here already.');
@@ -289,7 +302,8 @@ function cleanupCheckIn_(req) {
     row[CHECKIN_COL.id - 1] = id; row[CHECKIN_COL.cleanup - 1] = c.id; row[CHECKIN_COL.team - 1] = me.team; row[CHECKIN_COL.segment - 1] = seg;
     row[CHECKIN_COL.by - 1] = account.id; row[CHECKIN_COL.inAt - 1] = new Date(now); row[CHECKIN_COL.there - 1] = there.join(' ');
     sheet.getRange(lastRowWith_(sheet, CHECKIN_COL.id) + 1, 1, 1, row.length).setValues([row]);
-    logChange_(account.email, 'Cleanup check-in', id, 'In', '', c.id + ' ' + seg + ', ' + there.length + ' there');
+    if (forTeam) there.forEach(function (a) { cleanupPersonSet_(c.id, a, forTeam, seg); });   // they're on that segment now
+    logChange_(account.email, 'Cleanup check-in', id, 'In', '', c.id + ' ' + seg + ', ' + there.length + ' there' + (forTeam ? ', by an admin' : ''));
     return cleanupsFor_(account);
   });
 }
@@ -313,6 +327,29 @@ function cleanupCheckOut_(req) {
     sheet.getRange(k.row, CHECKIN_COL.pounds).setValue(round_(lbs, 2));
     sheet.getRange(k.row, CHECKIN_COL.collection).setValue(colId);
     logChange_(account.email, 'Cleanup check-in', k.id, 'Out', '', round_(lbs, 2) + ' lb, ' + colId);
+    forgetReads_();
+    measureWorld_(false, '');
+    return cleanupsFor_(account);
+  });
+}
+// An admin enters or fixes a team's pounds after the day (S6-P27 item 4, |Q781 (a)), from a weigh-in at the end:
+// the check-in's pounds, and its collection's and weighing's, then the rates again.
+function cleanupPounds_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (!isCleanupAdmin_(account)) throw new Error('Fixing a team\'s pounds is for HABO\'s admins.');
+  var lbs = Number(String(req.pounds == null ? '' : req.pounds).replace(/[^\d.]/g, ''));
+  if (String(req.pounds == null ? '' : req.pounds).trim() === '' || !(lbs >= 0) || lbs > 2000) throw new Error('Type the team\'s pounds for this segment, like 12.5.');
+  return withLock_(function () {
+    var k = cleanupCheckinsAll_().filter(function (x) { return x.id === clean_(req.checkinId, 20); })[0];
+    if (!k) throw new Error('That check-in isn\'t there any more.');
+    if (!k.outAt) throw new Error('Check it out first: Check out asks its pounds.');
+    getDb_().getSheetByName(TABS.cleanupCheckins.name).getRange(k.row, CHECKIN_COL.pounds).setValue(round_(lbs, 2));
+    var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === k.collection; })[0];
+    if (q) getDb_().getSheetByName(TABS.collections.name).getRange(q.row, COLLECTION_COL.pounds).setValue(round_(lbs, 2));
+    var st = readRows_(TABS.stretches).filter(function (r) { return r.get('collection') === k.collection; })[0];
+    if (st) getDb_().getSheetByName(TABS.stretches.name).getRange(st.row, STRETCH_COL.pounds).setValue(round_(lbs, 2));
+    logChange_(account.email, 'Cleanup check-in', k.id, 'Pounds', k.pounds == null ? '' : String(k.pounds), String(round_(lbs, 2)));
     forgetReads_();
     measureWorld_(false, '');
     return cleanupsFor_(account);

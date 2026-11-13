@@ -384,6 +384,7 @@ function actions_() {
     cleanupAssign: cleanupAssign_,
     cleanupCheckIn: cleanupCheckIn_,
     cleanupCheckOut: cleanupCheckOut_,
+    cleanupPounds: cleanupPounds_,   // an admin fixes a team's pounds after the day (S6-P27)
     questState: questState_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,

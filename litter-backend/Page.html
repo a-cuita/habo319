@@ -948,6 +948,18 @@ body.lt-popform-open { overflow: hidden; }
 /* A walk that gave a segment no rate (S6-P34): greyed in the pop-up's table, its reason under it. */
 .lt-pop-walk.none td { color: var(--text-dim); }
 .lt-pop-why td { color: var(--text-dim); font-size: 0.85em; font-style: italic; padding-top: 0; }
+
+/* An admin's tools for a cleanup (S6-P27, |Q781 (a)). */
+.lt-cu-adminbar { display: flex; gap: 8px; margin: 6px 0 10px; }
+.lt-cu-adminbar .btn { width: auto; margin: 0; }
+.lt-cu-move { width: auto; margin-left: 8px; padding: 4px 8px; font-size: 0.9em; }
+.lt-cu-adm { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 6px; }
+.lt-cu-adm-part { margin: 8px 0 12px; }
+.lt-cu-adm-part .lt-select { margin: 4px 0; }
+.lt-cu-adm-row { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin: 6px 0; }
+.lt-cu-adm-row p { margin: 0 0 6px; }
+.lt-cu-adm-row input { width: 7em; margin-right: 8px; }
+.lt-cu-adm-row .btn { width: auto; margin: 4px 0; }
 </style>
 </head>
 <body>
@@ -1824,6 +1836,11 @@ body.lt-popform-open { overflow: hidden; }
       <button class="link-btn" id="cu-one-back" type="button">← All cleanups</button>
       <h2 id="cu-one-name"></h2>
       <p class="muted small" id="cu-one-when"></p>
+      <!-- An admin's Change and Retire, at the top (S6-P27 item 9, |Q781 (a)). -->
+      <div id="cu-admin" class="lt-cu-adminbar" hidden>
+        <button class="btn btn-secondary" id="cu-change" type="button">Change</button>
+        <button class="btn btn-secondary" id="cu-retire" type="button">Retire</button>
+      </div>
       <div class="lt-qb-map" id="cu-one-map" aria-label="Map of the cleanup's segments"></div>
       <p class="err" id="cu-one-err" role="alert"></p>
       <h3>Teams</h3>
@@ -1850,15 +1867,13 @@ body.lt-popform-open { overflow: hidden; }
         <div class="ig"><label for="cu-reg-l2">Another leader's handle</label><input id="cu-reg-l2" maxlength="40" autocomplete="off"></div>
         <button class="btn btn-primary" id="cu-reg-go" type="button">Register the team</button>
       </div>
+      <!-- An admin's tools on the day and after (S6-P27 items 3, 4 and 8, |Q781 (a)). -->
+      <div class="lt-cu-adm" id="cu-adm" hidden></div>
       <div class="lt-cu-results" id="cu-results" hidden>
         <h3>After</h3>
         <p><b>By segment:</b> <span id="cu-res-segs"></span></p>
         <p><b>By team:</b> <span id="cu-res-teams"></span></p>
         <p><b>Hours:</b> <span id="cu-res-hours"></span></p>
-      </div>
-      <div id="cu-admin" hidden>
-        <button class="btn btn-secondary" id="cu-change" type="button">Change</button>
-        <button class="btn btn-secondary" id="cu-retire" type="button">Retire</button>
       </div>
     </section>
     <button class="lt-fab-back" id="cu-back" type="button" aria-label="Back" title="Back">←</button>
@@ -9755,6 +9770,8 @@ window.LitterCleanups = function (app) {
           b.id = 'cu-member-' + m.id;
           li.appendChild(b);
         } else li.textContent = label;
+        // An admin moves someone to another team (S6-P27 item 1, |Q781 (a)).
+        if (admin() && !c.past && c.teams.length > 1) li.appendChild(moveSelect(c, m.id, t.id));
         ul.appendChild(li);
       });
       card.appendChild(ul);
@@ -9778,13 +9795,15 @@ window.LitterCleanups = function (app) {
       var li = el('li');
       li.appendChild(el('span', null, p.handle + ' '));
       if (leadOf && !c.past) { var b = button('btn btn-secondary', 'Place in ' + leadOf.name, function () { place(p.id, leadOf.id, b); }); b.id = 'cu-place-' + p.id; li.appendChild(b); }
+      else if (admin() && !c.past && c.teams.length) li.appendChild(moveSelect(c, p.id, ''));
       up.appendChild(li);
     });
     // Register a team, or join one (both open until the cleanup ends; registering until its time).
-    $('cu-register').hidden = !c.registerOpen || !!leadOf;
+    // In Admin Mode, an admin's tools instead of a player's (|C968).
+    $('cu-register').hidden = !c.registerOpen || !!leadOf || admin();
     var me = app.me && app.me();
     if (me && !$('cu-reg-l1').value) $('cu-reg-l1').value = me.handle || '';   // you, to start
-    $('cu-join').hidden = !c.joinOpen || !!leadOf;
+    $('cu-join').hidden = !c.joinOpen || !!leadOf || admin();
     var sel = $('cu-join-team');
     sel.textContent = '';
     c.teams.forEach(function (t) { var o = el('option', null, t.name); o.value = t.id; if (t.mine) o.selected = true; sel.appendChild(o); });
@@ -9796,8 +9815,115 @@ window.LitterCleanups = function (app) {
     $('cu-res-segs').textContent = r.bySegment.map(function (x) { return x.name + ': ' + x.pounds + ' lb'; }).join(' · ');
     $('cu-res-teams').textContent = r.byTeam.map(function (x) { return x.name + ': ' + x.pounds + ' lb'; }).join(' · ');
     $('cu-res-hours').textContent = r.hours.map(function (x) { return x.handle + ': ' + x.hours + ' h'; }).join(' · ') + (r.hours.length ? ' (' + r.personHours + ' person-hours in all)' : '');
-    // An admin's: change or retire it.
+    // An admin's: change or retire it, at the top; and the tools below.
     $('cu-admin').hidden = !admin();
+    drawAdmin(c);
+  }
+
+  /* ── An admin's tools for one cleanup (S6-P27, |Q781 (a)): moving people,
+     checking a team in or out for them, pounds after the day, results. ── */
+
+  function moveSelect(c, accountId, fromTeam) {
+    var sel = el('select', 'lt-select lt-cu-move');
+    sel.id = 'cu-move-' + accountId;
+    sel.setAttribute('aria-label', fromTeam ? 'Move to another team' : 'Place in a team');
+    var first = el('option', null, fromTeam ? 'Move to…' : 'Place in…');
+    first.value = '';
+    sel.appendChild(first);
+    c.teams.forEach(function (t) { if (t.id !== fromTeam) { var o = el('option', null, t.name); o.value = t.id; sel.appendChild(o); } });
+    sel.addEventListener('change', function () {
+      if (!sel.value) return;
+      send('cleanupAssign', { cleanupId: c.id, accountId: accountId, teamId: sel.value, segmentId: '' }, sel, 'cu-one-err');
+    });
+    return sel;
+  }
+  function stamp(ms) { return ms ? new Date(ms).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }) : ''; }
+  function drawAdmin(c) {
+    var box = $('cu-adm');
+    box.textContent = '';
+    box.hidden = !admin();
+    if (!admin()) return;
+    box.appendChild(el('h3', null, 'Admin'));
+    // Check a team in for them, on the day (item 3): its members who are there, on one of the segments.
+    if (c.today && !c.past && c.teams.length) {
+      var ci = el('div', 'lt-cu-adm-part');
+      ci.appendChild(el('p', 'lt-label', 'Check a team in for them'));
+      var team = el('select', 'lt-select'); team.id = 'cu-adm-team';
+      c.teams.forEach(function (t) { var o = el('option', null, t.name); o.value = t.id; team.appendChild(o); });
+      var seg = el('select', 'lt-select'); seg.id = 'cu-adm-seg';
+      c.segments.forEach(function (id) { var o = el('option', null, segName(id)); o.value = id; seg.appendChild(o); });
+      var ticks = el('div', 'lt-cu-ticks'); ticks.id = 'cu-adm-there';
+      var fill = function () {
+        ticks.textContent = '';
+        var t = c.teams.filter(function (x) { return x.id === team.value; })[0];
+        (t ? t.members : []).forEach(function (m) {
+          var l = el('label', 'choice-row'), cb = el('input');
+          cb.type = 'checkbox'; cb.value = m.id; cb.checked = true;
+          l.appendChild(cb); l.appendChild(document.createTextNode(' ' + m.handle));
+          ticks.appendChild(l);
+        });
+        if (!t || !t.members.length) ticks.appendChild(el('p', 'muted small', 'Nobody in this team yet.'));
+      };
+      team.addEventListener('change', fill);
+      fill();
+      ci.appendChild(team); ci.appendChild(seg); ci.appendChild(ticks);
+      var go = button('btn btn-primary', 'Check in for them', function () {
+        var there = Array.prototype.map.call(ticks.querySelectorAll('input:checked'), function (x) { return x.value; });
+        send('cleanupCheckIn', { cleanupId: c.id, teamId: team.value, segmentId: seg.value, there: there }, go, 'cu-one-err');
+      });
+      go.id = 'cu-adm-in';
+      ci.appendChild(go);
+      box.appendChild(ci);
+    }
+    // Check-ins: open ones checked out for them, with the team's pounds (item 3); done ones' pounds fixed after (item 4).
+    if (c.checkins.length) {
+      var list = el('div', 'lt-cu-adm-part');
+      list.appendChild(el('p', 'lt-label', 'Check-ins'));
+      c.checkins.forEach(function (k) {
+        var t = c.teams.filter(function (x) { return x.id === k.team; })[0];
+        var row = el('div', 'lt-cu-adm-row');
+        row.id = 'cu-adm-k-' + k.id;
+        row.appendChild(el('p', null, (t ? t.name : k.team) + ' · ' + k.segmentName + ' · in ' + stamp(k.inAt) + (k.outAt ? ', out ' + stamp(k.outAt) : '') + ' · ' + k.there.length + ' there'));
+        var lb = el('input'); lb.inputMode = 'decimal'; lb.placeholder = 'Pounds'; lb.value = k.pounds != null ? String(k.pounds) : '';
+        lb.setAttribute('aria-label', 'The team\'s pounds');
+        row.appendChild(lb);
+        var b = k.outAt
+          ? button('btn btn-secondary', 'Save pounds', function () { send('cleanupPounds', { checkinId: k.id, pounds: lb.value }, b, 'cu-one-err'); })
+          : button('btn btn-primary', 'Check out for them', function () { send('cleanupCheckOut', { checkinId: k.id, pounds: lb.value }, b, 'cu-one-err'); });
+        row.appendChild(b);
+        list.appendChild(row);
+      });
+      box.appendChild(list);
+    }
+    // Results for the grant (item 8): a file to download.
+    if (c.checkins.length) {
+      var dl = button('btn btn-secondary', 'Download results', function () { download(c); });
+      dl.id = 'cu-adm-csv';
+      box.appendChild(dl);
+    }
+  }
+  function csvCell(v) { var t = String(v == null ? '' : v); return /[",\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t; }
+  function resultsCsv(c) {
+    var name = function (id) { var t = c.teams.filter(function (x) { return x.id === id; })[0]; return t ? t.name : id; };
+    var rows = [['Cleanup', 'Day', 'Team', 'Segment', 'Checked in', 'Checked out', 'People there', 'Hours', 'Person-hours', 'Pounds']];
+    c.checkins.forEach(function (k) {
+      var h = k.outAt ? Math.max(0, k.outAt - k.inAt) / 3600000 : 0;
+      rows.push([c.name, c.day, name(k.team), k.segmentName, stamp(k.inAt), stamp(k.outAt), k.there.map(function (p) { return p.handle; }).join('; '),
+        k.outAt ? h.toFixed(2) : '', k.outAt ? (h * k.there.length).toFixed(2) : '', k.pounds != null ? k.pounds : '']);
+    });
+    rows.push([]);
+    rows.push(['Person', 'Hours']);
+    c.results.hours.forEach(function (x) { rows.push([x.handle, x.hours]); });
+    return rows.map(function (r) { return r.map(csvCell).join(','); }).join('\r\n') + '\r\n';
+  }
+  function download(c) {
+    var url = URL.createObjectURL(new Blob([resultsCsv(c)], { type: 'text/csv' }));
+    var a = el('a');
+    a.href = url;
+    a.download = 'cleanup-' + c.day + '-' + c.name.replace(/[^\w-]+/g, '-').toLowerCase() + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
   function assign(accountId, segmentId) {
     var c = current();

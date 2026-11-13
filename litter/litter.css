@@ -801,3 +801,15 @@ body.lt-popform-open { overflow: hidden; }
 /* A walk that gave a segment no rate (S6-P34): greyed in the pop-up's table, its reason under it. */
 .lt-pop-walk.none td { color: var(--text-dim); }
 .lt-pop-why td { color: var(--text-dim); font-size: 0.85em; font-style: italic; padding-top: 0; }
+
+/* An admin's tools for a cleanup (S6-P27, |Q781 (a)). */
+.lt-cu-adminbar { display: flex; gap: 8px; margin: 6px 0 10px; }
+.lt-cu-adminbar .btn { width: auto; margin: 0; }
+.lt-cu-move { width: auto; margin-left: 8px; padding: 4px 8px; font-size: 0.9em; }
+.lt-cu-adm { border-top: 1px solid var(--border); margin-top: 12px; padding-top: 6px; }
+.lt-cu-adm-part { margin: 8px 0 12px; }
+.lt-cu-adm-part .lt-select { margin: 4px 0; }
+.lt-cu-adm-row { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin: 6px 0; }
+.lt-cu-adm-row p { margin: 0 0 6px; }
+.lt-cu-adm-row input { width: 7em; margin-right: 8px; }
+.lt-cu-adm-row .btn { width: auto; margin: 4px 0; }
