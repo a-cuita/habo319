@@ -926,12 +926,24 @@ body.lt-set-bg-open { background: #4a0d1c; }
 .lt-pop-conf .lt-wiki-link { margin-top: 0; padding: 0; font: inherit; }
 /* The same reading as last time (S6-U33 item 3). */
 .lt-pf-same { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: #ecfdf5; border: 1px solid #15803d; font-size: 0.95em; }
+/* At End, the GPX reminder stands out (|C970): it was a quiet green line. */
+#pf-end-gpx { margin: 8px 0 4px; padding: 10px 12px; background: #fef3c7; border: 2px solid #b45309; color: #78350f; font-weight: 700; font-size: 1em; }
 
 /* Forms as pop-ups (S6-P41): the form in a dimmed box over the screen it was
    opened from, at the top so a phone's keyboard leaves it in view; the box
    scrolls when the form is longer than the screen. */
-.lt-scrim.lt-popform { z-index: 2900; align-items: flex-start; overflow-y: auto; overscroll-behavior: contain; padding: max(12px, env(safe-area-inset-top)) 12px 24px; }
-.lt-scrim.lt-popform > * { width: 100%; max-width: 560px; margin: 0 auto; text-align: left; background: var(--surface); color: var(--text); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+/* A pop-up, not a screen (|C997): the dimmed screen shows all round it, and a
+   long form scrolls inside its box. */
+.lt-scrim.lt-popform { z-index: 2900; align-items: center; overflow: hidden; background: rgba(15, 23, 42, 0.72); padding: max(9vh, env(safe-area-inset-top)) 22px max(9vh, env(safe-area-inset-bottom)); }
+.lt-scrim.lt-popform > * { width: 100%; max-width: 480px; max-height: 100%; overflow-y: auto; overscroll-behavior: contain; margin: 0 auto; text-align: left; background: var(--surface); color: var(--text); border: 1px solid var(--border-hi); border-radius: var(--radius); box-shadow: 0 12px 40px rgba(0, 0, 0, 0.55); }
+/* Fields stay inside the box (|C997): a phone's date and time boxes are
+   wider than their share unless told otherwise. */
+.lt-popform .row2 { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.lt-popform .ig { min-width: 0; }
+.lt-popform .ig input { min-width: 0; max-width: 100%; }
+.lt-popform input[type="date"], .lt-popform input[type="time"], .lt-popform input[type="datetime-local"] { -webkit-appearance: none; appearance: none; display: block; text-align: left; }
+.lt-popform input::-webkit-date-and-time-value { text-align: left; }
+.lt-popform .lt-qb-map { height: 200px; }
 .lt-scrim.lt-popform > div:not(.card) { padding: 16px; }
 .lt-scrim.lt-popform > #v-report { background: none; box-shadow: none; }
 .lt-scrim.lt-popform > #v-report > .card { margin: 0; }
@@ -1299,7 +1311,7 @@ body.lt-popform-open { overflow: hidden; }
       <p class="lt-pf-note" id="pf-note" role="status" hidden></p>
       <p class="muted small" id="pf-step-n"></p>
       <!-- At End (S6-P10 item 6): the recorder stops after End, so the last weighing has its miles. -->
-      <p class="lt-pf-same" id="pf-end-gpx" hidden>Stop your GPX recording after you save this, not before: your track needs to reach End.</p>
+      <p class="lt-pf-same" id="pf-end-gpx" role="note" hidden>⚠️ Stop your GPX recording after you save this, not before: your track needs to reach End.</p>
       <!-- One thing per screen (S3-P27, Q397), with Next and Back; four steps (S5). -->
       <div class="pf-step" data-step="scale">
       <div class="ig">
@@ -1864,7 +1876,7 @@ body.lt-popform-open { overflow: hidden; }
         <h3>Register a team</h3>
         <div class="ig"><label for="cu-reg-name">Team name</label><input id="cu-reg-name" maxlength="60"></div>
         <div class="ig"><label for="cu-reg-l1">A leader's handle</label><input id="cu-reg-l1" maxlength="40" autocomplete="off"></div>
-        <div class="ig"><label for="cu-reg-l2">Another leader's handle</label><input id="cu-reg-l2" maxlength="40" autocomplete="off"></div>
+        <div class="ig"><label for="cu-reg-l2">Another leader's handle (if there is one)</label><input id="cu-reg-l2" maxlength="40" autocomplete="off"></div>
         <button class="btn btn-primary" id="cu-reg-go" type="button">Register the team</button>
       </div>
       <!-- An admin's tools on the day and after (S6-P27 items 3, 4 and 8, |Q781 (a)). -->
@@ -9592,7 +9604,7 @@ window.LitterWiki = function (app) {
  * panel. In Admin Mode, an admin makes one: its name, day and times, until
  * when teams can register, and its segments, tapped on a map. Players see
  * the upcoming ones; open one for its map, its teams, Register a team (its
- * name and two leaders by handle) and Join a team, or Place me. A leader taps
+ * name and its leader, or two, by handle; |S6-U47) and Join a team, or Place me. A leader taps
  * a member, then a segment, to assign them. On the day, the main page shows
  * your segment with Check in (your segment's members, all ticked; untick who
  * isn't there), then Check out with the team's pounds. After: pounds by
@@ -10356,7 +10368,7 @@ window.LitterScroll = function (app) {
   }
   // Each asks once more before it goes: "Report it to the Admins?", "Remove it for everyone?"
   function sure(b, say) { if (b.dataset.sure === '1') return true; b.dataset.sure = '1'; b.textContent = say; return false; }
-  function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
+  function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', typed: true, at: Date.now(), text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
   function report(l, b) {
     if (!sure(b, 'Report it to the Admins?')) return;
     b.disabled = true;
@@ -10397,18 +10409,21 @@ window.LitterScroll = function (app) {
     box.textContent = '';
     // HABO's lines only: a landed "+N XP" is the strip's, until they come.
     if (!lines.length) box.appendChild(el('p', 'lt-rh-line mine', 'Nothing here yet. Your walks, XP and levels show here as they happen.'));
-    lines.forEach(function (l) {
-      var d = l.at ? day(l.at) : '';
-      if (d && d !== last) { box.appendChild(el('p', 'lt-rh-day', '— ' + d + ' —')); last = d; }
-      box.appendChild(lineEl(l, true));
-    });
-    printed.forEach(function (l) { box.appendChild(lineEl(l, true)); });
+    // What you typed and its answers take their place in time, so a line
+    // that comes after them shows under them (|C989), not above.
+    lines.concat(printed).map(function (l, i) { return [l, i]; })
+      .sort(function (a, b) { return (a[0].at || 0) - (b[0].at || 0) || a[1] - b[1]; })
+      .forEach(function (x) {
+        var l = x[0], d = l.at && !l.typed ? day(l.at) : '';
+        if (d && d !== last) { box.appendChild(el('p', 'lt-rh-day', '— ' + d + ' —')); last = d; }
+        box.appendChild(lineEl(l, true));
+      });
     box.scrollTop = atEnd ? box.scrollHeight : top;
   }
   function poll() {
     if (polling || !app.myToken() || $('rh').hidden) return;
     polling = true;
-    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }).then(function (d) {
+    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }, true).then(function (d) {
       if (d.now) lastNow = d.now;
       if (d.every && d.every !== every) { every = d.every; if (timer) { clearInterval(timer); timer = setInterval(poll, every * 1000); } }
       if (merge(d.lines)) { paintStrip(); paintFull(); }
@@ -10465,11 +10480,12 @@ window.LitterScroll = function (app) {
     if (!typed || asking) return;
     asking = true;
     $('rh-in').value = '';
-    printed.push({ kind: 'cmd', text: '> ' + typed });
+    var at = Date.now();
+    printed.push({ kind: 'cmd', typed: true, at: at, text: '> ' + typed });
     // help is answered here at once, from the commands the scroll came with (|C919).
     var c = typed.toLowerCase().replace(/\s+/g, ' ');
     if ((c === 'help' || c === '?') && commands.length) {
-      ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
+      ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
       asking = false;
       paintFull(true);
       $('rh-in').focus();
@@ -10477,12 +10493,12 @@ window.LitterScroll = function (app) {
     }
     paintFull(true);
     app.api('scroll', { token: app.myToken(), command: typed }).then(function (d) {
-      (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
+      (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
       if (d.lines) lines = d.lines;
       // gchat: your line, in the scroll with everyone's, as they'll see it.
       if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
     }, function (er) {
-      printed.push({ kind: 'answer', text: er.message || 'That couldn\'t be answered just now. Try again.' });
+      printed.push({ kind: 'answer', typed: true, at: at, text: er.message || 'That couldn\'t be answered just now. Try again.' });
     }).then(function () { asking = false; paintFull(true); $('rh-in').focus(); });
   }
 

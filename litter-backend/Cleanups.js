@@ -2,7 +2,7 @@
  * Team mode (S6-P27, |Q667, |M962, |Q721 (a), |M1002): cleanups on assigned
  * segments. An admin makes a cleanup: its name, day and times, its segments,
  * and until when teams can register. Players register a team (its name and
- * at least two leaders, by handle) or join one, or ask to be placed. A team's
+ * a leader or more, by handle: one is enough, from |S6-U47) or join one, or ask to be placed. A team's
  * leaders assign each member to a segment. On the day, one member checks in
  * at the segment, unticking anyone who isn't there, and checks out with the
  * team's pounds. No GPX track: the check-out is kept as a collection whose one
@@ -210,7 +210,8 @@ function cleanupRegister_(req) {
       if (!a) throw new Error('Nobody has the handle "' + h + '".');
       if (leaders.indexOf(a.id) === -1) leaders.push(a.id);
     });
-    if (leaders.length < 2) throw new Error('A team has at least two leaders: give their handles.');
+    // One leader is enough (Jeremy, |S6-U47: there won't always be two).
+    if (!leaders.length) throw new Error('A team needs a leader: give their handle.');
     var teams = cleanupTeamsAll_().filter(function (t) { return t.cleanup === c.id; });
     if (teams.some(function (t) { return t.name.toLowerCase() === name.toLowerCase(); })) throw new Error('A team in this cleanup is called ' + name + ' already.');
     var busy = teams.filter(function (t) { return t.leaders.some(function (l) { return leaders.indexOf(l) !== -1; }); })[0];

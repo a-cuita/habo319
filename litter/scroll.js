@@ -52,7 +52,7 @@ window.LitterScroll = function (app) {
   }
   // Each asks once more before it goes: "Report it to the Admins?", "Remove it for everyone?"
   function sure(b, say) { if (b.dataset.sure === '1') return true; b.dataset.sure = '1'; b.textContent = say; return false; }
-  function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
+  function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', typed: true, at: Date.now(), text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
   function report(l, b) {
     if (!sure(b, 'Report it to the Admins?')) return;
     b.disabled = true;
@@ -93,18 +93,21 @@ window.LitterScroll = function (app) {
     box.textContent = '';
     // HABO's lines only: a landed "+N XP" is the strip's, until they come.
     if (!lines.length) box.appendChild(el('p', 'lt-rh-line mine', 'Nothing here yet. Your walks, XP and levels show here as they happen.'));
-    lines.forEach(function (l) {
-      var d = l.at ? day(l.at) : '';
-      if (d && d !== last) { box.appendChild(el('p', 'lt-rh-day', '— ' + d + ' —')); last = d; }
-      box.appendChild(lineEl(l, true));
-    });
-    printed.forEach(function (l) { box.appendChild(lineEl(l, true)); });
+    // What you typed and its answers take their place in time, so a line
+    // that comes after them shows under them (|C989), not above.
+    lines.concat(printed).map(function (l, i) { return [l, i]; })
+      .sort(function (a, b) { return (a[0].at || 0) - (b[0].at || 0) || a[1] - b[1]; })
+      .forEach(function (x) {
+        var l = x[0], d = l.at && !l.typed ? day(l.at) : '';
+        if (d && d !== last) { box.appendChild(el('p', 'lt-rh-day', '— ' + d + ' —')); last = d; }
+        box.appendChild(lineEl(l, true));
+      });
     box.scrollTop = atEnd ? box.scrollHeight : top;
   }
   function poll() {
     if (polling || !app.myToken() || $('rh').hidden) return;
     polling = true;
-    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }).then(function (d) {
+    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }, true).then(function (d) {
       if (d.now) lastNow = d.now;
       if (d.every && d.every !== every) { every = d.every; if (timer) { clearInterval(timer); timer = setInterval(poll, every * 1000); } }
       if (merge(d.lines)) { paintStrip(); paintFull(); }
@@ -161,11 +164,12 @@ window.LitterScroll = function (app) {
     if (!typed || asking) return;
     asking = true;
     $('rh-in').value = '';
-    printed.push({ kind: 'cmd', text: '> ' + typed });
+    var at = Date.now();
+    printed.push({ kind: 'cmd', typed: true, at: at, text: '> ' + typed });
     // help is answered here at once, from the commands the scroll came with (|C919).
     var c = typed.toLowerCase().replace(/\s+/g, ' ');
     if ((c === 'help' || c === '?') && commands.length) {
-      ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
+      ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
       asking = false;
       paintFull(true);
       $('rh-in').focus();
@@ -173,12 +177,12 @@ window.LitterScroll = function (app) {
     }
     paintFull(true);
     app.api('scroll', { token: app.myToken(), command: typed }).then(function (d) {
-      (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
+      (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
       if (d.lines) lines = d.lines;
       // gchat: your line, in the scroll with everyone's, as they'll see it.
       if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
     }, function (er) {
-      printed.push({ kind: 'answer', text: er.message || 'That couldn\'t be answered just now. Try again.' });
+      printed.push({ kind: 'answer', typed: true, at: at, text: er.message || 'That couldn\'t be answered just now. Try again.' });
     }).then(function () { asking = false; paintFull(true); $('rh-in').focus(); });
   }
 

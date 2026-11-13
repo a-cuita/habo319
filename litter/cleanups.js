@@ -3,7 +3,7 @@
  * panel. In Admin Mode, an admin makes one: its name, day and times, until
  * when teams can register, and its segments, tapped on a map. Players see
  * the upcoming ones; open one for its map, its teams, Register a team (its
- * name and two leaders by handle) and Join a team, or Place me. A leader taps
+ * name and its leader, or two, by handle; |S6-U47) and Join a team, or Place me. A leader taps
  * a member, then a segment, to assign them. On the day, the main page shows
  * your segment with Check in (your segment's members, all ticked; untick who
  * isn't there), then Check out with the team's pounds. After: pounds by
