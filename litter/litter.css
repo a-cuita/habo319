@@ -755,22 +755,23 @@ body.lt-set-bg-open { background: #4a0d1c; }
 
 /* Team mode: cleanups (S6-P27). */
 .lt-cu-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.lt-cu-item { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; }
-.lt-cu-item:hover { border-color: #15803d; }
+/* Colours from the page's own tokens, so a cleanup reads in both looks (|C967: light grey on white in Builder colours). */
+.lt-cu-item { display: block; width: 100%; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--text); cursor: pointer; }
+.lt-cu-item:hover { border-color: var(--accent); }
 .lt-cu-name { display: block; font-weight: 700; }
-.lt-cu-when, .lt-cu-mine { display: block; font-size: 0.9em; color: #4b5563; }
-.lt-cu-mine { color: #15803d; }
-.lt-cu-team { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
-.lt-cu-team.mine { border-color: #15803d; background: #f0fdf4; }
+.lt-cu-when, .lt-cu-mine { display: block; font-size: 0.9em; color: var(--text-dim); }
+.lt-cu-mine { color: var(--accent); }
+.lt-cu-team { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+.lt-cu-team.mine { border-color: var(--accent); background: var(--accent-dim); }
 .lt-cu-team-name { font-weight: 700; margin: 0; }
 .lt-cu-members { list-style: none; padding: 0; margin: 6px 0 0; }
 .lt-cu-members li { margin: 4px 0; }
-.lt-cu-member { background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 10px; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
-.lt-cu-member.on { border-color: #b45309; background: #fef3c7; font-weight: 700; }
-.lt-cu-assign { border: 2px solid #b45309; border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: #fffbeb; }
+.lt-cu-member { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
+.lt-cu-member.on { border-color: #b45309; background: #fef3c7; color: #1c1c1e; font-weight: 700; }
+.lt-cu-assign { border: 2px solid #b45309; border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: var(--surface-2); }
 .lt-cu-segs { display: flex; flex-wrap: wrap; gap: 6px; }
 .lt-cu-segs .btn { width: auto; margin: 0; }
-.lt-cu-today { border: 2px solid #15803d; }
+.lt-cu-today { border: 2px solid var(--accent); }
 #cu-in-list .choice-row { margin: 6px 0; }
 .lt-cu-mini { height: 110px; margin-top: 8px; border-radius: 8px; overflow: hidden; pointer-events: none; }
 /* A segment's temporal confidence, on a line of its own (S6-P34, |C963). */
