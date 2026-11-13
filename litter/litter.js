@@ -105,6 +105,7 @@
       if (state.account) { showAccount(state.account); return; }
       id = 'v-welcome';
     }
+    closePops();   // a form open as a pop-up closes with the screen it was opened on (S6-P41)
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     // Settings' lock bar pads the page only on Settings (S6-P7).
     if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar', 'lt-set-bg-locked', 'lt-set-bg-open');
@@ -952,6 +953,44 @@
   $('me-form').addEventListener('submit', submitEdit);
   watchHandle('ed-handle', 'ed-handle-msg', true);
   $('me-signout').addEventListener('click', signOut);
+
+  /* ── Forms as pop-ups (S6-P41, |Q769 (a)) ── */
+  // Each of these, once shown, moves into a dimmed box over the screen it was
+  // opened from, and back where it was once hidden: its buttons, and what
+  // they save, stay as they were. Leaving the screen closes it (show above).
+  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report'];
+  var pops = [];
+  POP_FORMS.forEach(function (id) {
+    var f = $(id);
+    if (!f || !window.MutationObserver) return;
+    var p = { form: f, home: document.createComment('pop ' + id), scrim: null };
+    pops.push(p);
+    var sync = function () {
+      if (!f.hidden && !p.scrim) {
+        var had = document.activeElement;
+        f.parentNode.insertBefore(p.home, f);
+        p.scrim = document.createElement('div');
+        p.scrim.className = 'lt-scrim lt-popform';
+        p.scrim.setAttribute('role', 'dialog');
+        p.scrim.setAttribute('aria-modal', 'true');
+        p.scrim.appendChild(f);
+        document.body.appendChild(p.scrim);
+        document.body.classList.add('lt-popform-open');
+        if (had && f.contains(had) && had.focus) had.focus();
+        // A map inside (a weighing's squares, a cleanup's segments) fits its new box.
+        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 0);
+      } else if (f.hidden && p.scrim) {
+        p.home.parentNode.insertBefore(f, p.home);
+        p.home.parentNode.removeChild(p.home);
+        p.scrim.parentNode.removeChild(p.scrim);
+        p.scrim = null;
+        if (!pops.some(function (x) { return x.scrim; })) document.body.classList.remove('lt-popform-open');
+      }
+    };
+    new MutationObserver(sync).observe(f, { attributes: true, attributeFilter: ['hidden'] });
+    sync();
+  });
+  function closePops() { (pops || []).forEach(function (p) { if (p.scrim) p.form.hidden = true; }); }
 
   open();
 })();

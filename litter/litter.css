@@ -779,3 +779,13 @@ body.lt-set-bg-open { background: #4a0d1c; }
 .lt-pop-conf .lt-wiki-link { margin-top: 0; padding: 0; font: inherit; }
 /* The same reading as last time (S6-U33 item 3). */
 .lt-pf-same { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: #ecfdf5; border: 1px solid #15803d; font-size: 0.95em; }
+
+/* Forms as pop-ups (S6-P41): the form in a dimmed box over the screen it was
+   opened from, at the top so a phone's keyboard leaves it in view; the box
+   scrolls when the form is longer than the screen. */
+.lt-scrim.lt-popform { z-index: 2900; align-items: flex-start; overflow-y: auto; overscroll-behavior: contain; padding: max(12px, env(safe-area-inset-top)) 12px 24px; }
+.lt-scrim.lt-popform > * { width: 100%; max-width: 560px; margin: 0 auto; text-align: left; background: var(--surface); color: var(--text); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.lt-scrim.lt-popform > div:not(.card) { padding: 16px; }
+.lt-scrim.lt-popform > #v-report { background: none; box-shadow: none; }
+.lt-scrim.lt-popform > #v-report > .card { margin: 0; }
+body.lt-popform-open { overflow: hidden; }

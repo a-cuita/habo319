@@ -268,7 +268,8 @@ window.LitterForum = function (app) {
     reportOf = of;
     if (app.closePanel) app.closePanel();
     app.notice('');
-    app.show('v-report');
+    // A pop-up over the screen you were on (S6-P41), no longer a screen of its own.
+    $('v-report').hidden = false;
     $('rp-title').textContent = of === 'Idea' ? 'Submit an Idea' : 'Report an Issue';
     $('rp-say').textContent = of === 'Idea' ? 'Your idea goes to the Admins, who talk it through.' : 'What went wrong goes to the Admins, who look into it.';
     $('rp-label').textContent = of === 'Idea' ? 'Your idea' : 'What happened? Say which screen you were on, and what you pressed.';
@@ -279,7 +280,7 @@ window.LitterForum = function (app) {
     e.preventDefault();
     app.busy($('rp-send'), 'rp-err', function () {
       return app.api('reportSend', { token: app.myToken(), of: reportOf, text: $('rp-text').value }).then(function () {
-        if (app.back) app.back();
+        $('v-report').hidden = true;
         app.notice(reportOf === 'Idea' ? 'Sent to the Admins. Thank you for the idea.' : 'Sent to the Admins. Thank you for telling us.');
       });
     });
@@ -327,7 +328,7 @@ window.LitterForum = function (app) {
   $('me-report-issue').addEventListener('click', function () { openReport('Issue'); });
   $('me-report-idea').addEventListener('click', function () { openReport('Idea'); });
   $('v-report').addEventListener('submit', sendReport);
-  $('rp-cancel').addEventListener('click', function () { if (app.back) app.back(); });
+  $('rp-cancel').addEventListener('click', function () { $('v-report').hidden = true; });
 
   return { open: open, sync: sync, openReview: openReview, openTopic: openTopic, signedOut: function () { told = false; } };
 };
