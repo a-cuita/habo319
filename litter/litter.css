@@ -789,3 +789,11 @@ body.lt-set-bg-open { background: #4a0d1c; }
 .lt-scrim.lt-popform > #v-report { background: none; box-shadow: none; }
 .lt-scrim.lt-popform > #v-report > .card { margin: 0; }
 body.lt-popform-open { overflow: hidden; }
+
+/* The rolling history for everyone (S6-P38): announcements a little quieter
+   than gchat; Report and Remove small, after a gchat line. */
+.lt-rh-line.news { color: #a5b4fc; }
+.lt-rh-line.gchat .lt-rh-who { color: #7dd3fc; }
+.lt-rh-acts { white-space: nowrap; }
+.lt-rh-act { background: none; border: 1px solid #475569; color: #cbd5e1; border-radius: 6px; font: inherit; font-size: 0.78em; padding: 0 8px; margin-left: 8px; cursor: pointer; }
+.lt-rh-act:disabled { opacity: 0.6; cursor: default; }

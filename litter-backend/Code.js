@@ -174,6 +174,14 @@ var TABS = {
     widths: [90, 80, 150, 150, 150, 320],
     formats: { 3: 'yyyy-mm-dd h:mm', 4: 'yyyy-mm-dd h:mm', 5: 'yyyy-mm-dd h:mm', 6: '@' }
   },
+  // gchat in the rolling history (S6-P38, |Q764 (a)): a line each, to everyone
+  // signed in; a reported line is marked, and an admin's Remove hides it.
+  gchat: {
+    name: 'Gchat',
+    header: ['Line ID', 'Account ID', 'Written', 'Text', 'Removed by', 'Removed', 'Reported by', 'Reported'],
+    widths: [80, 90, 150, 420, 90, 150, 120, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 8: 'yyyy-mm-dd h:mm' }
+  },
   forumReads: {
     name: 'Forum Reads',
     header: ['Account ID', 'Topic ID', 'Read'],
@@ -338,6 +346,8 @@ function actions_() {
     simShare: simShare_,
     questTick: questTick_,
     scroll: scroll_,   // the rolling history (S6-P3)
+    gchatReport: gchatReport_,   // a gchat line reported to the admins (S6-P38)
+    gchatRemove: gchatRemove_,   // an admin removes it
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
@@ -783,6 +793,12 @@ function missingSettings_(ss) {
     [SETTING_CHALLENGE_PHOTOS, ''],
     [SETTING_PUBLIC_URL, DEFAULT_PUBLIC_URL],
     [SETTING_DIGEST_HOUR, '7'],
+    [SETTING_RH_START, 'On'],
+    [SETTING_RH_END, 'On'],
+    [SETTING_RH_LEVEL, 'On'],
+    [SETTING_RH_BADGE, 'On'],
+    [SETTING_GCHAT, 'On'],
+    [SETTING_RH_EVERY, '15'],
     [SETTING_SHARE_LAYOUT, 'Full'],
     [SETTING_SHARE_SHOWS, 'Litter Index'],
     [SETTING_APP_NAME, DEFAULT_APP_NAME],

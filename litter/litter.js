@@ -839,7 +839,7 @@
 
   /* ── The rolling history (S6-P3, scroll.js) ── */
 
-  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken });
+  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken, adminMode: adminMode });
 
   /* ── The Wiki (S6-P9, wiki.js) ── */
 

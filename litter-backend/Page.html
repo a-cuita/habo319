@@ -902,22 +902,23 @@ body.lt-set-bg-open { background: #4a0d1c; }
 
 /* Team mode: cleanups (S6-P27). */
 .lt-cu-list { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.lt-cu-item { display: block; width: 100%; text-align: left; background: #fff; border: 1px solid #d1d5db; border-radius: 10px; padding: 10px 12px; font: inherit; color: inherit; cursor: pointer; }
-.lt-cu-item:hover { border-color: #15803d; }
+/* Colours from the page's own tokens, so a cleanup reads in both looks (|C967: light grey on white in Builder colours). */
+.lt-cu-item { display: block; width: 100%; text-align: left; background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; font: inherit; color: var(--text); cursor: pointer; }
+.lt-cu-item:hover { border-color: var(--accent); }
 .lt-cu-name { display: block; font-weight: 700; }
-.lt-cu-when, .lt-cu-mine { display: block; font-size: 0.9em; color: #4b5563; }
-.lt-cu-mine { color: #15803d; }
-.lt-cu-team { border: 1px solid #e5e7eb; border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
-.lt-cu-team.mine { border-color: #15803d; background: #f0fdf4; }
+.lt-cu-when, .lt-cu-mine { display: block; font-size: 0.9em; color: var(--text-dim); }
+.lt-cu-mine { color: var(--accent); }
+.lt-cu-team { border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px; margin: 8px 0; }
+.lt-cu-team.mine { border-color: var(--accent); background: var(--accent-dim); }
 .lt-cu-team-name { font-weight: 700; margin: 0; }
 .lt-cu-members { list-style: none; padding: 0; margin: 6px 0 0; }
 .lt-cu-members li { margin: 4px 0; }
-.lt-cu-member { background: none; border: 1px solid #d1d5db; border-radius: 8px; padding: 6px 10px; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
-.lt-cu-member.on { border-color: #b45309; background: #fef3c7; font-weight: 700; }
-.lt-cu-assign { border: 2px solid #b45309; border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: #fffbeb; }
+.lt-cu-member { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
+.lt-cu-member.on { border-color: #b45309; background: #fef3c7; color: #1c1c1e; font-weight: 700; }
+.lt-cu-assign { border: 2px solid #b45309; border-radius: 10px; padding: 8px 10px; margin: 8px 0; background: var(--surface-2); }
 .lt-cu-segs { display: flex; flex-wrap: wrap; gap: 6px; }
 .lt-cu-segs .btn { width: auto; margin: 0; }
-.lt-cu-today { border: 2px solid #15803d; }
+.lt-cu-today { border: 2px solid var(--accent); }
 #cu-in-list .choice-row { margin: 6px 0; }
 .lt-cu-mini { height: 110px; margin-top: 8px; border-radius: 8px; overflow: hidden; pointer-events: none; }
 /* A segment's temporal confidence, on a line of its own (S6-P34, |C963). */
@@ -925,6 +926,24 @@ body.lt-set-bg-open { background: #4a0d1c; }
 .lt-pop-conf .lt-wiki-link { margin-top: 0; padding: 0; font: inherit; }
 /* The same reading as last time (S6-U33 item 3). */
 .lt-pf-same { margin: 6px 0 0; padding: 6px 10px; border-radius: 8px; background: #ecfdf5; border: 1px solid #15803d; font-size: 0.95em; }
+
+/* Forms as pop-ups (S6-P41): the form in a dimmed box over the screen it was
+   opened from, at the top so a phone's keyboard leaves it in view; the box
+   scrolls when the form is longer than the screen. */
+.lt-scrim.lt-popform { z-index: 2900; align-items: flex-start; overflow-y: auto; overscroll-behavior: contain; padding: max(12px, env(safe-area-inset-top)) 12px 24px; }
+.lt-scrim.lt-popform > * { width: 100%; max-width: 560px; margin: 0 auto; text-align: left; background: var(--surface); color: var(--text); border-radius: var(--radius); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); }
+.lt-scrim.lt-popform > div:not(.card) { padding: 16px; }
+.lt-scrim.lt-popform > #v-report { background: none; box-shadow: none; }
+.lt-scrim.lt-popform > #v-report > .card { margin: 0; }
+body.lt-popform-open { overflow: hidden; }
+
+/* The rolling history for everyone (S6-P38): announcements a little quieter
+   than gchat; Report and Remove small, after a gchat line. */
+.lt-rh-line.news { color: #a5b4fc; }
+.lt-rh-line.gchat .lt-rh-who { color: #7dd3fc; }
+.lt-rh-acts { white-space: nowrap; }
+.lt-rh-act { background: none; border: 1px solid #475569; color: #cbd5e1; border-radius: 6px; font: inherit; font-size: 0.78em; padding: 0 8px; margin-left: 8px; cursor: pointer; }
+.lt-rh-act:disabled { opacity: 0.6; cursor: default; }
 </style>
 </head>
 <body>
@@ -1653,7 +1672,6 @@ body.lt-set-bg-open { background: #4a0d1c; }
       <!-- Your plan for this walk (S5-P9, S5-P12, M590, Q553): the segments you chose; every collection starts from one. -->
       <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-choose" type="button">Choose your plan</button>
-      <button class="btn btn-secondary" id="cl-plan-btn" type="button">Draw a private segment</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
       <p class="err" id="cl-start-err" role="alert"></p>
       <!-- The litter map, with your picked plan outlined (Oct 31). -->
@@ -2048,10 +2066,12 @@ body.lt-set-bg-open { background: #4a0d1c; }
         <h2>Segments</h2>
         <button class="btn btn-secondary lt-select-btn" id="seg-select" type="button">Select…</button>
       </div>
+      <!-- Draw a private segment: here, where you choose your plan, not on the main page (S6-P40). -->
+      <button class="btn btn-secondary" id="cl-plan-btn" type="button">Draw a private segment</button>
       <p class="muted small" id="seg-select-say" hidden>Tap the segments you mean to collect on your walk, then press Use as my plan.</p>
       <details class="lt-seg-group" id="plans-group" open>
         <summary>Your private segments <span id="plans-count"></span></summary>
-        <p class="muted small" id="plans-none" hidden>None yet. Press Draw a private segment on the main page.</p>
+        <p class="muted small" id="plans-none" hidden>None yet. Press Draw a private segment above.</p>
         <div id="plans-list"></div>
       </details>
       <details class="lt-seg-group public" id="public-group" open>
@@ -7484,7 +7504,7 @@ window.LitterQuest = function (app) {
     { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
     { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Weigh, New bag, Pause, Resume and End, in turn, typing what a scale might show. It\'s practice: nothing is saved.',
       button: 'Practice the litter pulse', go: function () { app.practice(); } },
-    { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan or Draw a private segment below.' }
+    { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan below; Draw a private segment is at the top of its screen.' }
   ];
 
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }
@@ -8551,7 +8571,8 @@ window.LitterForum = function (app) {
     reportOf = of;
     if (app.closePanel) app.closePanel();
     app.notice('');
-    app.show('v-report');
+    // A pop-up over the screen you were on (S6-P41), no longer a screen of its own.
+    $('v-report').hidden = false;
     $('rp-title').textContent = of === 'Idea' ? 'Submit an Idea' : 'Report an Issue';
     $('rp-say').textContent = of === 'Idea' ? 'Your idea goes to the Admins, who talk it through.' : 'What went wrong goes to the Admins, who look into it.';
     $('rp-label').textContent = of === 'Idea' ? 'Your idea' : 'What happened? Say which screen you were on, and what you pressed.';
@@ -8562,7 +8583,7 @@ window.LitterForum = function (app) {
     e.preventDefault();
     app.busy($('rp-send'), 'rp-err', function () {
       return app.api('reportSend', { token: app.myToken(), of: reportOf, text: $('rp-text').value }).then(function () {
-        if (app.back) app.back();
+        $('v-report').hidden = true;
         app.notice(reportOf === 'Idea' ? 'Sent to the Admins. Thank you for the idea.' : 'Sent to the Admins. Thank you for telling us.');
       });
     });
@@ -8610,7 +8631,7 @@ window.LitterForum = function (app) {
   $('me-report-issue').addEventListener('click', function () { openReport('Issue'); });
   $('me-report-idea').addEventListener('click', function () { openReport('Idea'); });
   $('v-report').addEventListener('submit', sendReport);
-  $('rp-cancel').addEventListener('click', function () { if (app.back) app.back(); });
+  $('rp-cancel').addEventListener('click', function () { $('v-report').hidden = true; });
 
   return { open: open, sync: sync, openReview: openReview, openTopic: openTopic, signedOut: function () { told = false; } };
 };
@@ -10147,6 +10168,9 @@ window.LitterScroll = function (app) {
   var $ = app.$;
   var lines = [], pending = [], printed = [], loaded = false, asking = false, commands = [];
   var STRIP = 3;
+  // Everyone's lines while it's open (S6-P38, |Q765 (a)): asked for every few
+  // seconds, the gap from Settings, Rolling history; not at all while shut.
+  var every = 15, lastNow = 0, timer = null, polling = false;
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -10158,35 +10182,91 @@ window.LitterScroll = function (app) {
   function when(ms) { return new Date(ms).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
 
   // One line: a public one with its name first; your own indented, no name.
-  function lineEl(l) {
-    var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : ''));
+  // A gchat line, in the full screen: Report on someone else's, and Remove
+  // in Admin Mode (S6-P38 item 7, |Q764 (a)).
+  function lineEl(l, full) {
+    var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who || l.kind === 'gchat' ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : '') + (l.kind === 'gchat' ? ' gchat' : '') + (/^(start|end|badge)$/.test(l.kind) ? ' news' : ''));
     if (l.at) p.title = when(l.at);
-    if (l.who) { p.appendChild(el('b', 'lt-rh-who', l.who)); p.appendChild(document.createTextNode(' ' + l.text)); }
+    if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
     else p.textContent = l.text;
+    if (full && l.kind === 'gchat' && l.id) {
+      var acts = el('span', 'lt-rh-acts');
+      if (!l.mine) {
+        var rep = el('button', 'lt-rh-act', l.reported ? 'Reported' : 'Report');
+        rep.type = 'button';
+        rep.disabled = !!l.reported;
+        rep.addEventListener('click', function () { report(l, rep); });
+        acts.appendChild(rep);
+      }
+      if (app.adminMode && app.adminMode()) {
+        var rm = el('button', 'lt-rh-act', 'Remove');
+        rm.type = 'button';
+        rm.addEventListener('click', function () { remove(l, rm); });
+        acts.appendChild(rm);
+      }
+      if (acts.childNodes.length) p.appendChild(acts);
+    }
     return p;
+  }
+  // Each asks once more before it goes: "Report it to the Admins?", "Remove it for everyone?"
+  function sure(b, say) { if (b.dataset.sure === '1') return true; b.dataset.sure = '1'; b.textContent = say; return false; }
+  function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
+  function report(l, b) {
+    if (!sure(b, 'Report it to the Admins?')) return;
+    b.disabled = true;
+    app.api('gchatReport', { token: app.myToken(), lineId: l.id }).then(function () { l.reported = true; b.textContent = 'Reported'; }, function (er) { failed(b, 'Report', er); });
+  }
+  function remove(l, b) {
+    if (!sure(b, 'Remove it for everyone?')) return;
+    b.disabled = true;
+    app.api('gchatRemove', { token: app.myToken(), lineId: l.id }).then(function () {
+      lines = lines.filter(function (x) { return !(x.kind === 'gchat' && x.id === l.id); });
+      paintStrip();
+      paintFull();
+    }, function (er) { failed(b, 'Remove', er); });
+  }
+  function key(l) { return [l.kind, l.id || '', l.at, l.who || '', l.text].join('|'); }
+  function merge(news) {
+    var have = {};
+    lines.forEach(function (l) { have[key(l)] = true; });
+    var added = (news || []).filter(function (l) { return !have[key(l)]; });
+    if (!added.length) return false;
+    lines = lines.concat(added).sort(function (a, b) { return a.at - b.at; }).slice(-300);
+    return true;
   }
 
   function paintStrip() {
     var box = $('rh-strip-lines'), show = pending.concat(lines.slice(-STRIP).reverse()).slice(0, STRIP).reverse();
     box.textContent = '';
-    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Your walks, XP and levels show here as they happen.' : 'Loading the rolling history…'));
+    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading the rolling history…'));
     show.forEach(function (l) { box.appendChild(lineEl(l)); });
     $('rh-strip').hidden = false;
   }
 
   // The whole scroll, oldest first, a line between days, then what was typed.
-  function paintFull() {
+  // `end`: to its newest line; otherwise where you were, unless you were at the end already.
+  function paintFull(end) {
     var box = $('rh-lines'), last = '';
+    var atEnd = end || box.scrollHeight - box.scrollTop - box.clientHeight < 40, top = box.scrollTop;
     box.textContent = '';
     // HABO's lines only: a landed "+N XP" is the strip's, until they come.
     if (!lines.length) box.appendChild(el('p', 'lt-rh-line mine', 'Nothing here yet. Your walks, XP and levels show here as they happen.'));
     lines.forEach(function (l) {
       var d = l.at ? day(l.at) : '';
       if (d && d !== last) { box.appendChild(el('p', 'lt-rh-day', '— ' + d + ' —')); last = d; }
-      box.appendChild(lineEl(l));
+      box.appendChild(lineEl(l, true));
     });
-    printed.forEach(function (l) { box.appendChild(lineEl(l)); });
-    box.scrollTop = box.scrollHeight;
+    printed.forEach(function (l) { box.appendChild(lineEl(l, true)); });
+    box.scrollTop = atEnd ? box.scrollHeight : top;
+  }
+  function poll() {
+    if (polling || !app.myToken() || $('rh').hidden) return;
+    polling = true;
+    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }).then(function (d) {
+      if (d.now) lastNow = d.now;
+      if (d.every && d.every !== every) { every = d.every; if (timer) { clearInterval(timer); timer = setInterval(poll, every * 1000); } }
+      if (merge(d.lines)) { paintStrip(); paintFull(); }
+    }, function () { /* the next ask tries again */ }).then(function () { polling = false; });
   }
 
   // Fresh lines from HABO, after the main page loads.
@@ -10196,10 +10276,12 @@ window.LitterScroll = function (app) {
     return app.api('scroll', { token: app.myToken() }).then(function (d) {
       lines = d.lines || [];
       if (d.commands) commands = d.commands;
+      if (d.now) lastNow = d.now;
+      if (d.every) every = d.every;
       pending = [];
       loaded = true;
       paintStrip();
-      if (!$('rh').hidden) paintFull();
+      if (!$('rh').hidden) paintFull(true);
     }, function () { loaded = true; paintStrip(); });
   }
 
@@ -10217,10 +10299,14 @@ window.LitterScroll = function (app) {
   function open() {
     $('rh').hidden = false;
     document.body.classList.add('lt-rh-open');
-    paintFull();
+    paintFull(true);
     $('rh-close').focus();
+    if (timer) clearInterval(timer);
+    timer = setInterval(poll, every * 1000);
+    poll();
   }
   function close() {
+    if (timer) { clearInterval(timer); timer = null; }
     $('rh').hidden = true;
     document.body.classList.remove('lt-rh-open');
     $('rh-strip').focus();
@@ -10239,17 +10325,19 @@ window.LitterScroll = function (app) {
     if ((c === 'help' || c === '?') && commands.length) {
       ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
       asking = false;
-      paintFull();
+      paintFull(true);
       $('rh-in').focus();
       return;
     }
-    paintFull();
+    paintFull(true);
     app.api('scroll', { token: app.myToken(), command: typed }).then(function (d) {
       (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', text: t }); });
       if (d.lines) lines = d.lines;
+      // gchat: your line, in the scroll with everyone's, as they'll see it.
+      if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
     }, function (er) {
       printed.push({ kind: 'answer', text: er.message || 'That couldn\'t be answered just now. Try again.' });
-    }).then(function () { asking = false; paintFull(); $('rh-in').focus(); });
+    }).then(function () { asking = false; paintFull(true); $('rh-in').focus(); });
   }
 
   $('rh-strip').addEventListener('click', open);
@@ -10261,7 +10349,7 @@ window.LitterScroll = function (app) {
     refresh: refresh, landed: landed, open: open,
     // Where a "+N XP" lands: the strip, while it's on the screen.
     target: function () { var s = $('rh-strip'); return s && !s.hidden && s.offsetParent !== null ? s : null; },
-    signedOut: function () { lines = []; pending = []; printed = []; loaded = false; $('rh-strip').hidden = true; }
+    signedOut: function () { if (timer) { clearInterval(timer); timer = null; } lines = []; pending = []; printed = []; loaded = false; $('rh-strip').hidden = true; }
   };
 };
 </script>
@@ -10373,6 +10461,7 @@ window.LitterScroll = function (app) {
       if (state.account) { showAccount(state.account); return; }
       id = 'v-welcome';
     }
+    closePops();   // a form open as a pop-up closes with the screen it was opened on (S6-P41)
     VIEWS.forEach(function (v) { $(v).hidden = v !== id; });
     // Settings' lock bar pads the page only on Settings (S6-P7).
     if (id !== 'v-settings') document.body.classList.remove('lt-has-lockbar', 'lt-set-bg-locked', 'lt-set-bg-open');
@@ -11106,7 +11195,7 @@ window.LitterScroll = function (app) {
 
   /* ── The rolling history (S6-P3, scroll.js) ── */
 
-  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken });
+  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken, adminMode: adminMode });
 
   /* ── The Wiki (S6-P9, wiki.js) ── */
 
@@ -11220,6 +11309,44 @@ window.LitterScroll = function (app) {
   $('me-form').addEventListener('submit', submitEdit);
   watchHandle('ed-handle', 'ed-handle-msg', true);
   $('me-signout').addEventListener('click', signOut);
+
+  /* ── Forms as pop-ups (S6-P41, |Q769 (a)) ── */
+  // Each of these, once shown, moves into a dimmed box over the screen it was
+  // opened from, and back where it was once hidden: its buttons, and what
+  // they save, stay as they were. Leaving the screen closes it (show above).
+  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report'];
+  var pops = [];
+  POP_FORMS.forEach(function (id) {
+    var f = $(id);
+    if (!f || !window.MutationObserver) return;
+    var p = { form: f, home: document.createComment('pop ' + id), scrim: null };
+    pops.push(p);
+    var sync = function () {
+      if (!f.hidden && !p.scrim) {
+        var had = document.activeElement;
+        f.parentNode.insertBefore(p.home, f);
+        p.scrim = document.createElement('div');
+        p.scrim.className = 'lt-scrim lt-popform';
+        p.scrim.setAttribute('role', 'dialog');
+        p.scrim.setAttribute('aria-modal', 'true');
+        p.scrim.appendChild(f);
+        document.body.appendChild(p.scrim);
+        document.body.classList.add('lt-popform-open');
+        if (had && f.contains(had) && had.focus) had.focus();
+        // A map inside (a weighing's squares, a cleanup's segments) fits its new box.
+        setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 0);
+      } else if (f.hidden && p.scrim) {
+        p.home.parentNode.insertBefore(f, p.home);
+        p.home.parentNode.removeChild(p.home);
+        p.scrim.parentNode.removeChild(p.scrim);
+        p.scrim = null;
+        if (!pops.some(function (x) { return x.scrim; })) document.body.classList.remove('lt-popform-open');
+      }
+    };
+    new MutationObserver(sync).observe(f, { attributes: true, attributeFilter: ['hidden'] });
+    sync();
+  });
+  function closePops() { (pops || []).forEach(function (p) { if (p.scrim) p.form.hidden = true; }); }
 
   open();
 })();
