@@ -24,7 +24,7 @@ window.LitterQuest = function (app) {
     { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
     { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Weigh, New bag, Pause, Resume and End, in turn, typing what a scale might show. It\'s practice: nothing is saved.',
       button: 'Practice the litter pulse', go: function () { app.practice(); } },
-    { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan or Draw a private segment below.' }
+    { n: 6, title: 'Choose your plan', say: 'A public segment near you, or a private segment you draw: press Choose your plan below; Draw a private segment is at the top of its screen.' }
   ];
 
   function load(k) { try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e) { return null; } }

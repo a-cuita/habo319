@@ -735,7 +735,6 @@
       <!-- Your plan for this walk (S5-P9, S5-P12, M590, Q553): the segments you chose; every collection starts from one. -->
       <p class="lt-plan-line" id="cl-plan"></p>
       <button class="btn btn-primary" id="cl-choose" type="button">Choose your plan</button>
-      <button class="btn btn-secondary" id="cl-plan-btn" type="button">Draw a private segment</button>
       <button class="btn btn-accent" id="cl-start" type="button">Start collecting</button>
       <p class="err" id="cl-start-err" role="alert"></p>
       <!-- The litter map, with your picked plan outlined (Oct 31). -->
@@ -1130,10 +1129,12 @@
         <h2>Segments</h2>
         <button class="btn btn-secondary lt-select-btn" id="seg-select" type="button">Select…</button>
       </div>
+      <!-- Draw a private segment: here, where you choose your plan, not on the main page (S6-P40). -->
+      <button class="btn btn-secondary" id="cl-plan-btn" type="button">Draw a private segment</button>
       <p class="muted small" id="seg-select-say" hidden>Tap the segments you mean to collect on your walk, then press Use as my plan.</p>
       <details class="lt-seg-group" id="plans-group" open>
         <summary>Your private segments <span id="plans-count"></span></summary>
-        <p class="muted small" id="plans-none" hidden>None yet. Press Draw a private segment on the main page.</p>
+        <p class="muted small" id="plans-none" hidden>None yet. Press Draw a private segment above.</p>
         <div id="plans-list"></div>
       </details>
       <details class="lt-seg-group public" id="public-group" open>
