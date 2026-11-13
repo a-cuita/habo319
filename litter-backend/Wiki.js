@@ -293,6 +293,38 @@ var WIKI_CONFIDENCE_TEXT = [
   'The arrow compares that count with the count two weeks ago, over a window as long: ↑ more rates now, ↓ fewer, → the same.',
   '',
   'The window, the counts and the names are settings, in Admin Mode\'s Settings, Rates.'].join('\n');
+// Why a walk gives a segment no rate (S6-P34, |Q782 and your addendum): the
+// page the pop-up's greyed rows link to. Added once, like Temporal confidence.
+var WIKI_NO_RATE_TITLE = 'Why a walk gives no rate';
+var WIKI_NO_RATE_TEXT = ['A segment\'s rate is how fast litter comes back to it: the pounds collected, divided by its miles and by the days since it was last cleaned. Some walks collect a segment without giving it a rate. On a square\'s pop-up they\'re listed greyed, each with one of these reasons.',
+  '',
+  'Under 24 hours after the clock started: too little time for litter to come back and be measured. The pounds aren\'t lost: they go into the segment\'s next rate, which counts them over the whole time. The 24 hours is Shortest gap for a rate, in Admin Mode\'s Settings, Rates.',
+  '',
+  'It started the clock: the first collection of a segment, with no earlier one to measure from. The next collection gives its first rate.',
+  '',
+  'Rate Reset: more than the days in Segment due until after the clock started (Settings, Rates). After that long, the clock starts again from this walk.',
+  '',
+  'Not all its pounds were weighed inside the segment: a weighing crossed into another segment, so its pounds can\'t be split between them.',
+  '',
+  'A piece: walks that each collected part of the segment add up to one collection; the last piece holds the pounds and gives the rate.',
+  '',
+  'How the clock is timed: each walk counts at its last weighing. So a walk at the same time the next day can come a little under 24 hours after the last one, if it ends a little earlier.'].join('\n');
+function wikiNoRateOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('WIKI_NO_RATE')) return;
+  var sheet = getDb_().getSheetByName(TABS.wiki.name);
+  var have = readRows_(TABS.wiki, WIKI_COL);
+  if (!have.some(function (r) { return String(r.get('title')).toLowerCase() === WIKI_NO_RATE_TITLE.toLowerCase(); })) {
+    var now = new Date(), row = blankRow_(TABS.wiki);
+    row[WIKI_COL.id - 1] = nextId_('W', have.map(function (r) { return r.get('id'); }));
+    row[WIKI_COL.title - 1] = WIKI_NO_RATE_TITLE; row[WIKI_COL.text - 1] = WIKI_NO_RATE_TEXT; row[WIKI_COL.state - 1] = 'Live';
+    row[WIKI_COL.by - 1] = 'HABO'; row[WIKI_COL.drafted - 1] = now; row[WIKI_COL.live - 1] = now;
+    row[WIKI_COL.section - 1] = 'WS003'; row[WIKI_COL.place - 1] = 4;
+    sheet.getRange(lastRowWith_(sheet, WIKI_COL.id) + 1, 1, 1, row.length).setValues([row]);
+    forgetReads_();
+  }
+  props.setProperty('WIKI_NO_RATE', new Date().toISOString());
+}
 function wikiConfidenceOnce_() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('WIKI_CONFIDENCE')) return;

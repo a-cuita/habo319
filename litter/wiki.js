@@ -286,7 +286,7 @@ window.LitterWiki = function (app) {
 
   // A ℹ️'s link to its page; ← comes back to where it was pressed.
   // A page found by its title, for one added after the first ones (S6-P34: Temporal confidence).
-  var TITLES = { confidence: 'Temporal confidence' };
+  var TITLES = { confidence: 'Temporal confidence', norate: 'Why a walk gives no rate' };
   function link(which, label) {
     var b = el('button', 'link-btn lt-wiki-link', label || 'Read more in the Wiki');
     b.type = 'button';

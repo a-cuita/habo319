@@ -251,18 +251,34 @@ window.LitterMap = function (app) {
     return v.length ? v.reduce(function (a, b) { return a + Number(b); }, 0) / v.length : null;
   }
   function walksTable(g, cell) {
-    var index = cell != null, walks = g.walks || [];
+    var index = cell != null, walks = (g.walks || []).concat((g.noRate || []).map(function (w) { return Object.assign({ none: true }, w); }))
+      .sort(function (a, b) { return b.collected - a.collected; });
     if (!walks.length) return null;
     var t = el('table', 'lt-pop-table');
     var head = el('tr');
     ['Day', 'By', index ? 'Litter Index' : 'lb/mi·day⁻¹'].forEach(function (h) { head.appendChild(el('th', null, h)); });
     t.appendChild(head);
     walks.forEach(function (w) {
-      var tr = el('tr', 'lt-pop-walk');
+      var tr = el('tr', 'lt-pop-walk' + (w.none ? ' none' : ''));
       var own = index && w.idx ? w.idx[cell] : null, seg = index && own == null ? segReading(w, g) : null;
-      var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : String(round(w.rate, 2));
-      [dayWords(w.collected), w.by, v].forEach(function (x) { tr.appendChild(el('td', null, x)); });
+      var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : w.none ? '' : String(round(w.rate, 2));
+      [dayWords(w.collected), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
+      var last = el('td', null, v);
+      // A walk that gave no rate (S6-P34, |Q782 (a)): greyed, "No rate" and
+      // a link to the Wiki's page on why, in its line; its reason under it.
+      if (w.none) {
+        if (v) last.appendChild(document.createTextNode(' · '));
+        last.appendChild(document.createTextNode('No rate · '));
+        last.appendChild(app.wikiLink ? app.wikiLink('norate', 'Why?') : document.createTextNode('Why?'));
+      }
+      tr.appendChild(last);
       t.appendChild(tr);
+      if (w.none) {
+        var why = el('tr', 'lt-pop-why'), td = el('td', null, w.why);
+        td.colSpan = 3;
+        why.appendChild(td);
+        t.appendChild(why);
+      }
     });
     return t;
   }

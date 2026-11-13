@@ -797,3 +797,7 @@ body.lt-popform-open { overflow: hidden; }
 .lt-rh-acts { white-space: nowrap; }
 .lt-rh-act { background: none; border: 1px solid #475569; color: #cbd5e1; border-radius: 6px; font: inherit; font-size: 0.78em; padding: 0 8px; margin-left: 8px; cursor: pointer; }
 .lt-rh-act:disabled { opacity: 0.6; cursor: default; }
+
+/* A walk that gave a segment no rate (S6-P34): greyed in the pop-up's table, its reason under it. */
+.lt-pop-walk.none td { color: var(--text-dim); }
+.lt-pop-why td { color: var(--text-dim); font-size: 0.85em; font-style: italic; padding-top: 0; }

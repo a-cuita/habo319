@@ -663,6 +663,16 @@ function segmentSummariesWorked_(sim, accountId, range) {
     var finish = 0, finishLeft = null;
     var seq = pathSequence_(g, walks, k);
     d = seq.clock ? (now - seq.clock) / DAY_MS : null;
+    // Walks in the window that collected it but gave it no rate, newest
+    // first, each with why (S6-P34, |Q782 (a)): greyed in the pop-up, with a
+    // link to the Wiki's page on why.
+    var noRate = seq.events.filter(function (e) { return e.result !== 'rate' && inside({ collected: e.t }); }).sort(function (a, b) { return b.t - a.t; }).map(function (e) {
+      var q = counted[e.id], who = q ? shown[q.get('account')] : '', idx = {};
+      (stretchesOf[e.id] || []).forEach(function (st) {
+        String(st.get('cells')).split(/\s+/).forEach(function (c) { if (onSeg[c]) idx[c] = round_(Number(st.get('index')), 1); });
+      });
+      return { collected: e.t, by: who || 'a volunteer', why: notCountedWhy_(e, k), idx: idx };
+    });
     // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
     var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;
     if (lastPiece && now - lastPiece <= k.piecesH * 3600000 && seq.pendingShare >= k.finishFrom) {
@@ -686,7 +696,7 @@ function segmentSummariesWorked_(sim, accountId, range) {
       days: d == null ? null : round_(d, 1), groups: groups,
       // For The Priority Segment List (S5-P10): days left before it's past
       // "Segment due until", and whether it's past it already.
-      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to, walks: walksGave, notCounted: notCountedN,
+      left: d == null ? null : round_(k.to - d, 1), past: d != null && d > k.to, walks: walksGave, noRate: noRate, notCounted: notCountedN,
       // Days since any of its squares was collected (null: never), for the left-alone bonus.
       alone: (function () { var t = g.squares.reduce(function (m, c) { return Math.max(m, lastClean[c] || 0); }, 0); return t ? round_((now - t) / DAY_MS, 1) : null; })() };
   });
