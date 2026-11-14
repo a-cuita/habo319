@@ -302,7 +302,7 @@ window.LitterMap = function (app) {
       var c = G.indexColour(x[1], scale()), f = fadeOf(x);
       if (!(f > 0)) return;
       var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9 * f, fillColor: c, fillOpacity: 0.7 * f, className: 'lt-index-square' });
-      r.bindPopup(function () {
+      r.on('click', function () { openSquare(x[0], (function () {
         // One table on every square (S5-P10, |C849): the walks behind its
         // segment's rate, or, with none, the square's latest reading.
         var box = el('div', 'lt-pop'), tables = 0;
@@ -316,7 +316,7 @@ window.LitterMap = function (app) {
         });
         if (!tables) box.appendChild(latestTable(x));
         return box;
-      });
+      })()); });
       r.cellId = x[0];
       r.addTo(layer);
     });
@@ -330,7 +330,7 @@ window.LitterMap = function (app) {
       var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
       g.squares.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
-        r.bindPopup(function () {
+        r.on('click', function () { openSquare(cell, (function () {
           var box = el('div', 'lt-pop');
           box.appendChild(el('strong', null, 'Accumulation rate'));
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
@@ -340,7 +340,7 @@ window.LitterMap = function (app) {
           var tb = walksTable(g, null);
           if (tb) box.appendChild(tb);
           return box;
-        });
+        })()); });
         r.addTo(layer);
       });
     });
@@ -560,7 +560,7 @@ window.LitterMap = function (app) {
           .forEach(function (r) {
             var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
             // Under Your ratings, each rating's math (S6-P44 item 1).
-            if (r[0] === 'Your ratings') (xp.math || []).forEach(function (t) { xl.appendChild(el('li', 'lt-xp-math', t)); });
+            if (r[0] === 'Your ratings' && app.ratingsTable) { var tb = app.ratingsTable(xp.mathRows || xp.math, xp.mathHow); if (tb) xl.appendChild(tb); }
           });
         xb.appendChild(xl);
         xb.appendChild(el('p', 'lt-walk-xp-total', 'Total: ' + round(c.xp, 2) + ' XP'));
@@ -1015,6 +1015,8 @@ window.LitterMap = function (app) {
   // A segment's map, larger, over the page.
   function openModal(title, cells, kind, opts) {
     $('seg-modal-title').textContent = title;
+    $('seg-modal-more').hidden = true;
+    $('seg-modal').classList.remove('lt-with-more');
     $('seg-modal').hidden = false;
     if (!window.L) return;
     if (!modalMap) {
@@ -1026,7 +1028,24 @@ window.LitterMap = function (app) {
     var b = squaresOn(modalLayer, cells, Object.assign({ kind: kind }, opts || {}), 2);
     setTimeout(function () { modalMap.invalidateSize(); if (b.isValid()) modalMap.fitBounds(b, { maxZoom: 18, padding: [20, 20] }); }, 0);
   }
-  function closeModal() { $('seg-modal').hidden = true; }
+  function closeModal() { $('seg-modal').hidden = true; $('seg-modal-more').textContent = ''; }
+  // A tapped square, in a pop-up of its own (S6-P34, |C1016): a small map of
+  // its segment, cropped close, the square outlined; its lines and table under it.
+  function openSquare(cell, content) {
+    var segs = segmentsAt(cell), cells = [];
+    segs.forEach(function (g) { g.squares.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
+    if (!cells.length) cells = [cell];
+    openModal(segs.length ? segs.map(function (g) { return g.name; }).join(', ') : 'This square', cells, 'public', {});
+    $('seg-modal').classList.add('lt-with-more');
+    var more = $('seg-modal-more');
+    more.textContent = '';
+    more.appendChild(content);
+    // A Wiki link in it opens the Wiki, so the pop-up closes first.
+    content.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.lt-wiki-link')) closeModal(); }, true);
+    more.hidden = false;
+    more.scrollTop = 0;
+    if (window.L && modalLayer) L.rectangle(G.cellBounds(cell), { color: '#111827', weight: 3, fill: false, interactive: false }).addTo(modalLayer);
+  }
 
   // The streets each segment runs along, from OpenStreetMap, once for all
   // the cards on the screen; without them, the cards go on without.

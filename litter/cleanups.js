@@ -159,10 +159,11 @@ window.LitterCleanups = function (app) {
     var leadOf = c.teams.filter(function (t) { return t.lead; })[0];
     // Its map: your segment, and the one you're assigning, stand out.
     var assigned = {};
-    c.teams.forEach(function (t) { t.members.forEach(function (m) { if (m.segment) assigned[m.segment] = true; }); });
+    c.teams.forEach(function (t) { t.members.forEach(function (m) { (m.segments || []).forEach(function (s) { assigned[s] = true; }); }); });
+    var isMine = function (id) { return (c.mySegments || []).indexOf(id) !== -1; };
     drawMap('one', 'cu-one-map', c.segments, function (g) {
-      var on = g.id === c.mySegment || (pick && assigned[g.id]);
-      return { color: g.id === c.mySegment ? '#b45309' : assigned[g.id] ? '#15803d' : '#64748b', on: on };
+      var on = isMine(g.id) || (pick && assigned[g.id]);
+      return { color: isMine(g.id) ? '#b45309' : assigned[g.id] ? '#15803d' : '#64748b', on: on };
     }, pick ? function (id) { assign(pick, id); } : null);
     // The teams, each with its members and their segments.
     var box = $('cu-teams');
@@ -175,7 +176,7 @@ window.LitterCleanups = function (app) {
       var ul = el('ul', 'lt-cu-members');
       t.members.forEach(function (m) {
         var li = el('li');
-        var label = m.handle + (m.leader ? ' ★' : '') + ': ' + (m.segment ? m.segmentName : 'no segment yet');
+        var label = m.handle + (m.leader ? ' ★' : '') + ': ' + (m.segmentName || 'no segment yet');
         if (t.lead && !c.past) {
           var b = button('lt-cu-member' + (pick === m.id ? ' on' : ''), label, function () { pick = pick === m.id ? '' : m.id; drawOne(); });
           b.id = 'cu-member-' + m.id;
@@ -192,11 +193,18 @@ window.LitterCleanups = function (app) {
     $('cu-assign').hidden = !pick;
     if (pick) {
       var who = c.teams.reduce(function (f, t) { return f || t.members.filter(function (m) { return m.id === pick; })[0]; }, null);
-      $('cu-assign-say').textContent = 'Now tap a segment for ' + (who ? who.handle : 'them') + ', on the map or here.';
-      var segs = $('cu-assign-segs');
+      // Several segments each (|C1012): a tap adds one, or takes it off; ticked ones are theirs. Done when they're set.
+      $('cu-assign-say').textContent = 'Tap the segments for ' + (who ? who.handle : 'them') + ', on the map or here: each tap adds one, or takes it off. Press Done when they\'re set.';
+      var segs = $('cu-assign-segs'), has = (who && who.segments) || [];
       segs.textContent = '';
-      c.segments.forEach(function (id) { var b = button('btn btn-secondary', segName(id), function () { assign(pick, id); }); b.id = 'cu-seg-' + id; segs.appendChild(b); });
-      segs.appendChild(button('btn btn-secondary', 'No segment', function () { assign(pick, ''); }));
+      c.segments.forEach(function (id) {
+        var on = has.indexOf(id) !== -1;
+        var b = button('btn btn-secondary lt-cu-segpick' + (on ? ' on' : ''), (on ? '✓ ' : '') + segName(id), function () { assign(pick, id, true); });
+        b.id = 'cu-seg-' + id; b.setAttribute('aria-pressed', String(on)); segs.appendChild(b);
+      });
+      segs.appendChild(button('btn btn-secondary', 'No segment', function () { assign(pick, '', true); }));
+      var done = button('btn btn-primary', 'Done', function () { pick = ''; drawOne(); });
+      done.id = 'cu-assign-done'; segs.appendChild(done);
     }
     // Players asking to be placed: a leader places them in their team.
     $('cu-unplaced').hidden = !c.unplaced.length;
@@ -336,9 +344,10 @@ window.LitterCleanups = function (app) {
     a.click();
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
-  function assign(accountId, segmentId) {
+  // keep: stay on this member, to tap more segments (|C1012).
+  function assign(accountId, segmentId, keep) {
     var c = current();
-    pick = '';
+    if (!keep) pick = '';
     return send('cleanupAssign', { cleanupId: c.id, accountId: accountId, segmentId: segmentId }, $('cu-assign-segs').firstChild, 'cu-one-err');
   }
   function place(accountId, teamId, b) {
@@ -413,9 +422,10 @@ window.LitterCleanups = function (app) {
     box.hidden = !t;
     if (!t) return;
     $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
-    $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.'
-      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.'
-      : t.name + '. Check in when your team starts on ' + t.segmentName + '.';
+    var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
+    $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
+      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.' + next
+      : t.name + '. Check in when your team starts on ' + t.segmentName + '.' + next;
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
   }

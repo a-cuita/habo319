@@ -165,6 +165,10 @@ body.kiosk .event-desc { display: -webkit-box; -webkit-line-clamp: 2; -webkit-bo
 /* It starts in the middle of the screen, then floats up to the notices (S6-U22). */
 .lt-nt.working.lt-work-center { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); z-index: 3200; }
 .lt-working-scrim[hidden] { display: none; }
+/* The start's card with its sayings stays in sight over the blur (|M1189), and the
+   bar waits at the top of the screen meanwhile, so both show. */
+#cl-starting { z-index: 3100; }
+body.lt-starting .lt-nt.working.lt-work-center { top: max(16px, env(safe-area-inset-top)); transform: translateX(-50%); }
 /* While the bar glides up into the notices, they don't scroll, so no scroll bars flash (|C913). */
 .lt-notices.lt-notices-float { overflow: visible; }
 /* In Admin Mode's dark look, the notices stand out from the page. */
@@ -415,7 +419,7 @@ html.lt-panel-open { overflow: hidden; }
 #my-plans.selecting .lt-seg-card { cursor: pointer; }
 .lt-seg-card.picked { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: var(--radius-sm); }
 .lt-seg-card.picked .lt-seg-tick { background: var(--accent); border-color: var(--accent); color: #fff; }
-.lt-seg-thumb { height: 120px; margin: 8px 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); cursor: zoom-in; overflow: hidden; }
+.lt-seg-thumb { height: 120px; margin: 8px 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--surface-2); cursor: zoom-in; overflow: hidden; position: relative; z-index: 0; isolation: isolate; }   /* its map's layers stay inside it, under a menu (|C1020) */
 .lt-seg-thumb .leaflet-control-attribution { font-size: 9px; }
 .lt-seg-streets { font-weight: 700; margin: 0 0 2px; }
 .lt-seg-more-wrap { position: relative; flex: none; }
@@ -982,7 +986,25 @@ body.lt-popform-open { overflow: hidden; }
 .lt-prio-menu-act:hover, .lt-prio-menu-act:focus { background: var(--surface-2); }
 
 /* Each rating's math, under Your ratings (S6-P44 item 1): indented, smaller, in italics. */
-.lt-walk-xp-lines li.lt-xp-math, #sm-xp-lines li.lt-xp-math { display: block; padding-left: 18px; font-size: 0.85em; font-style: italic; color: var(--text-dim); }
+.lt-walk-xp-lines li.lt-xp-math, #sm-xp-lines li.lt-xp-math { display: block; padding-left: 14px; font-size: 0.85em; color: var(--text-dim); }
+.lt-xp-math-how { margin: 2px 0 4px; font-style: italic; }
+.lt-xp-math-table { border-collapse: collapse; width: 100%; font-size: 0.95em; }
+.lt-xp-math-table th { text-align: left; font-weight: 600; font-size: 0.85em; padding: 2px 4px; border-bottom: 1px solid var(--border); }
+.lt-xp-math-table td { padding: 2px 4px; white-space: nowrap; }
+.lt-xp-math-table td:last-child, .lt-xp-math-table th:last-child { text-align: right; }
+
+/* A member's segments, ticked (S6-P27, |C1012). */
+.lt-cu-segpick.on { border-color: #15803d; font-weight: 700; }
+
+/* A square's pop-up (S6-P34, |C1016): a small map of its segment, its table under it, scrolling inside. */
+#seg-modal.lt-with-more .lt-seg-modal-box { max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain; text-align: left; }
+#seg-modal.lt-with-more .lt-seg-modal-map { height: 26vh; min-height: 150px; max-height: 220px; }
+.lt-seg-modal-more .lt-pop { font-size: 0.95rem; }
+.lt-seg-modal-more .lt-pop-table { font-size: 0.9rem; margin-top: 8px; }
+.lt-seg-modal-more .lt-pop-table th, .lt-seg-modal-more .lt-pop-table td { padding: 4px 8px 4px 0; vertical-align: top; }
+.lt-seg-modal-more .lt-pop-table td { white-space: normal; }
+.lt-seg-modal-more .lt-pop-table tr.lt-pop-walk td:first-child { white-space: nowrap; }
+.lt-seg-modal-more .lt-pop-seg { margin-top: 8px; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -1442,6 +1464,8 @@ body.lt-popform-open { overflow: hidden; }
       <button class="lt-modal-x" id="seg-modal-close" type="button" aria-label="Close" title="Close">×</button>
       <p class="lt-scrim-title" id="seg-modal-title"></p>
       <div class="lt-seg-modal-map" id="seg-modal-map"></div>
+      <!-- A square's walks and readings, under a small map of its segment (S6-P34, |C1016). -->
+      <div class="lt-seg-modal-more" id="seg-modal-more" hidden></div>
     </div>
   </div>
 
@@ -3726,7 +3750,7 @@ window.LitterCollect = function (app) {
       if (animate) li.className = 'lt-walk-xp-wait';
       lines.appendChild(li);
       // Under Your ratings, each rating's math (S6-P44 item 1).
-      if (p[0] === 'Your ratings') (w.math || []).forEach(function (t) { var m = document.createElement('li'); m.className = 'lt-xp-math'; m.textContent = t; lines.appendChild(m); });
+      if (p[0] === 'Your ratings' && app.ratingsTable) { var tb = app.ratingsTable(w.mathRows || w.math, w.mathHow); if (tb) lines.appendChild(tb); }
       return { li: li, n: n, v: p[1] };
     });
     var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
@@ -3877,6 +3901,7 @@ window.LitterCollect = function (app) {
     busyFor = tag || null;
     if (!$('cl-starting').hidden) return;
     $('cl-starting').hidden = false;
+    document.body.classList.add('lt-starting');   // the Working bar waits at the top, the card in sight (|M1189)
     var list = (settings.sayings || []).slice();
     var k = list.length ? Math.floor(Math.random() * list.length) : 0;
     var next = function () { $('cl-saying').textContent = list.length ? list[k++ % list.length] : ''; };
@@ -3889,6 +3914,7 @@ window.LitterCollect = function (app) {
     sayingTimer = null;
     busyFor = null;
     $('cl-starting').hidden = true;
+    document.body.classList.remove('lt-starting');
   }
   function busyWhile(title, work) {
     showBusy(title);
@@ -6602,7 +6628,7 @@ window.LitterMap = function (app) {
       var c = G.indexColour(x[1], scale()), f = fadeOf(x);
       if (!(f > 0)) return;
       var r = L.rectangle(G.cellBounds(x[0]), { color: c, weight: 1, opacity: 0.9 * f, fillColor: c, fillOpacity: 0.7 * f, className: 'lt-index-square' });
-      r.bindPopup(function () {
+      r.on('click', function () { openSquare(x[0], (function () {
         // One table on every square (S5-P10, |C849): the walks behind its
         // segment's rate, or, with none, the square's latest reading.
         var box = el('div', 'lt-pop'), tables = 0;
@@ -6616,7 +6642,7 @@ window.LitterMap = function (app) {
         });
         if (!tables) box.appendChild(latestTable(x));
         return box;
-      });
+      })()); });
       r.cellId = x[0];
       r.addTo(layer);
     });
@@ -6630,7 +6656,7 @@ window.LitterMap = function (app) {
       var c = g.rate == null ? '#9ca3af' : G.indexColour(Math.min(10, g.rate / rateTop * 10), scale());
       g.squares.forEach(function (cell) {
         var r = L.rectangle(G.cellBounds(cell), { color: c, weight: 1, opacity: 0.9, fillColor: c, fillOpacity: 0.7, className: 'lt-rate-square' });
-        r.bindPopup(function () {
+        r.on('click', function () { openSquare(cell, (function () {
           var box = el('div', 'lt-pop');
           box.appendChild(el('strong', null, 'Accumulation rate'));
           box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
@@ -6640,7 +6666,7 @@ window.LitterMap = function (app) {
           var tb = walksTable(g, null);
           if (tb) box.appendChild(tb);
           return box;
-        });
+        })()); });
         r.addTo(layer);
       });
     });
@@ -6860,7 +6886,7 @@ window.LitterMap = function (app) {
           .forEach(function (r) {
             var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
             // Under Your ratings, each rating's math (S6-P44 item 1).
-            if (r[0] === 'Your ratings') (xp.math || []).forEach(function (t) { xl.appendChild(el('li', 'lt-xp-math', t)); });
+            if (r[0] === 'Your ratings' && app.ratingsTable) { var tb = app.ratingsTable(xp.mathRows || xp.math, xp.mathHow); if (tb) xl.appendChild(tb); }
           });
         xb.appendChild(xl);
         xb.appendChild(el('p', 'lt-walk-xp-total', 'Total: ' + round(c.xp, 2) + ' XP'));
@@ -7315,6 +7341,8 @@ window.LitterMap = function (app) {
   // A segment's map, larger, over the page.
   function openModal(title, cells, kind, opts) {
     $('seg-modal-title').textContent = title;
+    $('seg-modal-more').hidden = true;
+    $('seg-modal').classList.remove('lt-with-more');
     $('seg-modal').hidden = false;
     if (!window.L) return;
     if (!modalMap) {
@@ -7326,7 +7354,24 @@ window.LitterMap = function (app) {
     var b = squaresOn(modalLayer, cells, Object.assign({ kind: kind }, opts || {}), 2);
     setTimeout(function () { modalMap.invalidateSize(); if (b.isValid()) modalMap.fitBounds(b, { maxZoom: 18, padding: [20, 20] }); }, 0);
   }
-  function closeModal() { $('seg-modal').hidden = true; }
+  function closeModal() { $('seg-modal').hidden = true; $('seg-modal-more').textContent = ''; }
+  // A tapped square, in a pop-up of its own (S6-P34, |C1016): a small map of
+  // its segment, cropped close, the square outlined; its lines and table under it.
+  function openSquare(cell, content) {
+    var segs = segmentsAt(cell), cells = [];
+    segs.forEach(function (g) { g.squares.forEach(function (c) { if (cells.indexOf(c) === -1) cells.push(c); }); });
+    if (!cells.length) cells = [cell];
+    openModal(segs.length ? segs.map(function (g) { return g.name; }).join(', ') : 'This square', cells, 'public', {});
+    $('seg-modal').classList.add('lt-with-more');
+    var more = $('seg-modal-more');
+    more.textContent = '';
+    more.appendChild(content);
+    // A Wiki link in it opens the Wiki, so the pop-up closes first.
+    content.addEventListener('click', function (e) { if (e.target.closest && e.target.closest('.lt-wiki-link')) closeModal(); }, true);
+    more.hidden = false;
+    more.scrollTop = 0;
+    if (window.L && modalLayer) L.rectangle(G.cellBounds(cell), { color: '#111827', weight: 3, fill: false, interactive: false }).addTo(modalLayer);
+  }
 
   // The streets each segment runs along, from OpenStreetMap, once for all
   // the cards on the screen; without them, the cards go on without.
@@ -9534,6 +9579,15 @@ window.LitterWiki = function (app) {
   }
 
   // The text, as paragraphs, lists, and the sources.
+  // A paragraph or item that starts with its topic and a colon, like "How the
+  // clock is timed:", shows the topic in bold, as a heading for it (|C1017).
+  function topicLine(e, line) {
+    var m = /^([A-Z][^:.!?]{0,80}):\s+(.*)$/.exec(line);
+    if (!m || m[1].split(/\s+/).length > 9) { e.textContent = line; return e; }
+    e.appendChild(el('strong', 'lt-wiki-topic', m[1] + ':'));
+    e.appendChild(document.createTextNode(' ' + m[2]));
+    return e;
+  }
   function render(box, text) {
     box.textContent = '';
     String(text || '').split(/\n\s*\n/).forEach(function (para) {
@@ -9544,10 +9598,10 @@ window.LitterWiki = function (app) {
       para.split('\n').forEach(function (line) {
         if (/^- /.test(line)) {
           if (!ul) { ul = el('ul', 'lt-wiki-list'); box.appendChild(ul); p = null; }
-          ul.appendChild(el('li', null, line.slice(2)));
+          ul.appendChild(topicLine(el('li'), line.slice(2)));
         } else {
-          if (!p) { p = el('p'); box.appendChild(p); ul = null; p.textContent = line; }
-          else p.textContent += ' ' + line;
+          if (!p) { p = topicLine(el('p'), line); box.appendChild(p); ul = null; }
+          else p.appendChild(document.createTextNode(' ' + line));
         }
       });
     });
@@ -9848,10 +9902,11 @@ window.LitterCleanups = function (app) {
     var leadOf = c.teams.filter(function (t) { return t.lead; })[0];
     // Its map: your segment, and the one you're assigning, stand out.
     var assigned = {};
-    c.teams.forEach(function (t) { t.members.forEach(function (m) { if (m.segment) assigned[m.segment] = true; }); });
+    c.teams.forEach(function (t) { t.members.forEach(function (m) { (m.segments || []).forEach(function (s) { assigned[s] = true; }); }); });
+    var isMine = function (id) { return (c.mySegments || []).indexOf(id) !== -1; };
     drawMap('one', 'cu-one-map', c.segments, function (g) {
-      var on = g.id === c.mySegment || (pick && assigned[g.id]);
-      return { color: g.id === c.mySegment ? '#b45309' : assigned[g.id] ? '#15803d' : '#64748b', on: on };
+      var on = isMine(g.id) || (pick && assigned[g.id]);
+      return { color: isMine(g.id) ? '#b45309' : assigned[g.id] ? '#15803d' : '#64748b', on: on };
     }, pick ? function (id) { assign(pick, id); } : null);
     // The teams, each with its members and their segments.
     var box = $('cu-teams');
@@ -9864,7 +9919,7 @@ window.LitterCleanups = function (app) {
       var ul = el('ul', 'lt-cu-members');
       t.members.forEach(function (m) {
         var li = el('li');
-        var label = m.handle + (m.leader ? ' ★' : '') + ': ' + (m.segment ? m.segmentName : 'no segment yet');
+        var label = m.handle + (m.leader ? ' ★' : '') + ': ' + (m.segmentName || 'no segment yet');
         if (t.lead && !c.past) {
           var b = button('lt-cu-member' + (pick === m.id ? ' on' : ''), label, function () { pick = pick === m.id ? '' : m.id; drawOne(); });
           b.id = 'cu-member-' + m.id;
@@ -9881,11 +9936,18 @@ window.LitterCleanups = function (app) {
     $('cu-assign').hidden = !pick;
     if (pick) {
       var who = c.teams.reduce(function (f, t) { return f || t.members.filter(function (m) { return m.id === pick; })[0]; }, null);
-      $('cu-assign-say').textContent = 'Now tap a segment for ' + (who ? who.handle : 'them') + ', on the map or here.';
-      var segs = $('cu-assign-segs');
+      // Several segments each (|C1012): a tap adds one, or takes it off; ticked ones are theirs. Done when they're set.
+      $('cu-assign-say').textContent = 'Tap the segments for ' + (who ? who.handle : 'them') + ', on the map or here: each tap adds one, or takes it off. Press Done when they\'re set.';
+      var segs = $('cu-assign-segs'), has = (who && who.segments) || [];
       segs.textContent = '';
-      c.segments.forEach(function (id) { var b = button('btn btn-secondary', segName(id), function () { assign(pick, id); }); b.id = 'cu-seg-' + id; segs.appendChild(b); });
-      segs.appendChild(button('btn btn-secondary', 'No segment', function () { assign(pick, ''); }));
+      c.segments.forEach(function (id) {
+        var on = has.indexOf(id) !== -1;
+        var b = button('btn btn-secondary lt-cu-segpick' + (on ? ' on' : ''), (on ? '✓ ' : '') + segName(id), function () { assign(pick, id, true); });
+        b.id = 'cu-seg-' + id; b.setAttribute('aria-pressed', String(on)); segs.appendChild(b);
+      });
+      segs.appendChild(button('btn btn-secondary', 'No segment', function () { assign(pick, '', true); }));
+      var done = button('btn btn-primary', 'Done', function () { pick = ''; drawOne(); });
+      done.id = 'cu-assign-done'; segs.appendChild(done);
     }
     // Players asking to be placed: a leader places them in their team.
     $('cu-unplaced').hidden = !c.unplaced.length;
@@ -10025,9 +10087,10 @@ window.LitterCleanups = function (app) {
     a.click();
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
-  function assign(accountId, segmentId) {
+  // keep: stay on this member, to tap more segments (|C1012).
+  function assign(accountId, segmentId, keep) {
     var c = current();
-    pick = '';
+    if (!keep) pick = '';
     return send('cleanupAssign', { cleanupId: c.id, accountId: accountId, segmentId: segmentId }, $('cu-assign-segs').firstChild, 'cu-one-err');
   }
   function place(accountId, teamId, b) {
@@ -10102,9 +10165,10 @@ window.LitterCleanups = function (app) {
     box.hidden = !t;
     if (!t) return;
     $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
-    $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.'
-      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.'
-      : t.name + '. Check in when your team starts on ' + t.segmentName + '.';
+    var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
+    $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
+      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.' + next
+      : t.name + '. Check in when your team starts on ' + t.segmentName + '.' + next;
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
   }
@@ -10760,6 +10824,34 @@ window.LitterScroll = function (app) {
      again, or the same key, replace the one already there. opt: { key,
      buttons: [{ label, go }] }. ── */
 
+  // Your ratings' math, as a table (S6-P44 item 1, |C1018): one line on how
+  // it's worked out, then a row for each weighing. Shared by the walk's end
+  // screen and Your collections.
+  function ratingsTable(rows, how) {
+    if (!rows || !rows.length) return null;
+    var li = document.createElement('li');
+    li.className = 'lt-xp-math';
+    // From a backend before the table: its lines, as they were.
+    if (typeof rows[0] === 'string') { li.textContent = rows.join('\n'); li.style.whiteSpace = 'pre-line'; return li; }
+    var p = document.createElement('p');
+    p.className = 'lt-xp-math-how';
+    var h = how || { r1: 3, r2: 2, r3: 1, bonus: 5 };
+    p.textContent = 'XP = points for how close × (1 + Litter Index ÷ ' + h.bonus + '). Within 1: ' + h.r1 + ' points; within 2: ' + h.r2 + '; within 3: ' + h.r3 + '.';
+    li.appendChild(p);
+    var t = document.createElement('table');
+    t.className = 'lt-xp-math-table';
+    var head = t.createTHead().insertRow();
+    ['Weighing', 'You rated', 'Litter Index', 'Within', 'XP'].forEach(function (x) { var th = document.createElement('th'); th.textContent = x; head.appendChild(th); });
+    var body = t.createTBody();
+    rows.forEach(function (r) {
+      var tr = body.insertRow();
+      var cells = [r.n, r.rated, r.index == null ? '–' : r.index, r.index == null ? 'no Index' : r.within ? r.within : 'over 3',
+        r.within ? r.points + ' × ' + r.times + ' = ' + r.xp : '0'];
+      cells.forEach(function (x) { tr.insertCell().textContent = String(x); });
+    });
+    li.appendChild(t);
+    return li;
+  }
   function notice(text, opt) {
     if (!text) return;   // a notice stays until it's closed
     opt = opt || {};
@@ -11363,7 +11455,7 @@ window.LitterScroll = function (app) {
   /* ── Collecting (S3-P21, collect.js) ── */
 
   var collect = window.LitterCollect({
-    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut, ratingsTable: ratingsTable,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
@@ -11500,6 +11592,7 @@ window.LitterScroll = function (app) {
     walkIds: function () { return collect.walkIds(); },
     useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
     walking: function () { return collect.walking(); },
+    ratingsTable: ratingsTable,
     gate: function (b, key) { return collect.gate(b, key); },
     showCollections: function () { notice(''); show('v-collections'); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }

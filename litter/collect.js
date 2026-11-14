@@ -551,7 +551,7 @@ window.LitterCollect = function (app) {
       if (animate) li.className = 'lt-walk-xp-wait';
       lines.appendChild(li);
       // Under Your ratings, each rating's math (S6-P44 item 1).
-      if (p[0] === 'Your ratings') (w.math || []).forEach(function (t) { var m = document.createElement('li'); m.className = 'lt-xp-math'; m.textContent = t; lines.appendChild(m); });
+      if (p[0] === 'Your ratings' && app.ratingsTable) { var tb = app.ratingsTable(w.mathRows || w.math, w.mathHow); if (tb) lines.appendChild(tb); }
       return { li: li, n: n, v: p[1] };
     });
     var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
@@ -702,6 +702,7 @@ window.LitterCollect = function (app) {
     busyFor = tag || null;
     if (!$('cl-starting').hidden) return;
     $('cl-starting').hidden = false;
+    document.body.classList.add('lt-starting');   // the Working bar waits at the top, the card in sight (|M1189)
     var list = (settings.sayings || []).slice();
     var k = list.length ? Math.floor(Math.random() * list.length) : 0;
     var next = function () { $('cl-saying').textContent = list.length ? list[k++ % list.length] : ''; };
@@ -714,6 +715,7 @@ window.LitterCollect = function (app) {
     sayingTimer = null;
     busyFor = null;
     $('cl-starting').hidden = true;
+    document.body.classList.remove('lt-starting');
   }
   function busyWhile(title, work) {
     showBusy(title);

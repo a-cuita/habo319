@@ -565,7 +565,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -613,6 +613,7 @@ function ensureSchema_(force) {
     wikiSectionsOnce_();
     wikiConfidenceOnce_();   // Temporal confidence's page (S6-P34, |C963)
     wikiNoRateOnce_();   // why a walk gives no rate (S6-P34, |Q782)
+    coldFolderOnce_();   // the cold storage folder, made now (S6-P50, |C1022)
     achievementsOnce_();
     squaresPackOnce_();   // last: after the regrids, which read squares as they were (S6-P1)
     fillSettingNotes_(ss);

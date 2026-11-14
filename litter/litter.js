@@ -152,6 +152,34 @@
      again, or the same key, replace the one already there. opt: { key,
      buttons: [{ label, go }] }. ── */
 
+  // Your ratings' math, as a table (S6-P44 item 1, |C1018): one line on how
+  // it's worked out, then a row for each weighing. Shared by the walk's end
+  // screen and Your collections.
+  function ratingsTable(rows, how) {
+    if (!rows || !rows.length) return null;
+    var li = document.createElement('li');
+    li.className = 'lt-xp-math';
+    // From a backend before the table: its lines, as they were.
+    if (typeof rows[0] === 'string') { li.textContent = rows.join('\n'); li.style.whiteSpace = 'pre-line'; return li; }
+    var p = document.createElement('p');
+    p.className = 'lt-xp-math-how';
+    var h = how || { r1: 3, r2: 2, r3: 1, bonus: 5 };
+    p.textContent = 'XP = points for how close × (1 + Litter Index ÷ ' + h.bonus + '). Within 1: ' + h.r1 + ' points; within 2: ' + h.r2 + '; within 3: ' + h.r3 + '.';
+    li.appendChild(p);
+    var t = document.createElement('table');
+    t.className = 'lt-xp-math-table';
+    var head = t.createTHead().insertRow();
+    ['Weighing', 'You rated', 'Litter Index', 'Within', 'XP'].forEach(function (x) { var th = document.createElement('th'); th.textContent = x; head.appendChild(th); });
+    var body = t.createTBody();
+    rows.forEach(function (r) {
+      var tr = body.insertRow();
+      var cells = [r.n, r.rated, r.index == null ? '–' : r.index, r.index == null ? 'no Index' : r.within ? r.within : 'over 3',
+        r.within ? r.points + ' × ' + r.times + ' = ' + r.xp : '0'];
+      cells.forEach(function (x) { tr.insertCell().textContent = String(x); });
+    });
+    li.appendChild(t);
+    return li;
+  }
   function notice(text, opt) {
     if (!text) return;   // a notice stays until it's closed
     opt = opt || {};
@@ -755,7 +783,7 @@
   /* ── Collecting (S3-P21, collect.js) ── */
 
   var collect = window.LitterCollect({
-    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut, ratingsTable: ratingsTable,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
@@ -892,6 +920,7 @@
     walkIds: function () { return collect.walkIds(); },
     useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
     walking: function () { return collect.walking(); },
+    ratingsTable: ratingsTable,
     gate: function (b, key) { return collect.gate(b, key); },
     showCollections: function () { notice(''); show('v-collections'); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }

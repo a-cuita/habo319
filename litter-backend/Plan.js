@@ -247,7 +247,7 @@ function xpOf_(accountId) {
 // track is saved, and its weighings' only once it's Ended. `xp`: the
 // player's whole XP, for the page to see what's new.
 function walkXp_(collectionId, accountId) {
-  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId), math: [] };
+  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId), math: [], mathRows: [] };
   var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === collectionId; })[0];
   if (!q || !String(q.get('track')).trim() || q.get('simulated') === 'Yes') return out;
   out.counts = true;
@@ -259,8 +259,10 @@ function walkXp_(collectionId, accountId) {
       var st = stretchOf_(r), all = stretchXp_(st, x);
       var types = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
       out.ratings += all - types;
-      var line = ratingMath_(st, x, all - types);
-      if (line) out.math.push(line);
+      // The table's rows (|C1018), and the same as lines, for a page from before the table.
+      var row = ratingMath_(st, x, all - types);
+      if (row) { out.mathRows.push(row); out.math.push(ratingMathLine_(row, x)); }
+      out.mathHow = { r1: x.r1, r2: x.r2, r3: x.r3, bonus: x.bonus };
       out.types += types;
     });
     // The time bonus on its ratings and litter types (S6-P3 item 5), or the
@@ -349,16 +351,22 @@ function xpSettings_() {
 // (counted as 10 past 10), rounded; and its litter types', when it has
 // some, or weighed 0 lb, a clean stretch (Q423, Q424). A discarded stretch
 // earns none.
-// Each rating's math, for under Your ratings (S6-P44 item 1): the rating,
-// the Litter Index, how close, and the XP it earned.
+// Each rating's math, for a table under Your ratings (S6-P44 item 1, |C1018):
+// the weighing, your rating, the Litter Index, how close, and the XP:
+// points for how close × (1 + the Litter Index ÷ 5).
 function ratingMath_(s, x, xp) {
-  if (s.discarded || s.rating == null) return '';
-  var head = 'Weighing ' + s.n + ': you rated ' + s.rating;
-  if (s.index == null) return head + ', with no Litter Index to compare with: 0 XP';
+  if (s.discarded || s.rating == null) return null;
+  if (s.index == null) return { n: s.n, rated: s.rating, index: null, within: null, points: 0, times: null, xp: 0 };
   var i = Math.round(s.index * 10) / 10, off = Math.abs(s.rating - s.index);
   var near = off <= 1 ? 1 : off <= 2 ? 2 : off <= 3 ? 3 : 0, base = near === 1 ? x.r1 : near === 2 ? x.r2 : near === 3 ? x.r3 : 0;
-  if (!near || !base) return head + ', the Litter Index was ' + i + ', more than 3 apart: 0 XP';
-  return head + ', the Litter Index was ' + i + ', within ' + near + ': ' + base + ' XP' + (x.bonus > 0 ? ' × (1 + ' + Math.min(10, i) + ' ÷ ' + x.bonus + ')' : '') + ' = ' + xp + ' XP';
+  var times = x.bonus > 0 ? Math.round((1 + Math.min(10, s.index) / x.bonus) * 100) / 100 : 1;
+  return { n: s.n, rated: s.rating, index: i, within: near, points: base, times: times, xp: near ? xp : 0 };
+}
+function ratingMathLine_(r, x) {
+  var head = 'Weighing ' + r.n + ': you rated ' + r.rated;
+  if (r.index == null) return head + ', with no Litter Index to compare with: 0 XP';
+  if (!r.within) return head + ', the Litter Index was ' + r.index + ', more than 3 apart: 0 XP';
+  return head + ', the Litter Index was ' + r.index + ', within ' + r.within + ': ' + r.points + ' XP' + (x.bonus > 0 ? ' × (1 + ' + Math.min(10, r.index) + ' ÷ ' + x.bonus + ')' : '') + ' = ' + r.xp + ' XP';
 }
 function stretchXp_(s, x) {
   if (s.discarded) return 0;

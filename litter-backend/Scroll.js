@@ -405,3 +405,18 @@ function gchatColdMove_() {
   forgetReads_();
   return move;
 }
+
+// Made on the first request after Deploy, not when the first lines move
+// (|C1022): the folder, and its Gchat Sheet. If Drive won't, it's made when
+// lines first move instead.
+function coldFolderOnce_() {
+  var props = PropertiesService.getScriptProperties();
+  if (props.getProperty('COLD_FOLDER_MADE')) return;
+  try {
+    settingsMemo_ = null;
+    coldSheet_('Gchat', TABS.gchat.header.concat(['Moved']));
+    props.setProperty('COLD_FOLDER_MADE', 'yes');
+  } catch (e) {
+    props.setProperty('COLD_FOLDER_MADE', 'later: ' + String(e && e.message || e).slice(0, 200));
+  }
+}

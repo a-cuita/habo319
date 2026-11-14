@@ -40,7 +40,9 @@ function cleanupTeamsAll_() {
 }
 function cleanupPeopleAll_() {
   return readRows_(TABS.cleanupPeople, PERSON_COL).map(function (r) {
-    return { row: r.row, cleanup: r.get('cleanup'), account: r.get('account'), team: r.get('team'), segment: r.get('segment') };
+    // A member can have several segments (S6-P27, |C1012): their ids, space-separated, in the order given.
+    var segsOf = String(r.get('segment') || '').split(/\s+/).filter(String);
+    return { row: r.row, cleanup: r.get('cleanup'), account: r.get('account'), team: r.get('team'), segments: segsOf, segment: segsOf[0] || '' };
   });
 }
 function cleanupCheckinsAll_() {
@@ -68,11 +70,11 @@ function cleanupView_(c, account, names, segs, teams, people, checkins, now) {
   var ins = checkins.filter(function (k) { return k.cleanup === c.id; });
   var view = { id: c.id, name: c.name, day: c.day, starts: c.starts, ends: c.ends, segments: c.segments, until: c.until, state: c.state,
     registerOpen: now < (c.until || c.endAt), joinOpen: now < c.endAt, past: now >= c.endAt, today: cleanupDayOf_(now) === c.day,
-    myTeam: mine ? mine.team : '', placeMe: !!mine && !mine.team, mySegment: mine ? mine.segment : '', admin: admin };
+    myTeam: mine ? mine.team : '', placeMe: !!mine && !mine.team, mySegment: mine ? mine.segment : '', mySegments: mine ? mine.segments : [], admin: admin };
   view.teams = myTeams.map(function (t) {
     var lead = t.leaders.indexOf(account.id) !== -1;
     var members = people.filter(function (p) { return p.cleanup === c.id && p.team === t.id; }).map(function (p) {
-      var w = who(p.account); w.segment = p.segment; w.segmentName = p.segment ? segName(p.segment) : ''; w.leader = t.leaders.indexOf(p.account) !== -1; return w;
+      var w = who(p.account); w.segment = p.segment; w.segments = p.segments; w.segmentName = p.segments.map(segName).join(', '); w.leader = t.leaders.indexOf(p.account) !== -1; return w;
     });
     return { id: t.id, name: t.name, leaders: t.leaders.map(who), members: members, mine: !!mine && mine.team === t.id, lead: lead };
   });
@@ -121,13 +123,18 @@ function cleanupsFor_(account) {
   // Today's, for the main page (item 4): yours, with your segment, and its check-in.
   var today = null;
   views.forEach(function (v) {
-    if (today || !v.today || v.past || !v.mySegment || !v.myTeam) return;
-    var open = v.checkins.filter(function (k) { return k.team === v.myTeam && k.segment === v.mySegment && !k.outAt; })[0];
+    if (today || !v.today || v.past || !v.mySegments.length || !v.myTeam) return;
+    // With several segments: the one your team is checked in on, else the next not done, else the last (S6-P27, |C1012).
+    var mineK = v.checkins.filter(function (k) { return k.team === v.myTeam; });
+    var isOpen = function (s) { return mineK.some(function (k) { return k.segment === s && !k.outAt; }); };
+    var isDone = function (s) { return mineK.some(function (k) { return k.segment === s && k.outAt; }); };
+    var seg = v.mySegments.filter(isOpen)[0] || v.mySegments.filter(function (s) { return !isDone(s); })[0] || v.mySegments[v.mySegments.length - 1];
+    var open = mineK.filter(function (k) { return k.segment === seg && !k.outAt; })[0];
     var team = v.teams.filter(function (t) { return t.id === v.myTeam; })[0];
-    today = { cleanup: v.id, name: v.name, segment: v.mySegment, segmentName: segs[v.mySegment] ? segs[v.mySegment].name : v.mySegment,
-      checkin: open ? open.id : '', inAt: open ? open.inAt : 0,
-      done: v.checkins.some(function (k) { return k.team === v.myTeam && k.segment === v.mySegment && k.outAt; }),
-      members: team ? team.members.filter(function (m) { return m.segment === v.mySegment; }).map(function (m) { return { id: m.id, handle: m.handle }; }) : [] };
+    today = { cleanup: v.id, name: v.name, segment: seg, segmentName: segs[seg] ? segs[seg].name : seg,
+      checkin: open ? open.id : '', inAt: open ? open.inAt : 0, done: isDone(seg),
+      left: v.mySegments.filter(function (s) { return s !== seg && !isDone(s); }).map(function (s) { return segs[s] ? segs[s].name : s; }),
+      members: team ? team.members.filter(function (m) { return m.segments.indexOf(seg) !== -1; }).map(function (m) { return { id: m.id, handle: m.handle }; }) : [] };
   });
   return { cleanups: views, segments: segList, admin: isCleanupAdmin_(account), me: account.id, today: today };
 }
@@ -186,7 +193,9 @@ function cleanupRetire_(req) {
 
 /* ── A player's: registering a team, joining one ── */
 
+// `segment`: their segments, a list or space-separated.
 function cleanupPersonSet_(cleanupId, accountId, team, segment) {
+  if (Array.isArray(segment)) segment = segment.join(' ');
   var sheet = getDb_().getSheetByName(TABS.cleanupPeople.name);
   var had = cleanupPeopleAll_().filter(function (p) { return p.cleanup === cleanupId && p.account === accountId; })[0];
   if (had) { sheet.getRange(had.row, PERSON_COL.team, 1, 2).setValues([[team, segment]]); return; }
@@ -263,9 +272,12 @@ function cleanupAssign_(req) {
     if (team.leaders.indexOf(account.id) === -1 && !isCleanupAdmin_(account)) throw new Error('Only ' + team.name + '\'s leaders assign its members.');
     var seg = clean_(req.segmentId, 20);
     if (seg && c.segments.indexOf(seg) === -1) throw new Error('That segment isn\'t in this cleanup.');
-    if (team.id !== person.team) seg = clean_(req.segmentId, 20);   // moved: a new team's segment, or none yet
-    cleanupPersonSet_(c.id, who, team.id, seg);
-    logChange_(account.email, 'Cleanup', c.id, 'Assigned', who, (team.name) + (seg ? ': ' + seg : ''));
+    // Several segments each (S6-P27, |C1012): a segment tapped is added, or taken off if they have it; No segment clears them.
+    // Moved to another team: that team's segment, or none yet.
+    var list = team.id !== person.team ? (seg ? [seg] : []) : !seg ? []
+      : person.segments.indexOf(seg) !== -1 ? person.segments.filter(function (s) { return s !== seg; }) : person.segments.concat([seg]);
+    cleanupPersonSet_(c.id, who, team.id, list);
+    logChange_(account.email, 'Cleanup', c.id, 'Assigned', who, (team.name) + (list.length ? ': ' + list.join(' ') : ''));
     return cleanupsFor_(account);
   });
 }
@@ -290,10 +302,10 @@ function cleanupCheckIn_(req) {
       me = { team: forTeam, segment: seg };
       crew = people.filter(function (p) { return p.team === forTeam; }).map(function (p) { return p.account; });
     } else {
-      if (!me || !me.team || !me.segment) throw new Error('Your team\'s leaders haven\'t assigned you a segment yet.');
+      if (!me || !me.team || !me.segments.length) throw new Error('Your team\'s leaders haven\'t assigned you a segment yet.');
       seg = clean_(req.segmentId, 20) || me.segment;
-      if (seg !== me.segment) throw new Error('You\'re assigned to ' + me.segment + '.');
-      crew = people.filter(function (p) { return p.team === me.team && p.segment === seg; }).map(function (p) { return p.account; });
+      if (me.segments.indexOf(seg) === -1) throw new Error('That isn\'t one of your segments.');
+      crew = people.filter(function (p) { return p.team === me.team && p.segments.indexOf(seg) !== -1; }).map(function (p) { return p.account; });
     }
     var there = (Array.isArray(req.there) ? req.there : crew).map(String).filter(function (a, i, arr) { return crew.indexOf(a) !== -1 && arr.indexOf(a) === i; });
     if (!there.length) throw new Error('Tick who\'s there.');
@@ -303,7 +315,11 @@ function cleanupCheckIn_(req) {
     row[CHECKIN_COL.id - 1] = id; row[CHECKIN_COL.cleanup - 1] = c.id; row[CHECKIN_COL.team - 1] = me.team; row[CHECKIN_COL.segment - 1] = seg;
     row[CHECKIN_COL.by - 1] = account.id; row[CHECKIN_COL.inAt - 1] = new Date(now); row[CHECKIN_COL.there - 1] = there.join(' ');
     sheet.getRange(lastRowWith_(sheet, CHECKIN_COL.id) + 1, 1, 1, row.length).setValues([row]);
-    if (forTeam) there.forEach(function (a) { cleanupPersonSet_(c.id, a, forTeam, seg); });   // they're on that segment now
+    // They're on that segment now, with any others they had in that team.
+    if (forTeam) there.forEach(function (a) {
+      var p = people.filter(function (x) { return x.account === a; })[0], had = p && p.team === forTeam ? p.segments : [];
+      cleanupPersonSet_(c.id, a, forTeam, had.indexOf(seg) === -1 ? had.concat([seg]) : had);
+    });
     logChange_(account.email, 'Cleanup check-in', id, 'In', '', c.id + ' ' + seg + ', ' + there.length + ' there' + (forTeam ? ', by an admin' : ''));
     return cleanupsFor_(account);
   });

@@ -192,6 +192,15 @@ window.LitterWiki = function (app) {
   }
 
   // The text, as paragraphs, lists, and the sources.
+  // A paragraph or item that starts with its topic and a colon, like "How the
+  // clock is timed:", shows the topic in bold, as a heading for it (|C1017).
+  function topicLine(e, line) {
+    var m = /^([A-Z][^:.!?]{0,80}):\s+(.*)$/.exec(line);
+    if (!m || m[1].split(/\s+/).length > 9) { e.textContent = line; return e; }
+    e.appendChild(el('strong', 'lt-wiki-topic', m[1] + ':'));
+    e.appendChild(document.createTextNode(' ' + m[2]));
+    return e;
+  }
   function render(box, text) {
     box.textContent = '';
     String(text || '').split(/\n\s*\n/).forEach(function (para) {
@@ -202,10 +211,10 @@ window.LitterWiki = function (app) {
       para.split('\n').forEach(function (line) {
         if (/^- /.test(line)) {
           if (!ul) { ul = el('ul', 'lt-wiki-list'); box.appendChild(ul); p = null; }
-          ul.appendChild(el('li', null, line.slice(2)));
+          ul.appendChild(topicLine(el('li'), line.slice(2)));
         } else {
-          if (!p) { p = el('p'); box.appendChild(p); ul = null; p.textContent = line; }
-          else p.textContent += ' ' + line;
+          if (!p) { p = topicLine(el('p'), line); box.appendChild(p); ul = null; }
+          else p.appendChild(document.createTextNode(' ' + line));
         }
       });
     });
