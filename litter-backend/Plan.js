@@ -247,7 +247,7 @@ function xpOf_(accountId) {
 // track is saved, and its weighings' only once it's Ended. `xp`: the
 // player's whole XP, for the page to see what's new.
 function walkXp_(collectionId, accountId) {
-  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId) };
+  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId), math: [] };
   var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === collectionId; })[0];
   if (!q || !String(q.get('track')).trim() || q.get('simulated') === 'Yes') return out;
   out.counts = true;
@@ -259,6 +259,8 @@ function walkXp_(collectionId, accountId) {
       var st = stretchOf_(r), all = stretchXp_(st, x);
       var types = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
       out.ratings += all - types;
+      var line = ratingMath_(st, x, all - types);
+      if (line) out.math.push(line);
       out.types += types;
     });
     // The time bonus on its ratings and litter types (S6-P3 item 5), or the
@@ -347,6 +349,17 @@ function xpSettings_() {
 // (counted as 10 past 10), rounded; and its litter types', when it has
 // some, or weighed 0 lb, a clean stretch (Q423, Q424). A discarded stretch
 // earns none.
+// Each rating's math, for under Your ratings (S6-P44 item 1): the rating,
+// the Litter Index, how close, and the XP it earned.
+function ratingMath_(s, x, xp) {
+  if (s.discarded || s.rating == null) return '';
+  var head = 'Weighing ' + s.n + ': you rated ' + s.rating;
+  if (s.index == null) return head + ', with no Litter Index to compare with: 0 XP';
+  var i = Math.round(s.index * 10) / 10, off = Math.abs(s.rating - s.index);
+  var near = off <= 1 ? 1 : off <= 2 ? 2 : off <= 3 ? 3 : 0, base = near === 1 ? x.r1 : near === 2 ? x.r2 : near === 3 ? x.r3 : 0;
+  if (!near || !base) return head + ', the Litter Index was ' + i + ', more than 3 apart: 0 XP';
+  return head + ', the Litter Index was ' + i + ', within ' + near + ': ' + base + ' XP' + (x.bonus > 0 ? ' × (1 + ' + Math.min(10, i) + ' ÷ ' + x.bonus + ')' : '') + ' = ' + xp + ' XP';
+}
 function stretchXp_(s, x) {
   if (s.discarded) return 0;
   var xp = 0;

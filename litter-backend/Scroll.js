@@ -90,12 +90,19 @@ function xpEventsAll_() {
 
 /* ── The rolling history for everyone (S6-P38, |Q762 to |Q766) ── */
 
-var SETTING_RH_START = 'Rolling history: announce a walk started';
-var SETTING_RH_END = 'Rolling history: announce a walk ended';
-var SETTING_RH_LEVEL = 'Rolling history: announce a level reached';
-var SETTING_RH_BADGE = 'Rolling history: announce a badge earned';
-var SETTING_GCHAT = 'Rolling history: gchat';
-var SETTING_RH_EVERY = 'Rolling history: new lines every (seconds)';
+// Named Street Talk (S6-P51, |Q796 (b)); the rows are renamed in place, values kept.
+var SETTING_RH_START = 'Street Talk: announce a walk started';
+var SETTING_RH_END = 'Street Talk: announce a walk ended';
+var SETTING_RH_LEVEL = 'Street Talk: announce a level reached';
+var SETTING_RH_BADGE = 'Street Talk: announce a badge earned';
+var SETTING_GCHAT = 'Street Talk: gchat';
+var SETTING_RH_EVERY = 'Street Talk: new lines every (seconds)';
+var STREET_TALK_RENAMES = [SETTING_RH_START, SETTING_RH_END, SETTING_RH_LEVEL, SETTING_RH_BADGE, SETTING_GCHAT, SETTING_RH_EVERY];
+// Gchat's old lines to cold storage (S6-P50, |C992, |Q795): past this many
+// lines, the oldest move out, keeping the newest GCHAT_KEEP.
+var SETTING_GCHAT_COLD = 'Street Talk: cold storage after (lines)';
+var SETTING_COLD_FOLDER = 'Cold storage folder';
+var GCHAT_KEEP = 1000;
 var RH_ONOFF = ['On', 'Off'];
 var GCHAT_COL = { id: 1, account: 2, written: 3, text: 4, removedBy: 5, removed: 6, reportedBy: 7, reported: 8 };
 var GCHAT_MAX = 280;
@@ -173,6 +180,7 @@ function gchatSay_(account, words) {
     var id = 'G' + ('0000' + n).slice(-Math.max(4, String(n).length));
     var sheet = getDb_().getSheetByName(TABS.gchat.name);
     sheet.getRange(lastRowWith_(sheet, 1) + 1, 1, 1, 4).setValues([[id, account.id, new Date(now), safeCell_(text)]]);
+    try { gchatColdMove_(); } catch (e) { /* a line is never lost for want of cold storage; it moves next time */ }
     forgetReads_();
     return { at: now, who: shownNames_()[account.id] || 'A volunteer', text: text, mine: true, kind: 'gchat', id: id, reported: false };
   });
@@ -194,8 +202,8 @@ function gchatReport_(req) {
     by.push(account.id);
     getDb_().getSheetByName(TABS.gchat.name).getRange(g.row, GCHAT_COL.reportedBy, 1, 2).setValues([[by.join(' '), new Date()]]);
     var shown = shownNames_();
-    topicNew_(account, 'Report', 'gchat line ' + g.id + ' reported', 'A gchat line in the rolling history, reported by ' + (shown[account.id] || account.handle) + ':\n"' + g.text + '"\n'
-      + 'Written by ' + (shown[g.account] || g.account) + ', ' + scrollWhen_(g.at) + ' (' + g.id + ').\nTo remove it: in Admin Mode, open the rolling history and press Remove on it.', 'New', 'Issue');
+    topicNew_(account, 'Report', 'gchat line ' + g.id + ' reported', 'A gchat line in Street Talk, reported by ' + (shown[account.id] || account.handle) + ':\n"' + g.text + '"\n'
+      + 'Written by ' + (shown[g.account] || g.account) + ', ' + scrollWhen_(g.at) + ' (' + g.id + ').\nTo remove it: in Admin Mode, open Street Talk and press Remove on it.', 'New', 'Issue');
     forgetReads_();
     return { reported: true };
   });
@@ -347,4 +355,50 @@ function scroll_(req) {
     return { lines: sharedLines_(account, shownNames_()).filter(function (l) { return l.at > since; }), now: Date.now(), every: rhEvery_() };
   }
   return { lines: scrollLines_(account).lines, commands: SCROLL_COMMANDS, now: Date.now(), every: rhEvery_() };
+}
+
+/* ── Cold storage (S6-P50, |Q795): a folder, HABO Litter Cold Storage,
+   beside the litter Sheet, with a Google Sheet in it for each kind of old
+   record, Gchat first. Moved, never thrown away. ── */
+function coldFolder_() {
+  var link = getSetting_(SETTING_COLD_FOLDER).trim();
+  if (link) return DriveApp.getFolderById(driveId_(link));
+  var parents = DriveApp.getFileById(getDb_().getId()).getParents();
+  var folder = (parents.hasNext() ? parents.next() : DriveApp.getRootFolder()).createFolder('HABO Litter Cold Storage');
+  setSetting_(SETTING_COLD_FOLDER, folder.getUrl());
+  return folder;
+}
+// The cold storage Sheet for one kind of record, made the first time, with its header.
+function coldSheet_(kind, header) {
+  var props = PropertiesService.getScriptProperties(), key = 'COLD_' + kind.toUpperCase(), id = props.getProperty(key), book = null;
+  if (id) { try { book = SpreadsheetApp.openById(id); } catch (e) { book = null; } }
+  if (!book) {
+    var folder = coldFolder_();
+    book = SpreadsheetApp.create('HABO Litter Cold Storage: ' + kind);
+    DriveApp.getFileById(book.getId()).moveTo(folder);
+    props.setProperty(key, book.getId());
+  }
+  var sheet = book.getSheetByName(kind);
+  if (!sheet) {
+    sheet = book.insertSheet(kind);
+    // A new Sheet's empty Sheet1 goes, once its own tab is there.
+    var first = book.getSheetByName('Sheet1');
+    if (first && first.getLastRow() === 0) { try { book.deleteSheet(first); } catch (e) { /* it can stay, empty */ } }
+  }
+  if (sheet.getLastRow() < 1) sheet.getRange(1, 1, 1, header.length).setValues([header]).setFontWeight('bold');
+  return sheet;
+}
+// Past the setting's lines, the oldest move to cold storage, the newest
+// GCHAT_KEEP staying. Returns how many moved.
+function gchatColdMove_() {
+  var limit = Number(getSetting_(SETTING_GCHAT_COLD)) || 2000;
+  var sheet = getDb_().getSheetByName(TABS.gchat.name), n = sheet ? lastRowWith_(sheet, 1) - 1 : 0;
+  if (n <= Math.max(limit, GCHAT_KEEP)) return 0;
+  var move = n - GCHAT_KEEP, width = TABS.gchat.header.length, now = new Date();
+  var rows = sheet.getRange(2, 1, move, width).getValues().map(function (r) { return r.concat([now]); });
+  var cold = coldSheet_('Gchat', TABS.gchat.header.concat(['Moved']));
+  cold.getRange(cold.getLastRow() + 1, 1, move, width + 1).setValues(rows);
+  sheet.deleteRows(2, move);
+  forgetReads_();
+  return move;
 }

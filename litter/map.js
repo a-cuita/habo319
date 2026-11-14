@@ -557,7 +557,11 @@ window.LitterMap = function (app) {
       else {
         var xl = el('ul', 'lt-walk-xp-lines');
         [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
-          .forEach(function (r) { var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li); });
+          .forEach(function (r) {
+            var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
+            // Under Your ratings, each rating's math (S6-P44 item 1).
+            if (r[0] === 'Your ratings') (xp.math || []).forEach(function (t) { xl.appendChild(el('li', 'lt-xp-math', t)); });
+          });
         xb.appendChild(xl);
         xb.appendChild(el('p', 'lt-walk-xp-total', 'Total: ' + round(c.xp, 2) + ' XP'));
       }
@@ -1141,6 +1145,41 @@ window.LitterMap = function (app) {
     var me = G.xy(here.lat, here.lon);
     return g.squares.reduce(function (m, sq) { return Math.min(m, G.dist(me, G.centerXY(sq))); }, Infinity);
   }
+  // "…" on a segment of The Priority Segment List (S6-P49, |S6-U47): a small
+  // menu, Add to my plan or Take off my plan; your plan is the one Choose your
+  // plan makes, and Start collecting uses.
+  function segMenu(g) {
+    var wrap = el('span', 'lt-prio-menu');
+    var dots = el('button', 'lt-prio-dots', '…');
+    dots.type = 'button';
+    dots.setAttribute('aria-label', 'More for ' + g.name);
+    dots.setAttribute('aria-expanded', 'false');
+    var menu = el('div', 'lt-prio-menu-box');
+    menu.hidden = true;
+    var on = app.walkIds().indexOf(g.id) !== -1;
+    var act = el('button', 'lt-prio-menu-act', on ? 'Take off my plan' : 'Add to my plan');
+    act.type = 'button';
+    act.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var ids = app.walkIds().filter(function (x) { return x !== g.id; });
+      if (!on) ids.push(g.id);
+      app.useWalkPlan(ids);
+      // Your plan's line under Collecting says it; no notice to close.
+      drawSegments();
+    });
+    menu.appendChild(act);
+    dots.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      Array.prototype.forEach.call(document.querySelectorAll('.lt-prio-menu-box'), function (m) { m.hidden = true; });
+      menu.hidden = !open;
+      dots.setAttribute('aria-expanded', String(open));
+    });
+    wrap.appendChild(dots);
+    wrap.appendChild(menu);
+    return wrap;
+  }
+  document.addEventListener('click', function () { Array.prototype.forEach.call(document.querySelectorAll('.lt-prio-menu-box'), function (m) { m.hidden = true; }); });
   function drawSegments() {
     var list = $('segments-list');
     list.textContent = '';
@@ -1172,6 +1211,8 @@ window.LitterMap = function (app) {
       info.setAttribute('aria-label', 'About ' + g.name);
       info.setAttribute('aria-expanded', 'false');
       line.appendChild(info);
+      // "…": Add to my plan, or Take off my plan (S6-P49); not while a walk is under way.
+      if (app.walkIds && app.useWalkPlan && !(app.walking && app.walking())) line.appendChild(segMenu(g));
       box.appendChild(line);
       if (sortBy === 'near' && here) box.appendChild(el('p', 'muted small lt-seg-away', round(g.away / G.MILE_M, 2) + ' mi away'));
       // Behind the ℹ️: what the line means, its rate, when it was last fully collected, and its parts.

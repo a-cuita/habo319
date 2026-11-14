@@ -891,6 +891,7 @@
     onPlans: function (d) { collect.onPlans(d); },
     walkIds: function () { return collect.walkIds(); },
     useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
+    walking: function () { return collect.walking(); },
     gate: function (b, key) { return collect.gate(b, key); },
     showCollections: function () { notice(''); show('v-collections'); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }

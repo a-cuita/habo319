@@ -550,6 +550,8 @@ window.LitterCollect = function (app) {
       li.appendChild(n);
       if (animate) li.className = 'lt-walk-xp-wait';
       lines.appendChild(li);
+      // Under Your ratings, each rating's math (S6-P44 item 1).
+      if (p[0] === 'Your ratings') (w.math || []).forEach(function (t) { var m = document.createElement('li'); m.className = 'lt-xp-math'; m.textContent = t; lines.appendChild(m); });
       return { li: li, n: n, v: p[1] };
     });
     var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
@@ -1217,6 +1219,7 @@ window.LitterCollect = function (app) {
     document.body.classList.add('lt-pulse-open');
     fitPulse();
     $('pf-heavy').hidden = true;
+    $('pf-lower').hidden = true;
     $('pf-note').hidden = true;
     $('pf-title').textContent = pulse.kind === 'end' ? 'End: weigh your last bag' : pulse.kind === 'newbag' ? 'New bag: weigh this full bag' : 'Weigh the bag so far';
     $('pf-scale').value = '';
@@ -1291,11 +1294,14 @@ window.LitterCollect = function (app) {
   // The same reading as your last weighing (S6-U33 item 3, |Q733 (a)): with a
   // litter type picked, near clean, and not clean; with none, clean. It weighs
   // 0 lb either way, as the scale read: no need to add a hundredth.
+  // The reading this one is weighed against: none after a discarded weighing,
+  // or once you've said you started a new bag (S6-P48).
+  function prevScale() { return c.bagReset || (pulse && pulse.bagSwitched) ? 0 : c.scalePrev; }
   function sameNote() {
     var box = $('pf-same');
     if (!box || !c) return;
     var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
-    var before = c.bagReset ? 0 : c.scalePrev;
+    var before = prevScale();
     var same = scale !== '' && lbs >= 0 && Math.abs(lbs - before) < 0.005 && (pulse && pulse.kind !== 'newbag' || before > 0);
     box.hidden = !same;
     if (same) box.textContent = picked().length
@@ -1308,6 +1314,7 @@ window.LitterCollect = function (app) {
     return '';
   }
   function nextStep() {
+    if (STEPS[pulse.step] === 'scale') { lowerReset(); if (lowerAsk()) return; }
     var e = stepCheck(pulse.step);
     if (e) { $('pf-err').textContent = e; return; }
     // An unusual weight: "Did you mean …?" first (S6-U25 item 1, |Q704 (a)).
@@ -1326,6 +1333,24 @@ window.LitterCollect = function (app) {
     $('pf-heavy-yes').focus();
     return true;
   }
+  // Less than at your last weighing (S6-P48, |Q793): only then, a way out:
+  // you started a new bag without pressing New bag. Yes: the old bag stays at
+  // its last reading, and this reading is the new bag's.
+  function lowerReset() {
+    var scale = $('pf-scale').value.trim();
+    if (pulse.bagSwitched && pulse.bagOk !== scale) { pulse.bagSwitched = false; pulse.bagOk = ''; }
+  }
+  function lowerAsk() {
+    var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
+    var before = c.bagReset ? 0 : c.scalePrev;
+    if (scale === '' || !(lbs >= 0) || !(lbs < before) || (pulse.bagSwitched && pulse.bagOk === scale)) { $('pf-lower').hidden = true; return false; }
+    var lb = function (n) { return n.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' lb'; };
+    $('pf-lower-q').textContent = 'Less than at your last weighing (' + lb(before) + '). Did you start a new bag without pressing New bag?';
+    $('pf-lower-why').textContent = 'Yes: your old bag counts as it was at your last weighing, ' + lb(before) + ', and this weighing is the new bag, ' + lb(lbs) + '.';
+    $('pf-lower').hidden = false;
+    $('pf-lower-yes').focus();
+    return true;
+  }
   function goStep(name, why) {
     pulse.step = STEPS.indexOf(name);
     showStep();
@@ -1335,8 +1360,8 @@ window.LitterCollect = function (app) {
     var scale = $('pf-scale').value.trim();
     var lbs = Number(scale.replace(/[^\d.]/g, ''));
     if (scale === '' || !(lbs >= 0)) return 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this weighing.';
-    var before = c.bagReset ? 0 : c.scalePrev;
-    if (lbs < before) return 'The scale shows less than at your last weighing (' + before + ' lb). If you started a new bag then, the app needed to know: use New bag when you start one.';
+    var before = prevScale();
+    if (lbs < before) return 'The scale shows less than at your last weighing (' + before + ' lb). If you started a new bag, press Yes, I started a new bag; or fix the number.';
     return '';
   }
 
@@ -1533,7 +1558,7 @@ window.LitterCollect = function (app) {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
-      scale: discard ? '' : scale, newBag: !discard && pulse.kind === 'newbag',
+      scale: discard ? '' : scale, newBag: !discard && pulse.kind === 'newbag', bagSwitched: !discard && !!pulse.bagSwitched,
       types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak, reason: discard ? why || null : null, pulseCell: pulse.cell,
       turns: []
     };
@@ -1542,7 +1567,7 @@ window.LitterCollect = function (app) {
     var minutes = Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin);
     c.totals.minutes += minutes;
     if (!discard) {
-      c.totals.pounds += lbs - (c.bagReset ? 0 : c.scalePrev);
+      c.totals.pounds += lbs - prevScale();
       c.totals.miles += (pulse.m.street + pulse.m.off) / G.MILE_M;
       c.scalePrev = stretch.newBag ? 0 : lbs;
       c.bagReset = false;
@@ -2951,7 +2976,9 @@ window.LitterCollect = function (app) {
   $('pf-next').addEventListener('click', nextStep);
   $('pf-heavy-yes').addEventListener('click', function () { pulse.heavyOk = $('pf-scale').value.trim(); $('pf-heavy').hidden = true; nextStep(); });
   $('pf-heavy-no').addEventListener('click', function () { $('pf-heavy').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
-  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; sameNote(); keepDraft(); });
+  $('pf-lower-yes').addEventListener('click', function () { pulse.bagSwitched = true; pulse.bagOk = $('pf-scale').value.trim(); $('pf-lower').hidden = true; sameNote(); nextStep(); });
+  $('pf-lower-no').addEventListener('click', function () { $('pf-lower').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
+  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; $('pf-lower').hidden = true; if (pulse) lowerReset(); sameNote(); keepDraft(); });
   $('pf-end').addEventListener('change', keepDraft);
   // The box in view above the keyboard once it opens.
   $('pf-scale').addEventListener('focus', function () { setTimeout(function () { fitPulse(); $('pf-scale').scrollIntoView({ block: 'nearest' }); }, 300); });
@@ -3078,6 +3105,8 @@ window.LitterCollect = function (app) {
     },
     // The walk's plan, chosen on the Segments screen (S5-P12, Q562).
     walkIds: function () { return walkPlan().map(function (x) { return x.id; }); },
+    // A walk under way: its plan is set (S6-P49).
+    walking: function () { return !!(c && !c.ended && !c.practice) || !!(!c && account && account.open); },
     setWalkPlan: function (ids) {
       setWalkPlan(ids);
       var w = walkPlan();

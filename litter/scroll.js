@@ -80,7 +80,7 @@ window.LitterScroll = function (app) {
   function paintStrip() {
     var box = $('rh-strip-lines'), show = pending.concat(lines.slice(-STRIP).reverse()).slice(0, STRIP).reverse();
     box.textContent = '';
-    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading the rolling history…'));
+    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading Street Talk…'));
     show.forEach(function (l) { box.appendChild(lineEl(l)); });
     $('rh-strip').hidden = false;
   }

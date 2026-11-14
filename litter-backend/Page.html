@@ -972,6 +972,17 @@ body.lt-popform-open { overflow: hidden; }
 .lt-cu-adm-row p { margin: 0 0 6px; }
 .lt-cu-adm-row input { width: 7em; margin-right: 8px; }
 .lt-cu-adm-row .btn { width: auto; margin: 4px 0; }
+
+/* "…" on The Priority Segment List (S6-P49): Add to my plan, or Take off my plan. */
+.lt-prio-menu { position: relative; display: inline-block; margin-left: auto; }
+.lt-prio-dots { border: 0; background: none; color: var(--text); font-size: 1.3rem; font-weight: 800; line-height: 1; padding: 2px 8px; cursor: pointer; }
+.lt-prio-menu-box { position: absolute; right: 0; top: 100%; z-index: 50; background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); padding: 4px; min-width: 170px; }
+.lt-prio-menu-box[hidden] { display: none; }
+.lt-prio-menu-act { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 12px; border-radius: 6px; cursor: pointer; }
+.lt-prio-menu-act:hover, .lt-prio-menu-act:focus { background: var(--surface-2); }
+
+/* Each rating's math, under Your ratings (S6-P44 item 1): indented, smaller, in italics. */
+.lt-walk-xp-lines li.lt-xp-math, #sm-xp-lines li.lt-xp-math { display: block; padding-left: 18px; font-size: 0.85em; font-style: italic; color: var(--text-dim); }
 </style>
 </head>
 <body>
@@ -999,8 +1010,8 @@ body.lt-popform-open { overflow: hidden; }
   <!-- The rolling history, full screen (S6-P3, |Q707, |Q713 (a)): the scroll, and the prompt under it. -->
   <div class="lt-rh" id="rh" role="dialog" aria-modal="true" aria-labelledby="rh-title" hidden>
     <div class="lt-rh-head">
-      <h2 id="rh-title">Rolling history</h2>
-      <button class="lt-rh-close" id="rh-close" type="button" aria-label="Close the rolling history">×</button>
+      <h2 id="rh-title">Street Talk</h2>
+      <button class="lt-rh-close" id="rh-close" type="button" aria-label="Close Street Talk">×</button>
     </div>
     <div class="lt-rh-lines" id="rh-lines" role="log" aria-live="polite"></div>
     <form class="lt-rh-prompt" id="rh-form" autocomplete="off">
@@ -1327,6 +1338,13 @@ body.lt-popform-open { overflow: hidden; }
         <p class="small" id="pf-heavy-why"></p>
         <button class="btn btn-primary" id="pf-heavy-yes" type="button"></button>
         <button class="btn btn-secondary" id="pf-heavy-no" type="button">No: fix it</button>
+      </div>
+      <!-- Less than the last weighing (S6-P48, |Q793, |Q794 (a)): a new bag started without pressing New bag? -->
+      <div class="lt-odd lt-heavy" id="pf-lower" hidden>
+        <p class="lt-odd-q" id="pf-lower-q"></p>
+        <p class="small" id="pf-lower-why"></p>
+        <button class="btn btn-primary" id="pf-lower-yes" type="button">Yes, I started a new bag</button>
+        <button class="btn btn-secondary" id="pf-lower-no" type="button">No, let me fix the number</button>
       </div>
       <div class="center"><button class="link-btn lt-danger-link" id="pf-discard" type="button">Discard this weighing</button></div>
       </div>
@@ -1670,8 +1688,8 @@ body.lt-popform-open { overflow: hidden; }
        details, hours, XP and your lists; then Collecting, with the map. -->
   <div id="v-account" hidden>
     <!-- The rolling history (S6-P3, |Q705 (a)): its newest lines, under the top bar; tap it to open it full screen, with the prompt. -->
-    <button class="lt-rh-strip" id="rh-strip" type="button" aria-label="Rolling history. Open it full screen." hidden>
-      <span class="lt-rh-strip-head" aria-hidden="true">Rolling history ▸</span>
+    <button class="lt-rh-strip" id="rh-strip" type="button" aria-label="Street Talk. Open it full screen." hidden>
+      <span class="lt-rh-strip-head" aria-hidden="true">Street Talk ▸</span>
       <span class="lt-rh-strip-lines" id="rh-strip-lines"></span>
     </button>
     <!-- Just earned (S6-P6, |Q647's addendum): a badge, or the weekly streak grown, with Share. -->
@@ -3707,6 +3725,8 @@ window.LitterCollect = function (app) {
       li.appendChild(n);
       if (animate) li.className = 'lt-walk-xp-wait';
       lines.appendChild(li);
+      // Under Your ratings, each rating's math (S6-P44 item 1).
+      if (p[0] === 'Your ratings') (w.math || []).forEach(function (t) { var m = document.createElement('li'); m.className = 'lt-xp-math'; m.textContent = t; lines.appendChild(m); });
       return { li: li, n: n, v: p[1] };
     });
     var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
@@ -4374,6 +4394,7 @@ window.LitterCollect = function (app) {
     document.body.classList.add('lt-pulse-open');
     fitPulse();
     $('pf-heavy').hidden = true;
+    $('pf-lower').hidden = true;
     $('pf-note').hidden = true;
     $('pf-title').textContent = pulse.kind === 'end' ? 'End: weigh your last bag' : pulse.kind === 'newbag' ? 'New bag: weigh this full bag' : 'Weigh the bag so far';
     $('pf-scale').value = '';
@@ -4448,11 +4469,14 @@ window.LitterCollect = function (app) {
   // The same reading as your last weighing (S6-U33 item 3, |Q733 (a)): with a
   // litter type picked, near clean, and not clean; with none, clean. It weighs
   // 0 lb either way, as the scale read: no need to add a hundredth.
+  // The reading this one is weighed against: none after a discarded weighing,
+  // or once you've said you started a new bag (S6-P48).
+  function prevScale() { return c.bagReset || (pulse && pulse.bagSwitched) ? 0 : c.scalePrev; }
   function sameNote() {
     var box = $('pf-same');
     if (!box || !c) return;
     var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
-    var before = c.bagReset ? 0 : c.scalePrev;
+    var before = prevScale();
     var same = scale !== '' && lbs >= 0 && Math.abs(lbs - before) < 0.005 && (pulse && pulse.kind !== 'newbag' || before > 0);
     box.hidden = !same;
     if (same) box.textContent = picked().length
@@ -4465,6 +4489,7 @@ window.LitterCollect = function (app) {
     return '';
   }
   function nextStep() {
+    if (STEPS[pulse.step] === 'scale') { lowerReset(); if (lowerAsk()) return; }
     var e = stepCheck(pulse.step);
     if (e) { $('pf-err').textContent = e; return; }
     // An unusual weight: "Did you mean …?" first (S6-U25 item 1, |Q704 (a)).
@@ -4483,6 +4508,24 @@ window.LitterCollect = function (app) {
     $('pf-heavy-yes').focus();
     return true;
   }
+  // Less than at your last weighing (S6-P48, |Q793): only then, a way out:
+  // you started a new bag without pressing New bag. Yes: the old bag stays at
+  // its last reading, and this reading is the new bag's.
+  function lowerReset() {
+    var scale = $('pf-scale').value.trim();
+    if (pulse.bagSwitched && pulse.bagOk !== scale) { pulse.bagSwitched = false; pulse.bagOk = ''; }
+  }
+  function lowerAsk() {
+    var scale = $('pf-scale').value.trim(), lbs = Number(scale.replace(/[^\d.]/g, ''));
+    var before = c.bagReset ? 0 : c.scalePrev;
+    if (scale === '' || !(lbs >= 0) || !(lbs < before) || (pulse.bagSwitched && pulse.bagOk === scale)) { $('pf-lower').hidden = true; return false; }
+    var lb = function (n) { return n.toLocaleString('en-US', { maximumFractionDigits: 2 }) + ' lb'; };
+    $('pf-lower-q').textContent = 'Less than at your last weighing (' + lb(before) + '). Did you start a new bag without pressing New bag?';
+    $('pf-lower-why').textContent = 'Yes: your old bag counts as it was at your last weighing, ' + lb(before) + ', and this weighing is the new bag, ' + lb(lbs) + '.';
+    $('pf-lower').hidden = false;
+    $('pf-lower-yes').focus();
+    return true;
+  }
   function goStep(name, why) {
     pulse.step = STEPS.indexOf(name);
     showStep();
@@ -4492,8 +4535,8 @@ window.LitterCollect = function (app) {
     var scale = $('pf-scale').value.trim();
     var lbs = Number(scale.replace(/[^\d.]/g, ''));
     if (scale === '' || !(lbs >= 0)) return 'Type what the scale shows, in pounds, like 3.25. With no weight, press Discard this weighing.';
-    var before = c.bagReset ? 0 : c.scalePrev;
-    if (lbs < before) return 'The scale shows less than at your last weighing (' + before + ' lb). If you started a new bag then, the app needed to know: use New bag when you start one.';
+    var before = prevScale();
+    if (lbs < before) return 'The scale shows less than at your last weighing (' + before + ' lb). If you started a new bag, press Yes, I started a new bag; or fix the number.';
     return '';
   }
 
@@ -4690,7 +4733,7 @@ window.LitterCollect = function (app) {
       key: uid(), n: c.n, startedAt: cur.startedAt, endedAt: endedAt, cells: pulse.cells.slice(),
       streetMi: pulse.m.street / G.MILE_M, offMi: pulse.m.off / G.MILE_M, pausedMin: pausedMin, breakMin: breakMin,
       breakWhere: breakMin ? (pulse.breakWhere || 'Not sure') : '', discarded: !!discard,
-      scale: discard ? '' : scale, newBag: !discard && pulse.kind === 'newbag',
+      scale: discard ? '' : scale, newBag: !discard && pulse.kind === 'newbag', bagSwitched: !discard && !!pulse.bagSwitched,
       types: discard ? [] : picked(), rating: discard ? '' : $('pf-rating').value, breakAsked: !!pulse.askedBreak, reason: discard ? why || null : null, pulseCell: pulse.cell,
       turns: []
     };
@@ -4699,7 +4742,7 @@ window.LitterCollect = function (app) {
     var minutes = Math.max(0, (endedAt - cur.startedAt) / 60000 - pausedMin - breakMin);
     c.totals.minutes += minutes;
     if (!discard) {
-      c.totals.pounds += lbs - (c.bagReset ? 0 : c.scalePrev);
+      c.totals.pounds += lbs - prevScale();
       c.totals.miles += (pulse.m.street + pulse.m.off) / G.MILE_M;
       c.scalePrev = stretch.newBag ? 0 : lbs;
       c.bagReset = false;
@@ -6108,7 +6151,9 @@ window.LitterCollect = function (app) {
   $('pf-next').addEventListener('click', nextStep);
   $('pf-heavy-yes').addEventListener('click', function () { pulse.heavyOk = $('pf-scale').value.trim(); $('pf-heavy').hidden = true; nextStep(); });
   $('pf-heavy-no').addEventListener('click', function () { $('pf-heavy').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
-  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; sameNote(); keepDraft(); });
+  $('pf-lower-yes').addEventListener('click', function () { pulse.bagSwitched = true; pulse.bagOk = $('pf-scale').value.trim(); $('pf-lower').hidden = true; sameNote(); nextStep(); });
+  $('pf-lower-no').addEventListener('click', function () { $('pf-lower').hidden = true; $('pf-scale').focus(); $('pf-scale').select(); });
+  $('pf-scale').addEventListener('input', function () { $('pf-heavy').hidden = true; $('pf-lower').hidden = true; if (pulse) lowerReset(); sameNote(); keepDraft(); });
   $('pf-end').addEventListener('change', keepDraft);
   // The box in view above the keyboard once it opens.
   $('pf-scale').addEventListener('focus', function () { setTimeout(function () { fitPulse(); $('pf-scale').scrollIntoView({ block: 'nearest' }); }, 300); });
@@ -6235,6 +6280,8 @@ window.LitterCollect = function (app) {
     },
     // The walk's plan, chosen on the Segments screen (S5-P12, Q562).
     walkIds: function () { return walkPlan().map(function (x) { return x.id; }); },
+    // A walk under way: its plan is set (S6-P49).
+    walking: function () { return !!(c && !c.ended && !c.practice) || !!(!c && account && account.open); },
     setWalkPlan: function (ids) {
       setWalkPlan(ids);
       var w = walkPlan();
@@ -6810,7 +6857,11 @@ window.LitterMap = function (app) {
       else {
         var xl = el('ul', 'lt-walk-xp-lines');
         [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
-          .forEach(function (r) { var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li); });
+          .forEach(function (r) {
+            var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
+            // Under Your ratings, each rating's math (S6-P44 item 1).
+            if (r[0] === 'Your ratings') (xp.math || []).forEach(function (t) { xl.appendChild(el('li', 'lt-xp-math', t)); });
+          });
         xb.appendChild(xl);
         xb.appendChild(el('p', 'lt-walk-xp-total', 'Total: ' + round(c.xp, 2) + ' XP'));
       }
@@ -7394,6 +7445,41 @@ window.LitterMap = function (app) {
     var me = G.xy(here.lat, here.lon);
     return g.squares.reduce(function (m, sq) { return Math.min(m, G.dist(me, G.centerXY(sq))); }, Infinity);
   }
+  // "…" on a segment of The Priority Segment List (S6-P49, |S6-U47): a small
+  // menu, Add to my plan or Take off my plan; your plan is the one Choose your
+  // plan makes, and Start collecting uses.
+  function segMenu(g) {
+    var wrap = el('span', 'lt-prio-menu');
+    var dots = el('button', 'lt-prio-dots', '…');
+    dots.type = 'button';
+    dots.setAttribute('aria-label', 'More for ' + g.name);
+    dots.setAttribute('aria-expanded', 'false');
+    var menu = el('div', 'lt-prio-menu-box');
+    menu.hidden = true;
+    var on = app.walkIds().indexOf(g.id) !== -1;
+    var act = el('button', 'lt-prio-menu-act', on ? 'Take off my plan' : 'Add to my plan');
+    act.type = 'button';
+    act.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var ids = app.walkIds().filter(function (x) { return x !== g.id; });
+      if (!on) ids.push(g.id);
+      app.useWalkPlan(ids);
+      // Your plan's line under Collecting says it; no notice to close.
+      drawSegments();
+    });
+    menu.appendChild(act);
+    dots.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      Array.prototype.forEach.call(document.querySelectorAll('.lt-prio-menu-box'), function (m) { m.hidden = true; });
+      menu.hidden = !open;
+      dots.setAttribute('aria-expanded', String(open));
+    });
+    wrap.appendChild(dots);
+    wrap.appendChild(menu);
+    return wrap;
+  }
+  document.addEventListener('click', function () { Array.prototype.forEach.call(document.querySelectorAll('.lt-prio-menu-box'), function (m) { m.hidden = true; }); });
   function drawSegments() {
     var list = $('segments-list');
     list.textContent = '';
@@ -7425,6 +7511,8 @@ window.LitterMap = function (app) {
       info.setAttribute('aria-label', 'About ' + g.name);
       info.setAttribute('aria-expanded', 'false');
       line.appendChild(info);
+      // "…": Add to my plan, or Take off my plan (S6-P49); not while a walk is under way.
+      if (app.walkIds && app.useWalkPlan && !(app.walking && app.walking())) line.appendChild(segMenu(g));
       box.appendChild(line);
       if (sortBy === 'near' && here) box.appendChild(el('p', 'muted small lt-seg-away', round(g.away / G.MILE_M, 2) + ' mi away'));
       // Behind the ℹ️: what the line means, its rate, when it was last fully collected, and its parts.
@@ -10396,7 +10484,7 @@ window.LitterScroll = function (app) {
   function paintStrip() {
     var box = $('rh-strip-lines'), show = pending.concat(lines.slice(-STRIP).reverse()).slice(0, STRIP).reverse();
     box.textContent = '';
-    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading the rolling history…'));
+    if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading Street Talk…'));
     show.forEach(function (l) { box.appendChild(lineEl(l)); });
     $('rh-strip').hidden = false;
   }
@@ -11409,6 +11497,7 @@ window.LitterScroll = function (app) {
     onPlans: function (d) { collect.onPlans(d); },
     walkIds: function () { return collect.walkIds(); },
     useWalkPlan: function (ids) { collect.setWalkPlan(ids); },
+    walking: function () { return collect.walking(); },
     gate: function (b, key) { return collect.gate(b, key); },
     showCollections: function () { notice(''); show('v-collections'); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }

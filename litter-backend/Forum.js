@@ -541,6 +541,8 @@ function forumDigestTick() {
   // A trigger starts here, not through dispatch_, so nothing kept is carried in (S6-P1).
   forgetReads_();
   ensureSchema_();
+  // Gchat's old lines to cold storage, every hour too (S6-P50).
+  try { withLock_(gchatColdMove_); } catch (e) { /* it tries again next hour, or at the next gchat line */ }
   var now = new Date(), hour = digestHour_();
   var due = digestRows_().filter(function (d) {
     var at = digestDueAt_(d.cadence, now, hour);

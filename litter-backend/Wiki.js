@@ -308,7 +308,7 @@ var WIKI_NO_RATE_TEXT = ['A segment\'s rate is how fast litter comes back to it:
   '',
   'A piece: walks that each collected part of the segment add up to one collection; the last piece holds the pounds and gives the rate.',
   '',
-  'How the clock is timed: each walk counts at its last weighing. So a walk at the same time the next day can come a little under 24 hours after the last one, if it ends a little earlier.'].join('\n');
+  'How the clock is timed: each walk counts at its last weighing on that segment, when the segment was really cleaned. So a walk at the same time the next day can come a little under 24 hours after the last one, if it weighs there a little earlier.'].join('\n');
 function wikiNoRateOnce_() {
   var props = PropertiesService.getScriptProperties();
   if (props.getProperty('WIKI_NO_RATE')) return;

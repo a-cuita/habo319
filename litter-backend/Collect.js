@@ -174,7 +174,14 @@ function collectStretch_(req) {
     if (dup) return { stretch: stretchView_(dup), collection: collectionView_(col), duplicate: true };
     var x = checkStretch_(s, col, account);
     var prev = mine.filter(function (r) { return Number(r.get('n')) < x.n; }).sort(function (a, b) { return Number(a.get('n')) - Number(b.get('n')); });
-    x.pounds = x.discarded ? '' : poundsOf_(x, prev);
+    // A new bag started without pressing New bag (S6-P48): the last weighing
+    // before it becomes that bag's New bag, as if pressed then, and this
+    // reading is all new litter. The old bag stays at its last reading.
+    if (x.bagSwitched) {
+      var last = prev.filter(function (r) { return r.get('discarded') !== 'Yes' && r.get('scale') !== ''; }).pop();
+      if (last && last.get('newBag') !== 'Yes') getDb_().getSheetByName(TABS.stretches.name).getRange(last.row, STRETCH_COL.newBag).setValue('Yes');
+      x.pounds = x.scale;
+    } else x.pounds = x.discarded ? '' : poundsOf_(x, prev);
     var sun = sunFor_(x.cells[x.cells.length - 1] || col.startCell, new Date(x.ended));
     x.pastSunset = x.ended > sun.sunset;
     // No reading until the walk's GPX track is saved (Jeremy, Oct 29: no GPX
@@ -383,6 +390,8 @@ function checkStretch_(s, col, account) {
     n: n, started: started, ended: ended, cells: cells, streetMi: milesValue_(s.streetMi), offMi: milesValue_(s.offMi),
     pausedMin: pausedMin, breakMin: breakMin, breakWhere: s.breakWhere === 'Not sure' ? 'Not sure' : s.breakWhere ? cleanCell_(s.breakWhere) : '',
     activeMin: activeMin, scale: scale, newBag: s.newBag === true, discarded: discarded, asked: s.breakAsked === true,
+    // Started a new bag without pressing New bag (S6-P48, |Q793): this reading is the new bag.
+    bagSwitched: !discarded && s.bagSwitched === true,
     turns: cleanCells_(s.turns).filter(function (t) { return cells.indexOf(t) !== -1; }).slice(0, 50),
     types: discarded ? [] : cleanTypes_(s.types || [], account), rating: discarded ? '' : cleanRating_(s.rating),
     reason: discarded && s.reason ? discardReason_(s.reason) : '',

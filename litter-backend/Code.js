@@ -801,6 +801,8 @@ function missingSettings_(ss) {
     [SETTING_RH_BADGE, 'On'],
     [SETTING_GCHAT, 'On'],
     [SETTING_RH_EVERY, '15'],
+    [SETTING_GCHAT_COLD, '2000'],
+    [SETTING_COLD_FOLDER, ''],
     [SETTING_SHARE_LAYOUT, 'Full'],
     [SETTING_SHARE_SHOWS, 'Litter Index'],
     [SETTING_APP_NAME, DEFAULT_APP_NAME],

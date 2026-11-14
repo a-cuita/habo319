@@ -90,6 +90,11 @@ function renameAdminSettings_(ss) {
     var at = names.indexOf(old);
     if (at !== -1 && names.indexOf(d[1]) === -1) { sheet.getRange(at + 1, 1).setValue(d[1]); names[at] = d[1]; }
   });
+  // The rolling history is Street Talk (S6-P51): its six rows renamed, their values kept.
+  STREET_TALK_RENAMES.forEach(function (now) {
+    var at = names.indexOf(now.replace(/^Street Talk: /, 'Rolling history: '));
+    if (at !== -1 && names.indexOf(now) === -1) { sheet.getRange(at + 1, 1).setValue(now); names[at] = now; }
+  });
 }
 
 /* ── Called from the page ── */

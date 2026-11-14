@@ -300,17 +300,30 @@ function directionOf_(all, some) {
 
 // The walks of one world, from their weighings: { id: { id, t (its last
 // weighing's end), walked: { square }, weighings: [{ cells, lbs, miles }] } }.
+// When a walk collected a segment (S6-P44, |Q790 (a)): at its last weighing
+// on that segment, for the rate and the time bonus alike, not the walk's last
+// weighing. Only for walks started from when this went live, so no past walk's
+// rate or XP changes (|Q777 (b)); before then, the walk's last weighing.
+var SEG_CLOCK_FROM_ = null;
+function segClockFrom_() {
+  if (SEG_CLOCK_FROM_ != null) return SEG_CLOCK_FROM_;
+  var props = PropertiesService.getScriptProperties(), v = Number(props.getProperty('SEG_CLOCK_FROM'));
+  if (!(v > 0)) { v = Date.now(); props.setProperty('SEG_CLOCK_FROM', String(v)); }
+  return (SEG_CLOCK_FROM_ = v);
+}
+function segTime_(w, tSeg) { return tSeg && w.started >= segClockFrom_() ? tSeg : w.t; }
 function worldWalks_(counted, rows) {
   var out = {};
   rows.forEach(function (s) {
     var id = s.get('collection');
     if (!counted[id] || s.get('discarded') === 'Yes') return;
-    var w = out[id] = out[id] || { id: id, t: 0, walked: {}, weighings: [], track: parseTrack_(counted[id].get('track')), scans: {} };
+    var st = counted[id].get('started');
+    var w = out[id] = out[id] || { id: id, t: 0, started: st instanceof Date ? st.getTime() : 0, walked: {}, weighings: [], track: parseTrack_(counted[id].get('track')), scans: {} };
     var cells = String(s.get('cells')).split(/\s+/).filter(String);
     cells.forEach(function (c) { w.walked[c] = true; });
     var t = s.get('ended') instanceof Date ? s.get('ended').getTime() : 0;
     if (t > w.t) w.t = t;
-    w.weighings.push({ n: Number(s.get('n')) || 0, cells: cells, lbs: s.get('pounds') === '' ? null : Number(s.get('pounds')) || 0,
+    w.weighings.push({ n: Number(s.get('n')) || 0, t: t, cells: cells, lbs: s.get('pounds') === '' ? null : Number(s.get('pounds')) || 0,
       miles: (Number(s.get('streetMi')) || 0) + (Number(s.get('offMi')) || 0) });
   });
   return out;
@@ -344,17 +357,18 @@ function otherSquares_(g) {
 function pathEvent_(g, w, k, inSeg, piece, others) {
   var covered = g.squares.filter(function (c) { return isNear_(w.walked, c, k.near); }).length / g.squares.length;
   if (!w.t || !covered || (covered < k.cover && !piece)) return null;
-  var lbs = 0, weighed = {};
+  var lbs = 0, weighed = {}, tSeg = 0;
   var nearSeg = function (c) { return isNear_(inSeg, c, k.near); };
   w.weighings.forEach(function (x) {
     if (!x.cells.length || x.lbs == null) return;
     var cells = weighingCells_(w, x, nearSeg, others || {}, k);
     if (!cells.length || cells.filter(nearSeg).length / cells.length < k.inside) return;
     lbs += x.lbs;
+    if (x.t > tSeg) tSeg = x.t;
     cells.forEach(function (c) { weighed[c] = true; });
   });
   var known = g.squares.filter(function (c) { return isNear_(weighed, c, k.near); }).length / g.squares.length >= k.cover;
-  return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, walked: w.walked, weighed: weighed };
+  return { id: w.id, t: segTime_(w, tSeg), lbs: lbs, known: known, covered: covered, walked: w.walked, weighed: weighed };
 }
 
 // What a walk did on a field (S5-P13 part 2, |Q600 (a)): the share of its
@@ -373,20 +387,21 @@ function fieldEvent_(g, w, k, ground, piece, others) {
   }
   var scan = w.scans[g.id], covered = LitterGeo.scanShare(scan);
   if (!w.t || !covered || (covered < k.fieldCover && !piece)) return null;
-  var lbs = 0, weighed = [];
+  var lbs = 0, weighed = [], tSeg = 0;
   var nearField = function (c) { return isNear_(ground.cells, c, k.near); };
   w.weighings.forEach(function (x) {
     if (!x.cells.length || x.lbs == null) return;
     var cells = weighingCells_(w, x, nearField, others || {}, k);
     if (!cells.length || cells.filter(nearField).length / cells.length < k.inside) return;
     lbs += x.lbs;
+    if (x.t > tSeg) tSeg = x.t;
     cells.forEach(function (c) { weighed.push(LitterGeo.centerXY(c)); });
   });
   // A weighed square scans from anywhere in it: its middle, plus half its diagonal.
   var r = k.reach + LitterGeo.CELL_M * 0.71;
   var wscan = ground.pts.map(function (p) { return weighed.some(function (m) { return LitterGeo.dist(p, m) <= r; }) ? 1 : 0; });
   var known = LitterGeo.scanShare(wscan) >= k.fieldCover;
-  return { id: w.id, t: w.t, lbs: lbs, known: known, covered: covered, scan: scan, wscan: wscan };
+  return { id: w.id, t: segTime_(w, tSeg), lbs: lbs, known: known, covered: covered, scan: scan, wscan: wscan };
 }
 
 // The walks that collected a segment, in time order: full ones, and pieces

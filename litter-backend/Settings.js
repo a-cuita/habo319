@@ -87,13 +87,14 @@ function settingGroups_() {
     [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
   // The rolling history for everyone (S6-P38, |Q762 to |Q766): what's
   // announced, gchat, and how often an open one looks for new lines.
-  { key: 'realm', title: 'Rolling history', says: 'What everyone sees in it: the announcements, gchat, and how often it looks for new lines.', rank: 'Builder', items: [
+  { key: 'realm', title: 'Street Talk', says: 'What everyone sees in it: the announcements, gchat, and how often it looks for new lines.', rank: 'Builder', items: [
     [SETTING_RH_START, 'Announce a walk started', 'Everyone sees "… started collecting." Where, only once it ends.', 'choice', RH_ONOFF],
     [SETTING_RH_END, 'Announce a walk ended', 'Everyone sees "… ended a walk: 1.6 lb on …", with the segments it planned.', 'choice', RH_ONOFF],
     [SETTING_RH_LEVEL, 'Announce a level reached', 'Everyone sees "… has gained a level! ---> Level 3!"', 'choice', RH_ONOFF],
     [SETTING_RH_BADGE, 'Announce a badge earned', 'Everyone sees "… earned the badge …!"', 'choice', RH_ONOFF],
     [SETTING_GCHAT, 'gchat', 'Any player types gchat and a line, for everyone signed in; any line can be reported to the Admins, and an admin removes it in Admin Mode.', 'choice', RH_ONOFF],
-    [SETTING_RH_EVERY, 'New lines every', 'While the rolling history is open, it looks for new lines this often.', 'number', 'seconds', 5, 300]] },
+    [SETTING_RH_EVERY, 'New lines every', 'While Street Talk is open, it looks for new lines this often.', 'number', 'seconds', 5, 300],
+    [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, the oldest move to the Gchat Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },
   { key: 'sayings', title: 'Sayings', says: 'What the page says while a walk starts.', rank: 'Builder', items: [
     [SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]] }
   ];
@@ -276,6 +277,7 @@ function settingNotes_() {
    [SETTING_CHECKIN_SHEET, 'The volunteer check-in\'s Sheet: a new account is matched to its volunteer there by email, and a collection to the event it was during.'],
    [SETTING_SIGNATURES_FOLDER, 'The Drive folder each signed waiver is saved to. Blank: one is made the first time.'],
    [SETTING_CHALLENGE_PHOTOS, 'The Drive folder each photo sent for a Challenge is saved to (S6-P8). Blank: one is made the first time.'],
+   [SETTING_COLD_FOLDER, 'The Drive folder, HABO Litter Cold Storage, that old records move to, a Google Sheet for each kind, Gchat first (S6-P50). Blank: one is made beside the litter Sheet the first time.'],
    [SETTING_PUBLIC_URL, 'The litter page\'s public address, for HABO\'s records. Nothing in the app reads it today.']
   ].forEach(function (x) { out[x[0]] = x[1] + sheetOnly; });
   settingGroups_().forEach(function (g) {

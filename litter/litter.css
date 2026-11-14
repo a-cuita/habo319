@@ -825,3 +825,14 @@ body.lt-popform-open { overflow: hidden; }
 .lt-cu-adm-row p { margin: 0 0 6px; }
 .lt-cu-adm-row input { width: 7em; margin-right: 8px; }
 .lt-cu-adm-row .btn { width: auto; margin: 4px 0; }
+
+/* "…" on The Priority Segment List (S6-P49): Add to my plan, or Take off my plan. */
+.lt-prio-menu { position: relative; display: inline-block; margin-left: auto; }
+.lt-prio-dots { border: 0; background: none; color: var(--text); font-size: 1.3rem; font-weight: 800; line-height: 1; padding: 2px 8px; cursor: pointer; }
+.lt-prio-menu-box { position: absolute; right: 0; top: 100%; z-index: 50; background: var(--surface); border: 1px solid var(--border-hi); border-radius: var(--radius-sm); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25); padding: 4px; min-width: 170px; }
+.lt-prio-menu-box[hidden] { display: none; }
+.lt-prio-menu-act { display: block; width: 100%; text-align: left; border: 0; background: none; color: var(--text); font: inherit; padding: 10px 12px; border-radius: 6px; cursor: pointer; }
+.lt-prio-menu-act:hover, .lt-prio-menu-act:focus { background: var(--surface-2); }
+
+/* Each rating's math, under Your ratings (S6-P44 item 1): indented, smaller, in italics. */
+.lt-walk-xp-lines li.lt-xp-math, #sm-xp-lines li.lt-xp-math { display: block; padding-left: 18px; font-size: 0.85em; font-style: italic; color: var(--text-dim); }
