@@ -802,6 +802,7 @@ function missingSettings_(ss) {
     [SETTING_GCHAT, 'On'],
     [SETTING_RH_EVERY, '15'],
     [SETTING_GCHAT_COLD, '2000'],
+    [SETTING_GCHAT_MAX, '1000'],
     [SETTING_COLD_FOLDER, ''],
     [SETTING_SHARE_LAYOUT, 'Full'],
     [SETTING_SHARE_SHOWS, 'Litter Index'],

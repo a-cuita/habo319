@@ -1017,7 +1017,7 @@ body.lt-popform-open { overflow: hidden; }
     <form class="lt-rh-prompt" id="rh-form" autocomplete="off">
       <label class="sr-only" for="rh-in">A command</label>
       <span class="lt-rh-caret" aria-hidden="true">&gt;</span>
-      <input id="rh-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" maxlength="60" placeholder="Type a command, or help">
+      <input id="rh-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" maxlength="1010" placeholder="Type a command, or help">
       <button class="lt-rh-enter" type="submit">Enter</button>
     </form>
   </div>
@@ -10527,6 +10527,8 @@ window.LitterScroll = function (app) {
       if (d.commands) commands = d.commands;
       if (d.now) lastNow = d.now;
       if (d.every) every = d.every;
+      // Room for gchat, its word and its line (S6-P38, |M1174).
+      if (d.gchatMax) $('rh-in').maxLength = d.gchatMax + 10;
       pending = [];
       loaded = true;
       paintStrip();

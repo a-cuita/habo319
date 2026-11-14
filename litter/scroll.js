@@ -123,6 +123,8 @@ window.LitterScroll = function (app) {
       if (d.commands) commands = d.commands;
       if (d.now) lastNow = d.now;
       if (d.every) every = d.every;
+      // Room for gchat, its word and its line (S6-P38, |M1174).
+      if (d.gchatMax) $('rh-in').maxLength = d.gchatMax + 10;
       pending = [];
       loaded = true;
       paintStrip();

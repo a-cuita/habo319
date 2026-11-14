@@ -94,6 +94,7 @@ function settingGroups_() {
     [SETTING_RH_BADGE, 'Announce a badge earned', 'Everyone sees "… earned the badge …!"', 'choice', RH_ONOFF],
     [SETTING_GCHAT, 'gchat', 'Any player types gchat and a line, for everyone signed in; any line can be reported to the Admins, and an admin removes it in Admin Mode.', 'choice', RH_ONOFF],
     [SETTING_RH_EVERY, 'New lines every', 'While Street Talk is open, it looks for new lines this often.', 'number', 'seconds', 5, 300],
+    [SETTING_GCHAT_MAX, 'gchat line length', 'The most characters a gchat line can have.', 'number', 'characters', 50, 5000],
     [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, the oldest move to the Gchat Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },
   { key: 'sayings', title: 'Sayings', says: 'What the page says while a walk starts.', rank: 'Builder', items: [
     [SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]] }

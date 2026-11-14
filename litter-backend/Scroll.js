@@ -105,7 +105,9 @@ var SETTING_COLD_FOLDER = 'Cold storage folder';
 var GCHAT_KEEP = 1000;
 var RH_ONOFF = ['On', 'Off'];
 var GCHAT_COL = { id: 1, account: 2, written: 3, text: 4, removedBy: 5, removed: 6, reportedBy: 7, reported: 8 };
-var GCHAT_MAX = 280;
+// How long a gchat line can be (S6-P38, |M1174): a setting, 1,000 to start.
+var SETTING_GCHAT_MAX = 'Street Talk: gchat line length (characters)';
+function gchatMax_() { var n = Math.round(Number(getSetting_(SETTING_GCHAT_MAX))); return n >= 50 && n <= 5000 ? n : 1000; }
 function rhOn_(name) { return String(getSetting_(name) || 'On').trim() !== 'Off'; }
 function rhEvery_() { var n = Number(getSetting_(SETTING_RH_EVERY)); return n >= 5 && n <= 300 ? n : 15; }
 // Each player as the public map shows them: handle, name, or nothing.
@@ -172,7 +174,8 @@ function gchatSay_(account, words) {
   if (!rhOn_(SETTING_GCHAT)) throw new Error('gchat is off just now.');
   var text = String(words || '').replace(/\s+/g, ' ').trim();
   if (!text) throw new Error('Type gchat, then what you want to say to everyone, like "gchat good morning!"');
-  if (text.length > GCHAT_MAX) throw new Error('Keep it to ' + GCHAT_MAX + ' characters: that was ' + text.length + '.');
+  var max = gchatMax_();
+  if (text.length > max) throw new Error('Keep it to ' + max + ' characters: that was ' + text.length + '.');
   return forumLock_(function () {
     var rows = gchatRows_(), now = Date.now();
     if (rows.some(function (g) { return g.account === account.id && now - g.at < 3000; })) throw new Error('One line at a time: try again in a moment.');
@@ -352,9 +355,9 @@ function scroll_(req) {
   // only everyone's lines since, which is quick; levels come with a full load.
   if (req.since != null) {
     var since = Number(req.since) || 0;
-    return { lines: sharedLines_(account, shownNames_()).filter(function (l) { return l.at > since; }), now: Date.now(), every: rhEvery_() };
+    return { lines: sharedLines_(account, shownNames_()).filter(function (l) { return l.at > since; }), now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
   }
-  return { lines: scrollLines_(account).lines, commands: SCROLL_COMMANDS, now: Date.now(), every: rhEvery_() };
+  return { lines: scrollLines_(account).lines, commands: SCROLL_COMMANDS, now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
 }
 
 /* ── Cold storage (S6-P50, |Q795): a folder, HABO Litter Cold Storage,
