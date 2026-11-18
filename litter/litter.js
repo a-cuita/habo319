@@ -99,7 +99,8 @@
   }
   // Admin screens (S6-P19, |M888): never shown outside Admin Mode, by any
   // button or back; asked for without it, the main page shows instead.
-  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft'];
+  // Cleanups too, in Admin Mode only for now (S7-P14, |M1221).
+  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft', 'v-cleanups'];
   function show(id) {
     if (ADMIN_VIEWS.indexOf(id) !== -1 && !adminMode()) {
       if (state.account) { showAccount(state.account); return; }
@@ -804,7 +805,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */

@@ -218,11 +218,12 @@ window.LitterCleanups = function (app) {
       up.appendChild(li);
     });
     // Register a team, or join one (both open until the cleanup ends; registering until its time).
-    // In Admin Mode, an admin's tools instead of a player's (|C968).
-    $('cu-register').hidden = !c.registerOpen || !!leadOf || admin();
+    // In Admin Mode, a player's actions as well as an admin's tools (|C968): Cleanups is
+    // Admin Mode's only for now, so an admin can play a team through it (S7-P14, |M1221).
+    $('cu-register').hidden = !c.registerOpen || !!leadOf;
     var me = app.me && app.me();
     if (me && !$('cu-reg-l1').value) $('cu-reg-l1').value = me.handle || '';   // you, to start
-    $('cu-join').hidden = !c.joinOpen || !!leadOf || admin();
+    $('cu-join').hidden = !c.joinOpen || !!leadOf;
     var sel = $('cu-join-team');
     sel.textContent = '';
     c.teams.forEach(function (t) { var o = el('option', null, t.name); o.value = t.id; if (t.mine) o.selected = true; sel.appendChild(o); });
@@ -419,8 +420,9 @@ window.LitterCleanups = function (app) {
   function today(d) {
     day0 = d && d.today;
     var t = day0, box = $('cu-today');
-    box.hidden = !t;
-    if (!t) return;
+    // In Admin Mode only, until team mode's workflows are worked out (S7-P14, |M1221).
+    box.hidden = !t || !$('cl-sim').checked;
+    if (box.hidden) return;
     $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
     var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
     $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
@@ -473,5 +475,13 @@ window.LitterCleanups = function (app) {
   });
 
   $('me-go-cleanups').addEventListener('click', open);
-  return { open: open, onAccount: onAccount };
+  // Cleanups in the top panel, and Your cleanup on the main page, only while
+  // Admin Mode is on (S7-P14, |M1221).
+  function sync() {
+    $('me-go-cleanups').hidden = !$('cl-sim').checked;
+    today(day0 ? { today: day0 } : null);
+  }
+  $('cl-sim').addEventListener('change', sync);
+  sync();
+  return { open: open, onAccount: onAccount, sync: sync };
 };

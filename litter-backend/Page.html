@@ -1096,8 +1096,8 @@ body.lt-popform-open { overflow: hidden; }
           <!-- Maps (S6-U26): the days you choose, and every layer. -->
           <button class="btn btn-secondary" id="me-go-maps" type="button">Maps</button>
           <button class="btn btn-secondary" id="me-go-quests" type="button">Your quests</button>
-          <!-- Team mode (S6-P27): cleanups on assigned segments. -->
-          <button class="btn btn-secondary" id="me-go-cleanups" type="button">Cleanups</button>
+          <!-- Team mode (S6-P27): cleanups on assigned segments. In Admin Mode only, until its workflows are worked out (S7-P14, |M1221). -->
+          <button class="btn btn-secondary" id="me-go-cleanups" type="button" hidden>Cleanups</button>
           <!-- Skills, the quick menu (S5-P29, |C837; S6-P8, |C921): a button, opening a sheet of its own. The builder in Admin Mode is Skill Builder, so the two never share a name. -->
           <button class="btn btn-secondary" id="me-go-skills" type="button" hidden>Skills</button>
           <!-- The Wiki (S6-P9, |M862): for everyone. -->
@@ -9961,11 +9961,12 @@ window.LitterCleanups = function (app) {
       up.appendChild(li);
     });
     // Register a team, or join one (both open until the cleanup ends; registering until its time).
-    // In Admin Mode, an admin's tools instead of a player's (|C968).
-    $('cu-register').hidden = !c.registerOpen || !!leadOf || admin();
+    // In Admin Mode, a player's actions as well as an admin's tools (|C968): Cleanups is
+    // Admin Mode's only for now, so an admin can play a team through it (S7-P14, |M1221).
+    $('cu-register').hidden = !c.registerOpen || !!leadOf;
     var me = app.me && app.me();
     if (me && !$('cu-reg-l1').value) $('cu-reg-l1').value = me.handle || '';   // you, to start
-    $('cu-join').hidden = !c.joinOpen || !!leadOf || admin();
+    $('cu-join').hidden = !c.joinOpen || !!leadOf;
     var sel = $('cu-join-team');
     sel.textContent = '';
     c.teams.forEach(function (t) { var o = el('option', null, t.name); o.value = t.id; if (t.mine) o.selected = true; sel.appendChild(o); });
@@ -10162,8 +10163,9 @@ window.LitterCleanups = function (app) {
   function today(d) {
     day0 = d && d.today;
     var t = day0, box = $('cu-today');
-    box.hidden = !t;
-    if (!t) return;
+    // In Admin Mode only, until team mode's workflows are worked out (S7-P14, |M1221).
+    box.hidden = !t || !$('cl-sim').checked;
+    if (box.hidden) return;
     $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
     var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
     $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
@@ -10216,7 +10218,15 @@ window.LitterCleanups = function (app) {
   });
 
   $('me-go-cleanups').addEventListener('click', open);
-  return { open: open, onAccount: onAccount };
+  // Cleanups in the top panel, and Your cleanup on the main page, only while
+  // Admin Mode is on (S7-P14, |M1221).
+  function sync() {
+    $('me-go-cleanups').hidden = !$('cl-sim').checked;
+    today(day0 ? { today: day0 } : null);
+  }
+  $('cl-sim').addEventListener('change', sync);
+  sync();
+  return { open: open, onAccount: onAccount, sync: sync };
 };
 </script>
 <script>
@@ -10771,7 +10781,8 @@ window.LitterScroll = function (app) {
   }
   // Admin screens (S6-P19, |M888): never shown outside Admin Mode, by any
   // button or back; asked for without it, the main page shows instead.
-  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft'];
+  // Cleanups too, in Admin Mode only for now (S7-P14, |M1221).
+  var ADMIN_VIEWS = ['v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-challenges-admin', 'v-ach-admin', 'v-wiki-draft', 'v-cleanups'];
   function show(id) {
     if (ADMIN_VIEWS.indexOf(id) !== -1 && !adminMode()) {
       if (state.account) { showAccount(state.account); return; }
@@ -11476,7 +11487,7 @@ window.LitterScroll = function (app) {
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
