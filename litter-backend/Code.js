@@ -35,9 +35,9 @@ var TABS = {
     byName: true,
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
       'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Check-in volunteer', 'Updated', 'Status',
-      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@' }
+      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
   // words change (Oct 23, in chat), with whether their emailed copy went.
@@ -264,9 +264,10 @@ var TABS = {
   // The Quest Drafting Bench (S6-P8, |M895): each Quest, its segments and its finishing bonus; its Challenges are in Challenges.
   questBench: {
     name: 'Quest Bench',
-    header: ['Quest ID', 'Name', 'Says', 'From', 'To', 'Segments', 'Finishing bonus (XP)', 'State', 'A test', 'Made by', 'Made'],
-    widths: [80, 180, 320, 100, 100, 220, 90, 70, 60, 100, 150],
-    formats: { 3: '@', 4: 'yyyy-mm-dd', 5: 'yyyy-mm-dd', 6: '@', 11: 'yyyy-mm-dd h:mm' }
+    // Opens after: the Quest a player finishes first (S7-P4 item 15, |Q848 (a)). Opened: when it was first opened to players.
+    header: ['Quest ID', 'Name', 'Says', 'From', 'To', 'Segments', 'Finishing bonus (XP)', 'State', 'A test', 'Made by', 'Made', 'Opens after', 'Opened'],
+    widths: [80, 180, 320, 100, 100, 220, 90, 70, 60, 100, 150, 90, 150],
+    formats: { 3: '@', 4: 'yyyy-mm-dd', 5: 'yyyy-mm-dd', 6: '@', 11: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm' }
   },
   // Litter Class Skills built from the toolbox (S6-P8's rework, Jeremy's answers in chat, Nov 6).
   toolSkills: {
@@ -371,6 +372,7 @@ function actions_() {
     tellRemove: tellRemove_,     // an admin removes a reported one
     boardReport: boardReport_,   // a board topic or note reported (S7-P10)
     boardRemove: boardRemove_,   // an admin removes it
+    questActive: questActive_,   // Make active, or Stop counting, in Your quests (S7-P4)
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
@@ -590,7 +592,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE') || !props.getProperty('XP_TABS_MOVED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE') || !props.getProperty('XP_TABS_MOVED') || !props.getProperty('QUESTS_TAKEN_FROM');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -642,6 +644,7 @@ function ensureSchema_(force) {
     achievementsOnce_();
     squaresPackOnce_();   // last: after the regrids, which read squares as they were (S6-P1)
     xpTabsOnce_();   // each player's XP tab, moved in once, after everything else (S7-P1, item 8)
+    questsTakenOnce_();   // from now, Quests count once taken on and active (S7-P4)
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
@@ -829,6 +832,8 @@ function missingSettings_(ss) {
     [SETTING_GCHAT, 'On'],
     [SETTING_TELL, 'On'],
     [SETTING_BOARD, 'On'],
+    [SETTING_RH_QUEST, 'On'],
+    [SETTING_QM_NAME, QM_DEFAULT],
     [SETTING_RH_EVERY, '15'],
     [SETTING_GCHAT_COLD, '2000'],
     [SETTING_GCHAT_MAX, '1000'],

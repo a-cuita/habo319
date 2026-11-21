@@ -21,6 +21,10 @@ var SCROLL_COMMANDS = [
   ['board', 'the message board\'s topics; board and a number reads one, like "board 2"'],
   ['board write and your words', 'starts a topic; board, a number, write and your words adds a note to one'],
   ['who', 'who\'s been on the litter page in the last 10 minutes'],
+  ['quests', 'the Questmaster, with the Quests open to you; or tap the Questmaster\'s name'],
+  ['about and a number', 'the Questmaster tells you of that Quest, like "about 3"'],
+  ['accept and a number', 'take that Quest on'],
+  ['active and a number', 'make a Quest you\'ve taken on your active one; active none for no active Quest'],
   ['xp history', 'each XP you\'ve earned, newest first'],
   ['level', 'your level, and the XP to the next'],
   ['walks', 'your last walks, a line each'],
@@ -79,7 +83,7 @@ function announceLines_(shown) {
   if (rhOn_(SETTING_RH_BADGE)) badgesAll_().forEach(function (b) {
     if (b.earned) lines.push({ at: b.earned, who: shown[b.account] || 'A volunteer', text: 'earned the badge ' + (b.badge ? b.badge + ' ' : '') + '"' + b.name + '"!', kind: 'badge', account: b.account });
   });
-  return lines;
+  return lines.concat(questAnnounceLines_(shown));   // a Quest taken on or finished (S7-P4, |Q884 (a))
 }
 
 // gchat (items 2 and 7, |Q764 (a)): a line each, to everyone signed in.
@@ -107,13 +111,14 @@ function sharedLines_(account, shown, admin) {
     var o = { at: l.at, who: l.who, text: l.text, mine: l.account === account.id, kind: l.kind };
     if (l.kind === 'gchat') { o.id = l.id; o.reported = l.reported; }
     return o;
-  }).concat(tellLines_(account, admin));
+  }).concat(tellLines_(account, admin)).concat(qmTells_(account));   // the Questmaster's word when a Quest opens to you (|Q885 (a))
 }
 // A line as the page gets it.
 function scrollOut_(l) {
   var o = { at: l.at, who: l.who || '', text: l.text, mine: !!l.mine, kind: l.kind };
   if (l.kind === 'gchat') { o.id = l.id; o.reported = !!l.reported; }
   if (l.kind === 'tell') { o.id = l.id; o.to = l.to; o.toMe = !!l.toMe; o.reported = !!l.reported; if (l.flagged) o.flagged = true; }
+  if (l.kind === 'qm') { o.id = l.id; o.actions = l.actions || []; }
   return o;
 }
 
@@ -214,7 +219,7 @@ function scrollLines_(account, admin) {
     lines.push({ at: e.at, mine: true, kind: 'xp', walk: e.walk, text: (e.xp < 0 ? '' : '+') + e.xp + ' XP: ' + e.say, seq: i });
   });
   // At the same moment: a walk's summary, then its XP, then any level it reached.
-  var rank = { start: 0, gchat: 0, tell: 0, end: 0, walk: 0, xp: 1, level: 2, badge: 3 };
+  var rank = { start: 0, gchat: 0, tell: 0, qm: 0, quest: 0, end: 0, walk: 0, xp: 1, level: 2, badge: 3 };
   lines.sort(function (a, b) { return a.at - b.at || rank[a.kind] - rank[b.kind] || (a.seq || 0) - (b.seq || 0); });
   return { lines: lines.slice(-SCROLL_LINES).map(scrollOut_), events: mine };
 }
@@ -298,6 +303,8 @@ function scroll_(req) {
     if (g) return { answer: [], line: gchatSay_(account, g[1]) };
     var t = /^tell(?:\s+([\s\S]*))?$/i.exec(typed);
     if (t) return { answer: [], line: tellSay_(account, t[1]) };
+    var qa = questCommand_(account, typed);   // the Questmaster (S7-P4)
+    if (qa) return { answer: qa };
     return { answer: scrollCommand_(account, req.command) };
   }
   // While it's open, the page asks every few seconds (item 6, |Q765 (a)):

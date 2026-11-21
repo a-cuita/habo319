@@ -71,18 +71,42 @@ window.LitterChallenges = function (app) {
       $('challenges-note').textContent = err.message;
     });
   }
+  // Your quests (S7-P4 item 23): the Quests you've taken on, the active one
+  // first. You take one on from the Questmaster, in Street Talk.
   function draw() {
     var box = $('challenges-list');
     box.textContent = '';
-    var list = (mine && mine.quests) || [];
-    $('challenges-note').textContent = list.length ? 'Each Quest is a list of Challenges. Finish them all for its bonus.' : 'No Quests are open now.';
+    var list = (mine && mine.quests) || [], qm = (mine && mine.questmaster) || 'The Questmaster', offered = (mine && mine.offered) || 0;
+    var active = list.filter(function (q) { return q.active; })[0];
+    $('challenges-note').textContent = !list.length ? 'You haven\'t taken on a Quest yet. ' + qm + ' offers them in Street Talk' + (offered ? ': ' + offered + (offered === 1 ? ' is' : ' are') + ' open to you now.' : '.')
+      : active ? 'Your walks and skills count toward ' + active.name + ', your active Quest. The others wait, their progress kept.'
+      : 'You have no active Quest: your walks count toward none until you make one active.';
+    if (app.questmaster) box.appendChild(button('btn btn-secondary lt-quest-qm', 'Talk to ' + qm, function () { app.questmaster(); }));
     list.forEach(function (q) { box.appendChild(questCard(q)); });
+  }
+  // Make active, and Stop counting (items 21, 22).
+  function setActive(q, b) {
+    app.busy(b, 'challenges-err', function () {
+      return app.api('questActive', { token: app.myToken(), questId: q ? q.id : 'none' }).then(function (d) {
+        mine = d;
+        draw();
+        if (d.said) app.notice(d.said);
+      });
+    });
   }
   function questCard(q) {
     var d = el('details', 'lt-quest-card');
     d.id = 'qst-' + q.id;
     d.open = list1();
     d.appendChild(el('summary', 'lt-challenge-head', q.name + ' · ' + q.xp + ' XP' + (q.done ? ' · Done!' : '') + (q.test ? ' · a test' : '')));
+    var state = q.finished ? 'Finished' : q.active ? 'Your active Quest' : 'Waiting';
+    d.appendChild(el('p', 'small lt-quest-state' + (q.active ? ' active' : ''), state));
+    if (!q.finished) {
+      var acts = el('div', 'lt-quest-acts');
+      if (q.active) acts.appendChild(button('btn btn-secondary lt-quest-stop', 'Stop counting', function () { setActive(null, this); }));
+      else if (q.live) acts.appendChild(button('btn btn-primary lt-quest-make', 'Make active', function () { setActive(q, this); }));
+      if (acts.childNodes.length) d.appendChild(acts);
+    }
     if (q.says) d.appendChild(el('p', null, q.says));
     if (q.test) d.appendChild(el('p', 'small lt-challenge-closed', 'A test: only admins see it, and its XP isn\'t counted.'));
     d.appendChild(el('p', 'small', dates(q) + (q.bonus ? ' · ' + q.bonus + ' XP more once every Challenge is done' : '')));
@@ -97,7 +121,7 @@ window.LitterChallenges = function (app) {
     d.appendChild(ul);
     return d;
   }
-  function list1() { return ((mine && mine.quests) || []).length === 1; }
+  function list1() { var l = (mine && mine.quests) || []; return l.length === 1; }
   function challengeItem(c) {
     var li = el('li', 'lt-challenge' + (c.progress.done ? ' done' : ''));
     li.id = 'chl-' + c.id;
@@ -345,12 +369,67 @@ window.LitterChallenges = function (app) {
     });
     return rt;
   }
+  // A card's ⋯ menu (S7-P4 item 13, |Q749): its buttons, one under another.
+  function moreMenu(label, items) {
+    var wrap = el('div', 'lt-seg-more-wrap lt-qb-more');
+    var b = el('button', 'lt-seg-more', '⋯');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'More for ' + label);
+    b.setAttribute('aria-expanded', 'false');
+    var menu = el('div', 'lt-seg-menu lt-qb-menu');
+    menu.hidden = true;
+    items.forEach(function (it) {
+      var m = button('lt-seg-menu-item ' + it[1], it[0], function () { closeMenus(); it[2](m); });
+      menu.appendChild(m);
+    });
+    b.addEventListener('click', function (e) {
+      e.stopPropagation();
+      var open = menu.hidden;
+      closeMenus();
+      menu.hidden = !open;
+      b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    menu.addEventListener('click', function (e) { e.stopPropagation(); });
+    wrap.appendChild(b);
+    wrap.appendChild(menu);
+    return wrap;
+  }
+  function closeMenus() {
+    Array.prototype.forEach.call(document.querySelectorAll('.lt-qb-menu'), function (m) { m.hidden = true; });
+    Array.prototype.forEach.call(document.querySelectorAll('.lt-qb-more > .lt-seg-more'), function (b) { b.setAttribute('aria-expanded', 'false'); });
+  }
+  document.addEventListener('click', closeMenus);
+  // Retire a Challenge, or open it again, from its ⋯.
+  function retireItem(c) {
+    return [c.state === 'Retired' ? 'Open again' : 'Retire', 'lt-cha-retire', function () {
+      app.api('challengeRetire', { token: app.myToken(), challengeId: c.id, retire: c.state !== 'Retired' }).then(function (d2) {
+        useAdmin(d2);
+        sayOn(c.id, c.state === 'Retired' ? 'Open again.' : 'Retired. What it earned stays earned.');
+      }, function (err) { app.notice(err.message); });
+    }];
+  }
+  function questById(id) { return ((admin && admin.quests) || []).filter(function (q) { return q.id === id; })[0]; }
   // A Quest on the Bench: its state, dates, segments and bonus, then its Challenges as its list.
   function benchCard(q, canBuild) {
     var s = el('section', 'card lt-cha-item lt-qb-item' + (q.state === 'Retired' ? ' retired' : ''));
     s.id = 'cha-' + q.id;
-    s.appendChild(el('p', 'lt-col-head', q.name));
-    s.appendChild(el('p', 'small', q.state + (q.test ? ' · a test: only admins see it' : '') + ' · ' + dates(q) + (q.bonus ? ' · ' + q.bonus + ' XP to finish' : '')));
+    var head = el('div', 'lt-qb-head');
+    head.appendChild(el('p', 'lt-col-head', q.name));
+    if (canBuild) {
+      var to = q.state === 'Open' ? 'Retired' : 'Open';
+      head.appendChild(moreMenu(q.name, [
+        ['Add a Challenge', 'lt-qb-add-ch', function () { editChallenge(q, null); }],
+        ['Change the Quest', 'lt-qb-change', function () { editQuest(q); }],
+        [q.state === 'Draft' ? 'Open it to players' : q.state === 'Open' ? 'Retire' : 'Open again', 'lt-qb-state', function () {
+          app.api('questState', { token: app.myToken(), questId: q.id, state: to }).then(function (d2) {
+            useAdmin(d2);
+            sayOn(q.id, to === 'Open' ? (q.test ? 'Open: admins can take it on from the Questmaster.' : 'Open: players can take it on from the Questmaster.') : 'Retired. What it earned stays earned.');
+          }, function (err) { sayOn(q.id, err.message); });
+        }]]));
+    }
+    s.appendChild(head);
+    var aft = q.after ? questById(q.after) : null;
+    s.appendChild(el('p', 'small', q.state + (q.test ? ' · a test: only admins see it' : '') + ' · ' + dates(q) + (q.bonus ? ' · ' + q.bonus + ' XP to finish' : '') + (q.after ? ' · opens after ' + (aft ? aft.name : q.after) : '')));
     var names = q.segments.map(function (id) { var g = segById(id); return g ? g.name : id; });
     s.appendChild(el('p', 'small', names.length ? 'Its segments: ' + names.join(', ') : 'No segments: anywhere counts.'));
     var ul = el('ul', 'lt-qb-chs');
@@ -358,33 +437,14 @@ window.LitterChallenges = function (app) {
     q.challenges.forEach(function (c) {
       var li = el('li', 'lt-qb-ch' + (c.state === 'Retired' ? ' retired' : ''));
       li.id = 'cha-' + c.id;
-      li.appendChild(el('p', 'lt-qb-ch-name', c.name + (c.state === 'Retired' ? ' (retired)' : '')));
+      var top = el('div', 'lt-qb-head');
+      top.appendChild(el('p', 'lt-qb-ch-name', c.name + (c.state === 'Retired' ? ' (retired)' : '')));
+      if (canBuild) top.appendChild(moreMenu(c.name, [['Change', 'lt-cha-change', function () { editChallenge(q, c); }], retireItem(c)]));
+      li.appendChild(top);
       li.appendChild(el('p', 'small', condition(c) + ' · ' + rewards(c)));
-      if (canBuild) {
-        var row = el('div', 'lt-cha-buttons');
-        row.appendChild(button('btn btn-secondary lt-cha-change', 'Change', function () { editChallenge(q, c); }));
-        row.appendChild(retireButton(c, 'challengeRetire', 'challengeId'));
-        li.appendChild(row);
-      }
       ul.appendChild(li);
     });
     s.appendChild(ul);
-    if (canBuild) {
-      var b = el('div', 'lt-cha-buttons');
-      b.appendChild(button('btn btn-primary lt-qb-add-ch', 'Add a Challenge', function () { editChallenge(q, null); }));
-      b.appendChild(button('btn btn-secondary lt-qb-change', 'Change the Quest', function () { editQuest(q); }));
-      var to = q.state === 'Open' ? 'Retired' : 'Open';
-      var st = button('btn btn-secondary lt-qb-state', q.state === 'Draft' ? 'Open it to players' : q.state === 'Open' ? 'Retire' : 'Open again');
-      st.addEventListener('click', function () {
-        st.disabled = true;
-        app.api('questState', { token: app.myToken(), questId: q.id, state: to }).then(function (d2) {
-          useAdmin(d2);
-          sayOn(q.id, to === 'Open' ? (q.test ? 'Open: admins see it on Your quests.' : 'Open: players see it on Your quests.') : 'Retired. What it earned stays earned.');
-        }, function (err) { st.disabled = false; sayOn(q.id, err.message); });
-      });
-      b.appendChild(st);
-      s.appendChild(b);
-    }
     return s;
   }
   function segById(id) { return ((admin && admin.segments) || []).filter(function (g) { return g.id === id; })[0]; }
@@ -404,6 +464,14 @@ window.LitterChallenges = function (app) {
     $('qb-form-title').textContent = q ? 'Change ' + q.name : 'Draft a Quest';
     $('qb-name').value = v.name; $('qb-says').value = v.says; $('qb-from').value = ymd(v.from); $('qb-to').value = ymd(v.to);
     $('qb-bonus').value = v.bonus; $('qb-test').checked = !!v.test; $('qb-err').textContent = '';
+    // Opens after (item 15): any other Quest, or none.
+    var af = $('qb-after');
+    af.textContent = '';
+    var none = el('option', null, 'None: open to every player once it\'s open');
+    none.value = '';
+    af.appendChild(none);
+    ((admin && admin.quests) || []).forEach(function (o) { if (!q || o.id !== q.id) { var x = el('option', null, 'Finishing ' + o.name); x.value = o.id; af.appendChild(x); } });
+    af.value = v.after || '';
     picked = v.segments.slice();
     $('qb-form').hidden = false;
     drawPicker();
@@ -458,13 +526,13 @@ window.LitterChallenges = function (app) {
   $('qb-save').addEventListener('click', function () {
     var was = quest;
     var x = { id: was ? was.id : '', name: $('qb-name').value, says: $('qb-says').value, from: $('qb-from').value, to: $('qb-to').value,
-      bonus: $('qb-bonus').value, segments: picked.slice(), test: $('qb-test').checked };
+      bonus: $('qb-bonus').value, segments: picked.slice(), test: $('qb-test').checked, after: $('qb-after').value };
     app.busy($('qb-save'), 'qb-err', function () {
       return app.api('questSave', { token: app.myToken(), quest: x }).then(function (d) {
         $('qb-form').hidden = true;
         quest = null;
         useAdmin(d);
-        sayOn(d.saved, was ? 'Changed.' : 'Drafted. Now Add a Challenge: a Quest is its list of Challenges.');
+        sayOn(d.saved, was ? 'Changed.' : 'Drafted. Now Add a Challenge, in its ⋯: a Quest is its list of Challenges.');
       });
     });
   });
@@ -486,17 +554,35 @@ window.LitterChallenges = function (app) {
     $('cha-form-quest').hidden = false;
     $('cha-name-label').textContent = 'Name (blank: from its condition)';
     $('cha-says-label').textContent = 'What it says to players (blank: from its condition)';
+    fillChallenge(v);
+    // A new one can start from a copy of one in another Quest: filled in from it, its own after that.
+    var cp = $('cha-copy'), others = [];
+    ((admin && admin.quests) || []).forEach(function (o) { if (o.id !== q.id) o.challenges.forEach(function (x) { others.push([o, x]); }); });
+    cp.textContent = '';
+    var blank = el('option', null, 'None: a new one');
+    blank.value = '';
+    cp.appendChild(blank);
+    others.forEach(function (p, i) { var o = el('option', null, p[0].name + ': ' + p[1].name); o.value = String(i); cp.appendChild(o); });
+    cp.value = '';
+    cp.onchange = function () { var p = others[Number(cp.value)]; fillChallenge(p ? p[1] : v); };
+    $('cha-copy-row').hidden = !!c || !others.length;
+    $('cha-form').dataset.nopop = '';
+    $('cha-form').hidden = false;
+    $('cha-form').scrollIntoView({ block: 'start' });
+    sel.focus();
+  }
+  function fillChallenge(v) {
+    $('cha-kind').value = v.kind === 'Skill goal' ? 'skill:' + v.skill : 'Walk goal';
     $('cha-name').value = v.name; $('cha-says').value = v.says; $('cha-why').value = v.why || '';
     $('cha-miles').value = v.milesGoal; $('cha-segs').value = v.segGoal; $('cha-xp-per').value = v.xpPer; $('cha-xp-seg').value = v.kind === 'Walk goal' ? v.xpOne || 0 : 0;
     $('cha-goal').value = v.goal; $('cha-xp-one').value = v.kind === 'Skill goal' ? v.xpOne : 1; $('cha-mult').value = v.mult;
     $('cha-err').textContent = '';
     kindShown();
-    $('cha-form').hidden = false;
-    $('cha-form').scrollIntoView({ block: 'start' });
-    sel.focus();
   }
-  // The Skills screen's form.
+  // The Skills screen's form: in place, not a pop-up.
   function edit(c) {
+    $('cha-form').dataset.nopop = '1';
+    $('cha-copy-row').hidden = true;
     editing = c || null;
     $('qb-form').hidden = true;
     var v = c || { name: '', says: '', why: '', actions: ['Place', 'Photo'], near: 20, xpEach: 1, xpNear: 0, level: 0 };

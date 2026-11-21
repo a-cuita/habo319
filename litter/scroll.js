@@ -30,6 +30,7 @@ window.LitterScroll = function (app) {
   // A board topic or note, printed by board and its number: the same as gchat's.
   function lineEl(l, full) {
     if (l.kind === 'tell') return tellEl(l, full);
+    if (l.kind === 'qm' || l.qm || (l.actions && l.actions.length)) return qmEl(l, full);
     var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who || l.kind === 'gchat' ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : '') + (l.kind === 'gchat' ? ' gchat' : '') + (/^(start|end|badge)$/.test(l.kind) ? ' news' : ''));
     if (l.at) p.title = when(l.at);
     if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
@@ -75,6 +76,30 @@ window.LitterScroll = function (app) {
         acts.appendChild(rm);
       }
       if (acts.childNodes.length) p.appendChild(acts);
+    }
+    return p;
+  }
+  // The Questmaster (S7-P4 items 16, 17, |Q869 (b)): its name, tapped, asks
+  // for the Quests; its buttons, like Tell me more and Accept, run their
+  // command as if typed. A line of its list has the same buttons.
+  function qmEl(l, full) {
+    var p = el('p', 'lt-rh-line ' + (l.qm || l.kind === 'qm' ? 'qm' : 'answer') + (l.kind === 'qm' ? ' pub' : ''));
+    if (l.at && !l.typed) p.title = when(l.at);
+    if (l.who) {
+      var name = el(full ? 'button' : 'b', 'lt-rh-who lt-rh-qm-name', l.who);
+      if (full) { name.type = 'button'; name.addEventListener('click', function () { run('quests', true); }); }
+      p.appendChild(name);
+      p.appendChild(document.createTextNode(l.kind === 'qm' ? ' ' + l.text : ': ' + l.text));
+    } else p.textContent = l.text;
+    if (full && l.actions && l.actions.length) {
+      var acts = el('span', 'lt-rh-acts');
+      l.actions.forEach(function (a) {
+        var b = el('button', 'lt-rh-act', a.label);
+        b.type = 'button';
+        b.addEventListener('click', function () { run(a.command, true); });
+        acts.appendChild(b);
+      });
+      p.appendChild(acts);
     }
     return p;
   }
@@ -217,8 +242,13 @@ window.LitterScroll = function (app) {
     e.preventDefault();
     var typed = $('rh-in').value.trim();
     if (!typed || asking) return;
-    asking = true;
     $('rh-in').value = '';
+    run(typed);
+  }
+  // `tapped`: from a button, so the keyboard stays down on a phone.
+  function run(typed, tapped) {
+    if (asking) return;
+    asking = true;
     var at = Date.now();
     printed.push({ kind: 'cmd', typed: true, at: at, text: '> ' + typed });
     // help is answered here at once, from the commands the scroll came with (|C919).
@@ -227,21 +257,22 @@ window.LitterScroll = function (app) {
       ['Commands:'].concat(commands.map(function (x) { return '  ' + x[0] + ': ' + x[1]; })).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
       asking = false;
       paintFull(true);
-      $('rh-in').focus();
+      if (!tapped) $('rh-in').focus();
       return;
     }
     paintFull(true);
     app.api('scroll', { token: app.myToken(), command: typed, admin: admin() }).then(function (d) {
       // A board topic or note comes with its id, for Report and Remove.
       (d.answer || []).forEach(function (t) {
-        printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t } : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, mine: !!t.mine, reported: !!t.reported });
+        printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t }
+          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
       });
       if (d.lines) lines = d.lines;
       // gchat or tell: your line, in the scroll, as it'll be seen.
       if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
     }, function (er) {
       printed.push({ kind: 'answer', typed: true, at: at, text: er.message || 'That couldn\'t be answered just now. Try again.' });
-    }).then(function () { asking = false; paintFull(true); $('rh-in').focus(); });
+    }).then(function () { asking = false; paintFull(true); if (!tapped) $('rh-in').focus(); });
   }
 
   $('rh-strip').addEventListener('click', open);
@@ -251,6 +282,8 @@ window.LitterScroll = function (app) {
 
   return {
     refresh: refresh, landed: landed, open: open,
+    // Your quests' "Talk to the Questmaster": Street Talk, open, asking for the Quests.
+    questmaster: function () { open(); run('quests', true); },
     // Where a "+N XP" lands: the strip, while it's on the screen.
     target: function () { var s = $('rh-strip'); return s && !s.hidden && s.offsetParent !== null ? s : null; },
     signedOut: function () { if (timer) { clearInterval(timer); timer = null; } lines = []; pending = []; printed = []; loaded = false; $('rh-strip').hidden = true; }

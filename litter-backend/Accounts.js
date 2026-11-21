@@ -13,11 +13,11 @@
 // Accounts' columns, found by their headings each time the tab is read
 // (S7-P1): these are only where a new Accounts tab has them.
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
-  waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19 };
+  waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19, quests: 20 };
 var ACCOUNT_HEADS = { id: 'Account ID', created: 'Created', first: 'First name', last: 'Last name', email: 'Email', handle: 'Handle',
   shows: 'Map shows', adult: '18 or older', signed: 'Waiver signed', waiver: 'Waiver', waiverPrint: 'Waiver fingerprint',
   volunteer: 'Check-in volunteer', updated: 'Updated', status: 'Status', gear: 'Safety gear', gearAt: 'Safety gear confirmed',
-  xp: 'XP', level: 'Level', levels: 'Levels reached',
+  xp: 'XP', level: 'Level', levels: 'Levels reached', quests: 'Quests taken',
   // No longer written or read (|Q842 (a)): found only while still there, for the once-only step that copied them.
   quest: 'First quest', questDone: 'First quest finished' };
 function accountColsFrom_(head) {
@@ -261,7 +261,9 @@ function readAccounts_() {
       volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status')),
       gear: get('gear'), gearAt: get('gearAt'),
       // Their XP and level, written with their XP tab (S7-P1): a level once reached is kept (|Q745 (a)).
-      xp: Number(get('xp').replace(/,/g, '')) || 0, level: Number(get('level')) || 0, levels: get('levels')
+      xp: Number(get('xp').replace(/,/g, '')) || 0, level: Number(get('level')) || 0, levels: get('levels'),
+      // Each Quest taken on and finished, with when (S7-P4), for Street Talk's lines about everyone.
+      quests: get('quests')
     };
   }).filter(function (a) { return a.id; });
 }

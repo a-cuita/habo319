@@ -9,8 +9,12 @@
  * opened to players; then players see it on Your quests, with its Challenges
  * as its list. A Quest marked as a test shows only to admins, and its XP
  * isn't counted. The first quest stays as it is (Quest.js).
+ * Reworked (S7-P4 items 13 to 15): Draft a Quest and Add a Challenge are
+ * pop-ups, each card's buttons in its ⋯ menu (|Q749); Add a Challenge can
+ * start from a copy of one in another Quest, its own after that (|Q847 (a));
+ * and Opens after, the Quest a player finishes first (|Q848 (a)).
  */
-var QB_COL = { id: 1, name: 2, says: 3, from: 4, to: 5, segments: 6, bonus: 7, state: 8, test: 9, by: 10, made: 11 };
+var QB_COL = { id: 1, name: 2, says: 3, from: 4, to: 5, segments: 6, bonus: 7, state: 8, test: 9, by: 10, made: 11, after: 12, opened: 13 };
 var QUEST_STATES = ['Draft', 'Open', 'Retired'];
 
 function questBenchAll_() {
@@ -19,7 +23,8 @@ function questBenchAll_() {
     var st = String(r.get('state')).trim();
     return { row: r.row, id: r.get('id'), name: r.get('name'), says: r.get('says'), from: d('from'), to: d('to'),
       segments: String(r.get('segments')).split(/[\s,]+/).filter(String), bonus: Number(r.get('bonus')) || 0,
-      state: QUEST_STATES.indexOf(st) !== -1 ? st : 'Draft', test: /^\s*y/i.test(r.get('test')), by: r.get('by'), made: d('made') };
+      state: QUEST_STATES.indexOf(st) !== -1 ? st : 'Draft', test: /^\s*y/i.test(r.get('test')), by: r.get('by'), made: d('made'),
+      after: String(r.get('after') || '').trim(), opened: d('opened') };
   }).filter(function (q) { return q.id; });
 }
 
@@ -80,13 +85,22 @@ function questSave_(req) {
   var accepted = {};
   segmentsAll_().forEach(function (g) { if (g.accepted) accepted[g.id] = true; });
   var segs = (Array.isArray(x.segments) ? x.segments : []).map(function (s) { return clean_(s, 20); }).filter(function (s, i, a) { return accepted[s] && a.indexOf(s) === i; });
+  var after = clean_(x.after, 20);
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.questBench.name), all = questBenchAll_();
     var id = clean_(x.id, 20), had = id ? all.filter(function (q) { return q.id === id; })[0] : null;
     if (id && !had) throw new Error('That Quest isn\'t here any more.');
+    // Opens after another Quest (S7-P4 item 15): one that's there, not itself, and not round in a circle.
+    if (after) {
+      var byId = {};
+      all.forEach(function (q) { byId[q.id] = q; });
+      if (!byId[after]) throw new Error('The Quest it opens after isn\'t here any more.');
+      for (var k = after, n = 0; k && n < 100; k = byId[k] ? byId[k].after : '', n++) if (id && k === id) throw new Error('It can\'t open after itself, or after a Quest that opens after it.');
+    }
     var row = had ? sheet.getRange(had.row, 1, 1, TABS.questBench.header.length).getValues()[0] : blankRow_(TABS.questBench);
     row[QB_COL.name - 1] = safeCell_(name); row[QB_COL.says - 1] = safeCell_(says); row[QB_COL.from - 1] = from; row[QB_COL.to - 1] = to;
     row[QB_COL.segments - 1] = segs.join(' '); row[QB_COL.bonus - 1] = bonus; row[QB_COL.test - 1] = x.test ? 'Yes' : '';
+    row[QB_COL.after - 1] = after;
     if (!had) {
       row[QB_COL.id - 1] = nextId_('QB', all.map(function (q) { return q.id; }));
       row[QB_COL.state - 1] = 'Draft'; row[QB_COL.by - 1] = account.handle || account.email; row[QB_COL.made - 1] = new Date();
@@ -111,6 +125,8 @@ function questState_(req) {
     if (!q) throw new Error('That Quest isn\'t here any more.');
     if (to === 'Open' && !challengesAll_().some(function (c) { return c.quest === q.id && c.state === 'Open'; })) throw new Error('Add a Challenge to it first: a Quest is its list of Challenges.');
     getDb_().getSheetByName(TABS.questBench.name).getRange(q.row, QB_COL.state).setValue(to);
+    // When it first opened: the Questmaster tells players from then (S7-P4, |Q885 (a)).
+    if (to === 'Open' && !q.opened) getDb_().getSheetByName(TABS.questBench.name).getRange(q.row, QB_COL.opened).setValue(new Date());
     logChange_(account.email, 'Quest', q.id, 'State', q.state, to);
     return challengesAdminView_(account);
   });

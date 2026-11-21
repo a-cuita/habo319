@@ -77,6 +77,8 @@ function walkGoal_(c, accountId, scope) {
     if (q.get('account') !== accountId || q.get('simulated') === 'Yes' || !String(q.get('track')).trim() || q.get('status') !== 'Ended') return;
     var e = q.get('ended'), at = e instanceof Date ? e.getTime() : 0;
     if (at < from || at >= to) return;
+    // Only while its Quest was the player's active one (S7-P4, item 19).
+    if (scope.spans && !inSpans_(at, scope.spans)) return;
     ids[q.get('id')] = true;
     if (!scope.segments.length) miles += Number(q.get('miles')) || 0;
   });
@@ -116,7 +118,7 @@ function skillGoal_(c, accountId, items, scope) {
     };
   }
   var n = (items || challengeItemsAll_()).filter(function (x) {
-    return x.skill === c.skill && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x));
+    return x.skill === c.skill && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x)) && (!scope.spans || inSpans_(x.sent, scope.spans));
   }).length;
   var done = c.goal > 0 && n >= c.goal, counted = c.goal > 0 ? Math.min(n, c.goal) : n;
   return { count: n, done: done, xp: round_(counted * c.xpOne * (done ? c.mult : 1), 2) };
@@ -132,11 +134,12 @@ function skillGoal_(c, accountId, items, scope) {
 function challengeGains_(accountId, items, snapOf) {
   items = items || challengeItemsAll_();
   snapOf = snapOf || function () { return null; };
-  var quests = {}, out = [], list = challengesAll_();
+  var quests = {}, out = [], list = challengesAll_(), st = questsOf_(accountId);
   questBenchAll_().forEach(function (q) { quests[q.id] = q; });
   var byQuest = {};
   list.forEach(function (c) {
     var sc = challengeScope_(c, quests), q = sc.quest;
+    if (q) sc.spans = questSpans_(st, q.id);   // while it's their active Quest (S7-P4)
     if (c.quest && (!q || q.state === 'Draft' || q.test)) return;
     var key = 'challenge:' + c.id, sn = snapOf(key), cc = c;
     if (sn) { cc = {}; Object.keys(c).forEach(function (k) { cc[k] = c[k]; }); cc.xpPer = sn.xpPer; cc.xpOne = sn.xpOne; cc.mult = sn.mult; }
@@ -148,7 +151,7 @@ function challengeGains_(accountId, items, snapOf) {
   Object.keys(byQuest).forEach(function (id) {
     var q = quests[id], key = 'quest:' + id, sn = snapOf(key);
     var done = byQuest[id].length && byQuest[id].every(Boolean), bonus = sn ? sn.bonus : q.bonus;
-    out.push({ key: key, kind: 'Quest', say: 'Finishing the Quest ' + q.name, xp: done && bonus ? bonus : 0, from: q.from, to: q.to, snap: { bonus: q.bonus } });
+    out.push({ key: key, kind: 'Quest', say: 'Finishing the Quest ' + q.name, xp: done && bonus ? bonus : 0, from: q.from, to: q.to, snap: { bonus: q.bonus }, done: !!done, quest: id });
   });
   return out;
 }
@@ -175,15 +178,17 @@ function challengeSkills_() {
 
 /* ── The player's side: Your quests ── */
 
-function challengeView_(c, account, items, now, skills, quests) {
+function challengeView_(c, account, items, now, skills, quests, st) {
   var sk = skills[c.skill], sc = challengeScope_(c, quests || {});
+  if (sc.quest && st) sc.spans = questSpans_(st, sc.quest.id);
   return { id: c.id, name: c.name, says: c.says, why: c.why, kind: c.kind, milesGoal: c.milesGoal, segGoal: c.segGoal, xpPer: c.xpPer, mult: c.mult, quest: c.quest,
     skill: c.skill, skillName: sk ? sk.name : c.skill, goal: c.goal, xpOne: c.xpOne, from: sc.from, to: sc.to, live: challengeLive_({ state: c.state, from: sc.from, to: sc.to }, now), state: c.state,
     progress: c.kind === 'Walk goal' ? walkGoal_(c, account.id, sc) : skillGoal_(c, account.id, items, sc) };
 }
 
-// Your quests (S6-P8's Bench): each Quest open now, with its Challenges as
-// its list, and any you've earned XP from. A test Quest only for admins.
+// Your quests: the Quests you've taken on (S7-P4 item 23), your active one
+// first, each with its Challenges as its list and their progress; a Quest you
+// earned XP from before the Questmaster counts as taken. A test Quest only for admins.
 function challengesLoad_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
@@ -193,18 +198,24 @@ function challengesLoad_(req) {
 function challengesFor_(account) {
   var now = Date.now(), items = challengeItemsAll_(), skills = {}, quests = {};
   toolSkillsAll_().forEach(function (s) { skills[s.id] = s; });
-  var all = questBenchAll_();
+  var all = questBenchAll_(), rows = xpRows_(account.id), st = questsOf_(account.id, rows), by = xpByKey_(rows);
   all.forEach(function (q) { quests[q.id] = q; });
-  var list = challengesAll_().map(function (c) { return challengeView_(c, account, items, now, skills, quests); });
-  var out = all.filter(function (q) { return q.state !== 'Draft' && (!q.test || !!account.rank); }).map(function (q) {
+  var cs = challengesAll_(), list = cs.map(function (c) { return challengeView_(c, account, items, now, skills, quests, st); });
+  // Earned from before the Questmaster (|Q750 (a)): kept, and listed as taken.
+  var earned = {};
+  cs.forEach(function (c) { if (c.quest && by['challenge:' + c.id] && Math.abs(by['challenge:' + c.id].xp) >= 0.005) earned[c.quest] = true; });
+  var out = all.filter(function (q) { return q.state !== 'Draft' && (!q.test || !!account.rank) && (st.taken[q.id] || earned[q.id]); }).map(function (q) {
     var mine = list.filter(function (v) { return v.quest === q.id && v.state === 'Open'; });
     var done = mine.length > 0 && mine.every(function (v) { return v.progress.done; });
     var xp = mine.reduce(function (t, v) { return t + v.progress.xp; }, 0) + (done ? q.bonus : 0);
     var segs = segmentsAll_().filter(function (g) { return q.segments.indexOf(g.id) !== -1; });
-    return { id: q.id, name: q.name, says: q.says, from: q.from, to: q.to, live: questLive_(q, now), state: q.state, test: q.test, bonus: q.bonus,
-      segments: segs.map(function (g) { return { id: g.id, name: g.name, squares: g.squares }; }), challenges: mine, done: done, xp: round_(xp, 2) };
-  }).filter(function (v) { return (v.live && v.challenges.length) || (v.xp > 0 && !v.test); });
-  return { quests: out, canBuild: !!account.rank && rankAtLeast_(account.rank, 'Builder') };
+    return { id: q.id, n: questNum_(q.id), name: q.name, says: q.says, from: q.from, to: q.to, live: questLive_(q, now), state: q.state, test: q.test, bonus: q.bonus,
+      segments: segs.map(function (g) { return { id: g.id, name: g.name, squares: g.squares }; }), challenges: mine, done: done, xp: round_(xp, 2),
+      active: st.active === q.id, finished: !!st.finished[q.id], taken: st.taken[q.id] || 0 };
+  }).sort(function (p, q) { return (q.active ? 1 : 0) - (p.active ? 1 : 0) || (p.finished ? 1 : 0) - (q.finished ? 1 : 0) || p.taken - q.taken; });
+  var live = questsWithChallenges_();
+  var offered = all.filter(function (q) { return !st.taken[q.id] && questOpenTo_(q, account, st, now, live); }).length;
+  return { quests: out, active: st.active, offered: offered, questmaster: qmName_(), canBuild: !!account.rank && rankAtLeast_(account.rank, 'Builder') };
 }
 
 // Where the photos go: a folder beside the litter Sheet, made the first time.

@@ -183,9 +183,9 @@ function xpDues_(accountId, by) {
     if (it.account === accountId && it.state === 'Approved') out.push({ key: 'item:' + it.id, kind: 'Skill', xp: it.xp, at: it.sent, say: (names[it.skill] || 'A skill') + ', sent and approved' });
   });
   if (challengesAll_().length) challengeGains_(accountId, items, snapOf).forEach(function (g) {
-    if (!g.xp && !by[g.key]) return;
+    if (!g.xp && !by[g.key] && !g.done) return;
     var end = Math.min(Date.now(), g.to ? g.to + DAY_MS - 1 : Date.now());
-    out.push({ key: g.key, kind: g.kind, xp: g.xp, at: end, say: g.say, snap: g.snap });
+    out.push({ key: g.key, kind: g.kind, xp: g.xp, at: end, say: g.say, snap: g.snap, done: g.done, quest: g.quest });
   });
   // Badges (S6-P6), with the XP they had when earned.
   badgesAll_().forEach(function (b) {
@@ -205,7 +205,8 @@ function xpLevelRow_(n, at) {
 // level when it was reached. Returns { total, level, added }.
 function xpSettle_(accountId, moving) {
   var rows = xpRows_(accountId), by = xpByKey_(rows), now = Date.now(), add = [];
-  xpDues_(accountId, by).forEach(function (d) {
+  var dues = xpDues_(accountId, by);
+  dues.forEach(function (d) {
     var w = by[d.key];
     var dx = round_(d.xp - (w ? w.xp : 0), 2), dl = round_((d.lb || 0) - (w ? w.lb : 0), 2), dm = round_((d.mi || 0) - (w ? w.mi : 0), 2);
     if (!dx && !dl && !dm) return;
@@ -234,8 +235,12 @@ function xpSettle_(accountId, moving) {
       for (var k = reached + 1, top = levelOf_(total, ranges); k <= top; k++) add.push(xpLevelRow_(k, now));
     }
   }
+  // A Quest taken on and now finished (S7-P4): its log row; it's no longer active.
+  var finished = moving ? [] : questsFinishedRows_(accountId, rows, dues);
+  add = add.concat(finished);
   if (add.length) xpWrite_(accountId, add);
   var all = rows.concat(add);
+  if (finished.length) questsAccount_(accountId, all);
   var level = all.reduce(function (m, r) { return r.level != null && r.level > m ? r.level : m; }, 0);
   xpAccount_(accountId, total, level, all.filter(function (r) { return r.kind === 'Level'; }));
   return { total: total, level: level, added: add.length };

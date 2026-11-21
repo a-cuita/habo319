@@ -96,6 +96,8 @@ function settingGroups_() {
     [SETTING_GCHAT, 'gchat', 'Any player types gchat and a line, for everyone signed in; any line can be reported to the Admins, and an admin removes it in Admin Mode.', 'choice', RH_ONOFF],
     [SETTING_TELL, 'tell', 'A player types tell, a handle and a line, for that player alone; they can report it to the Admins.', 'choice', RH_ONOFF],
     [SETTING_BOARD, 'board', 'The message board: topics and notes any player writes, each with Report; an admin removes one in Admin Mode, with Remove on it.', 'choice', RH_ONOFF],
+    [SETTING_RH_QUEST, 'Announce a Quest taken or finished', 'A line everyone sees when a player takes on a Quest, or finishes one.', 'choice', RH_ONOFF],
+    [SETTING_QM_NAME, 'The Questmaster\'s name', 'The character in Street Talk who offers the Quests. A new name needs no build.', 'text', 40],
     [SETTING_RH_EVERY, 'New lines every', 'While Street Talk is open, it looks for new lines this often.', 'number', 'seconds', 5, 300],
     [SETTING_GCHAT_MAX, 'gchat line length', 'The most characters a gchat line, a tell or a board note can have.', 'number', 'characters', 50, 5000],
     [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, or tells, the oldest move to the Gchat or Tells Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },

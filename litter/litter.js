@@ -867,6 +867,8 @@
     openMap: function (cells) { mapper.open({ focus: cells, back: function () { show('v-quests'); } }); },
     openSkills: function (find) { collect.openSkills(find); },
     closeSkills: function () { collect.closeSkills(); },
+    // Talk to the Questmaster: Street Talk, asking for the Quests (S7-P4).
+    questmaster: function () { scroll.questmaster(); },
     // On the map in view: the collecting screen's, or the main page's.
     pendingPin: function (lat, lon, label) { if (!collect.pendingPin(lat, lon, label)) mapper.pendingPin(lat, lon, label); else mapper.pendingPin(null); },
     back: function () { showAccount(state.account); }
@@ -1005,7 +1007,8 @@
   // Each of these, once shown, moves into a dimmed box over the screen it was
   // opened from, and back where it was once hidden: its buttons, and what
   // they save, stay as they were. Leaving the screen closes it (show above).
-  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report'];
+  // The Bench's two forms too (S7-P4 item 13, |Q749); the Skill Builder's, the same form, stays where it is (data-nopop).
+  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report', 'qb-form', 'cha-form'];
   var pops = [];
   POP_FORMS.forEach(function (id) {
     var f = $(id);
@@ -1013,7 +1016,7 @@
     var p = { form: f, home: document.createComment('pop ' + id), scrim: null };
     pops.push(p);
     var sync = function () {
-      if (!f.hidden && !p.scrim) {
+      if (!f.hidden && !p.scrim && !f.dataset.nopop) {
         var had = document.activeElement;
         f.parentNode.insertBefore(p.home, f);
         p.scrim = document.createElement('div');

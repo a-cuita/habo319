@@ -875,3 +875,15 @@ body.lt-popform-open { overflow: hidden; }
 /* A tell (S7-P10): to one player, in its own colour. */
 .lt-rh-line.tell { color: #f5d0fe; }
 .lt-rh-line.tell .lt-rh-who { color: #f0abfc; }
+
+/* The Questmaster (S7-P4): its lines in gold, its name a button. */
+.lt-rh-line.qm { color: #fde68a; }
+.lt-rh-qm-name { background: none; border: 0; padding: 0; font: inherit; font-weight: 700; color: #fbbf24; cursor: pointer; text-decoration: underline dotted; }
+b.lt-rh-qm-name { text-decoration: none; cursor: default; }
+.lt-quest-state { font-weight: 700; }
+.lt-quest-state.active { color: #15803d; }
+.lt-quest-acts { display: flex; gap: 8px; flex-wrap: wrap; margin: 6px 0; }
+
+/* The Bench's cards (S7-P4 item 13): the name, and its ⋯ menu at the right. */
+.lt-qb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
+.lt-qb-head > p { margin: 0; flex: 1; min-width: 0; }
