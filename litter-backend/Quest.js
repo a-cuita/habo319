@@ -4,7 +4,7 @@
  * as they're done, on the main page until they all are.
  *   1. Set up your account (done at sign-up, so it's always ticked).
  *   2. The safety rules: the waiver's, one screen at a time.
- *   3. Your gear: gloves, bags, a vest, a scale and a grabber (|C717).
+ *   3. Your gear: gloves, closed-toe shoes, a vest or bright shirt, bags, a scale and a grabber (|C717, S7-P21).
  *   4. Your GPX recorder: a practice recording, read on the phone.
  *   5. The litter pulse, on a practice screen with nothing saved (Q581 (a)).
  *   6. Choose your plan.

@@ -345,6 +345,7 @@
     return api('start', { token: myToken() }).then(function (d) {
       state.waiver = d.waiver;
       state.mapShows = d.mapShows || state.mapShows;
+      state.gearWhere = d.gearWhere || state.gearWhere;   // where to get a new grabber or scale (S7-P21)
       if (d.account) {
         state.account = d.account;
         // A collection still going on this phone opens where it was (Q282);
@@ -563,6 +564,14 @@
     signedAs('rs-signed-as', a.firstName + ' ' + a.lastName);
   }
 
+  // A new grabber or scale (S7-P21): where to get one shows once either is ticked.
+  ['rs-need-grabber', 'rs-need-scale'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var any = $('rs-need-grabber').checked || $('rs-need-scale').checked;
+      $('rs-need-where').hidden = !any;
+      $('rs-need-where').textContent = any ? 'Where to get one: ' + (state.gearWhere || 'ask an admin.') + ' The admins will see you asked.' : '';
+    });
+  });
   function submitResign(e) {
     e.preventDefault();
     var err = $('rs-err');
@@ -570,11 +579,12 @@
     if (gearProblem('rs')) { err.textContent = gearProblem('rs'); return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs') };
+    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
+      need: { grabber: $('rs-need-grabber').checked, scale: $('rs-need-scale').checked } };
     busy($('rs-submit'), 'rs-err', function () {
       return api('signWaiver', ask).then(function (d) {
         showAccount(d.account);
-        notice(d.copySent ? 'Signed. A copy is on its way to your email.' : 'Signed. Your copy couldn\'t be emailed just now; HABO keeps it.');
+        notice((d.copySent ? 'Signed. A copy is on its way to your email.' : 'Signed. Your copy couldn\'t be emailed just now; HABO keeps it.') + (d.needSent ? ' The admins know what gear you need.' : ''));
       }, function (er) { return waiverChanged(er, 'rs'); });
     });
   }

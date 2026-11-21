@@ -16,11 +16,12 @@ window.LitterQuest = function (app) {
   var list = [];         // the player's quests, for Your quests
   var workshop = null;   // a run that saves nothing: { steps, gear, again }. A workshop run in Admin Mode, or a player going through it again (again: true)
   var pending = {};
-  var GEAR = [['gloves', 'Gloves'], ['bags', 'Bags'], ['vest', 'A bright safety vest'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
+  // One gear list (S7-P21, |Q841, |Q864 (a)): the safety items in the waiver check's own words, then what you collect with.
+  var GEAR = [['gloves', 'Gloves, with you (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt'], ['bags', 'Bags'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
   var STEPS = [
     { n: 1, title: 'Set up your account', say: 'Your name, email, handle, how you show on the public map, and the waiver signed.' },
     { n: 2, title: 'The safety rules', say: 'Your waiver\'s safety rules, one screen at a time.', button: 'Read the safety rules', go: openSafety },
-    { n: 3, title: 'Your gear', say: 'Tick each one you have. All five are needed before your first walk.', gear: true },
+    { n: 3, title: 'Your gear', say: 'Tick each one you have. All six are needed before your first walk: the first three keep you safe, the rest are what you collect with.', gear: true },
     { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
     { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Weigh, New bag, Pause, Resume and End, in turn, typing what a scale might show. It\'s practice: nothing is saved.',
       button: 'Practice the litter pulse', go: function () { app.practice(); } },

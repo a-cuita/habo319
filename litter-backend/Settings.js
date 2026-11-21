@@ -26,7 +26,8 @@ function settingGroups_() {
     [SETTING_AUTO_END, 'A collection left alone ends after', 'A collection with no litter pulse for this long ends by itself.', 'number', 'hours', 1, 48],
     [SETTING_EDIT_HOURS, 'A collection can be changed for', 'How long after it ends a player can still fix a collection.', 'number', 'hours', 1, 720],
     [SETTING_HEAVY_LB, 'Ask "Did you mean…?" above', 'A litter pulse whose scale shows more than this asks "Did you mean …?" before it goes on. Yes keeps it, for a big cleanup bag.', 'number', 'lb', 1, 10000],
-    [SETTING_WAIVER_RENEW, 'Renew the waiver and safety gear every', 'Each player signs the waiver again, and confirms their safety gear, this often. 0: never.', 'number', 'months', 0, 24]] },
+    [SETTING_WAIVER_RENEW, 'Renew the waiver and safety gear every', 'Each player signs the waiver again, and confirms their safety gear, this often. 0: never.', 'number', 'months', 0, 24],
+    [SETTING_GEAR_WHERE, 'Where to get a new grabber or scale', 'Shown to a player who asks for one when renewing their waiver; the admins also get a Report in the Forum.', 'text', 200]] },
   { key: 'walks', title: 'Walks and weighing', says: 'Break questions, pieces that add up, when a weighing counts for a segment, paths and fields covered, how far a track scans.', rank: 'Architect', items: [
     [SETTING_BREAK_AFTER, 'Break question after', 'Once a player has this many collections, a weighing far slower than their usual pace asks if they took a break.', 'number', 'collections', 1, 100],
     [SETTING_PIECES, 'Pieces add up within', 'Walks that each clean part of a segment, each this soon after the one before, add up to one collection.', 'number', 'hours', 1, 168],

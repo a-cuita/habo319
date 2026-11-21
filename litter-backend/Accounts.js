@@ -17,6 +17,11 @@ var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, s
 // |Q716): every 2 months to start, a setting (0: never). Its renewal shows as
 // the waiver to sign again; a walk already going isn't stopped by it.
 var SETTING_WAIVER_RENEW = 'Renew the waiver and safety gear every';
+// Where to get a new grabber or scale (S7-P21, |Q865 (c)): a line admins set, shown when a player asks.
+var SETTING_GEAR_WHERE = 'Where to get a new grabber or scale';
+var DEFAULT_GEAR_WHERE = 'Ask an admin, or at the next cleanup.';
+// What the two-month check can ask for again: not safety gear, the gear to collect with (S7-P21, |Q841).
+var GEAR_NEEDS = [['grabber', 'a new grabber'], ['scale', 'a new hanging luggage scale']];
 var SAFETY_GEAR = [['gloves', 'Gloves, with me (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt']];
 function waiverRenewDue_(a) {
   var months = minutesSetting_(SETTING_WAIVER_RENEW, 2);
@@ -42,7 +47,8 @@ var MAX_CODES_AN_HOUR = 5;
 // phone is signed in to, if it is.
 function start_(req) {
   ensureSchema_();
-  var out = { waiver: currentWaiver_(), mapShows: MAP_SHOWS, account: null, signedOut: false };
+  var out = { waiver: currentWaiver_(), mapShows: MAP_SHOWS, account: null, signedOut: false,
+    gearWhere: String(getSetting_(SETTING_GEAR_WHERE) || '').trim() || DEFAULT_GEAR_WHERE };
   if (req.token) {
     var found = deviceAccount_(req.token);
     if (found) out.account = accountView_(rematch_(found.account));
@@ -130,7 +136,12 @@ function signWaiver_(req) {
     return done;
   });
   var copy = emailWaiverCopy_(account, signing);
-  return { account: accountView_(readAccounts_().filter(function (x) { return x.id === account.id; })[0]), copySent: copy.ok };
+  // A new grabber or scale asked for at the two-month check (S7-P21, |Q865 (c)): a Report for the admins in the Forum.
+  var need = gearNeeds_(req);
+  if (need.length) forumLock_(function () {
+    topicNew_(account, 'Report', 'Needs ' + need.join(' and '), (account.handle || 'A player') + ' asked for ' + need.join(' and ') + ', renewing their waiver.', 'New', 'Issue');
+  });
+  return { account: accountView_(readAccounts_().filter(function (x) { return x.id === account.id; })[0]), copySent: copy.ok, needSent: need.length > 0 };
 }
 
 // On a new phone: the email typed. A code is sent to it.
@@ -305,6 +316,10 @@ function gearOf_(req) {
     throw new Error('Tick "I understand": going without what you didn\'t tick is at your own risk.');
   }
   return gear;
+}
+function gearNeeds_(req) {
+  var n = req && req.need && typeof req.need === 'object' ? req.need : {};
+  return GEAR_NEEDS.filter(function (g) { return n[g[0]] === true; }).map(function (g) { return g[1]; });
 }
 function gearText_(gear) {
   var have = SAFETY_GEAR.filter(function (g) { return gear[g[0]] === true; }).map(function (g) { return g[1]; });

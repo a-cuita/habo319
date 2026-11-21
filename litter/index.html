@@ -221,7 +221,7 @@
     <!-- Your safety gear, confirmed with the waiver (S6-P30): a reminder, not a lock. -->
     <section class="card lt-gear" id="su-gear">
       <h3>Your safety gear</h3>
-      <p class="muted small">Tick what you'll have on your walks.</p>
+      <p class="muted small">Tick what you have. Using it on your walks is your responsibility.</p>
       <label class="choice-row"><input type="checkbox" id="su-gear-gloves"> Gloves, with me (worn or packed)</label>
       <label class="choice-row"><input type="checkbox" id="su-gear-shoes"> Closed-toe shoes</label>
       <label class="choice-row"><input type="checkbox" id="su-gear-visible"> A safety vest, or a brightly coloured shirt</label>
@@ -274,13 +274,20 @@
     <!-- Your safety gear, confirmed with the waiver (S6-P30): a reminder, not a lock. -->
     <section class="card lt-gear" id="rs-gear">
       <h3>Your safety gear</h3>
-      <p class="muted small">Tick what you'll have on your walks.</p>
+      <p class="muted small">Tick what you have. Using it on your walks is your responsibility.</p>
       <label class="choice-row"><input type="checkbox" id="rs-gear-gloves"> Gloves, with me (worn or packed)</label>
       <label class="choice-row"><input type="checkbox" id="rs-gear-shoes"> Closed-toe shoes</label>
       <label class="choice-row"><input type="checkbox" id="rs-gear-visible"> A safety vest, or a brightly coloured shirt</label>
       <div class="lt-gear-without" id="rs-gear-without" hidden>
         <div id="rs-gear-words"></div>
         <label class="choice-row"><input type="checkbox" id="rs-gear-understand"> I understand: going without it is at my own risk</label>
+      </div>
+      <!-- A new grabber or scale (S7-P21, |Q865 (c)): the admins get a Report, and the page says where to get one. -->
+      <div class="lt-gear-need" id="rs-need">
+        <p class="muted small">Do you need a new grabber or scale?</p>
+        <label class="choice-row"><input type="checkbox" id="rs-need-grabber"> A new grabber</label>
+        <label class="choice-row"><input type="checkbox" id="rs-need-scale"> A new hanging luggage scale</label>
+        <p class="small" id="rs-need-where" hidden></p>
       </div>
     </section>
     <button class="btn btn-accent" id="rs-submit" type="submit">Sign the new waiver</button>
@@ -1178,7 +1185,7 @@
 <script src="share.js?v=8"></script>
 <script src="collect.js?v=67"></script>
 <script src="map.js?v=45"></script>
-<script src="quest.js?v=4"></script>
+<script src="quest.js?v=5"></script>
 <script src="settings.js?v=9"></script>
 <script src="reviews.js?v=4"></script>
 <script src="forum.js?v=7"></script>
@@ -1187,6 +1194,6 @@
 <script src="cleanups.js?v=5"></script>
 <script src="achievements.js?v=1"></script>
 <script src="scroll.js?v=7"></script>
-<script src="litter.js?v=46"></script>
+<script src="litter.js?v=47"></script>
 </body>
 </html>

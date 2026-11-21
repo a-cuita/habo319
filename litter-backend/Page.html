@@ -1232,7 +1232,7 @@ body.lt-popform-open { overflow: hidden; }
     <!-- Your safety gear, confirmed with the waiver (S6-P30): a reminder, not a lock. -->
     <section class="card lt-gear" id="su-gear">
       <h3>Your safety gear</h3>
-      <p class="muted small">Tick what you'll have on your walks.</p>
+      <p class="muted small">Tick what you have. Using it on your walks is your responsibility.</p>
       <label class="choice-row"><input type="checkbox" id="su-gear-gloves"> Gloves, with me (worn or packed)</label>
       <label class="choice-row"><input type="checkbox" id="su-gear-shoes"> Closed-toe shoes</label>
       <label class="choice-row"><input type="checkbox" id="su-gear-visible"> A safety vest, or a brightly coloured shirt</label>
@@ -1285,13 +1285,20 @@ body.lt-popform-open { overflow: hidden; }
     <!-- Your safety gear, confirmed with the waiver (S6-P30): a reminder, not a lock. -->
     <section class="card lt-gear" id="rs-gear">
       <h3>Your safety gear</h3>
-      <p class="muted small">Tick what you'll have on your walks.</p>
+      <p class="muted small">Tick what you have. Using it on your walks is your responsibility.</p>
       <label class="choice-row"><input type="checkbox" id="rs-gear-gloves"> Gloves, with me (worn or packed)</label>
       <label class="choice-row"><input type="checkbox" id="rs-gear-shoes"> Closed-toe shoes</label>
       <label class="choice-row"><input type="checkbox" id="rs-gear-visible"> A safety vest, or a brightly coloured shirt</label>
       <div class="lt-gear-without" id="rs-gear-without" hidden>
         <div id="rs-gear-words"></div>
         <label class="choice-row"><input type="checkbox" id="rs-gear-understand"> I understand: going without it is at my own risk</label>
+      </div>
+      <!-- A new grabber or scale (S7-P21, |Q865 (c)): the admins get a Report, and the page says where to get one. -->
+      <div class="lt-gear-need" id="rs-need">
+        <p class="muted small">Do you need a new grabber or scale?</p>
+        <label class="choice-row"><input type="checkbox" id="rs-need-grabber"> A new grabber</label>
+        <label class="choice-row"><input type="checkbox" id="rs-need-scale"> A new hanging luggage scale</label>
+        <p class="small" id="rs-need-where" hidden></p>
       </div>
     </section>
     <button class="btn btn-accent" id="rs-submit" type="submit">Sign the new waiver</button>
@@ -7788,11 +7795,12 @@ window.LitterQuest = function (app) {
   var list = [];         // the player's quests, for Your quests
   var workshop = null;   // a run that saves nothing: { steps, gear, again }. A workshop run in Admin Mode, or a player going through it again (again: true)
   var pending = {};
-  var GEAR = [['gloves', 'Gloves'], ['bags', 'Bags'], ['vest', 'A bright safety vest'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
+  // One gear list (S7-P21, |Q841, |Q864 (a)): the safety items in the waiver check's own words, then what you collect with.
+  var GEAR = [['gloves', 'Gloves, with you (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt'], ['bags', 'Bags'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
   var STEPS = [
     { n: 1, title: 'Set up your account', say: 'Your name, email, handle, how you show on the public map, and the waiver signed.' },
     { n: 2, title: 'The safety rules', say: 'Your waiver\'s safety rules, one screen at a time.', button: 'Read the safety rules', go: openSafety },
-    { n: 3, title: 'Your gear', say: 'Tick each one you have. All five are needed before your first walk.', gear: true },
+    { n: 3, title: 'Your gear', say: 'Tick each one you have. All six are needed before your first walk: the first three keep you safe, the rest are what you collect with.', gear: true },
     { n: 4, title: 'Your GPX recorder', say: 'Install a GPX recorder app on your phone. Record a minute or two of walking around, save it, then choose the file here. Nothing in it is kept: the page only checks that it reads.', file: true },
     { n: 5, title: 'The litter pulse', say: 'Press the real buttons once at home: Weigh, New bag, Pause, Resume and End, in turn, typing what a scale might show. It\'s practice: nothing is saved.',
       button: 'Practice the litter pulse', go: function () { app.practice(); } },
@@ -11153,6 +11161,7 @@ window.LitterScroll = function (app) {
     return api('start', { token: myToken() }).then(function (d) {
       state.waiver = d.waiver;
       state.mapShows = d.mapShows || state.mapShows;
+      state.gearWhere = d.gearWhere || state.gearWhere;   // where to get a new grabber or scale (S7-P21)
       if (d.account) {
         state.account = d.account;
         // A collection still going on this phone opens where it was (Q282);
@@ -11371,6 +11380,14 @@ window.LitterScroll = function (app) {
     signedAs('rs-signed-as', a.firstName + ' ' + a.lastName);
   }
 
+  // A new grabber or scale (S7-P21): where to get one shows once either is ticked.
+  ['rs-need-grabber', 'rs-need-scale'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      var any = $('rs-need-grabber').checked || $('rs-need-scale').checked;
+      $('rs-need-where').hidden = !any;
+      $('rs-need-where').textContent = any ? 'Where to get one: ' + (state.gearWhere || 'ask an admin.') + ' The admins will see you asked.' : '';
+    });
+  });
   function submitResign(e) {
     e.preventDefault();
     var err = $('rs-err');
@@ -11378,11 +11395,12 @@ window.LitterScroll = function (app) {
     if (gearProblem('rs')) { err.textContent = gearProblem('rs'); return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs') };
+    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
+      need: { grabber: $('rs-need-grabber').checked, scale: $('rs-need-scale').checked } };
     busy($('rs-submit'), 'rs-err', function () {
       return api('signWaiver', ask).then(function (d) {
         showAccount(d.account);
-        notice(d.copySent ? 'Signed. A copy is on its way to your email.' : 'Signed. Your copy couldn\'t be emailed just now; HABO keeps it.');
+        notice((d.copySent ? 'Signed. A copy is on its way to your email.' : 'Signed. Your copy couldn\'t be emailed just now; HABO keeps it.') + (d.needSent ? ' The admins know what gear you need.' : ''));
       }, function (er) { return waiverChanged(er, 'rs'); });
     });
   }

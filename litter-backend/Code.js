@@ -809,6 +809,7 @@ function missingSettings_(ss) {
     [SETTING_SHARE_LAYOUT, 'Full'],
     [SETTING_SHARE_SHOWS, 'Litter Index'],
     [SETTING_APP_NAME, DEFAULT_APP_NAME],
+    [SETTING_GEAR_WHERE, DEFAULT_GEAR_WHERE],
     [SETTING_WAIVER_RENEW, '2'],
     [SETTING_HEAVY_LB, '50'],
     [SETTING_DIFF_MARK, '0.5'],
