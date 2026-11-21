@@ -119,6 +119,8 @@ window.LitterSettings = function (app) {
           locked = true;   // Save locks it again (S6-P7)
           draw();
           app.notice(res.changed ? g.title + ': ' + (res.changed === 1 ? '1 setting' : res.changed + ' settings') + ' saved. The page uses ' + (res.changed === 1 ? 'it' : 'them') + ' from when you go back.' : g.title + ': nothing had changed.');
+          // The Recollection bonus now lasts past Segment due until (|Q894): said at once.
+          if (res.warning) app.notice(res.warning, { key: 'bonus-past-due' });
         });
       });
     });

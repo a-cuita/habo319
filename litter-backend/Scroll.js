@@ -9,13 +9,18 @@
  * Commands typed at its prompt print their answers in it: help, xp history,
  * level, walks and due. Since S6-P38 it's everyone's too: announcements
  * (a walk started or ended, a level, a badge), worked out the same way, and
- * gchat, the one thing kept for it, in the Gchat tab.
+ * gchat, the one thing kept for it, in the Gchat tab. tell, board and who
+ * (S7-P10) are in Talk.js.
  */
 
 var SCROLL_LINES = 150;
 var SCROLL_COMMANDS = [
   ['help', 'these commands'],
   ['gchat and your words', 'a line to everyone signed in, like "gchat good morning!"'],
+  ['tell, a handle and your words', 'a line only that player sees, like "tell carmen see you Saturday"'],
+  ['board', 'the message board\'s topics; board and a number reads one, like "board 2"'],
+  ['board write and your words', 'starts a topic; board, a number, write and your words adds a note to one'],
+  ['who', 'who\'s been on the litter page in the last 10 minutes'],
   ['xp history', 'each XP you\'ve earned, newest first'],
   ['level', 'your level, and the XP to the next'],
   ['walks', 'your last walks, a line each'],
@@ -95,12 +100,21 @@ function gchatLines_(shown, viewer) {
 }
 // Everyone's lines, as the page gets them; your own end-of-walk line is your
 // walk's summary instead, which says more.
-function sharedLines_(account, shown) {
+// Your tells, sent and received, come with them (S7-P10); an admin in Admin
+// Mode also gets every reported tell, to remove.
+function sharedLines_(account, shown, admin) {
   return announceLines_(shown).concat(gchatLines_(shown, account.id)).filter(function (l) { return !(l.kind === 'end' && l.account === account.id); }).map(function (l) {
     var o = { at: l.at, who: l.who, text: l.text, mine: l.account === account.id, kind: l.kind };
     if (l.kind === 'gchat') { o.id = l.id; o.reported = l.reported; }
     return o;
-  });
+  }).concat(tellLines_(account, admin));
+}
+// A line as the page gets it.
+function scrollOut_(l) {
+  var o = { at: l.at, who: l.who || '', text: l.text, mine: !!l.mine, kind: l.kind };
+  if (l.kind === 'gchat') { o.id = l.id; o.reported = !!l.reported; }
+  if (l.kind === 'tell') { o.id = l.id; o.to = l.to; o.toMe = !!l.toMe; o.reported = !!l.reported; if (l.flagged) o.flagged = true; }
+  return o;
 }
 
 // gchat and your words, typed at the prompt.
@@ -192,21 +206,17 @@ function walkLines_(accountId) {
 }
 
 // The scroll for one player: public lines and their own, oldest first, the newest SCROLL_LINES.
-function scrollLines_(account) {
+function scrollLines_(account, admin) {
   var mine = xpLines_(account.id), shown = shownNames_();
   var lines = levelLines_(shown).map(function (l) { return { at: l.at, who: l.who, text: l.text, mine: l.account === account.id, kind: 'level' }; });
-  lines = lines.concat(walkLines_(account.id)).concat(sharedLines_(account, shown));
+  lines = lines.concat(walkLines_(account.id)).concat(sharedLines_(account, shown, admin));
   mine.forEach(function (e, i) {
     lines.push({ at: e.at, mine: true, kind: 'xp', walk: e.walk, text: (e.xp < 0 ? '' : '+') + e.xp + ' XP: ' + e.say, seq: i });
   });
   // At the same moment: a walk's summary, then its XP, then any level it reached.
-  var rank = { start: 0, gchat: 0, end: 0, walk: 0, xp: 1, level: 2, badge: 3 };
+  var rank = { start: 0, gchat: 0, tell: 0, end: 0, walk: 0, xp: 1, level: 2, badge: 3 };
   lines.sort(function (a, b) { return a.at - b.at || rank[a.kind] - rank[b.kind] || (a.seq || 0) - (b.seq || 0); });
-  return { lines: lines.slice(-SCROLL_LINES).map(function (l) {
-    var o = { at: l.at, who: l.who || '', text: l.text, mine: !!l.mine, kind: l.kind };
-    if (l.kind === 'gchat') { o.id = l.id; o.reported = !!l.reported; }
-    return o;
-  }), events: mine };
+  return { lines: lines.slice(-SCROLL_LINES).map(scrollOut_), events: mine };
 }
 
 function scrollWhen_(ms) { return Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'EEE, MMM d, h:mm a'); }
@@ -222,6 +232,8 @@ function scrollCommand_(account, typed) {
     return ['Your XP, newest first (' + total + ' XP in all):'].concat(ev.slice(0, 100).map(function (e) { return '  ' + (e.xp < 0 ? '' : '+') + e.xp + ' XP · ' + scrollWhen_(e.at) + ' · ' + e.say; }))
       .concat(ev.length > 100 ? ['  …and ' + (ev.length - 100) + ' more before these.'] : []);
   }
+  if (c === 'who') return whoLines_(account);
+  if (c === 'board' || c.indexOf('board ') === 0) return boardCommand_(account, String(typed).trim().slice(5));
   if (c === 'level') {
     var ranges = levelRanges_(), xp = xpOf_(account.id);
     if (!ranges.length) return ['Levels aren\'t set up yet. You have ' + xp + ' XP.'];
@@ -276,20 +288,25 @@ function scrollCommand_(account, typed) {
 function scroll_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  // Reported tells are an admin's in Admin Mode only (S7-P10).
+  var admin = !!req.admin && !!account.rank;
   // A command answers with only what it needs, not the whole scroll again
   // (S6-P3, |C919); the page keeps the scroll it has.
   if (req.command != null && String(req.command).trim()) {
-    var g = /^gchat(?:\s+([\s\S]*))?$/i.exec(String(req.command).trim());
+    var typed = String(req.command).trim();
+    var g = /^gchat(?:\s+([\s\S]*))?$/i.exec(typed);
     if (g) return { answer: [], line: gchatSay_(account, g[1]) };
+    var t = /^tell(?:\s+([\s\S]*))?$/i.exec(typed);
+    if (t) return { answer: [], line: tellSay_(account, t[1]) };
     return { answer: scrollCommand_(account, req.command) };
   }
   // While it's open, the page asks every few seconds (item 6, |Q765 (a)):
   // only everyone's lines since, which is quick; levels come with a full load.
   if (req.since != null) {
     var since = Number(req.since) || 0;
-    return { lines: sharedLines_(account, shownNames_()).filter(function (l) { return l.at > since; }), now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
+    return { lines: sharedLines_(account, shownNames_(), admin).filter(function (l) { return l.at > since; }).map(scrollOut_), now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
   }
-  return { lines: scrollLines_(account).lines, commands: SCROLL_COMMANDS, now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
+  return { lines: scrollLines_(account, admin).lines, commands: SCROLL_COMMANDS, now: Date.now(), every: rhEvery_(), gchatMax: gchatMax_() };
 }
 
 /* ── Cold storage (S6-P50, |Q795): a folder, HABO Litter Cold Storage,
@@ -325,18 +342,7 @@ function coldSheet_(kind, header) {
 }
 // Past the setting's lines, the oldest move to cold storage, the newest
 // GCHAT_KEEP staying. Returns how many moved.
-function gchatColdMove_() {
-  var limit = Number(getSetting_(SETTING_GCHAT_COLD)) || 2000;
-  var sheet = getDb_().getSheetByName(TABS.gchat.name), n = sheet ? lastRowWith_(sheet, 1) - 1 : 0;
-  if (n <= Math.max(limit, GCHAT_KEEP)) return 0;
-  var move = n - GCHAT_KEEP, width = TABS.gchat.header.length, now = new Date();
-  var rows = sheet.getRange(2, 1, move, width).getValues().map(function (r) { return r.concat([now]); });
-  var cold = coldSheet_('Gchat', TABS.gchat.header.concat(['Moved']));
-  cold.getRange(cold.getLastRow() + 1, 1, move, width + 1).setValues(rows);
-  sheet.deleteRows(2, move);
-  forgetReads_();
-  return move;
-}
+function gchatColdMove_() { return coldMove_(TABS.gchat, 'Gchat'); }   // in Talk.js, for Tells too
 
 // Made on the first request after Deploy, not when the first lines move
 // (|C1022): the folder, and its Gchat Sheet. If Drive won't, it's made when

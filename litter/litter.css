@@ -871,3 +871,7 @@ body.lt-popform-open { overflow: hidden; }
 .lt-seg-modal-more .lt-pop-table td { white-space: normal; }
 .lt-seg-modal-more .lt-pop-table tr.lt-pop-walk td:first-child { white-space: nowrap; }
 .lt-seg-modal-more .lt-pop-seg { margin-top: 8px; font-weight: 600; }
+
+/* A tell (S7-P10): to one player, in its own colour. */
+.lt-rh-line.tell { color: #f5d0fe; }
+.lt-rh-line.tell .lt-rh-who { color: #f0abfc; }

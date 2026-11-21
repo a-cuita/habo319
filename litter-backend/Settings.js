@@ -88,15 +88,17 @@ function settingGroups_() {
     [SETTING_DIGEST_HOUR, 'Forum digest goes at', 'The hour each admin\'s Forum digest is sent, from 0 (midnight) to 23 (11 PM); a Weekly one goes on Monday at that hour.', 'number', 'o\'clock', 0, 23]] },
   // The rolling history for everyone (S6-P38, |Q762 to |Q766): what's
   // announced, gchat, and how often an open one looks for new lines.
-  { key: 'realm', title: 'Street Talk', says: 'What everyone sees in it: the announcements, gchat, and how often it looks for new lines.', rank: 'Builder', items: [
+  { key: 'realm', title: 'Street Talk', says: 'What everyone sees in it: the announcements, gchat, tell, the board, and how often it looks for new lines.', rank: 'Builder', items: [
     [SETTING_RH_START, 'Announce a walk started', 'Everyone sees "… started collecting." Where, only once it ends.', 'choice', RH_ONOFF],
     [SETTING_RH_END, 'Announce a walk ended', 'Everyone sees "… ended a walk: 1.6 lb on …", with the segments it planned.', 'choice', RH_ONOFF],
     [SETTING_RH_LEVEL, 'Announce a level reached', 'Everyone sees "… has gained a level! ---> Level 3!"', 'choice', RH_ONOFF],
     [SETTING_RH_BADGE, 'Announce a badge earned', 'Everyone sees "… earned the badge …!"', 'choice', RH_ONOFF],
     [SETTING_GCHAT, 'gchat', 'Any player types gchat and a line, for everyone signed in; any line can be reported to the Admins, and an admin removes it in Admin Mode.', 'choice', RH_ONOFF],
+    [SETTING_TELL, 'tell', 'A player types tell, a handle and a line, for that player alone; they can report it to the Admins.', 'choice', RH_ONOFF],
+    [SETTING_BOARD, 'board', 'The message board: topics and notes any player writes, each with Report; an admin removes one in Admin Mode, with Remove on it.', 'choice', RH_ONOFF],
     [SETTING_RH_EVERY, 'New lines every', 'While Street Talk is open, it looks for new lines this often.', 'number', 'seconds', 5, 300],
-    [SETTING_GCHAT_MAX, 'gchat line length', 'The most characters a gchat line can have.', 'number', 'characters', 50, 5000],
-    [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, the oldest move to the Gchat Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },
+    [SETTING_GCHAT_MAX, 'gchat line length', 'The most characters a gchat line, a tell or a board note can have.', 'number', 'characters', 50, 5000],
+    [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, or tells, the oldest move to the Gchat or Tells Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },
   { key: 'sayings', title: 'Sayings', says: 'What the page says while a walk starts.', rank: 'Builder', items: [
     [SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]] }
   ];
@@ -105,12 +107,22 @@ function aRank_(rank) { return (/^[AEIOU]/.test(rank) ? 'an ' : 'a ') + rank; }
 function rankAtLeast_(rank, need) { return RANKS.indexOf(rank) >= 0 && RANKS.indexOf(rank) >= RANKS.indexOf(need); }
 
 // The groups this account may change, with each setting's value now.
+// The Recollection bonus lasting past the day a segment stops being due
+// (S7-P12, |Q894): a walk then measures no rate, and what its bonus should be
+// isn't decided. A warning in both groups, and when either is saved.
+function bonusPastDue_() {
+  var ends = minutesSetting_(SETTING_TIME_ENDS, 4), due = minutesSetting_(SETTING_DUE_TO, 4);
+  if (!(ends > due)) return '';
+  return 'Recollection bonus gone after (' + ends + ' days) is longer than Segment due until (' + due + ' days). A walk ' + due + ' to ' + ends
+    + ' days after a segment\'s clock started measures no rate, and what its Recollection bonus should be then isn\'t decided yet. Set the bonus to end by ' + due + ' days, or ask the Head Builder.';
+}
 function settingsGroupsFor_(account) {
+  var pastDue = bonusPastDue_();
   return settingGroups_().filter(function (g) { return rankAtLeast_(account.rank, g.rank); }).map(function (g) {
     if (g.custom) return { key: g.key, title: g.title, says: g.says || '', rank: g.rank, custom: true, items: [],
       levels: levelRanges_().map(function (r) { return [r[0], r[1] == null ? '' : r[1], r[2]]; }), skills: classSkills_() };
     // The Forum's group says how many digest timers there are (S6-P16).
-    var note = g.key === 'forum' ? digestTimerState_() : null;
+    var note = g.key === 'forum' ? digestTimerState_() : (g.key === 'rates' || g.key === 'xp') && pastDue ? { say: pastDue, ok: false } : null;
     var out = { key: g.key, title: g.title, says: g.says || '', rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
       return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
@@ -145,6 +157,7 @@ function settingsSave_(req) {
     var made = skillsSave_(account, values);
     return { groups: settingsGroupsFor_(account), changed: made, settings: collectSettings_() };
   }
+  var wasPastDue = bonusPastDue_();
   var out = [];
   g.items.forEach(function (it) {
     if (!Object.prototype.hasOwnProperty.call(values, it[0])) return;
@@ -162,7 +175,10 @@ function settingsSave_(req) {
     });
     return n;
   });
-  return { groups: settingsGroupsFor_(account), changed: changed, settings: collectSettings_() };
+  settingsMemo_ = null;
+  var pastDue = bonusPastDue_();
+  // Shown when a save makes it so, not each time either group is saved after.
+  return { groups: settingsGroupsFor_(account), changed: changed, settings: collectSettings_(), warning: pastDue && pastDue !== wasPastDue ? pastDue : '' };
 }
 
 // Levels and class skills saved (S5-P29): the Levels tab's ranges, written

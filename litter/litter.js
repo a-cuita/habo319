@@ -141,8 +141,12 @@
     if (!state.account || !state.account.rank) return false;
     try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
   }
+  var paintedAdmin = null;
   function paintMode() {
     document.documentElement.classList.toggle('lt-builder', adminMode());
+    // Street Talk again when Admin Mode turns on or off: reported tells are an admin's in it (S7-P10).
+    if (paintedAdmin !== null && paintedAdmin !== adminMode() && typeof scroll !== 'undefined' && scroll && state.account) scroll.refresh();
+    paintedAdmin = adminMode();
     // Admin Mode turned off on an admin screen: straight to the main page (S6-P19, |M888).
     if (!adminMode() && state.account && ADMIN_VIEWS.some(function (v) { return !$(v).hidden; })) { showAccount(state.account); return; }
     if (typeof mapper !== 'undefined' && mapper && mapper.redraw) mapper.redraw();

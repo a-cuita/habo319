@@ -187,6 +187,20 @@ var TABS = {
     widths: [80, 90, 150, 420, 90, 150, 120, 150],
     formats: { 3: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm', 8: 'yyyy-mm-dd h:mm' }
   },
+  // tell: a line one player writes to one other (S7-P10, |Q763 (b), |Q893).
+  tells: {
+    name: 'Tells',
+    header: ['Tell ID', 'From', 'To', 'Written', 'Text', 'Removed by', 'Removed', 'Reported by', 'Reported'],
+    widths: [80, 90, 90, 150, 420, 90, 150, 90, 150],
+    formats: { 4: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
+  },
+  // Street Talk's message board (S7-P10, |Q893): a topic, or a note on one (its Topic).
+  board: {
+    name: 'Board',
+    header: ['Note ID', 'Topic', 'Account ID', 'Written', 'Text', 'Removed by', 'Removed', 'Reported by', 'Reported'],
+    widths: [80, 80, 90, 150, 420, 90, 150, 120, 150],
+    formats: { 4: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
+  },
   forumReads: {
     name: 'Forum Reads',
     header: ['Account ID', 'Topic ID', 'Read'],
@@ -353,6 +367,10 @@ function actions_() {
     scroll: scroll_,   // the rolling history (S6-P3)
     gchatReport: gchatReport_,   // a gchat line reported to the admins (S6-P38)
     gchatRemove: gchatRemove_,   // an admin removes it
+    tellReport: tellReport_,     // a tell reported by the player it was sent to (S7-P10)
+    tellRemove: tellRemove_,     // an admin removes a reported one
+    boardReport: boardReport_,   // a board topic or note reported (S7-P10)
+    boardRemove: boardRemove_,   // an admin removes it
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
@@ -809,6 +827,8 @@ function missingSettings_(ss) {
     [SETTING_RH_LEVEL, 'On'],
     [SETTING_RH_BADGE, 'On'],
     [SETTING_GCHAT, 'On'],
+    [SETTING_TELL, 'On'],
+    [SETTING_BOARD, 'On'],
     [SETTING_RH_EVERY, '15'],
     [SETTING_GCHAT_COLD, '2000'],
     [SETTING_GCHAT_MAX, '1000'],

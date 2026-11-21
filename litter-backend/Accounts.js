@@ -482,6 +482,7 @@ function deviceAccount_(token) {
 function requireAccount_(token) {
   var found = token ? deviceAccount_(token) : null;
   if (!found) throw coded_('signed-out', 'This phone isn\'t signed in anymore. Sign in again.');
+  markHere_(found.account.id);   // for who, in Street Talk (S7-P10)
   return found.account;
 }
 

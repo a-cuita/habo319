@@ -25,13 +25,16 @@ window.LitterScroll = function (app) {
 
   // One line: a public one with its name first; your own indented, no name.
   // A gchat line, in the full screen: Report on someone else's, and Remove
-  // in Admin Mode (S6-P38 item 7, |Q764 (a)).
+  // in Admin Mode (S6-P38 item 7, |Q764 (a)). A tell (S7-P10): Report on one
+  // sent to you; a reported one, for an admin in Admin Mode, with Remove.
+  // A board topic or note, printed by board and its number: the same as gchat's.
   function lineEl(l, full) {
+    if (l.kind === 'tell') return tellEl(l, full);
     var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who || l.kind === 'gchat' ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : '') + (l.kind === 'gchat' ? ' gchat' : '') + (/^(start|end|badge)$/.test(l.kind) ? ' news' : ''));
     if (l.at) p.title = when(l.at);
     if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
     else p.textContent = l.text;
-    if (full && l.kind === 'gchat' && l.id) {
+    if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
       if (!l.mine) {
         var rep = el('button', 'lt-rh-act', l.reported ? 'Reported' : 'Report');
@@ -50,19 +53,56 @@ window.LitterScroll = function (app) {
     }
     return p;
   }
+  function tellEl(l, full) {
+    var p = el('p', 'lt-rh-line pub tell');
+    if (l.at) p.title = when(l.at);
+    if (l.flagged) { p.appendChild(el('b', 'lt-rh-who', l.who)); p.appendChild(document.createTextNode(' told ' + l.to + ', reported: ' + l.text)); }
+    else if (l.mine) { p.appendChild(el('b', 'lt-rh-who', 'You')); p.appendChild(document.createTextNode(' tell ' + l.to + ': ' + l.text)); }
+    else { p.appendChild(el('b', 'lt-rh-who', l.who)); p.appendChild(document.createTextNode(' tells you: ' + l.text)); }
+    if (full) {
+      var acts = el('span', 'lt-rh-acts');
+      if (l.toMe) {
+        var rep = el('button', 'lt-rh-act', l.reported ? 'Reported' : 'Report');
+        rep.type = 'button';
+        rep.disabled = !!l.reported;
+        rep.addEventListener('click', function () { report(l, rep); });
+        acts.appendChild(rep);
+      }
+      if (l.flagged && app.adminMode && app.adminMode()) {
+        var rm = el('button', 'lt-rh-act', 'Remove');
+        rm.type = 'button';
+        rm.addEventListener('click', function () { remove(l, rm); });
+        acts.appendChild(rm);
+      }
+      if (acts.childNodes.length) p.appendChild(acts);
+    }
+    return p;
+  }
   // Each asks once more before it goes: "Report it to the Admins?", "Remove it for everyone?"
   function sure(b, say) { if (b.dataset.sure === '1') return true; b.dataset.sure = '1'; b.textContent = say; return false; }
   function failed(b, label, er) { b.disabled = false; b.dataset.sure = ''; b.textContent = label; printed.push({ kind: 'answer', typed: true, at: Date.now(), text: (er && er.message) || 'That didn\'t go through just now. Try again.' }); paintFull(true); }
+  // Which call reports or removes a line: gchat's, a tell's, or the board's.
+  function calls(l) {
+    if (l.kind === 'tell') return { report: 'tellReport', remove: 'tellRemove', arg: { lineId: l.id } };
+    if (l.kind === 'answer') return { report: 'boardReport', remove: 'boardRemove', arg: { noteId: l.note } };
+    return { report: 'gchatReport', remove: 'gchatRemove', arg: { lineId: l.id } };
+  }
   function report(l, b) {
     if (!sure(b, 'Report it to the Admins?')) return;
     b.disabled = true;
-    app.api('gchatReport', { token: app.myToken(), lineId: l.id }).then(function () { l.reported = true; b.textContent = 'Reported'; }, function (er) { failed(b, 'Report', er); });
+    var c = calls(l);
+    app.api(c.report, Object.assign({ token: app.myToken() }, c.arg)).then(function () { l.reported = true; b.textContent = 'Reported'; }, function (er) { failed(b, 'Report', er); });
   }
   function remove(l, b) {
     if (!sure(b, 'Remove it for everyone?')) return;
     b.disabled = true;
-    app.api('gchatRemove', { token: app.myToken(), lineId: l.id }).then(function () {
-      lines = lines.filter(function (x) { return !(x.kind === 'gchat' && x.id === l.id); });
+    var c = calls(l);
+    app.api(c.remove, Object.assign({ token: app.myToken() }, c.arg)).then(function () {
+      if (l.kind === 'answer') {
+        // Gone from the board: the printed line says so.
+        printed = printed.filter(function (x) { return x !== l; });
+        printed.push({ kind: 'answer', typed: true, at: Date.now(), text: 'Removed from the board.' });
+      } else lines = lines.filter(function (x) { return !(x.kind === l.kind && x.id === l.id); });
       paintStrip();
       paintFull();
     }, function (er) { failed(b, 'Remove', er); });
@@ -78,7 +118,8 @@ window.LitterScroll = function (app) {
   }
 
   function paintStrip() {
-    var box = $('rh-strip-lines'), show = pending.concat(lines.slice(-STRIP).reverse()).slice(0, STRIP).reverse();
+    // A reported tell is an admin's to see in the full screen only.
+    var box = $('rh-strip-lines'), show = pending.concat(lines.filter(function (l) { return !l.flagged; }).slice(-STRIP).reverse()).slice(0, STRIP).reverse();
     box.textContent = '';
     if (!show.length) box.appendChild(el('p', 'lt-rh-line mine', loaded ? 'Walks, XP, levels and gchat show here as they happen.' : 'Loading Street Talk…'));
     show.forEach(function (l) { box.appendChild(lineEl(l)); });
@@ -95,7 +136,7 @@ window.LitterScroll = function (app) {
     if (!lines.length) box.appendChild(el('p', 'lt-rh-line mine', 'Nothing here yet. Your walks, XP and levels show here as they happen.'));
     // What you typed and its answers take their place in time, so a line
     // that comes after them shows under them (|C989), not above.
-    lines.concat(printed).map(function (l, i) { return [l, i]; })
+    lines.filter(function (l) { return !l.flagged || admin(); }).concat(printed).map(function (l, i) { return [l, i]; })
       .sort(function (a, b) { return (a[0].at || 0) - (b[0].at || 0) || a[1] - b[1]; })
       .forEach(function (x) {
         var l = x[0], d = l.at && !l.typed ? day(l.at) : '';
@@ -107,32 +148,36 @@ window.LitterScroll = function (app) {
   function poll() {
     if (polling || !app.myToken() || $('rh').hidden) return;
     polling = true;
-    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000) }, true).then(function (d) {
+    app.api('scroll', { token: app.myToken(), since: Math.max(0, lastNow - 60000), admin: admin() }, true).then(function (d) {
       if (d.now) lastNow = d.now;
       if (d.every && d.every !== every) { every = d.every; if (timer) { clearInterval(timer); timer = setInterval(poll, every * 1000); } }
       if (merge(d.lines)) { paintStrip(); paintFull(); }
     }, function () { /* the next ask tries again */ }).then(function () { polling = false; });
   }
 
+  // Reported tells come only in Admin Mode (S7-P10).
+  function admin() { return !!(app.adminMode && app.adminMode()); }
   // Fresh lines from HABO, after the main page loads.
   // A gchat line stops at the setting as you type or paste, not a few
   // characters over it (S7-P10, |C1025): the box's own limit leaves room for
-  // the word gchat, so the line after it is cut here.
+  // the word gchat, so the line after it is cut here. The same for a tell
+  // and a board note, after their words.
   var gchatMax = 1000;
   $('rh-in').addEventListener('input', function () {
-    var v = this.value, m = /^\s*gchat\s+/i.exec(v);
+    var v = this.value, m = /^\s*(?:gchat|tell\s+@?\S+|board(?:\s+\d+)?\s+write)\s+/i.exec(v);
     if (m && v.length - m[0].length > gchatMax) this.value = v.slice(0, m[0].length + gchatMax);
   });
   function refresh() {
     if (!app.myToken()) return Promise.resolve();
     paintStrip();
-    return app.api('scroll', { token: app.myToken() }).then(function (d) {
+    return app.api('scroll', { token: app.myToken(), admin: admin() }).then(function (d) {
       lines = d.lines || [];
       if (d.commands) commands = d.commands;
       if (d.now) lastNow = d.now;
       if (d.every) every = d.every;
       // Room for gchat, its word and its line (S6-P38, |M1174).
-      if (d.gchatMax) { gchatMax = d.gchatMax; $('rh-in').maxLength = d.gchatMax + 10; }
+      // tell's handle is up to 40 characters, and board 12 write is 14.
+      if (d.gchatMax) { gchatMax = d.gchatMax; $('rh-in').maxLength = d.gchatMax + 50; }
       pending = [];
       loaded = true;
       paintStrip();
@@ -186,10 +231,13 @@ window.LitterScroll = function (app) {
       return;
     }
     paintFull(true);
-    app.api('scroll', { token: app.myToken(), command: typed }).then(function (d) {
-      (d.answer || []).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
+    app.api('scroll', { token: app.myToken(), command: typed, admin: admin() }).then(function (d) {
+      // A board topic or note comes with its id, for Report and Remove.
+      (d.answer || []).forEach(function (t) {
+        printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t } : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, mine: !!t.mine, reported: !!t.reported });
+      });
       if (d.lines) lines = d.lines;
-      // gchat: your line, in the scroll with everyone's, as they'll see it.
+      // gchat or tell: your line, in the scroll, as it'll be seen.
       if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
     }, function (er) {
       printed.push({ kind: 'answer', typed: true, at: at, text: er.message || 'That couldn\'t be answered just now. Try again.' });
