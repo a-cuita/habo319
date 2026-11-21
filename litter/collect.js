@@ -308,8 +308,9 @@ window.LitterCollect = function (app) {
       showSun($('cl-account-sun'), null);
       return Promise.resolve();
     }
-    return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
+    return app.api('collectLoad', { token: app.myToken(), lean: true }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
+      if (app.onLists) app.onLists(d);   // the segments and plans, shared with the map (S7-P2, item 8)
       pace = d.pace || null;
       setTypes(d.types);
       if (d.carrying) { carryBags = d.carrying.bags || carryBags; carryLast = d.carrying.last || null; }

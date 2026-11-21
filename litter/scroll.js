@@ -115,6 +115,14 @@ window.LitterScroll = function (app) {
   }
 
   // Fresh lines from HABO, after the main page loads.
+  // A gchat line stops at the setting as you type or paste, not a few
+  // characters over it (S7-P10, |C1025): the box's own limit leaves room for
+  // the word gchat, so the line after it is cut here.
+  var gchatMax = 1000;
+  $('rh-in').addEventListener('input', function () {
+    var v = this.value, m = /^\s*gchat\s+/i.exec(v);
+    if (m && v.length - m[0].length > gchatMax) this.value = v.slice(0, m[0].length + gchatMax);
+  });
   function refresh() {
     if (!app.myToken()) return Promise.resolve();
     paintStrip();
@@ -124,7 +132,7 @@ window.LitterScroll = function (app) {
       if (d.now) lastNow = d.now;
       if (d.every) every = d.every;
       // Room for gchat, its word and its line (S6-P38, |M1174).
-      if (d.gchatMax) $('rh-in').maxLength = d.gchatMax + 10;
+      if (d.gchatMax) { gchatMax = d.gchatMax; $('rh-in').maxLength = d.gchatMax + 10; }
       pending = [];
       loaded = true;
       paintStrip();

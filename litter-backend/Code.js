@@ -351,6 +351,7 @@ function actions_() {
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
+    segmentWalks: segmentWalks_,
     // The admins' forum, and players' reports (S5-P28).
     forumLoad: forumLoad_,
     forumTopic: forumTopic_,

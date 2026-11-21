@@ -13,7 +13,7 @@
 // Off until S7 (|Q759 (a), Nov 12): squares and tracks are written as before,
 // and nothing already written is packed. Reading either form stays on, so a
 // packed value, if one is ever written, still reads back the same.
-var SQUARES_PACK_ON = false;
+var SQUARES_PACK_ON = true;   // on with S7-P2, item 13 (off since version 33)
 var SQ_STEPS = { n: [1, 0], s: [-1, 0], e: [0, 1], w: [0, -1], a: [1, 1], b: [1, -1], c: [-1, 1], d: [-1, -1] };
 // A plan's stretches, " / " between them, are each packed on their own.
 function squaresPack_(text) {

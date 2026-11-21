@@ -344,7 +344,13 @@ function collectLoad_(req) {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id),
+    // Asked with lean (S7-P2, items 8 and 10): the segments without their walks, which
+    // come with segmentWalks on a tap; the simulated ones only to a Head Builder.
+    plans: myPlans_(account.id),
+    // The Priority Segment List's bonus lines need these at open (S7-P2: Your collections no longer comes then).
+    timeBonus: timeBonus_(), aloneBonus: aloneBonus_(),
+    segments: req.lean ? leanSegments_(segmentSummaries_(false)) : segmentSummaries_(false),
+    simSegments: !req.lean ? segmentSummaries_(true, account.id) : account.rank === 'Head Builder' ? leanSegments_(segmentSummaries_(true, account.id)) : [],
     quest: quest, quests: [quest], walk: col ? walkXp_(col.id, account.id) : null,
     // Badges just reached, and the weekly streak (S6-P6).
     earned: earned, streak: streakOf_(account.id),

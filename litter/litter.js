@@ -738,7 +738,7 @@
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount(quick);
-    if (!quick) mapper.showMine();
+    if (!quick) mapper.forgetMine();   // Your collections loads when you open it (S7-P2, item 9)
     if (!quick) cleanups.onAccount();   // your cleanup today (S6-P27)
     mapper.inline(quick);
   }
@@ -787,6 +787,8 @@
     $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut, ratingsTable: ratingsTable,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
+    // The segments and plans from collectLoad, shared with the map (S7-P2, item 8).
+    onLists: function (d) { mapper.useLists(d); },
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
     onEarned: function (d) { if (achievements) achievements.onEarned(d); },
     // The rolling history (S6-P3, scroll.js): fresh once the main page loads, and where "+N XP" lands.
@@ -923,7 +925,7 @@
     walking: function () { return collect.walking(); },
     ratingsTable: ratingsTable,
     gate: function (b, key) { return collect.gate(b, key); },
-    showCollections: function () { notice(''); show('v-collections'); },
+    showCollections: function () { notice(''); show('v-collections'); mapper.openMine(); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }
   });
 
@@ -948,7 +950,7 @@
   if (window.ResizeObserver) new ResizeObserver(barHeight).observe($('me-toggle'));
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
-  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
+  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); mapper.openMine(); window.scrollTo(0, 0); });
   $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
   $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); challenges.load(); });

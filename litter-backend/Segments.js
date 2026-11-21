@@ -460,9 +460,12 @@ function pathSequence_(g, walks, k) {
 }
 
 // Why a walk gives a path segment no rate, for the Not counted column.
-function notCountedWhy_(e, k) {
+// `whenOf` (S7-P19, item 4): where a pickup's pounds went, as that walk's
+// day and time, for the pop-up; without it, its collection code, as the
+// Segment rates tab keeps it.
+function notCountedWhy_(e, k, whenOf) {
   var h = Math.round(k.minGapH);
-  if (e.result === 'pickup') return 'Under ' + h + ' hours after the clock started' + (e.into ? ': its pounds went into ' + e.into + '.' : ': its pounds go into the next rate.');
+  if (e.result === 'pickup') return 'Under ' + h + ' hours after the clock started' + (e.into ? ': its pounds went into ' + (whenOf ? 'the walk of ' + whenOf(e.into) : e.into) + '.' : ': its pounds go into the next rate.');
   if (e.result === 'start') return 'It started the clock: the first collection, with no earlier one to measure from.';
   if (e.result === 'reset') return 'Rate Reset: more than ' + k.to + ' days after the clock started, so it started the clock again.';
   if (e.result === 'unknown') return 'Not all its pounds were weighed inside the segment.';
@@ -618,6 +621,17 @@ function segmentSummaries_(sim, accountId, range) {
   var key = 'segments:' + (sim ? 'sim:' + accountId : 'public') + (range ? ':' + range.since + '-' + range.until : '');
   return kept_(key, function () { return segmentSummariesWorked_(sim, accountId, range); });
 }
+// The same list without each segment's walks and no-rate reasons (S7-P2,
+// item 10): those come with segmentWalks when a square is tapped. walkN
+// says how many there are, so a pop-up with none doesn't ask.
+function leanSegments_(list) {
+  return list.map(function (g) {
+    var o = {};
+    Object.keys(g).forEach(function (k) { if (k !== 'walks' && k !== 'noRate') o[k] = g[k]; });
+    o.walkN = (g.walks || []).length + (g.noRate || []).length;
+    return o;
+  });
+}
 function segmentSummariesWorked_(sim, accountId, range) {
   var now = Date.now();
   var counted = rateCollections_(sim, accountId);
@@ -681,12 +695,17 @@ function segmentSummariesWorked_(sim, accountId, range) {
     // Walks in the window that collected it but gave it no rate, newest
     // first, each with why (S6-P34, |Q782 (a)): greyed in the pop-up, with a
     // link to the Wiki's page on why.
+    var whenOf = function (id) {
+      var ev = seq.events.filter(function (x) { return x.id === id; })[0];
+      return ev ? Utilities.formatDate(new Date(ev.t), Session.getScriptTimeZone(), 'MMM d, h:mm a') : id;
+    };
     var noRate = seq.events.filter(function (e) { return e.result !== 'rate' && inside({ collected: e.t }); }).sort(function (a, b) { return b.t - a.t; }).map(function (e) {
       var q = counted[e.id], who = q ? shown[q.get('account')] : '', idx = {};
       (stretchesOf[e.id] || []).forEach(function (st) {
         String(st.get('cells')).split(/\s+/).forEach(function (c) { if (onSeg[c]) idx[c] = round_(Number(st.get('index')), 1); });
       });
-      return { collected: e.t, by: who || 'a volunteer', why: notCountedWhy_(e, k), idx: idx };
+      // pickup (S7-P19, item 3): under the shortest gap, marked with an asterisk and a footnote in the pop-up.
+      return { collected: e.t, by: who || 'a volunteer', why: notCountedWhy_(e, k, whenOf), pickup: e.result === 'pickup', idx: idx };
     });
     // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
     var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;

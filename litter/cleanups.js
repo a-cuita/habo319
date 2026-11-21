@@ -431,8 +431,13 @@ window.LitterCleanups = function (app) {
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
   }
+  // Only in Admin Mode (S7-P2, item 12, with |S7-P14): players' pages don't ask.
+  var asked = false;
   function onAccount() {
+    asked = false;
     if (!app.myToken()) return;
+    if (!$('cl-sim').checked) { $('cu-today').hidden = true; return; }
+    asked = true;
     load().then(today, function () { $('cu-today').hidden = true; });
   }
   $('cu-today-in').addEventListener('click', function () {
@@ -479,6 +484,7 @@ window.LitterCleanups = function (app) {
   // Admin Mode is on (S7-P14, |M1221).
   function sync() {
     $('me-go-cleanups').hidden = !$('cl-sim').checked;
+    if ($('cl-sim').checked && !asked && app.myToken && app.myToken()) return onAccount();
     today(day0 ? { today: day0 } : null);
   }
   $('cl-sim').addEventListener('change', sync);

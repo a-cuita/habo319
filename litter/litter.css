@@ -204,6 +204,18 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 /* Clear plan from map (M623): bottom left of the main page's map, clear of the layers button and the credits. */
 .lt-map-plan-btn { position: absolute; left: 10px; bottom: 26px; z-index: 1000; padding: 6px 10px; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; background-clip: padding-box; }
 .lt-map-plan-btn[hidden] { display: none; }
+/* The map's actions for your plan (S7-P16, |M1201): the 🧭 button, its menu above it. */
+.lt-map-actions { position: absolute; left: 10px; bottom: 26px; z-index: 1000; }
+.lt-map-actions[hidden] { display: none; }
+.lt-map-actions .lt-map-plan-btn { position: static; font-size: 1.1rem; line-height: 1; padding: 6px 8px; }
+.lt-map-actions-menu { position: absolute; left: 0; bottom: calc(100% + 6px); display: flex; flex-direction: column; min-width: 9rem; background: var(--surface); border: 1px solid var(--line, rgba(0, 0, 0, 0.2)); border-radius: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.lt-map-actions-menu[hidden] { display: none; }
+.lt-map-act { text-align: left; padding: 10px 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.lt-map-act + .lt-map-act { border-top: 1px solid var(--line, rgba(0, 0, 0, 0.12)); }
+.lt-map-act[hidden] { display: none; }
+/* A Priority Segment card on your plan (S7-P16, |M1222): its border the plan outline's colour, and a pill. */
+.lt-seg-item.lt-on-plan { border-width: 2px; border-style: solid; }
+.lt-plan-pill { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 0.75rem; font-weight: 700; vertical-align: middle; }
 .lt-layer-opt { border: 0; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; padding: 9px 10px 9px 28px; border-radius: 6px; cursor: pointer; position: relative; }
 .lt-layer-opt:hover { background: var(--surface-2); }
 .lt-layer-opt.on { font-weight: 700; color: var(--primary); }
@@ -464,6 +476,7 @@ body.lt-has-topbar .lt-notices, body.lt-has-topbar.lt-has-back .lt-notices { top
 .lt-plan-kind label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 /* The walks behind a rate, as a table in a square's pop-up (S5-P10, |Q624 (a)). */
 .lt-pop-table { border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; width: 100%; }
+.lt-pop-foot { margin: 4px 0 0; }   /* the asterisk's footnote (S7-P19) */
 .lt-pop-table th, .lt-pop-table td { text-align: left; padding: 2px 6px 2px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); white-space: nowrap; }
 .lt-pop-table th:last-child, .lt-pop-table td:last-child { text-align: right; padding-right: 0; }
 

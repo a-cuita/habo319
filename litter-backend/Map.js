@@ -118,13 +118,7 @@ function mapLoad_(req) {
   // else the main page's range, the fade setting (S6-P1, |Q678): a reading
   // older isn't drawn, so it isn't sent; its numbers stay in the pop-ups'
   // tables and the rates.
-  var fade = Math.max(1, minutesSetting_(SETTING_MAP_FADE, 30)), since = Date.now() - fade * 86400000, until = Infinity, chosen = false;
-  var ymd = function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? Utilities.parseDate(v + ' 00:00', tz, 'yyyy-MM-dd HH:mm').getTime() : null; };
-  if (req && (ymd(req.from) != null || ymd(req.to) != null || req.all)) {
-    chosen = true;
-    since = req.all ? 0 : ymd(req.from) != null ? ymd(req.from) : 0;
-    until = ymd(req.to) != null ? ymd(req.to) + DAY_MS : Infinity;
-  }
+  var range = mapRange_(req), fade = range.fade, since = range.since, until = range.until, chosen = range.chosen;
   // Each cell's latest reading in those dates: the stretch that ended last;
   // and everyone's visual ratings there, and yours (S6-U26 items 2 and 3).
   var latest = {}, rated = {}, mine = {};
@@ -151,15 +145,54 @@ function mapLoad_(req) {
     var x = latest[cell];
     return [cell, round_(x.index, 1), day(x.ended), x.who];
   });
-  return { fadeDays: fade, chosen: chosen, from: since > 0 ? day(since) : '', to: until < Infinity ? day(until - DAY_MS) : '',
+  var out = { fadeDays: fade, chosen: chosen, from: since > 0 ? day(since) : '', to: until < Infinity ? day(until - DAY_MS) : '',
     colours: mapColours_(), pausedColour: pausedColour_(), planColour: planColour_(), dark: darkColours_(), cells: cells,
     // Everyone's average only, never by handle (|Q703 (a)); yours only to you.
     ratings: Object.keys(rated).map(function (cell) { return [cell, round_(rated[cell].sum / rated[cell].n, 1), rated[cell].n]; }),
     mine: viewer ? Object.keys(mine).map(function (cell) { var m = mine[cell]; return [cell, m.rating, m.index == null ? null : round_(m.index, 1), day(m.ended)]; }) : null,
     diffBands: { mark: minutesSetting_(SETTING_DIFF_MARK, 0.5), slight: minutesSetting_(SETTING_DIFF_SLIGHT, 1.5) },
-    // The days you chose decide the segments' rates and the walks in their pop-ups too (|Q724 (a), |Q725 (a)).
-    segments: segmentSummaries_(false, null, chosen ? { since: since, until: until } : null),
-    simSegments: viewer ? segmentSummaries_(true, viewer.id, chosen ? { since: since, until: until } : null) : [], rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+    rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+  // The days you chose decide the segments' rates and the walks in their pop-ups too (|Q724 (a), |Q725 (a)).
+  // Asked with lean (S7-P2, items 8 and 10): the main page already has the segments for its own range,
+  // so they come only with chosen days, and without their walks, which come with segmentWalks on a tap;
+  // the simulated ones only to a Head Builder, the only one whose walks use them.
+  var segRange = chosen ? { since: since, until: until } : null;
+  if (!req || !req.lean) {
+    out.segments = segmentSummaries_(false, null, segRange);
+    out.simSegments = viewer ? segmentSummaries_(true, viewer.id, segRange) : [];
+  } else if (chosen) {
+    out.segments = leanSegments_(segmentSummaries_(false, null, segRange));
+    out.simSegments = viewer && viewer.rank === 'Head Builder' ? leanSegments_(segmentSummaries_(true, viewer.id, segRange)) : [];
+  }
+  return out;
+}
+
+// The days a map shows (S6-U26 item 1): on the Maps screen, the days chosen;
+// else the main page's range, the fade setting (S6-P1, |Q678).
+function mapRange_(req) {
+  var tz = Session.getScriptTimeZone();
+  var fade = Math.max(1, minutesSetting_(SETTING_MAP_FADE, 30)), since = Date.now() - fade * 86400000, until = Infinity, chosen = false;
+  var ymd = function (v) { return /^\d{4}-\d{2}-\d{2}$/.test(String(v || '')) ? Utilities.parseDate(v + ' 00:00', tz, 'yyyy-MM-dd HH:mm').getTime() : null; };
+  if (req && (ymd(req.from) != null || ymd(req.to) != null || req.all)) {
+    chosen = true;
+    since = req.all ? 0 : ymd(req.from) != null ? ymd(req.from) : 0;
+    until = ymd(req.to) != null ? ymd(req.to) + DAY_MS : Infinity;
+  }
+  return { fade: fade, since: since, until: until, chosen: chosen };
+}
+
+// One segment's walks and no-rate reasons, for its pop-up, asked when a
+// square is tapped (S7-P2, item 10): { walks, noRate }. The same days as the
+// map it was tapped on; a simulated segment only to its Head Builder.
+function segmentWalks_(req) {
+  ensureSchema_();
+  var viewer = null;
+  try { if (req && req.token) viewer = requireAccount_(req.token); } catch (e) { viewer = null; }
+  var id = clean_(req && req.segment, 20), range = mapRange_(req);
+  var sim = !!(req && req.sim) && viewer && viewer.rank === 'Head Builder';
+  var list = segmentSummaries_(sim, sim ? viewer.id : null, range.chosen ? { since: range.since, until: range.until } : null);
+  var g = list.filter(function (x) { return x.id === id; })[0];
+  return { segment: id, walks: g ? g.walks || [] : [], noRate: g ? g.noRate || [] : [] };
 }
 
 // This account's collections, newest first, each with its stretches.
@@ -197,8 +230,15 @@ function myCollections_(req) {
       return col;
     })
     .sort(function (a, b) { return b.started - a.started; });
-  return { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
-    plans: myPlans_(account.id), segments: segmentSummaries_(false), simSegments: segmentSummaries_(true, account.id), timeBonus: timeBonus_(), aloneBonus: aloneBonus_() };
+  var out = { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
+    timeBonus: timeBonus_(), aloneBonus: aloneBonus_() };
+  // Asked with lean (S7-P2, item 9): only your walks; the page has the plans and segments from collectLoad.
+  if (!req.lean) {
+    out.plans = myPlans_(account.id);
+    out.segments = segmentSummaries_(false);
+    out.simSegments = segmentSummaries_(true, account.id);
+  }
+  return out;
 }
 
 /* ── The colours ── */

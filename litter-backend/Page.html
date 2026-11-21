@@ -351,6 +351,18 @@ html.lt-builder .leaflet-popup-content-wrapper, html.lt-builder .leaflet-popup-t
 /* Clear plan from map (M623): bottom left of the main page's map, clear of the layers button and the credits. */
 .lt-map-plan-btn { position: absolute; left: 10px; bottom: 26px; z-index: 1000; padding: 6px 10px; border: 2px solid rgba(0, 0, 0, 0.2); border-radius: 6px; background: var(--surface); color: var(--text); font: inherit; font-size: 0.85rem; font-weight: 700; cursor: pointer; background-clip: padding-box; }
 .lt-map-plan-btn[hidden] { display: none; }
+/* The map's actions for your plan (S7-P16, |M1201): the 🧭 button, its menu above it. */
+.lt-map-actions { position: absolute; left: 10px; bottom: 26px; z-index: 1000; }
+.lt-map-actions[hidden] { display: none; }
+.lt-map-actions .lt-map-plan-btn { position: static; font-size: 1.1rem; line-height: 1; padding: 6px 8px; }
+.lt-map-actions-menu { position: absolute; left: 0; bottom: calc(100% + 6px); display: flex; flex-direction: column; min-width: 9rem; background: var(--surface); border: 1px solid var(--line, rgba(0, 0, 0, 0.2)); border-radius: 8px; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18); overflow: hidden; }
+.lt-map-actions-menu[hidden] { display: none; }
+.lt-map-act { text-align: left; padding: 10px 12px; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: 600; cursor: pointer; }
+.lt-map-act + .lt-map-act { border-top: 1px solid var(--line, rgba(0, 0, 0, 0.12)); }
+.lt-map-act[hidden] { display: none; }
+/* A Priority Segment card on your plan (S7-P16, |M1222): its border the plan outline's colour, and a pill. */
+.lt-seg-item.lt-on-plan { border-width: 2px; border-style: solid; }
+.lt-plan-pill { display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 0.75rem; font-weight: 700; vertical-align: middle; }
 .lt-layer-opt { border: 0; background: none; color: inherit; font: inherit; font-size: 0.9rem; text-align: left; padding: 9px 10px 9px 28px; border-radius: 6px; cursor: pointer; position: relative; }
 .lt-layer-opt:hover { background: var(--surface-2); }
 .lt-layer-opt.on { font-weight: 700; color: var(--primary); }
@@ -611,6 +623,7 @@ body.lt-has-topbar .lt-notices, body.lt-has-topbar.lt-has-back .lt-notices { top
 .lt-plan-kind label { display: flex; align-items: center; gap: 6px; cursor: pointer; }
 /* The walks behind a rate, as a table in a square's pop-up (S5-P10, |Q624 (a)). */
 .lt-pop-table { border-collapse: collapse; margin-top: 6px; font-size: 0.8rem; width: 100%; }
+.lt-pop-foot { margin: 4px 0 0; }   /* the asterisk's footnote (S7-P19) */
 .lt-pop-table th, .lt-pop-table td { text-align: left; padding: 2px 6px 2px 0; border-bottom: 1px solid rgba(0, 0, 0, 0.1); white-space: nowrap; }
 .lt-pop-table th:last-child, .lt-pop-table td:last-child { text-align: right; padding-right: 0; }
 
@@ -1678,7 +1691,14 @@ body.lt-popform-open { overflow: hidden; }
             </div>
           </div>
           <!-- On the main page, with a plan chosen: take its outline off the map to see the squares under it, and put it back (|M623). The plan stays chosen. -->
-          <button class="lt-map-plan-btn" id="mp-plan-btn" type="button" hidden>Clear plan from map</button>
+          <!-- The map's actions for your plan (S7-P16, |M1201): one button, an emoji and no words; Hide plan and Reset plan in its menu. -->
+          <div class="lt-map-actions" id="mp-actions" hidden>
+            <button class="lt-map-plan-btn" id="mp-actions-btn" type="button" aria-label="Your plan on the map" title="Your plan on the map" aria-expanded="false">🧭</button>
+            <div class="lt-map-actions-menu" id="mp-actions-menu" hidden>
+              <button class="lt-map-act" id="mp-plan-btn" type="button">Hide plan</button>
+              <button class="lt-map-act" id="mp-plan-reset" type="button">Reset plan</button>
+            </div>
+          </div>
         </div>
         <p class="muted small" id="mp-note"></p>
       </div>
@@ -3507,8 +3527,9 @@ window.LitterCollect = function (app) {
       showSun($('cl-account-sun'), null);
       return Promise.resolve();
     }
-    return app.api('collectLoad', { token: app.myToken() }).then(function (d) {
+    return app.api('collectLoad', { token: app.myToken(), lean: true }).then(function (d) {
       settings = d.settings || settings; segments = d.segments || segments; simSegments = d.simSegments || simSegments; shareLook();
+      if (app.onLists) app.onLists(d);   // the segments and plans, shared with the map (S7-P2, item 8)
       pace = d.pace || null;
       setTypes(d.types);
       if (d.carrying) { carryBags = d.carrying.bags || carryBags; carryLast = d.carrying.last || null; }
@@ -6402,14 +6423,36 @@ window.LitterMap = function (app) {
     map.setView([h.lat, h.lon], 13);
   }
 
+  // The segments for the main page's own range, from collectLoad or an
+  // action's answer, kept so a chosen range on Maps can be undone (S7-P2).
+  var baseSegs = null;
+  function keepBase() { baseSegs = { real: realSegs, sim: simSegs }; }
+  // The segments and plans from collectLoad, shared by the map and its
+  // screens, so no other answer sends them again (S7-P2, item 8).
+  function useLists(d) {
+    timeBonus = d.timeBonus || timeBonus;
+    aloneBonus = d.aloneBonus || aloneBonus;
+    if (d.segments) realSegs = d.segments;
+    if (d.simSegments) simSegs = d.simSegments;
+    keepBase();
+    if (d.plans) drawPlans(d.plans);
+    drawSegments();
+    // The map asked before these came: its rate layer catches up.
+    if (layer && loaded && !loaded.chosen && mode === 'rate') draw(lastCells);
+  }
+  // Lean once the page has its own segments (S7-P2, item 8); the public map,
+  // with none of its own, asks for them whole.
+  function mapAsk() { var t = app.myToken ? app.myToken() : ''; return { token: t, lean: !!t }; }
   function useLoad(d) {
-    loaded = d; loadedAt = Date.now();
+    if (d !== loaded) { loaded = d; loadedAt = Date.now(); }
     if (d.fadeDays) fadeDays = d.fadeDays;
     colours = d.colours || colours;
     dark = d.dark || dark;
     planColour = d.planColour || planColour;
-    realSegs = d.segments || [];
-    simSegs = d.simSegments || [];
+    // Segments come with the map only for chosen days (S7-P2, item 8); for the
+    // main page's own range, the lists the page already has.
+    if (d.segments) { realSegs = d.segments; simSegs = d.simSegments || []; }
+    else if (baseSegs) { realSegs = baseSegs.real; simSegs = baseSegs.sim; }
     rateTop = d.rateTop || rateTop;
     ratingsAll = d.ratings || [];
     ratingsMine = d.mine || null;
@@ -6451,7 +6494,10 @@ window.LitterMap = function (app) {
     if (!window.L) { $('mp-note').textContent = 'The map couldn\'t load. Check your signal, then open the page again.'; return Promise.resolve(); }
     ensureMap();
     setTimeout(function () { map.invalidateSize(); }, 0);
-    return app.api('mapLoad', { token: app.myToken ? app.myToken() : '' }).then(function (d) {
+    // The map the page already has, while it's under 10 minutes old and for
+    // the main page's days (S7-P2, item 11): not asked for again.
+    var have = loaded && !loaded.chosen && Date.now() - loadedAt < 600000;
+    return (have ? Promise.resolve(loaded) : app.api('mapLoad', mapAsk())).then(function (d) {
       useLoad(d);
       mapsLayers();
       // A simulated walk's own squares, only when opened from that walk (S5-P1, C606).
@@ -6496,7 +6542,7 @@ window.LitterMap = function (app) {
     // Not the Maps screen's chosen days (S6-U26): the main page keeps to its own range.
     var fresh = loaded && !loaded.chosen && Date.now() - loadedAt < 120000;
     if (!fresh) $('mp-note').textContent = 'Loading the map…';
-    return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', { token: app.myToken ? app.myToken() : '' })).then(function (d) {
+    return (fresh ? Promise.resolve(loaded) : app.api('mapLoad', mapAsk())).then(function (d) {
       useLoad(d);
       mapsLayers();
       lastCells = d.cells || [];
@@ -6519,14 +6565,24 @@ window.LitterMap = function (app) {
     shownPlan = cells.slice();
     outlinePlan(planCleared ? [] : cells);
     planButton();
+    drawSegments();   // each card on your plan shows it (S7-P16, |M1222)
     var focus = cells.length ? cells : (loaded && loaded.cells || []).map(function (x) { return x[0]; });
     setTimeout(function () { map.invalidateSize(); fit(focus); }, 0);
   }
+  // The 🧭 button's menu (S7-P16, |M1201): Hide plan (Show plan once hidden),
+  // and Reset plan, which takes every segment off your plan; not while a
+  // walk is under way, whose plan is set.
   function planButton() {
-    var b = $('mp-plan-btn');
-    b.hidden = !onMain || !shownPlan.length;
-    b.textContent = planCleared ? 'Show plan on map' : 'Clear plan from map';
+    $('mp-actions').hidden = !onMain || !shownPlan.length;
+    if ($('mp-actions').hidden) actionsMenu(false);
+    $('mp-plan-btn').textContent = planCleared ? 'Show plan' : 'Hide plan';
+    $('mp-plan-reset').hidden = !!(app.walking && app.walking());
   }
+  function actionsMenu(open) {
+    $('mp-actions-menu').hidden = !open;
+    $('mp-actions-btn').setAttribute('aria-expanded', String(!!open));
+  }
+  function planHue() { return darkColours() ? darkColours().plan : (planColour || '#7c3aed'); }
 
   // A segment's line in a pop-up: its rate, confidence and arrow, and
   // whether it's due or partly cleaned.
@@ -6576,11 +6632,28 @@ window.LitterMap = function (app) {
     var v = g.squares.map(function (c) { return w.idx ? w.idx[c] : null; }).filter(function (n) { return n != null; });
     return v.length ? v.reduce(function (a, b) { return a + Number(b); }, 0) / v.length : null;
   }
+  // A segment's walks come with a tap, not with the lists (S7-P2, item 10):
+  // a short "Loading" line, then the table, kept on the segment for the visit.
+  function walksSlot(g, cell) {
+    if (g.walks || g.noRate || !g.walkN) return walksTable(g, cell);
+    var slot = el('div', 'muted small lt-pop-loading', 'Loading its walks…');
+    var d0 = loaded && loaded.chosen ? loaded : null;
+    var ask = { token: app.myToken ? app.myToken() : '', segment: g.id, sim: simSegs.indexOf(g) !== -1 };
+    if (d0) { ask.from = d0.from || ''; ask.to = d0.to || ''; ask.all = !d0.from && !d0.to; }
+    app.api('segmentWalks', ask).then(function (d) {
+      g.walks = d.walks || [];
+      g.noRate = d.noRate || [];
+      var tb = walksTable(g, cell);
+      if (tb) slot.parentNode && slot.parentNode.replaceChild(tb, slot);
+      else if (slot.parentNode) slot.parentNode.removeChild(slot);
+    }, function (err) { slot.textContent = err.message; });
+    return slot;
+  }
   function walksTable(g, cell) {
     var index = cell != null, walks = (g.walks || []).concat((g.noRate || []).map(function (w) { return Object.assign({ none: true }, w); }))
       .sort(function (a, b) { return b.collected - a.collected; });
     if (!walks.length) return null;
-    var t = el('table', 'lt-pop-table');
+    var t = el('table', 'lt-pop-table'), whyShown = false, starred = false;
     var head = el('tr');
     ['Day', 'By', index ? 'Litter Index' : 'lb/mi·day⁻¹'].forEach(function (h) { head.appendChild(el('th', null, h)); });
     t.appendChild(head);
@@ -6588,14 +6661,18 @@ window.LitterMap = function (app) {
       var tr = el('tr', 'lt-pop-walk' + (w.none ? ' none' : ''));
       var own = index && w.idx ? w.idx[cell] : null, seg = index && own == null ? segReading(w, g) : null;
       var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : w.none ? '' : String(round(w.rate, 2));
-      [dayWords(w.collected), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
+      // Under 24 hours after the clock started: an asterisk, and the footnote under the table (S7-P19, item 3).
+      if (w.none && w.pickup) starred = true;
+      [dayWords(w.collected) + (w.none && w.pickup ? '*' : ''), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
       var last = el('td', null, v);
       // A walk that gave no rate (S6-P34, |Q782 (a)): greyed, "No rate" and
       // a link to the Wiki's page on why, in its line; its reason under it.
       if (w.none) {
         if (v) last.appendChild(document.createTextNode(' · '));
-        last.appendChild(document.createTextNode('No rate · '));
-        last.appendChild(app.wikiLink ? app.wikiLink('norate', 'Why?') : document.createTextNode('Why?'));
+        // Why? only on the newest walk that gave no rate (S7-P19, item 2).
+        last.appendChild(document.createTextNode(whyShown ? 'No rate' : 'No rate · '));
+        if (!whyShown) last.appendChild(app.wikiLink ? app.wikiLink('norate', 'Why?') : document.createTextNode('Why?'));
+        whyShown = true;
       }
       tr.appendChild(last);
       t.appendChild(tr);
@@ -6606,7 +6683,11 @@ window.LitterMap = function (app) {
         t.appendChild(why);
       }
     });
-    return t;
+    if (!starred) return t;
+    var box = el('div', 'lt-pop-tables');
+    box.appendChild(t);
+    box.appendChild(el('p', 'muted small lt-pop-foot', '* Under 24 hours after the clock started: too soon to measure a rate. Its pounds go into the segment\'s next rate.'));
+    return box;
   }
 
   // A reading fades as it ages, gone after the map's fade days (S6-P1,
@@ -6631,13 +6712,14 @@ window.LitterMap = function (app) {
       r.on('click', function () { openSquare(x[0], (function () {
         // One table on every square (S5-P10, |C849): the walks behind its
         // segment's rate, or, with none, the square's latest reading.
+        // The Litter Index layer's own lines, not the rate's (S7-P19, item 1, |C1031): this
+        // square's latest reading, then each segment's walks with their Litter Index.
         var box = el('div', 'lt-pop'), tables = 0;
         box.appendChild(el('strong', null, 'Litter Index'));
+        box.appendChild(el('div', 'lt-pop-square', 'This square: ' + Number(x[1]).toFixed(1) + ', on ' + day(x[2]).replace(/, \d{4}$/, '') + (x[3] ? ', by ' + x[3] : '') + '.'));
         segmentsAt(x[0]).forEach(function (g) {
-          box.appendChild(el('div', 'lt-pop-seg', segmentLine(g)));
-          box.appendChild(confidenceLine(g));
-          partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
-          var tb = walksTable(g, x[0]);
+          box.appendChild(el('div', 'lt-pop-seg', g.name));
+          var tb = walksSlot(g, x[0]);
           if (tb) { box.appendChild(tb); tables++; }
         });
         if (!tables) box.appendChild(latestTable(x));
@@ -6663,7 +6745,7 @@ window.LitterMap = function (app) {
           box.appendChild(confidenceLine(g));
           partialLines(g).forEach(function (t) { box.appendChild(el('div', 'lt-pop-part', t)); });
           // The walks that gave its rate, newest first (S5-P10, |M650): who, the day, and that walk's rate.
-          var tb = walksTable(g, null);
+          var tb = walksSlot(g, null);
           if (tb) box.appendChild(tb);
           return box;
         })()); });
@@ -6726,7 +6808,7 @@ window.LitterMap = function (app) {
   }
   function loadRange(range) {
     $('mp-note').textContent = 'Loading the map…';
-    return app.api('mapLoad', Object.assign({ token: app.myToken ? app.myToken() : '' }, range)).then(function (d) {
+    return app.api('mapLoad', Object.assign(mapAsk(), range)).then(function (d) {
       useLoad(d);
       lastCells = d.cells || [];
       draw(lastCells);
@@ -6796,17 +6878,27 @@ window.LitterMap = function (app) {
   // Turning Admin Mode on or off redraws the list (S5-P10, |M798).
   $('cl-sim').addEventListener('change', function () { setTimeout(drawMine, 0); });
 
+  // Your collections: loaded when you open it, and kept for the visit
+  // (S7-P2, item 9); asked again once something's been written (a walk
+  // ended, fixed or discarded: the main page loads again then).
+  var mineAt = 0, NONE_SAY = $('my-none') ? $('my-none').textContent : '';
+  function forgetMine() { mineAt = 0; }
+  function openMine() {
+    if (mine && mineAt) { drawMine(); return Promise.resolve(); }
+    if (!mine) { $('my-none').hidden = false; $('my-none').textContent = 'Loading your collections…'; }
+    return showMine();
+  }
   function showMine() {
-    return app.api('myCollections', { token: app.myToken() }).then(function (d) {
-      mine = d;
+    return app.api('myCollections', { token: app.myToken(), lean: true }).then(function (d) {
+      mine = d; mineAt = Date.now();
+      $('my-none').textContent = NONE_SAY;
       timeBonus = d.timeBonus || timeBonus;
       aloneBonus = d.aloneBonus || aloneBonus;
       colours = d.colours || colours;
       dark = d.dark || dark;
       drawMine();
-      realSegs = d.segments || realSegs;
-      simSegs = d.simSegments || simSegs;
-      drawPlans(d.plans || []);
+      if (d.segments) { realSegs = d.segments; simSegs = d.simSegments || simSegs; keepBase(); }
+      if (d.plans) drawPlans(d.plans);
       drawSegments();
     }, function (err) {
       if (err.code === 'signed-out') return app.signedOut();
@@ -6945,6 +7037,7 @@ window.LitterMap = function (app) {
           ma.disabled = false;
           realSegs = d.segments || realSegs;
           simSegs = d.simSegments || simSegs;
+          keepBase();
           drawSegments();
           app.notice(d.measured.length ? 'Measured again: ' + d.measured.map(function (x) { return x.name + ' ' + round(x.rate, 2); }).join(', ') + ' lb/mi·day⁻¹.'
             : 'Measured again: no segment rate from this walk.');
@@ -7095,6 +7188,7 @@ window.LitterMap = function (app) {
         app.api('fieldOutline', { token: app.myToken(), segmentId: g.id, outline: corners }).then(function (d) {
           realSegs = d.segments || realSegs;
           simSegs = d.simSegments || simSegs;
+          keepBase();
           drawSegScreen();
           drawSegments();
           app.notice(g.name + ' is drawn again, with ' + corners.length + ' corners. Every walk\'s rates were measured again on its new ground.');
@@ -7548,7 +7642,16 @@ window.LitterMap = function (app) {
       var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : ''));
       box.id = 'seg-' + g.id;
       // Its kind, Path or Field (Oct 31, field first).
-      box.appendChild(el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi'));
+      var head = el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi');
+      // On your plan (S7-P16, |M1222): "Added to Plan", and the plan outline's colour on its border.
+      if (app.walkIds && app.walkIds().indexOf(g.id) !== -1) {
+        box.classList.add('lt-on-plan');
+        box.style.borderColor = planHue();
+        var pill = el('span', 'lt-plan-pill', 'Added to Plan');
+        pill.style.background = planHue();
+        head.appendChild(pill);
+      }
+      box.appendChild(head);
       var line = el('div', 'lt-seg-need-row');
       line.appendChild(el('p', 'lt-seg-need', needLine(g, need)));
       var info = el('button', 'lt-info', 'ℹ️');
@@ -7609,11 +7712,20 @@ window.LitterMap = function (app) {
     $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
   }
   $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
-  $('mp-plan-btn').addEventListener('click', function () {
+  $('mp-actions-btn').addEventListener('click', function (e) { e.stopPropagation(); actionsMenu($('mp-actions-menu').hidden); });
+  $('mp-plan-btn').addEventListener('click', function (e) {
+    e.stopPropagation();
     planCleared = !planCleared;
     outlinePlan(planCleared ? [] : shownPlan);
     planButton();
+    actionsMenu(false);
   });
+  $('mp-plan-reset').addEventListener('click', function (e) {
+    e.stopPropagation();
+    actionsMenu(false);
+    if (app.useWalkPlan) app.useWalkPlan([]);
+  });
+  document.addEventListener('click', function (e) { if (!e.target.closest || !e.target.closest('#mp-actions')) actionsMenu(false); });
   Array.prototype.forEach.call(document.querySelectorAll('#mp-layers .lt-layer-opt'), function (b) {
     b.addEventListener('click', function () { setMode(b.dataset.layer); layersMenu(false); });
   });
@@ -7654,7 +7766,7 @@ window.LitterMap = function (app) {
     return true;
   }
 
-  return { open: open, showMine: showMine, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps, pendingPin: pendingPin };
+  return { open: open, showMine: showMine, openMine: openMine, forgetMine: forgetMine, useLists: useLists, inline: inline, showPlan: showPlan, redraw: redraw, showSegments: showSegments, smallMap: smallMap, drawSmallMaps: drawSmallMaps, pendingPin: pendingPin };
 };
 </script>
 <script>
@@ -10174,8 +10286,13 @@ window.LitterCleanups = function (app) {
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
   }
+  // Only in Admin Mode (S7-P2, item 12, with |S7-P14): players' pages don't ask.
+  var asked = false;
   function onAccount() {
+    asked = false;
     if (!app.myToken()) return;
+    if (!$('cl-sim').checked) { $('cu-today').hidden = true; return; }
+    asked = true;
     load().then(today, function () { $('cu-today').hidden = true; });
   }
   $('cu-today-in').addEventListener('click', function () {
@@ -10222,6 +10339,7 @@ window.LitterCleanups = function (app) {
   // Admin Mode is on (S7-P14, |M1221).
   function sync() {
     $('me-go-cleanups').hidden = !$('cl-sim').checked;
+    if ($('cl-sim').checked && !asked && app.myToken && app.myToken()) return onAccount();
     today(day0 ? { today: day0 } : null);
   }
   $('cl-sim').addEventListener('change', sync);
@@ -10593,6 +10711,14 @@ window.LitterScroll = function (app) {
   }
 
   // Fresh lines from HABO, after the main page loads.
+  // A gchat line stops at the setting as you type or paste, not a few
+  // characters over it (S7-P10, |C1025): the box's own limit leaves room for
+  // the word gchat, so the line after it is cut here.
+  var gchatMax = 1000;
+  $('rh-in').addEventListener('input', function () {
+    var v = this.value, m = /^\s*gchat\s+/i.exec(v);
+    if (m && v.length - m[0].length > gchatMax) this.value = v.slice(0, m[0].length + gchatMax);
+  });
   function refresh() {
     if (!app.myToken()) return Promise.resolve();
     paintStrip();
@@ -10602,7 +10728,7 @@ window.LitterScroll = function (app) {
       if (d.now) lastNow = d.now;
       if (d.every) every = d.every;
       // Room for gchat, its word and its line (S6-P38, |M1174).
-      if (d.gchatMax) $('rh-in').maxLength = d.gchatMax + 10;
+      if (d.gchatMax) { gchatMax = d.gchatMax; $('rh-in').maxLength = d.gchatMax + 10; }
       pending = [];
       loaded = true;
       paintStrip();
@@ -11420,7 +11546,7 @@ window.LitterScroll = function (app) {
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount(quick);
-    if (!quick) mapper.showMine();
+    if (!quick) mapper.forgetMine();   // Your collections loads when you open it (S7-P2, item 9)
     if (!quick) cleanups.onAccount();   // your cleanup today (S6-P27)
     mapper.inline(quick);
   }
@@ -11469,6 +11595,8 @@ window.LitterScroll = function (app) {
     $: $, api: api, show: show, notice: notice, clearNotice: clearNotice, busy: busy, myToken: myToken, signedOut: signedOut, ratingsTable: ratingsTable,
     me: function () { return state.account; },
     builderMode: builderMode, paintMode: paintMode,
+    // The segments and plans from collectLoad, shared with the map (S7-P2, item 8).
+    onLists: function (d) { mapper.useLists(d); },
     // Badges just earned, and the weekly streak (S6-P6, achievements.js).
     onEarned: function (d) { if (achievements) achievements.onEarned(d); },
     // The rolling history (S6-P3, scroll.js): fresh once the main page loads, and where "+N XP" lands.
@@ -11605,7 +11733,7 @@ window.LitterScroll = function (app) {
     walking: function () { return collect.walking(); },
     ratingsTable: ratingsTable,
     gate: function (b, key) { return collect.gate(b, key); },
-    showCollections: function () { notice(''); show('v-collections'); },
+    showCollections: function () { notice(''); show('v-collections'); mapper.openMine(); },
     showPlans: function () { show('v-plans'); mapper.showSegments(); }
   });
 
@@ -11630,7 +11758,7 @@ window.LitterScroll = function (app) {
   if (window.ResizeObserver) new ResizeObserver(barHeight).observe($('me-toggle'));
   document.addEventListener('click', function (e) { if (!$('me-panel').hidden && !$('me-bar').contains(e.target)) panel(false); });
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !$('me-panel').hidden) panel(false); });
-  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); window.scrollTo(0, 0); });
+  $('me-go-collections').addEventListener('click', function () { panel(false); notice(''); show('v-collections'); mapper.openMine(); window.scrollTo(0, 0); });
   $('me-go-plans').addEventListener('click', function () { panel(false); show('v-plans'); window.scrollTo(0, 0); mapper.showSegments(); });
   $('my-back').addEventListener('click', function () { showAccount(state.account); });
   $('me-go-quests').addEventListener('click', function () { panel(false); notice(''); quest.showQuests(); show('v-quests'); challenges.load(); });
