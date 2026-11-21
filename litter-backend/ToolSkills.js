@@ -42,7 +42,7 @@ function toolSkillsLoad_(req) {
   return toolSkillsFor_(requireAccount_(req.token));
 }
 function toolSkillsFor_(account) {
-  var items = challengeItemsAll_(), level = levelOf_(xpOf_(account.id), levelRanges_());
+  var items = challengeItemsAll_(), level = levelFor_(account.id);
   // A declined item's note, which the player sees.
   var why = {};
   reviewRows_().forEach(function (m) { if (/^CI\d+$/.test(m.segment) && m.move === REVIEW_DECIDE.decline) why[m.segment] = m.note; });
@@ -59,7 +59,7 @@ function toolSkillSend_(req) {
   var s = toolSkillsAll_().filter(function (x) { return x.id === clean_(req.skillId, 20); })[0];
   if (!s) throw new Error('That skill isn\'t here any more.');
   if (s.state !== 'Open') throw new Error(s.name + ' isn\'t open now.');
-  var level = levelOf_(xpOf_(account.id), levelRanges_());
+  var level = levelFor_(account.id);
   if (level < s.level) throw new Error(s.name + ' unlocks at Level ' + s.level + '. You\'re at Level ' + level + '.');
   var lat = req.lat == null || req.lat === '' ? null : Number(req.lat), lon = req.lon == null || req.lon === '' ? null : Number(req.lon);
   var acc = req.acc == null || req.acc === '' ? null : Number(req.acc), note = clean_(req.note, 1000), photo = String(req.photo || '');

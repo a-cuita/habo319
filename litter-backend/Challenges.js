@@ -124,22 +124,31 @@ function skillGoal_(c, accountId, items, scope) {
 
 // What one player has earned from Challenges and Quests: each Challenge's
 // XP, and each Quest's finishing bonus once all its Challenges are done. A
-// Draft earns nothing, nor a Quest marked as a test. [{ say, xp, from, to }]
-function challengeGains_(accountId, items) {
+// Draft earns nothing, nor a Quest marked as a test. [{ key, kind, say, xp, from, to, snap }]
+// `snapOf(key)`, from the XP tab (S7-P1, |Q730 (a)): the XP fields a player
+// first earned under, kept for them if an admin changes the Challenge or
+// Quest later. With every one listed, earning or not, so a key whose XP fell
+// to nothing (a walk fixed) is still there to write the difference.
+function challengeGains_(accountId, items, snapOf) {
   items = items || challengeItemsAll_();
+  snapOf = snapOf || function () { return null; };
   var quests = {}, out = [], list = challengesAll_();
   questBenchAll_().forEach(function (q) { quests[q.id] = q; });
   var byQuest = {};
   list.forEach(function (c) {
     var sc = challengeScope_(c, quests), q = sc.quest;
     if (c.quest && (!q || q.state === 'Draft' || q.test)) return;
-    var got = c.kind === 'Walk goal' ? walkGoal_(c, accountId, sc) : skillGoal_(c, accountId, items, sc);
+    var key = 'challenge:' + c.id, sn = snapOf(key), cc = c;
+    if (sn) { cc = {}; Object.keys(c).forEach(function (k) { cc[k] = c[k]; }); cc.xpPer = sn.xpPer; cc.xpOne = sn.xpOne; cc.mult = sn.mult; }
+    var got = cc.kind === 'Walk goal' ? walkGoal_(cc, accountId, sc) : skillGoal_(cc, accountId, items, sc);
     if (q && c.state === 'Open') (byQuest[q.id] = byQuest[q.id] || []).push(got.done);
-    if (got.xp) out.push({ say: 'the Challenge "' + c.name + '"' + (q ? ' of ' + q.name : ''), xp: got.xp, from: sc.from, to: sc.to });
+    out.push({ key: key, kind: 'Challenge', say: 'The Challenge "' + c.name + '"' + (q ? ' of ' + q.name : ''), xp: got.xp, from: sc.from, to: sc.to,
+      snap: { xpPer: c.xpPer, xpOne: c.xpOne, mult: c.mult } });
   });
   Object.keys(byQuest).forEach(function (id) {
-    var q = quests[id];
-    if (q.bonus && byQuest[id].length && byQuest[id].every(Boolean)) out.push({ say: 'finishing the Quest ' + q.name, xp: q.bonus, from: q.from, to: q.to });
+    var q = quests[id], key = 'quest:' + id, sn = snapOf(key);
+    var done = byQuest[id].length && byQuest[id].every(Boolean), bonus = sn ? sn.bonus : q.bonus;
+    out.push({ key: key, kind: 'Quest', say: 'Finishing the Quest ' + q.name, xp: done && bonus ? bonus : 0, from: q.from, to: q.to, snap: { bonus: q.bonus } });
   });
   return out;
 }
@@ -178,6 +187,7 @@ function challengeView_(c, account, items, now, skills, quests) {
 function challengesLoad_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
+  xpCatchUpQuests_(account.id);   // its XP in your tab, as Your quests shows it (S7-P1)
   return challengesFor_(account);
 }
 function challengesFor_(account) {
@@ -358,6 +368,7 @@ function challengeItemMove_(account, id, kind, move, note) {
       items.getRange(x.row, ITEM_COL.state).setValue(kind === 'approve' ? 'Approved' : 'Declined');
       items.getRange(x.row, ITEM_COL.xp).setValue(kind === 'approve' ? xp : '');
       logChange_(account.email, 'Challenge item', x.id, 'State', 'Waiting', (kind === 'approve' ? 'Approved (' + xp + ' XP)' : 'Declined') + ', in a review');
+      if (kind === 'approve') xpSettle_(x.account, false);   // its sender's XP, written down (S7-P1)
     }
     return reviewsView_(account);
   });

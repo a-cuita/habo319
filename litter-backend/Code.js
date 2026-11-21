@@ -25,14 +25,19 @@ var TABS = {
   // One row per litter tracking account (Q257, Q262): set up once, on the
   // litter page, the first time someone opens it (Q263), with an email and
   // no phone (Oct 23, in chat). The waiver columns are the latest signing.
-  // First quest (S5-P20): the steps ticked after the first; finished, when.
+  // Its columns are found by their headings (S7-P1), so ones no longer used
+  // can be deleted by hand: Signed name and Signature (Waiver Signatures
+  // keeps every signing, |Q843 (a)), and First quest and First quest finished
+  // (the Quests tab holds them, |Q842 (a)). XP, Level and Levels reached:
+  // each player's total and level, written with their XP tab (S7-P1, |Q754).
   accounts: {
     name: 'Accounts',
+    byName: true,
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
-      'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Signed name', 'Signature', 'Check-in volunteer', 'Updated', 'Status',
-      'First quest', 'First quest finished', 'Safety gear', 'Safety gear confirmed'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 180, 280, 130, 150, 80, 110, 150, 260, 150],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm', 17: '@', 18: 'yyyy-mm-dd h:mm', 19: '@', 20: 'yyyy-mm-dd h:mm' }
+      'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Check-in volunteer', 'Updated', 'Status',
+      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
   // words change (Oct 23, in chat), with whether their emailed copy went.
@@ -561,12 +566,13 @@ function ensureSchema_(force) {
   var ss = getDb_();
   var tabsMissing = Object.keys(TABS).some(function (k) { return !ss.getSheetByName(TABS[k].name); });
   var colsMissing = !tabsMissing && Object.keys(TABS).some(function (k) {
-    return ss.getSheetByName(TABS[k].name).getLastColumn() < TABS[k].header.length;
+    var sheet = ss.getSheetByName(TABS[k].name);
+    return TABS[k].byName ? missingByName_(sheet, TABS[k]).length > 0 : sheet.getLastColumn() < TABS[k].header.length;
   });
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE') || !props.getProperty('XP_TABS_MOVED');
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -617,6 +623,7 @@ function ensureSchema_(force) {
     coldFolderOnce_();   // the cold storage folder, made now (S6-P50, |C1022)
     achievementsOnce_();
     squaresPackOnce_();   // last: after the regrids, which read squares as they were (S6-P1)
+    xpTabsOnce_();   // each player's XP tab, moved in once, after everything else (S7-P1, item 8)
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
@@ -854,9 +861,28 @@ function ensureTab_(ss, tab) {
   });
 }
 
+// The headings a tab found by name is missing (S7-P1), with their widths and formats.
+function missingByName_(sheet, tab) {
+  var last = sheet.getLastColumn();
+  var have = last ? sheet.getRange(1, 1, 1, last).getDisplayValues()[0].map(function (h) { return String(h).trim(); }) : [];
+  return tab.header.map(function (h, i) { return { name: h, width: tab.widths[i], format: (tab.formats || {})[i + 1] }; })
+    .filter(function (h) { return have.indexOf(h.name) === -1; });
+}
+
 // Adds columns added to a tab's layout after the tab was made, at the end.
+// A tab found by name gets any heading it's missing, wherever its others are.
 function ensureColumns_(ss, tab) {
   var sheet = ss.getSheetByName(tab.name);
+  if (tab.byName) {
+    var miss = missingByName_(sheet, tab), at = sheet.getLastColumn();
+    if (!miss.length) return;
+    sheet.getRange(1, at + 1, 1, miss.length).setValues([miss.map(function (h) { return h.name; })]).setFontWeight('bold');
+    miss.forEach(function (h, i) {
+      sheet.setColumnWidth(at + 1 + i, h.width);
+      if (h.format) sheet.getRange(2, at + 1 + i, sheet.getMaxRows() - 1, 1).setNumberFormat(h.format);
+    });
+    return;
+  }
   var have = sheet.getLastColumn();
   if (have >= tab.header.length) return;
   var extra = tab.header.slice(have);

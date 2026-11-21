@@ -26,13 +26,16 @@ var SETTING_RATING_XP_3 = 'XP for a visual rating within 3';
 var SETTING_RATING_BONUS = 'Rating XP bonus: the Litter Index divided by';
 var SETTING_TYPES_XP = 'XP for a stretch\'s litter types';
 // The time bonus (S6-P3 item 5, |Q679; from |Q481, item 1 of |S5-P4).
-var SETTING_TIME_PEAK = 'Time bonus: XP multiplier a day after';
-var SETTING_TIME_ENDS = 'Time bonus: gone after (days)';
+// Renamed Recollection bonus and Rescue bonus (S7-P15, |Q880 (a), |Q881 (a)); BONUS_RENAMES renames the rows, values kept.
+var SETTING_TIME_PEAK = 'Recollection bonus: XP multiplier a day after';
+var SETTING_TIME_ENDS = 'Recollection bonus: gone after (days)';
 // The left-alone bonus (S6-P3 item 4, |Q670, |Q690 (a)): a walk that collects
 // squares of a public segment nobody has collected for this many days, or
 // ever, multiplies its rating and litter-type XP by the other.
-var SETTING_ALONE_DAYS = 'Left-alone bonus: after (days)';
-var SETTING_ALONE_MULT = 'Left-alone bonus: XP multiplier';
+var SETTING_ALONE_DAYS = 'Rescue bonus: after (days)';
+var SETTING_ALONE_MULT = 'Rescue bonus: XP multiplier';
+var BONUS_RENAMES = [[SETTING_TIME_PEAK, 'Time bonus: XP multiplier a day after'], [SETTING_TIME_ENDS, 'Time bonus: gone after (days)'],
+  [SETTING_ALONE_DAYS, 'Left-alone bonus: after (days)'], [SETTING_ALONE_MULT, 'Left-alone bonus: XP multiplier']];
 var PLAN_REPLACED = 'Replaced';
 
 /* ── Called from the page ── */
@@ -224,11 +227,12 @@ function setPlanXp_(collectionId) {
   getDb_().getSheetByName(TABS.collections.name).getRange(col.row, COLLECTION_COL.xp).setValue(xp);
 }
 
-// Your XP: each planned collection's, and each stretch's of your ended
+// The old way (S7-P1 keeps it only for the move-in's XP check, item 8):
+// your XP worked out fresh from every walk and today's settings. Your XP: each planned collection's, and each stretch's of your ended
 // collections, worked out from the stretches as they are now, so a fix or a
 // discard changes it, and your walk's counts (M410); and the first quest's
 // (S5-P20, Q579).
-function xpOf_(accountId) {
+function xpOldOf_(accountId) {
   // Only walks with their GPX track saved earn XP (Jeremy, Oct 29).
   var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && String(q.get('track')).trim() && q.get('simulated') !== 'Yes'; });
   var plan = cols.reduce(function (t, q) { return t + (Number(q.get('xp')) || 0); }, 0);
@@ -242,40 +246,6 @@ function xpOf_(accountId) {
   return round_(plan + stretches + (me ? questXp_(me) : 0) + reviewXp_(accountId) + challengeXp_(accountId) + badgeXp_(accountId), 2);   // and Challenges' (S6-P8), and badges' (S6-P6)
 }
 
-// One walk's XP, line by line (S6-P3): for planning it, for its ratings, and
-// for its litter types, counted as xpOf_ counts them: only once its GPX
-// track is saved, and its weighings' only once it's Ended. `xp`: the
-// player's whole XP, for the page to see what's new.
-function walkXp_(collectionId, accountId) {
-  var out = { plan: 0, ratings: 0, types: 0, mult: 1, bonus: 0, total: 0, counts: false, xp: xpOf_(accountId), math: [], mathRows: [] };
-  var q = readRows_(TABS.collections).filter(function (r) { return r.get('id') === collectionId; })[0];
-  if (!q || !String(q.get('track')).trim() || q.get('simulated') === 'Yes') return out;
-  out.counts = true;
-  out.plan = Number(q.get('xp')) || 0;
-  if (q.get('status') === 'Ended') {
-    var x = xpSettings_();
-    readRows_(TABS.stretches).forEach(function (r) {
-      if (r.get('collection') !== collectionId) return;
-      var st = stretchOf_(r), all = stretchXp_(st, x);
-      var types = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
-      out.ratings += all - types;
-      // The table's rows (|C1018), and the same as lines, for a page from before the table.
-      var row = ratingMath_(st, x, all - types);
-      if (row) { out.mathRows.push(row); out.math.push(ratingMathLine_(row, x)); }
-      out.mathHow = { r1: x.r1, r2: x.r2, r3: x.r3, bonus: x.bonus };
-      out.types += types;
-    });
-    // The time bonus on its ratings and litter types (S6-P3 item 5), or the
-    // left-alone bonus (item 4), whichever is more.
-    var b = walkBonuses_()[collectionId];
-    out.mult = b ? b.mult : 1;
-    out.kind = b ? b.kind : '';
-    out.bonus = round_((out.ratings + out.types) * (out.mult - 1), 2);
-  }
-  out.total = round_(out.plan + out.ratings + out.types + out.bonus, 2);
-  return out;
-}
-
 // The time bonus: collecting a segment again a day after its clock started
 // multiplies the walk's rating and litter-type XP by the most (×2 to start),
 // coming down evenly to none (×1) by its last day (4 to start). Under a day,
@@ -287,7 +257,10 @@ function timeMult_(days, t) {
 }
 // Each walk's multiplier: the highest from the rates it gave, or the
 // left-alone bonus, whichever is more. { id: { mult, kind: 'time' or 'alone' } }
+// Kept for the once-only XP move-in (S7-P1), which asks for every player twice.
+var walkBonusesKept_ = null;
 function walkBonuses_() {
+  if (walkBonusesKept_) return walkBonusesKept_;
   var t = timeBonus_(), out = {};
   ratesAll_().forEach(function (r) {
     if (r.notCounted || r.simulated) return;

@@ -257,7 +257,7 @@ function collectDiscard_(req) {
     logChange_(account.first + ' ' + account.last, 'Discarded', col.id, 'Status', 'Collecting', COLLECTION_DISCARDED);
     if (col.simulated) refreshSimulations_();
     return { collection: collectionView_(readCollection_(col.id)), hours: hoursOf_(account.id), plan: planView_(openPlan_(account.id)),
-      planNeeded: planNeeded_(account.id), xp: xpOf_(account.id) };
+      planNeeded: planNeeded_(account.id), xp: xpOf_(account.id), level: levelFor_(account.id) };
   });
 }
 
@@ -343,7 +343,7 @@ function collectLoad_(req) {
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
-    plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id),
+    plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id), level: levelFor_(account.id),
     // Asked with lean (S7-P2, items 8 and 10): the segments without their walks, which
     // come with segmentWalks on a tap; the simulated ones only to a Head Builder.
     plans: myPlans_(account.id),
@@ -664,6 +664,8 @@ function hoursOf_(accountId) {
 // streak (S6-P6). Under the lock: badges are written first, so the XP counts them.
 function walkDone_(out, collectionId, account) {
   out.earned = badgesEarn_(account);
+  // XP written down as it's earned (S7-P1): this walk's, any badge's, and any Challenge's.
+  xpSettle_(account.id, false);
   out.walk = walkXp_(collectionId, account.id);
   out.walk.badges = round_(out.earned.reduce(function (t, b) { return t + b.xp; }, 0), 2);
   out.streak = streakOf_(account.id);

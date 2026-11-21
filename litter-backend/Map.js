@@ -95,6 +95,11 @@ function renameAdminSettings_(ss) {
     var at = names.indexOf(now.replace(/^Street Talk: /, 'Rolling history: '));
     if (at !== -1 && names.indexOf(now) === -1) { sheet.getRange(at + 1, 1).setValue(now); names[at] = now; }
   });
+  // The time bonus is the Recollection bonus, and the left-alone bonus the Rescue bonus (S7-P15, |Q880 (a), |Q881 (a)).
+  BONUS_RENAMES.forEach(function (r) {
+    var at = names.indexOf(r[1]);
+    if (at !== -1 && names.indexOf(r[0]) === -1) { sheet.getRange(at + 1, 1).setValue(r[0]); names[at] = r[0]; }
+  });
 }
 
 /* ── Called from the page ── */
@@ -204,10 +209,10 @@ function myCollections_(req) {
   readRows_(TABS.stretches).forEach(function (q) {
     if (q.get('account') === account.id) (byCollection[q.get('collection')] = byCollection[q.get('collection')] || []).push(q);
   });
-  // Each walk's XP, counted as your XP counts it (S6-P28 line 1, |S6-U25 item 4):
-  // planning it, and once Ended its weighings', times its time bonus; only
-  // with its GPX track saved, and never a simulated one.
-  var x = xpSettings_(), bonuses = walkBonuses_();
+  // Each walk's XP, as written in your XP tab (S7-P1, item 6): planning it,
+  // its ratings with their math (|S7-P15, |C1029), its litter types and its bonus.
+  var xpRows = {};
+  xpRows_(account.id).forEach(function (r) { if (r.walk) (xpRows[r.walk] = xpRows[r.walk] || []).push(r); });
   var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; })
     .map(function (q) {
       var col = collectionOf_(q);
@@ -215,16 +220,12 @@ function myCollections_(req) {
       col.editableUntil = ended + editHours * 3600000;
       col.editable = Date.now() < col.editableUntil;
       var sts = (byCollection[col.id] || []).map(stretchOf_).sort(function (a, b) { return a.n - b.n; });
-      var counts = !!String(q.get('track')).trim() && q.get('simulated') !== 'Yes', ended = q.get('status') === 'Ended', b = bonuses[col.id];
       // Its XP line by line, under it in Your collections, not behind Fix it (S6-U25 item 4, |M904).
-      var p = { counts: counts, plan: counts ? Number(q.get('xp')) || 0 : 0, ratings: 0, types: 0, mult: b ? b.mult : 1, kind: b ? b.kind : '', bonus: 0 };
-      if (counts && ended) sts.forEach(function (st) {
-        var all = stretchXp_(st, x), t = st.discarded ? 0 : (st.types.length || st.pounds === 0 ? x.types : 0);
-        p.ratings += all - t; p.types += t;
-      });
-      p.bonus = round_((p.ratings + p.types) * (p.mult - 1), 2);
+      var mine = xpRows[col.id] || [], last = mine.length ? mine[mine.length - 1].detail.parts || {} : {};
+      var p = { counts: mine.length > 0, plan: last.plan || 0, ratings: last.ratings || 0, types: last.types || 0, mult: last.mult || 1, kind: last.kind || '',
+        bonus: last.bonus || 0, math: last.math || [], mathRows: last.mathRows || [], mathHow: last.mathHow || null };
       col.xpParts = p;
-      col.xp = !counts ? 0 : round_(p.plan + p.ratings + p.types + p.bonus, 2);
+      col.xp = round_(mine.reduce(function (t, r) { return t + r.xp; }, 0), 2);
       col.stretchList = sts.map(stretchViewOf_);
       delete col.row;
       return col;

@@ -107,9 +107,10 @@ function questTick_(req) {
     sheet.getRange(q.row, QUEST_COL.updated).setValue(now);
     if (done && !(q.finished instanceof Date)) sheet.getRange(q.row, QUEST_COL.finished).setValue(now);
     logChange_(account.first + ' ' + account.last, 'Quest', account.id + ' ' + account.handle, FIRST_QUEST, before, steps.join(' '));
+    xpSettle_(account.id, false);   // its XP written down (S7-P1)
     return done;
   });
-  return { quest: questView_(account), xp: xpOf_(account.id), finished: finished };
+  return { quest: questView_(account), xp: xpOf_(account.id), level: levelFor_(account.id), finished: finished };
 }
 
 // Once (|C722): each account's First quest columns copied to the Quests tab.
@@ -125,8 +126,9 @@ function questsOnce_() {
     if (at instanceof Date && (!firstTick[id] || at < firstTick[id])) firstTick[id] = at;
   });
   var sheet = getDb_().getSheetByName(TABS.accounts.name);
+  readAccounts_();   // finds the columns by their headings (S7-P1)
   var last = lastRowWith_(sheet, ACCOUNT_COL.id);
-  var rows = last < 2 ? [] : sheet.getRange(2, 1, last - 1, TABS.accounts.header.length).getValues();
+  var rows = last < 2 || !ACCOUNT_COL.quest ? [] : sheet.getRange(2, 1, last - 1, sheet.getLastColumn()).getValues();
   rows.forEach(function (r) {
     var id = String(r[ACCOUNT_COL.id - 1]).trim(), ticked = String(r[ACCOUNT_COL.quest - 1] || '').trim();
     if (!id || !ticked) return;

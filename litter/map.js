@@ -630,7 +630,7 @@ window.LitterMap = function (app) {
       if (!xp.counts) xb.appendChild(el('p', 'small', 'XP comes once your GPX track is saved.'));
       else {
         var xl = el('ul', 'lt-walk-xp-lines');
-        [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
+        [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Rescue bonus' : 'Recollection bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
           .forEach(function (r) {
             var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
             // Under Your ratings, each rating's math (S6-P44 item 1).
@@ -1324,7 +1324,7 @@ window.LitterMap = function (app) {
       more.hidden = true;
       more.appendChild(el('p', 'small', needWhy(g, need)));
       if (aloneMult(g) > 1 && !(need === 'due' && timeMult(g) >= aloneMult(g))) more.appendChild(el('p', 'small', (g.alone == null ? 'Nobody has collected any of it yet' : 'Nobody has collected any of it in ' + Math.floor(g.alone) + ' days')
-        + ', so a walk that collects it now earns the left-alone bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
+        + ', so a walk that collects it now earns the Rescue bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
       more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       more.appendChild(confidenceLine(g, 'small lt-pop-conf'));
       if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));

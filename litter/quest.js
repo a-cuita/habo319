@@ -128,7 +128,7 @@ window.LitterQuest = function (app) {
       quest = merge(quest, d.quest);
       list = [quest];
       if (n === 3) keep(GEAR_KEY, null);
-      if (app.onQuestChanged) app.onQuestChanged({ quest: quest, xp: d.xp });
+      if (app.onQuestChanged) app.onQuestChanged({ quest: quest, xp: d.xp, level: d.level });
       render();
       if (quest.done && !was) blue('Your first quest is done: ' + quest.doneXp + ' more XP. Ready: start your first collection.');
     }, function (err) {

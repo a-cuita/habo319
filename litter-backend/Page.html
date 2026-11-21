@@ -3540,7 +3540,7 @@ window.LitterCollect = function (app) {
       pace = d.pace || null;
       setTypes(d.types);
       if (d.carrying) { carryBags = d.carrying.bags || carryBags; carryLast = d.carrying.last || null; }
-      gotXp(d.xp || 0, null);   // what's new since this phone last showed you (S6-P3)
+      gotXp(d.xp || 0, null, d.level);   // what's new since this phone last showed you (S6-P3)
       if (app.onEarned) app.onEarned(d);   // badges just reached, and the weekly streak (S6-P6)
       if (app.onMainLoaded) app.onMainLoaded();   // the rolling history, fresh (S6-P3)
       account = { plan: d.plan || null, planNeeded: !!d.planNeeded, xp: d.xp || 0, plans: d.plans || [], quest: d.quest || null,
@@ -3649,24 +3649,39 @@ window.LitterCollect = function (app) {
   }
 
   // Your level, from your XP and the Levels tab's ranges (S5-P4, |Q595): the
-  // XP each level needs adds up, level by level.
-  function levelOf(xp, ranges) {
-    var level = 0, need = 0;
+  // XP each level needs adds up, level by level. A level once reached is
+  // kept (S7-P1, |Q745 (a)): HABO sends it, and the bar counts on from it.
+  var keptLevel = 0;
+  function rangeAt(n, ranges) {
+    // The range this level is in; else the nearest range below it.
+    var r = null, below = null;
+    ranges.forEach(function (x) { if (x[0] <= n && (x[1] == null || n <= x[1])) r = x; if (x[0] <= n) below = x; });
+    return r || below;
+  }
+  function levelOf(xp, ranges, kept) {
+    var level = 0, need = 0, out = null;
     if (!ranges || !ranges.length) return { level: 0, next: null };
     for (var n = 1; n < 1000; n++) {
-      // The range this level is in; else the nearest range below it.
-      var r = null, below = null;
-      ranges.forEach(function (x) { if (x[0] <= n && (x[1] == null || n <= x[1])) r = x; if (x[0] <= n) below = x; });
-      r = r || below;
+      var r = rangeAt(n, ranges);
       if (!r) break;
       need += r[2];
-      if (xp < need) return { level: level, next: need, from: need - r[2] };
+      if (xp < need) { out = { level: level, next: need, from: need - r[2] }; break; }
       level = n;
     }
-    return { level: level, next: null, from: need };
+    out = out || { level: level, next: null, from: need };
+    kept = Number(kept) || 0;
+    if (kept <= out.level) return out;
+    var at = 0, from = 0;
+    for (var k = 1; k <= kept + 1; k++) {
+      var rk = rangeAt(k, ranges);
+      if (!rk) return { level: kept, next: null, from: at };
+      at += rk[2];
+      if (k === kept) from = at;
+    }
+    return { level: kept, next: at, from: from };
   }
   function levelWords(xp) {
-    var l = levelOf(Number(xp) || 0, settings.levels);
+    var l = levelOf(Number(xp) || 0, settings.levels, keptLevel);
     if (!settings.levels || !settings.levels.length) return '';
     return 'Level ' + l.level + (l.next != null ? ' (' + round(l.next - (Number(xp) || 0), 2) + ' XP to Level ' + (l.level + 1) + ')' : '') + '.';
   }
@@ -3684,7 +3699,7 @@ window.LitterCollect = function (app) {
     var bar = $('me-xpbar'), lv = $('me-level');
     xp = Number(xp) || 0;
     if (!settings.levels || !settings.levels.length) { bar.hidden = true; lv.hidden = true; return; }
-    var l = levelOf(xp, settings.levels);
+    var l = levelOf(xp, settings.levels, keptLevel);
     bar.hidden = false;
     lv.hidden = false;
     lv.textContent = 'Level ' + l.level;
@@ -3696,14 +3711,17 @@ window.LitterCollect = function (app) {
   }
   function seenKey() { var me = app.me && app.me(); return XP_SEEN_KEY + ':' + ((me && me.handle) || ''); }
   // `from`: what earned it, for the burst to rise from; else the XP bar.
-  function gotXp(xp, from) {
+  // `level`: the level HABO says you've reached and keep (S7-P1, |Q745 (a)).
+  function gotXp(xp, from, level) {
     xp = Number(xp) || 0;
+    var wasKept = keptLevel;
+    if (level != null) keptLevel = Number(level) || 0;
     var seen = load(seenKey());
     keep(seenKey(), xp);
     paintXp(xp);
     if (seen == null || xp <= seen) return;
     burst(xp - seen, from);
-    var was = levelOf(seen, settings.levels).level, now = levelOf(xp, settings.levels).level;
+    var was = levelOf(seen, settings.levels, wasKept).level, now = levelOf(xp, settings.levels, keptLevel).level;
     if (settings.levels && settings.levels.length && now > was) setTimeout(function () { levelUp(was, now); }, 900);
   }
   // It stays about 3 seconds (|Q688 (a)), then lands in the rolling history:
@@ -3764,7 +3782,7 @@ window.LitterCollect = function (app) {
     var parts = [['Planning it', w.plan], ['Your ratings', w.ratings], ['Litter types', w.types]];
     // The time bonus on its ratings and litter types (S6-P3 item 5).
     // Or the left-alone bonus (S6-P3 item 4): a segment nobody had collected in a while.
-    if (w.mult > 1) parts.push([(w.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + w.mult + ')', w.bonus]);
+    if (w.mult > 1) parts.push([(w.kind === 'alone' ? 'Rescue bonus' : 'Recollection bonus') + ' (×' + w.mult + ')', w.bonus]);
     // Badges it just earned (S6-P6): their XP, on top of the walk's.
     if (w.badges > 0) parts.push(['New badges', w.badges]);
     var animate = shownWalkXp[col.id] !== w.total && !(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
@@ -3783,14 +3801,14 @@ window.LitterCollect = function (app) {
     });
     var sum = Math.round((w.total + (w.badges || 0)) * 100) / 100;
     total.textContent = animate ? '' : 'Total: ' + sum + ' XP';
-    if (!animate) { gotXp(w.xp, total); return; }
+    if (!animate) { gotXp(w.xp, total, w.level); return; }
     var step = 0;
     (function next() {
       if (step < rows.length) {
         var r = rows[step++];
         r.li.className = 'lt-walk-xp-in';
         countUp(r.n, r.v, '+', '', next);
-      } else countUp(total, sum, 'Total: ', ' XP', function () { gotXp(w.xp, total); });
+      } else countUp(total, sum, 'Total: ', ' XP', function () { gotXp(w.xp, total, w.level); });
     })();
   }
   function countUp(el, to, pre, post, then) {
@@ -3808,7 +3826,7 @@ window.LitterCollect = function (app) {
   // Each skill opens at a level, set in Admin Mode's Settings (0: open to
   // everyone). Below it, the skill is greyed, with "Unlocks at Level N"
   // (|Q614 (a)), and HABO refuses it too.
-  function myLevel() { return levelOf(Number(account && account.xp) || 0, settings.levels).level; }
+  function myLevel() { return levelOf(Number(account && account.xp) || 0, settings.levels, keptLevel).level; }
   function skill(key) {
     var s = (settings.skills || []).filter(function (x) { return x.key === key; })[0];
     if (!s || !s.level) return { open: true, level: 0, name: s ? s.name : '' };
@@ -6322,7 +6340,7 @@ window.LitterCollect = function (app) {
     busyHere: function () { return !!(c && !c.practice && (c.queue.length || !c.ended)); },
     practice: startPractice,
     // A quest step ticked (S5-P20): the XP and Start collecting with it.
-    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; gotXp(d.xp, $('qs-card')); showPlanLine(); },
+    onQuestChanged: function (d) { if (!account) return; account.quest = d.quest; account.xp = d.xp; gotXp(d.xp, $('qs-card'), d.level); showPlanLine(); },
     // The picked plan's squares, for the main page's map; and your plans after
     // one is deleted (Oct 31).
     pickedCells: walkCells,
@@ -6984,7 +7002,7 @@ window.LitterMap = function (app) {
       if (!xp.counts) xb.appendChild(el('p', 'small', 'XP comes once your GPX track is saved.'));
       else {
         var xl = el('ul', 'lt-walk-xp-lines');
-        [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Left-alone bonus' : 'Time bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
+        [['Planning it', xp.plan], ['Your ratings', xp.ratings], ['Litter types', xp.types]].concat(xp.mult > 1 ? [[(xp.kind === 'alone' ? 'Rescue bonus' : 'Recollection bonus') + ' (×' + xp.mult + ')', xp.bonus]] : [])
           .forEach(function (r) {
             var li = el('li'); li.appendChild(document.createTextNode(r[0])); li.appendChild(el('span', 'lt-walk-xp-n', '+' + round(r[1], 2))); xl.appendChild(li);
             // Under Your ratings, each rating's math (S6-P44 item 1).
@@ -7678,7 +7696,7 @@ window.LitterMap = function (app) {
       more.hidden = true;
       more.appendChild(el('p', 'small', needWhy(g, need)));
       if (aloneMult(g) > 1 && !(need === 'due' && timeMult(g) >= aloneMult(g))) more.appendChild(el('p', 'small', (g.alone == null ? 'Nobody has collected any of it yet' : 'Nobody has collected any of it in ' + Math.floor(g.alone) + ' days')
-        + ', so a walk that collects it now earns the left-alone bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
+        + ', so a walk that collects it now earns the Rescue bonus: ×' + aloneMult(g) + ' on its rating and litter-type XP.'));
       more.appendChild(el('p', 'small', segmentLine(g).replace(/^[^:]*: /, '')));
       more.appendChild(confidenceLine(g, 'small lt-pop-conf'));
       if (g.days != null) more.appendChild(el('p', 'muted small', 'Its clock started ' + (g.days < 1 ? 'less than a day' : round(g.days, 1) + ' days') + ' ago.'));
@@ -7910,7 +7928,7 @@ window.LitterQuest = function (app) {
       quest = merge(quest, d.quest);
       list = [quest];
       if (n === 3) keep(GEAR_KEY, null);
-      if (app.onQuestChanged) app.onQuestChanged({ quest: quest, xp: d.xp });
+      if (app.onQuestChanged) app.onQuestChanged({ quest: quest, xp: d.xp, level: d.level });
       render();
       if (quest.done && !was) blue('Your first quest is done: ' + quest.doneXp + ' more XP. Ready: start your first collection.');
     }, function (err) {

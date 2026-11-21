@@ -200,7 +200,8 @@ function badgesEarn_(account) {
 // For a response: anything just earned, taking the lock only when there is.
 function badgesNow_(account) {
   if (lockDepth_ > 0) return badgesEarn_(account);
-  return badgesDue_(account).length ? withLock_(function () { return badgesEarn_(account); }) : [];
+  // With their XP written down (S7-P1).
+  return badgesDue_(account).length ? withLock_(function () { var e = badgesEarn_(account); xpSettle_(account.id, false); return e; }) : [];
 }
 
 /* ── Your badges (the screen) ── */

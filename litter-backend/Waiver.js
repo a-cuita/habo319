@@ -72,9 +72,8 @@ function recordSignature_(account, w, bytes, now) {
   var row = lastRowWith_(sheet, 2) + 1;
   sheet.getRange(row, 1, 1, 9).setValues([[now, account.id, safeCell_(name), safeCell_(account.email), safeCell_(w.title), w.fingerprint,
     safeCell_(name), link, '']]);
-  var accounts = getDb_().getSheetByName(TABS.accounts.name);
-  accounts.getRange(account.row, ACCOUNT_COL.signed, 1, 5).setValues([[now, safeCell_(w.title), w.fingerprint, safeCell_(name), link]]);
-  accounts.getRange(account.row, ACCOUNT_COL.updated).setValue(now);
+  // The latest signing on the account; the name and signature only in Waiver Signatures (S7-P1, |Q843 (a)).
+  setAccountCells_(account.row, { signed: now, waiver: safeCell_(w.title), waiverPrint: w.fingerprint, updated: now });
   logChange_(name, 'Signed', account.id + ' ' + account.handle, 'Waiver', account.waiverPrint, w.fingerprint);
   return { row: row, at: now, title: w.title, text: w.text, fingerprint: w.fingerprint, name: name, bytes: bytes };
 }

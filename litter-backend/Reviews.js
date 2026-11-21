@@ -180,6 +180,8 @@ function reviewMove_(req) {
       logChange_(account.email, 'Segment', g.id, 'Accepted', before, after + (kind === 'approve' ? ' (' + xp + ' XP)' : '') + ', in a review');
       // An approved segment builds rates from every walk already on it.
       if (kind === 'approve') measureWorld_(false, '');
+      // Its maker's XP, written down (S7-P1).
+      if (kind === 'approve' && g.by) xpSettle_(g.by, false);
     }
     return reviewsView_(account);
   });
@@ -208,6 +210,7 @@ function additionMove_(account, id, kind, move, xp, note) {
         segs.getRange(g.row, SEGMENT_COL.miles).setValue(miles);
         logChange_(account.email, 'Segment', g.id, 'Squares', g.squares.length + ' squares, ' + g.miles + ' mi', squares.length + ' squares, ' + miles + ' mi, with ' + a.id + ' (' + xp + ' XP)');
         measureWorld_(false, '');
+        if (a.by) xpSettle_(a.by, false);   // the asker's XP, written down (S7-P1)
       } else logChange_(account.email, 'Segment addition', a.id, 'State', 'Waiting', 'Declined');
     }
     return reviewsView_(account);

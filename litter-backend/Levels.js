@@ -95,6 +95,6 @@ function classSkills_() {
 function requireSkill_(account, key) {
   var s = classSkills_().filter(function (x) { return x.key === key; })[0];
   if (!s || !s.level) return;
-  var have = levelOf_(xpOf_(account.id), levelRanges_());
+  var have = levelFor_(account.id);   // kept once reached (S7-P1, |Q745 (a))
   if (have < s.level) throw new Error(s.name + ' unlocks at Level ' + s.level + '. You\'re at Level ' + have + '.');
 }

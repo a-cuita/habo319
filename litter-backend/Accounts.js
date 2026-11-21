@@ -10,8 +10,46 @@
  * request; the Devices tab keeps only its fingerprint.
  */
 
+// Accounts' columns, found by their headings each time the tab is read
+// (S7-P1): these are only where a new Accounts tab has them.
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
-  waiver: 10, waiverPrint: 11, signedName: 12, signature: 13, volunteer: 14, updated: 15, status: 16, quest: 17, questDone: 18, gear: 19, gearAt: 20 };
+  waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19 };
+var ACCOUNT_HEADS = { id: 'Account ID', created: 'Created', first: 'First name', last: 'Last name', email: 'Email', handle: 'Handle',
+  shows: 'Map shows', adult: '18 or older', signed: 'Waiver signed', waiver: 'Waiver', waiverPrint: 'Waiver fingerprint',
+  volunteer: 'Check-in volunteer', updated: 'Updated', status: 'Status', gear: 'Safety gear', gearAt: 'Safety gear confirmed',
+  xp: 'XP', level: 'Level', levels: 'Levels reached',
+  // No longer written or read (|Q842 (a)): found only while still there, for the once-only step that copied them.
+  quest: 'First quest', questDone: 'First quest finished' };
+function accountColsFrom_(head) {
+  var at = {};
+  head.forEach(function (h, i) { var k = String(h).trim(); if (k && !at[k]) at[k] = i + 1; });
+  Object.keys(ACCOUNT_HEADS).forEach(function (k) {
+    if (at[ACCOUNT_HEADS[k]]) ACCOUNT_COL[k] = at[ACCOUNT_HEADS[k]];
+    else if (k === 'quest' || k === 'questDone') delete ACCOUNT_COL[k];
+  });
+}
+// The Accounts tab's rows under its headings, as shown, read once per request,
+// with ACCOUNT_COL set from the headings.
+function accountValues_() {
+  var keep = lockDepth_ === 0, key = TABS.accounts.name + ' (shown)';
+  var values = keep ? readMemo_[key] : null;
+  if (!values) {
+    var sheet = getDb_().getSheetByName(TABS.accounts.name);
+    var last = lastRowWith_(sheet, 1), width = Math.max(sheet.getLastColumn(), TABS.accounts.header.length);
+    values = sheet.getRange(1, 1, Math.max(1, last), width).getDisplayValues();
+    if (keep) readMemo_[key] = values;
+  }
+  accountColsFrom_(values[0] || []);
+  return values.slice(1).map(function (r) { return r.slice(); });
+}
+// Writes some of an account's cells by name: in one call when they sit side by side.
+function setAccountCells_(row, vals) {
+  var sheet = getDb_().getSheetByName(TABS.accounts.name);
+  var keys = Object.keys(vals).sort(function (a, b) { return ACCOUNT_COL[a] - ACCOUNT_COL[b]; });
+  var first = ACCOUNT_COL[keys[0]], side = keys.every(function (k, i) { return ACCOUNT_COL[k] === first + i; });
+  if (side) sheet.getRange(row, first, 1, keys.length).setValues([keys.map(function (k) { return vals[k]; })]);
+  else keys.forEach(function (k) { sheet.getRange(row, ACCOUNT_COL[k]).setValue(vals[k]); });
+}
 
 // Renewing the waiver, and confirming your safety gear with it (S6-P30, |Q671,
 // |Q716): every 2 months to start, a setting (0: never). Its renewal shows as
@@ -106,11 +144,15 @@ function setUp_(req) {
     if (gear) { row[ACCOUNT_COL.gear - 1] = gearText_(gear); row[ACCOUNT_COL.gearAt - 1] = now; }
     var sheet = getDb_().getSheetByName(TABS.accounts.name);
     var at = lastRowWith_(sheet, ACCOUNT_COL.id) + 1;
-    sheet.getRange(at, 1, 1, TABS.accounts.header.length).setValues([TABS.accounts.header.map(function (h, i) { return row[i] == null ? '' : row[i]; })]);
+    // As wide as its columns reach, wherever they are (S7-P1).
+    var width = Math.max.apply(null, Object.keys(ACCOUNT_COL).map(function (k) { return ACCOUNT_COL[k]; }));
+    for (var c = 0; c < width; c++) if (row[c] == null) row[c] = '';
+    sheet.getRange(at, 1, 1, width).setValues([row.slice(0, width)]);
     logChange_(name, 'Set up', id + ' ' + a.handle, 'Account', '', a.email);
     var account = readAccounts_().filter(function (x) { return x.id === id; })[0];
     var signing = recordSignature_(account, w, signature, now);
     questStart_(id, now);   // the first quest starts at sign-up (S5-P20)
+    xpSettle_(id, false);   // with step 1's XP, in their own tab (S7-P1)
     return { account: account, signing: signing, token: newDevice_(id, 'Set up', now) };
   });
   // Every player a HABO volunteer from sign-up (S5-P26): their check-in
@@ -132,7 +174,7 @@ function signWaiver_(req) {
   var gear = gearOf_(req);
   var signing = withLock_(function () {
     var now = new Date(), done = recordSignature_(account, w, signature, now);
-    if (gear) getDb_().getSheetByName(TABS.accounts.name).getRange(account.row, ACCOUNT_COL.gear, 1, 2).setValues([[gearText_(gear), now]]);
+    if (gear) setAccountCells_(account.row, { gear: gearText_(gear), gearAt: now });
     return done;
   });
   var copy = emailWaiverCopy_(account, signing);
@@ -211,13 +253,15 @@ function signOut_(req) {
 // Every account, with its row in the Sheet.
 function readAccounts_() {
   // Read once per request (S6-P1, tabValues_ in Code.js), as shown in the Sheet.
-  return tabValues_(TABS.accounts, ACCOUNT_COL.id, true).map(function (r, i) {
-    var get = function (k) { return String(r[ACCOUNT_COL[k] - 1]).trim(); };
+  return accountValues_().map(function (r, i) {
+    var get = function (k) { var c = ACCOUNT_COL[k]; return c && r[c - 1] != null ? String(r[c - 1]).trim() : ''; };
     return {
       row: i + 2, id: get('id'), first: get('first'), last: get('last'), email: get('email').toLowerCase(),
       handle: get('handle'), shows: get('shows'), signed: get('signed'), waiver: get('waiver'), waiverPrint: get('waiverPrint'),
       volunteer: get('volunteer'), created: get('created'), rank: rankOf_(get('status')), active: get('status') === 'Active' || !!rankOf_(get('status')),
-      quest: get('quest'), questDone: get('questDone'), gear: get('gear'), gearAt: get('gearAt')
+      gear: get('gear'), gearAt: get('gearAt'),
+      // Their XP and level, written with their XP tab (S7-P1): a level once reached is kept (|Q745 (a)).
+      xp: Number(get('xp').replace(/,/g, '')) || 0, level: Number(get('level')) || 0, levels: get('levels')
     };
   }).filter(function (a) { return a.id; });
 }
