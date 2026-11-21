@@ -6665,16 +6665,19 @@ window.LitterMap = function (app) {
     ['Day', 'By', index ? 'Litter Index' : 'lb/mi·day⁻¹'].forEach(function (h) { head.appendChild(el('th', null, h)); });
     t.appendChild(head);
     walks.forEach(function (w) {
-      var tr = el('tr', 'lt-pop-walk' + (w.none ? ' none' : ''));
+      // On the Litter Index layer, nothing about rates (S7-P19, |C1064): no greying,
+      // no "No rate" or Why?, no reasons and no footnote; each walk's Litter Index only.
+      var rateNone = w.none && !index;
+      var tr = el('tr', 'lt-pop-walk' + (rateNone ? ' none' : ''));
       var own = index && w.idx ? w.idx[cell] : null, seg = index && own == null ? segReading(w, g) : null;
       var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : w.none ? '' : String(round(w.rate, 2));
       // Under 24 hours after the clock started: an asterisk, and the footnote under the table (S7-P19, item 3).
-      if (w.none && w.pickup) starred = true;
-      [dayWords(w.collected) + (w.none && w.pickup ? '*' : ''), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
+      if (rateNone && w.pickup) starred = true;
+      [dayWords(w.collected) + (rateNone && w.pickup ? '*' : ''), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
       var last = el('td', null, v);
       // A walk that gave no rate (S6-P34, |Q782 (a)): greyed, "No rate" and
       // a link to the Wiki's page on why, in its line; its reason under it.
-      if (w.none) {
+      if (rateNone) {
         if (v) last.appendChild(document.createTextNode(' · '));
         // Why? only on the newest walk that gave no rate (S7-P19, item 2).
         last.appendChild(document.createTextNode(whyShown ? 'No rate' : 'No rate · '));
@@ -6683,7 +6686,7 @@ window.LitterMap = function (app) {
       }
       tr.appendChild(last);
       t.appendChild(tr);
-      if (w.none) {
+      if (rateNone) {
         var why = el('tr', 'lt-pop-why'), td = el('td', null, w.why);
         td.colSpan = 3;
         why.appendChild(td);
