@@ -183,7 +183,8 @@ function xpDues_(accountId, by) {
     if (it.account === accountId && it.state === 'Approved') out.push({ key: 'item:' + it.id, kind: 'Skill', xp: it.xp, at: it.sent, say: (names[it.skill] || 'A skill') + ', sent and approved' });
   });
   if (challengesAll_().length) challengeGains_(accountId, items, snapOf).forEach(function (g) {
-    if (!g.xp && !by[g.key] && !g.done) return;
+    // A Quest always, so a finish that no longer holds is seen (|Q913 (a)); with no XP, it writes no row.
+    if (!g.xp && !by[g.key] && !g.done && g.kind !== 'Quest') return;
     var end = Math.min(Date.now(), g.to ? g.to + DAY_MS - 1 : Date.now());
     out.push({ key: g.key, kind: g.kind, xp: g.xp, at: end, say: g.say, snap: g.snap, done: g.done, quest: g.quest });
   });
@@ -298,8 +299,11 @@ function xpCatchUpQuests_(accountId) {
   if (!challengesAll_().length) return;
   var by = xpByKey_(xpRows_(accountId));
   var snapOf = function (key) { var b = by[key]; return b && b.first.detail && b.first.detail.snap || null; };
-  var differs = challengeGains_(accountId, null, snapOf).some(function (g) { return Math.abs(g.xp - (by[g.key] ? by[g.key].xp : 0)) >= 0.005; });
-  if (differs) withLock_(function () { xpSettle_(accountId, false); });
+  var gains = challengeGains_(accountId, null, snapOf), st = questsOf_(accountId);
+  var differs = gains.some(function (g) { return Math.abs(g.xp - (by[g.key] ? by[g.key].xp : 0)) >= 0.005; });
+  // Or a Quest whose finish no longer holds, or newly does (|Q913 (a)), with no XP to differ.
+  var stale = gains.some(function (g) { return g.kind === 'Quest' && g.quest && st.taken[g.quest] && !g.done !== !st.finished[g.quest]; });
+  if (differs || stale) withLock_(function () { xpSettle_(accountId, false); });
 }
 
 /* ── What the page and Street Talk read ── */
