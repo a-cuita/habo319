@@ -7771,7 +7771,7 @@ window.LitterMap = function (app) {
   var bounties = [], bountyLayer = null;
   function bountyOn(id) { return bounties.filter(function (b) { return b.segments.indexOf(id) !== -1; }).sort(function (p, q) { return q.xp - p.xp; })[0] || null; }
   function bountyLine(b) {
-    return b.sponsor + ': ' + b.reward + ' · +' + b.xp + ' XP · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return b.sponsor + ': ' + b.reward + ' · ' + (b.test ? 'a test, no XP' : '+' + b.xp + ' XP') + ' · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
   function drawBounties() {
     if (!map) return;
@@ -7894,7 +7894,7 @@ window.LitterMap = function (app) {
       box.id = 'seg-' + g.id;
       // A bounty (S7-P11, |Q791): its chip, the sponsor, the reward and the bonus XP.
       if (bty) {
-        box.appendChild(el('span', 'lt-bounty-chip', '🎯 BOUNTY'));
+        box.appendChild(el('span', 'lt-bounty-chip', bty.test ? '🎯 BOUNTY · A TEST' : '🎯 BOUNTY'));
         box.appendChild(el('p', 'lt-bounty-line', bountyLine(bty)));
       }
       // Its kind, Path or Field (Oct 31, field first).
@@ -8841,6 +8841,8 @@ window.LitterReviews = function (app) {
         return app.api('reviewMove', Object.assign({ token: app.myToken(), segmentId: r.id, xp: xp.value, note: note.value }, body)).then(function (d) {
           use(d);
           app.notice(done);
+          // Your own account approved (|C1112): the top panel shows Sponsorship at once, no reload.
+          if (r.sponsorAsk && body.move === 'approve' && app.sponsorApproved) app.sponsorApproved(r.id);
         });
       });
     };
@@ -9562,7 +9564,7 @@ window.LitterChallenges = function (app) {
       var send = button('btn btn-primary lt-challenge-go', 'Send', function () {
         if (note) got.note = note.value;
         app.busy(send, 'sk-run-err', function () {
-          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note, count: got.count, choice: got.choice }).then(function (d) {
+          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note, count: got.count, choice: got.choice, grabbed: got.grabbed }).then(function (d) {
             skills = d;
             if (app.pendingPin) app.pendingPin(null);
             body.textContent = '';
@@ -11110,7 +11112,8 @@ window.LitterBounties = function (app) {
         var a = app.me();
         a.sponsorName = d.sponsorName; a.sponsorState = d.sponsorState;
         fillAsk(a);
-        app.notice('Asked: an admin approves it in Reviews.');
+        // The notice says what the line under Business or organization says (|C1111).
+        app.notice('Asked, for ' + d.sponsorName + ': an admin approves it, and then Sponsorship shows in the top panel.');
       });
     });
   });
@@ -11152,9 +11155,22 @@ window.LitterBounties = function (app) {
       if (b.state === 'Approved') s.appendChild(el('p', 'small lt-bounty-results', 'So far: ' + b.pounds + ' lb and ' + b.miles + ' mi collected on its segments; earned by ' + b.earnedBy + ' of ' + b.players + '.'));
       if (b.state === 'Declined' && b.note) s.appendChild(el('p', 'small', 'Why: "' + b.note + '"'));
       if (b.state === 'Waiting') s.appendChild(button('btn btn-secondary lt-bounty-change', 'Change', function () { edit(b); }));
+      // A test bounty (Jeremy in chat, Nov 22, (a)): only admins see it, its sponsor can earn it, and it pays no XP.
+      if (b.test) s.appendChild(el('p', 'small lt-bounty-test', 'A test: only admins see it, you can earn it too, and it pays no XP.'));
+      if (adminOn()) s.appendChild(button('btn btn-secondary lt-bounty-testbtn', b.test ? 'Not a test' : 'Mark as a test', function () {
+        var t = this;
+        app.busy(t, 'sp-note', function () {
+          return app.api('bountyTest', { token: app.myToken(), bountyId: b.id, test: !b.test }).then(function (d) {
+            mine.bounties = d.bounties;
+            draw();
+            app.notice(b.name + (b.test ? ' is a bounty for players again.' : ' is a test now: only admins see it, and it pays no XP.'));
+          });
+        });
+      }));
       box.appendChild(s);
     });
   }
+  function adminOn() { var a = app.me(); return !!(a && a.rank && $('cl-sim').checked); }
   function segName(id) { var g = ((mine && mine.segments) || []).filter(function (x) { return x.id === id; })[0]; return g ? g.name : id; }
 
   /* ── Sponsor a bounty (item 4) ── */
@@ -11259,7 +11275,7 @@ window.LitterBounties = function (app) {
       var s = el('section', 'card lt-reward' + (r.handed ? ' handed' : ''));
       s.id = 'br-' + r.bounty + '-' + r.account;
       s.appendChild(el('p', 'lt-col-head', r.who + ': ' + r.reward));
-      s.appendChild(el('p', 'small', '🎯 ' + r.name + ', from ' + r.sponsor + ' · earned ' + when(r.earned) + ' · +' + r.xp + ' XP'));
+      s.appendChild(el('p', 'small', '🎯 ' + r.name + ', from ' + r.sponsor + ' · earned ' + when(r.earned) + ' · ' + (r.test ? 'a test, no XP' : '+' + r.xp + ' XP')));
       if (r.handed) s.appendChild(el('p', 'small', 'Handed out ' + when(r.handed) + (r.handedBy ? ' by ' + r.handedBy : '') + '.'));
       s.appendChild(button('btn btn-secondary lt-reward-hand', r.handed ? 'Not handed out yet' : 'Handed out', function () {
         var b = this;
@@ -12431,7 +12447,15 @@ window.LitterScroll = function (app) {
     drawSmallMaps: function (root) { mapper.drawSmallMaps(root); },
     openForum: function (id) { forum.openReview(id); },
     challengePhoto: function (id, img, button, which) { return challenges.photoInto(id, img, button, which); },
-    cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); }
+    cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); },
+    // An admin approving their own Business/Organization flag (|C1112): shown at once.
+    sponsorApproved: function (id) {
+      var a = state.account;
+      if (!a || id !== 'SP-' + a.id) return;
+      a.sponsorState = 'Yes';
+      fillBar(a);
+      if (typeof bounties !== 'undefined' && bounties) bounties.onAccount(a);
+    }
   });
 
   /* ── Challenges (S6-P8, challenges.js) ── */

@@ -138,6 +138,8 @@ window.LitterReviews = function (app) {
         return app.api('reviewMove', Object.assign({ token: app.myToken(), segmentId: r.id, xp: xp.value, note: note.value }, body)).then(function (d) {
           use(d);
           app.notice(done);
+          // Your own account approved (|C1112): the top panel shows Sponsorship at once, no reload.
+          if (r.sponsorAsk && body.move === 'approve' && app.sponsorApproved) app.sponsorApproved(r.id);
         });
       });
     };

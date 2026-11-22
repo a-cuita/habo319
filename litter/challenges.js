@@ -350,7 +350,7 @@ window.LitterChallenges = function (app) {
       var send = button('btn btn-primary lt-challenge-go', 'Send', function () {
         if (note) got.note = note.value;
         app.busy(send, 'sk-run-err', function () {
-          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note, count: got.count, choice: got.choice }).then(function (d) {
+          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note, count: got.count, choice: got.choice, grabbed: got.grabbed }).then(function (d) {
             skills = d;
             if (app.pendingPin) app.pendingPin(null);
             body.textContent = '';

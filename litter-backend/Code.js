@@ -265,8 +265,9 @@ var TABS = {
   // Bounties from businesses (S7-P11): each a sponsor's, approved by an admin; and who earned which.
   bounties: {
     name: 'Bounties',
-    header: ['Bounty ID', 'Account ID', 'Sponsor', 'Name', 'Segments', 'From', 'To', 'Players', 'Reward', 'Bonus XP', 'Donation', 'State', 'Made', 'Decided by', 'Decided', 'Note'],
-    widths: [80, 90, 180, 200, 220, 100, 100, 70, 260, 70, 100, 80, 150, 100, 150, 260],
+    // A test (S7-P11, Jeremy in chat, Nov 22, (a)): Yes, set by an admin in Admin Mode.
+    header: ['Bounty ID', 'Account ID', 'Sponsor', 'Name', 'Segments', 'From', 'To', 'Players', 'Reward', 'Bonus XP', 'Donation', 'State', 'Made', 'Decided by', 'Decided', 'Note', 'A test'],
+    widths: [80, 90, 180, 200, 220, 100, 100, 70, 260, 70, 100, 80, 150, 100, 150, 260, 60],
     formats: { 5: '@', 6: 'yyyy-mm-dd', 7: 'yyyy-mm-dd', 13: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm' }
   },
   bountyEarned: {
@@ -294,9 +295,10 @@ var TABS = {
   },
   challengeItems: {
     name: 'Challenge items',
-    // Count, Choice, an After photo, and the Walk it was sent on (S7-P4 items 7 and 9).
-    header: ['Item ID', 'Skill ID', 'Account ID', 'Sent', 'Latitude', 'Longitude', 'Accuracy (m)', 'Photo', 'Note', 'State', 'Near segment', 'XP', 'Count', 'Choice', 'After photo', 'Walk'],
-    widths: [80, 90, 90, 150, 90, 90, 80, 260, 300, 80, 90, 50, 60, 120, 260, 80],
+    // Count, Choice, an After photo, and the Walk it was sent on (S7-P4 items 7 and 9);
+    // Grabbed: Yes when it was sent through Grab a location (S7-P4, Jeremy in chat, Nov 22).
+    header: ['Item ID', 'Skill ID', 'Account ID', 'Sent', 'Latitude', 'Longitude', 'Accuracy (m)', 'Photo', 'Note', 'State', 'Near segment', 'XP', 'Count', 'Choice', 'After photo', 'Walk', 'Grabbed'],
+    widths: [80, 90, 90, 150, 90, 90, 80, 260, 300, 80, 90, 50, 60, 120, 260, 80, 70],
     formats: { 4: 'yyyy-mm-dd h:mm', 8: '@', 9: '@', 15: '@' }
   },
   additions: {
@@ -394,7 +396,8 @@ function actions_() {
     sponsorLoad: sponsorLoad_,   // a sponsor's bounties, and the segments to pick from
     bountySave: bountySave_,     // Sponsor a bounty
     bountyRewards: bountyRewards_,   // Admin Mode: who earned which reward
-    bountyHanded: bountyHanded_,     // ...and handed out
+    bountyHanded: bountyHanded_,
+    bountyTest: bountyTest_,     // an admin marks a bounty a test, or not     // ...and handed out
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,

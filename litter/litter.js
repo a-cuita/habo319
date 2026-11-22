@@ -858,7 +858,15 @@
     drawSmallMaps: function (root) { mapper.drawSmallMaps(root); },
     openForum: function (id) { forum.openReview(id); },
     challengePhoto: function (id, img, button, which) { return challenges.photoInto(id, img, button, which); },
-    cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); }
+    cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); },
+    // An admin approving their own Business/Organization flag (|C1112): shown at once.
+    sponsorApproved: function (id) {
+      var a = state.account;
+      if (!a || id !== 'SP-' + a.id) return;
+      a.sponsorState = 'Yes';
+      fillBar(a);
+      if (typeof bounties !== 'undefined' && bounties) bounties.onAccount(a);
+    }
   });
 
   /* ── Challenges (S6-P8, challenges.js) ── */

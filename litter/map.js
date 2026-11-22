@@ -1247,7 +1247,7 @@ window.LitterMap = function (app) {
   var bounties = [], bountyLayer = null;
   function bountyOn(id) { return bounties.filter(function (b) { return b.segments.indexOf(id) !== -1; }).sort(function (p, q) { return q.xp - p.xp; })[0] || null; }
   function bountyLine(b) {
-    return b.sponsor + ': ' + b.reward + ' · +' + b.xp + ' XP · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    return b.sponsor + ': ' + b.reward + ' · ' + (b.test ? 'a test, no XP' : '+' + b.xp + ' XP') + ' · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   }
   function drawBounties() {
     if (!map) return;
@@ -1370,7 +1370,7 @@ window.LitterMap = function (app) {
       box.id = 'seg-' + g.id;
       // A bounty (S7-P11, |Q791): its chip, the sponsor, the reward and the bonus XP.
       if (bty) {
-        box.appendChild(el('span', 'lt-bounty-chip', '🎯 BOUNTY'));
+        box.appendChild(el('span', 'lt-bounty-chip', bty.test ? '🎯 BOUNTY · A TEST' : '🎯 BOUNTY'));
         box.appendChild(el('p', 'lt-bounty-line', bountyLine(bty)));
       }
       // Its kind, Path or Field (Oct 31, field first).

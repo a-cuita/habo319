@@ -36,7 +36,8 @@ window.LitterBounties = function (app) {
         var a = app.me();
         a.sponsorName = d.sponsorName; a.sponsorState = d.sponsorState;
         fillAsk(a);
-        app.notice('Asked: an admin approves it in Reviews.');
+        // The notice says what the line under Business or organization says (|C1111).
+        app.notice('Asked, for ' + d.sponsorName + ': an admin approves it, and then Sponsorship shows in the top panel.');
       });
     });
   });
@@ -78,9 +79,22 @@ window.LitterBounties = function (app) {
       if (b.state === 'Approved') s.appendChild(el('p', 'small lt-bounty-results', 'So far: ' + b.pounds + ' lb and ' + b.miles + ' mi collected on its segments; earned by ' + b.earnedBy + ' of ' + b.players + '.'));
       if (b.state === 'Declined' && b.note) s.appendChild(el('p', 'small', 'Why: "' + b.note + '"'));
       if (b.state === 'Waiting') s.appendChild(button('btn btn-secondary lt-bounty-change', 'Change', function () { edit(b); }));
+      // A test bounty (Jeremy in chat, Nov 22, (a)): only admins see it, its sponsor can earn it, and it pays no XP.
+      if (b.test) s.appendChild(el('p', 'small lt-bounty-test', 'A test: only admins see it, you can earn it too, and it pays no XP.'));
+      if (adminOn()) s.appendChild(button('btn btn-secondary lt-bounty-testbtn', b.test ? 'Not a test' : 'Mark as a test', function () {
+        var t = this;
+        app.busy(t, 'sp-note', function () {
+          return app.api('bountyTest', { token: app.myToken(), bountyId: b.id, test: !b.test }).then(function (d) {
+            mine.bounties = d.bounties;
+            draw();
+            app.notice(b.name + (b.test ? ' is a bounty for players again.' : ' is a test now: only admins see it, and it pays no XP.'));
+          });
+        });
+      }));
       box.appendChild(s);
     });
   }
+  function adminOn() { var a = app.me(); return !!(a && a.rank && $('cl-sim').checked); }
   function segName(id) { var g = ((mine && mine.segments) || []).filter(function (x) { return x.id === id; })[0]; return g ? g.name : id; }
 
   /* ── Sponsor a bounty (item 4) ── */
@@ -185,7 +199,7 @@ window.LitterBounties = function (app) {
       var s = el('section', 'card lt-reward' + (r.handed ? ' handed' : ''));
       s.id = 'br-' + r.bounty + '-' + r.account;
       s.appendChild(el('p', 'lt-col-head', r.who + ': ' + r.reward));
-      s.appendChild(el('p', 'small', '🎯 ' + r.name + ', from ' + r.sponsor + ' · earned ' + when(r.earned) + ' · +' + r.xp + ' XP'));
+      s.appendChild(el('p', 'small', '🎯 ' + r.name + ', from ' + r.sponsor + ' · earned ' + when(r.earned) + ' · ' + (r.test ? 'a test, no XP' : '+' + r.xp + ' XP')));
       if (r.handed) s.appendChild(el('p', 'small', 'Handed out ' + when(r.handed) + (r.handedBy ? ' by ' + r.handedBy : '') + '.'));
       s.appendChild(button('btn btn-secondary lt-reward-hand', r.handed ? 'Not handed out yet' : 'Handed out', function () {
         var b = this;

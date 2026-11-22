@@ -202,6 +202,8 @@ function toolSkillSend_(req) {
     row[ITEM_COL.lat - 1] = lat == null ? '' : round_(lat, 6); row[ITEM_COL.lon - 1] = lon == null ? '' : round_(lon, 6); row[ITEM_COL.acc - 1] = acc == null || !isFinite(acc) ? '' : Math.round(acc);
     row[ITEM_COL.photo - 1] = fileId; row[ITEM_COL.note - 1] = safeCell_(note); row[ITEM_COL.state - 1] = twoPhotos ? SKILL_AFTER_DUE : 'Waiting'; row[ITEM_COL.near - 1] = near; row[ITEM_COL.xp - 1] = '';
     row[ITEM_COL.count - 1] = count; row[ITEM_COL.choice - 1] = safeCell_(choice); row[ITEM_COL.walk - 1] = ctx.walk || '';
+    // Sent through Grab a location (S7-P4): only a skill that's one of its whys can be.
+    row[ITEM_COL.grabbed - 1] = req.grabbed && s.whyOf ? 'Yes' : '';
     sheet.getRange(lastRowWith_(sheet, ITEM_COL.id) + 1, 1, 1, row.length).setValues([row]);
     return toolSkillsFor_(account);
   });

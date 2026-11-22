@@ -16,7 +16,7 @@
  */
 var CHALLENGE_COL = { id: 1, name: 2, says: 3, why: 4, kind: 5, actions: 6, near: 7, xpEach: 8, xpNear: 9, milesGoal: 10, segGoal: 11, xpPer: 12, mult: 13,
   from: 14, to: 15, level: 16, state: 17, by: 18, made: 19, skill: 20, goal: 21, xpOne: 22, quest: 23 };
-var ITEM_COL = { id: 1, skill: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12, count: 13, choice: 14, after: 15, walk: 16 };
+var ITEM_COL = { id: 1, skill: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12, count: 13, choice: 14, after: 15, walk: 16, grabbed: 17 };
 var CHALLENGE_KINDS = ['Walk goal', 'Skill goal'];
 var SETTING_CHALLENGE_PHOTOS = 'Challenge photos folder';
 var CHALLENGE_PHOTO_MAX = 2500000;   // characters of a photo sent, about 1.8 MB
@@ -41,7 +41,8 @@ function challengeItemsAll_() {
     return { row: r.row, id: r.get('id'), skill: r.get('skill'), account: r.get('account'), sent: t instanceof Date ? t.getTime() : 0,
       lat: r.get('lat') === '' ? null : Number(r.get('lat')), lon: r.get('lon') === '' ? null : Number(r.get('lon')), acc: r.get('acc') === '' ? null : Number(r.get('acc')),
       photo: r.get('photo'), note: r.get('note'), state: r.get('state') || 'Waiting', near: r.get('near'), xp: Number(r.get('xp')) || 0,
-      count: Number(r.get('count')) || 0, choice: String(r.get('choice') || ''), after: String(r.get('after') || ''), walk: String(r.get('walk') || '') };
+      count: Number(r.get('count')) || 0, choice: String(r.get('choice') || ''), after: String(r.get('after') || ''), walk: String(r.get('walk') || ''),
+      grabbed: /^\s*y/i.test(r.get('grabbed')) };
   }).filter(function (x) { return x.id; });
 }
 
@@ -118,8 +119,11 @@ function skillGoal_(c, accountId, items, scope) {
       return pts.some(function (q) { return LitterGeo.dist(p, q) - LitterGeo.CELL_M / 2 <= metres; });
     };
   }
+  // A Challenge on Grab a location counts every grab, whatever why was picked
+  // (S7-P4, Jeremy in chat, Nov 22, (a)): a grab is sent as its why's skill, marked Grabbed.
+  var grab = toolSkillsAll_().some(function (s) { return s.id === c.skill && s.grab; });
   var n = (items || challengeItemsAll_()).filter(function (x) {
-    return x.skill === c.skill && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x)) && (!scope.spans || inSpans_(x.sent, scope.spans));
+    return (grab ? x.grabbed : x.skill === c.skill) && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x)) && (!scope.spans || inSpans_(x.sent, scope.spans));
   }).length;
   var done = c.goal > 0 && n >= c.goal, counted = c.goal > 0 ? Math.min(n, c.goal) : n;
   return { count: n, done: done, xp: round_(counted * c.xpOne * (done ? c.mult : 1), 2) };

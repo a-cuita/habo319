@@ -16,8 +16,13 @@
  * mostly covered, the rate's share, by walks with their GPX track), up to its
  * number of players, first come (|Q772 (a)): its bonus XP, written to their XP
  * tab, and its reward (|Q771 (c)), handed out by HABO from the list in Admin Mode.
+ *
+ * A test bounty (Jeremy in chat, Nov 22, (a)), marked by an admin in Admin
+ * Mode, like a test Quest: only admins see it, its sponsor can earn it too,
+ * and it pays no XP. Real bounties keep the rule that a sponsor can't earn
+ * their own.
  */
-var BOUNTY_COL = { id: 1, account: 2, sponsor: 3, name: 4, segments: 5, from: 6, to: 7, players: 8, reward: 9, xp: 10, donation: 11, state: 12, made: 13, by: 14, decided: 15, note: 16 };
+var BOUNTY_COL = { id: 1, account: 2, sponsor: 3, name: 4, segments: 5, from: 6, to: 7, players: 8, reward: 9, xp: 10, donation: 11, state: 12, made: 13, by: 14, decided: 15, note: 16, test: 17 };
 var EARNED_COL = { bounty: 1, account: 2, earned: 3, xp: 4, reward: 5, handed: 6, handedBy: 7 };
 var SETTING_BOUNTY_XP_MIN = 'Bounties: bonus XP at least';
 var SETTING_BOUNTY_XP_MAX = 'Bounties: bonus XP at most';
@@ -30,7 +35,7 @@ function bountiesAll_() {
     return { row: r.row, id: String(r.get('id')).trim(), account: String(r.get('account')).trim(), sponsor: String(r.get('sponsor')), name: String(r.get('name')),
       segments: String(r.get('segments')).split(/[\s,]+/).filter(String), from: d('from'), to: d('to'), players: Math.max(1, Math.floor(Number(r.get('players')) || 1)),
       reward: String(r.get('reward')), xp: Number(r.get('xp')) || 0, donation: String(r.get('donation') || ''), state: String(r.get('state') || 'Waiting').trim(),
-      made: d('made'), by: String(r.get('by') || ''), decided: d('decided'), note: String(r.get('note') || '') };
+      made: d('made'), by: String(r.get('by') || ''), decided: d('decided'), note: String(r.get('note') || ''), test: /^\s*y/i.test(r.get('test')) };
   }).filter(function (b) { return b.id; });
 }
 function bountyEarnedAll_() {
@@ -152,7 +157,7 @@ function bountyMeasure_(b) {
 function bountyOut_(b, now, earned) {
   var n = earned ? earned.filter(function (e) { return e.bounty === b.id; }).length : null;
   var o = { id: b.id, name: b.name, sponsor: b.sponsor, segments: b.segments, from: b.from, to: b.to, players: b.players, reward: b.reward, xp: b.xp,
-    donation: b.donation, state: b.state, live: bountyLive_(b, now), made: b.made };
+    donation: b.donation, state: b.state, live: bountyLive_(b, now), made: b.made, test: b.test };
   if (n != null) o.left = Math.max(0, b.players - n);
   return o;
 }
@@ -163,7 +168,8 @@ function bountyOut_(b, now, earned) {
 // how many can still earn it, and whether you've earned it.
 function bountiesFor_(account) {
   var now = Date.now(), earned = bountyEarnedAll_();
-  return bountiesAll_().filter(function (b) { return bountyLive_(b, now); }).map(function (b) {
+  // A test bounty only for admins, like a test Quest.
+  return bountiesAll_().filter(function (b) { return bountyLive_(b, now) && (!b.test || (account && account.rank)); }).map(function (b) {
     var o = bountyOut_(b, now, earned);
     o.mine = !!account && earned.some(function (e) { return e.bounty === b.id && e.account === account.id; });
     o.yours = !!account && b.account === account.id;
@@ -176,7 +182,9 @@ function bountiesFor_(account) {
 // Each bounty this player has now collected all of, while it runs, with room
 // left: written as earned, first come. Under the lock (xpSettle_'s).
 function bountyCheck_(accountId) {
-  var now = Date.now(), all = bountiesAll_().filter(function (b) { return b.state === 'Approved' && b.account !== accountId; });
+  // A sponsor can't earn their own, except a test bounty, which only admins see and earn.
+  var me = readAccounts_().filter(function (a) { return a.id === accountId; })[0], admin = !!(me && me.rank);
+  var now = Date.now(), all = bountiesAll_().filter(function (b) { return b.state === 'Approved' && (b.test ? admin : b.account !== accountId); });
   if (!all.length) return;
   var earned = bountyEarnedAll_();
   var open = all.filter(function (b) { return !earned.some(function (e) { return e.bounty === b.id && e.account === accountId; }) && earned.filter(function (e) { return e.bounty === b.id; }).length < b.players; });
@@ -206,7 +214,7 @@ function bountyCheck_(accountId) {
     if (!all) return;
     var row = blankRow_(TABS.bountyEarned);
     row[EARNED_COL.bounty - 1] = b.id; row[EARNED_COL.account - 1] = accountId; row[EARNED_COL.earned - 1] = new Date(Math.min(now, to - 1));
-    row[EARNED_COL.xp - 1] = b.xp; row[EARNED_COL.reward - 1] = safeCell_(b.reward);
+    row[EARNED_COL.xp - 1] = b.test ? 0 : b.xp; row[EARNED_COL.reward - 1] = safeCell_(b.reward);   // a test pays no XP
     sheet.getRange(lastRowWith_(sheet, EARNED_COL.bounty) + 1, 1, 1, row.length).setValues([row]);
     wrote = true;
   });
@@ -271,7 +279,7 @@ function bountyRewardsView_() {
   bountiesAll_().forEach(function (b) { names[b.id] = b; });
   return { rewards: bountyEarnedAll_().map(function (e) {
     var b = names[e.bounty] || {};
-    return { bounty: e.bounty, name: b.name || e.bounty, sponsor: b.sponsor || '', who: handles[e.account] || e.account, account: e.account, earned: e.earned, reward: e.reward, xp: e.xp, handed: e.handed, handedBy: e.handedBy };
+    return { bounty: e.bounty, name: b.name || e.bounty, sponsor: b.sponsor || '', who: handles[e.account] || e.account, account: e.account, earned: e.earned, reward: e.reward, xp: e.xp, handed: e.handed, handedBy: e.handedBy, test: !!b.test };
   }).sort(function (p, q) { return (p.handed ? 1 : 0) - (q.handed ? 1 : 0) || q.earned - p.earned; }) };
 }
 function bountyHanded_(req) {
@@ -284,5 +292,20 @@ function bountyHanded_(req) {
     getDb_().getSheetByName(TABS.bountyEarned.name).getRange(e.row, EARNED_COL.handed, 1, 2).setValues([[req.undo ? '' : new Date(), req.undo ? '' : account.handle || account.email]]);
     forgetReads_();
     return bountyRewardsView_();
+  });
+}
+// An admin marks a bounty a test, or not (Jeremy in chat, Nov 22, (a)).
+function bountyTest_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (!account.rank) throw new Error('Marking a bounty a test is for HABO\'s admins.');
+  return withLock_(function () {
+    var b = bountiesAll_().filter(function (x) { return x.id === clean_(req.bountyId, 20); })[0];
+    if (!b) throw new Error('That bounty isn\'t here any more.');
+    var test = !!req.test;
+    getDb_().getSheetByName(TABS.bounties.name).getRange(b.row, BOUNTY_COL.test).setValue(test ? 'Yes' : '');
+    logChange_(account.email, 'Bounty', b.id, 'A test', b.test ? 'Yes' : '', test ? 'Yes' : '');
+    forgetReads_();
+    return isSponsor_(account) ? sponsorView_(account) : { bounties: [] };
   });
 }
