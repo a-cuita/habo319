@@ -187,6 +187,8 @@ function xpDues_(accountId, by) {
     var end = Math.min(Date.now(), g.to ? g.to + DAY_MS - 1 : Date.now());
     out.push({ key: g.key, kind: g.kind, xp: g.xp, at: end, say: g.say, snap: g.snap, done: g.done, quest: g.quest });
   });
+  // Bounties earned (S7-P11), with the XP they had then.
+  bountyDues_(accountId).forEach(function (d) { out.push(d); });
   // Badges (S6-P6), with the XP they had when earned.
   badgesAll_().forEach(function (b) {
     if (b.account === accountId) out.push({ key: 'badge:' + b.achievement, kind: 'Badge', xp: b.xp, at: b.earned, say: 'The badge ' + (b.badge ? b.badge + ' ' : '') + '"' + b.name + '"' });
@@ -204,6 +206,7 @@ function xpLevelRow_(n, at) {
 // move-in (item 8, |Q731), each row at the time it was earned, and each
 // level when it was reached. Returns { total, level, added }.
 function xpSettle_(accountId, moving) {
+  if (!moving) bountyCheck_(accountId);   // a bounty now collected, while it runs, with room left (S7-P11)
   var rows = xpRows_(accountId), by = xpByKey_(rows), now = Date.now(), add = [];
   var dues = xpDues_(accountId, by);
   dues.forEach(function (d) {

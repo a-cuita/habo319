@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=78">
+<link rel="stylesheet" href="litter.css?v=79">
 </head>
 <body>
 
@@ -88,6 +88,14 @@
           <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
           <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
           <p class="err" id="ed-err" role="alert"></p>
+          <!-- At its foot (S7-P11, |M1138): a business or organization asks for the flag; an admin approves it in Reviews. -->
+          <div class="lt-sponsor-ask" id="ed-sponsor">
+            <h3>Business or organization</h3>
+            <p class="muted small" id="ed-sponsor-say"></p>
+            <div class="ig" id="ed-sponsor-row"><label for="ed-sponsor-name">Its name</label><input id="ed-sponsor-name" maxlength="80"></div>
+            <button class="btn btn-secondary" id="ed-sponsor-ask" type="button">Ask for a Business/Organization account</button>
+            <p class="err" id="ed-sponsor-err" role="alert"></p>
+          </div>
         </form>
 
         <section class="card">
@@ -106,6 +114,12 @@
           <button class="btn btn-secondary" id="me-go-wiki" type="button">Wiki</button>
           <!-- Your badges and weekly streak (S6-P6). -->
           <button class="btn btn-secondary" id="me-go-badges" type="button">Badges</button>
+        </section>
+        <!-- Sponsorship (S7-P11, |Q792): a sponsor's own part, set apart by a heading and a line, in the same look. -->
+        <section class="card lt-sponsor-box" id="sp-box" hidden>
+          <h3 class="lt-sponsor-head">Sponsorship · <span id="sp-name"></span></h3>
+          <button class="btn btn-secondary" id="me-go-sponsor" type="button">Your bounties</button>
+          <button class="btn btn-secondary" id="me-go-sponsor-new" type="button">Sponsor a bounty</button>
         </section>
         <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
         <section class="card">
@@ -133,6 +147,8 @@
           <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Quest Drafting Bench</button>
           <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)): a Builder or above makes them. -->
           <button class="btn btn-secondary" id="me-go-achievements" type="button" hidden>Achievements</button>
+          <!-- Who earned which bounty reward, to hand out (S7-P11, |Q771). -->
+          <button class="btn btn-secondary" id="me-go-rewards" type="button" hidden>Bounty rewards</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
           <!-- Its Wiki page (S6-P9, |Q665 (a)), shown with the words above. -->
           <div class="muted small" id="cl-sim-wiki" hidden></div>
@@ -777,6 +793,9 @@
         <select id="seg-sort">
           <option value="need">Greatest need</option>
           <option value="near">Nearest to me</option>
+          <!-- S7-P11 (|Q791): for everyone. -->
+          <option value="xp">XP bonus</option>
+          <option value="bounty">Bounty bonus</option>
         </select>
       </div>
       <div id="segments-list"></div>
@@ -1027,6 +1046,47 @@
   </div>
 
   <!-- Your badges (S6-P6): the weekly streak, then each achievement, earned or not yet. -->
+  <!-- A sponsor's bounties, and Sponsor a bounty (S7-P11). -->
+  <div id="v-sponsor" hidden>
+    <section class="card">
+      <h2>Your bounties</h2>
+      <p class="muted small" id="sp-note"></p>
+      <button class="btn btn-primary" id="sp-new" type="button">Sponsor a bounty</button>
+    </section>
+    <section class="card" id="sp-form" hidden>
+      <h2 id="sp-form-title">Sponsor a bounty</h2>
+      <div class="ig"><label for="sp-f-name">Its name</label><input id="sp-f-name" maxlength="80"></div>
+      <div class="ig">
+        <span class="lt-label">Its segments</span>
+        <p class="muted small">Tap a segment on the map to add it, or tap it again to take it off. A segment near you that isn't public yet: draw it as a private segment and propose it, like any player.</p>
+        <div class="lt-qb-map" id="sp-map" aria-label="Map of the public segments"></div>
+        <div class="lt-qb-segs" id="sp-segs"></div>
+      </div>
+      <div class="row2">
+        <div class="ig"><label for="sp-f-from">From</label><input id="sp-f-from" type="date"></div>
+        <div class="ig"><label for="sp-f-to">To</label><input id="sp-f-to" type="date"></div>
+      </div>
+      <div class="ig"><label for="sp-f-players">How many players can earn it</label><input id="sp-f-players" type="number" min="1" max="1000" step="1" inputmode="numeric"></div>
+      <div class="ig"><label for="sp-f-reward">The reward, a line</label><input id="sp-f-reward" maxlength="200" placeholder="10% off a coffee"></div>
+      <div class="ig"><label for="sp-f-xp">Its bonus XP</label><input id="sp-f-xp" type="number" step="1" inputmode="numeric"><p class="muted small" id="sp-f-xp-say"></p></div>
+      <p class="small" id="sp-f-donation"></p>
+      <button class="btn btn-primary" id="sp-f-save" type="button">Send it for approval</button>
+      <button class="btn btn-secondary" id="sp-f-cancel" type="button">Cancel</button>
+      <p class="err" id="sp-f-err" role="alert"></p>
+    </section>
+    <div id="sp-list"></div>
+    <button class="lt-fab-back" id="sp-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+  <!-- Bounty rewards, in Admin Mode (S7-P11, |Q771). -->
+  <div id="v-rewards" hidden>
+    <section class="card">
+      <h2>Bounty rewards</h2>
+      <p class="muted small" id="br-note"></p>
+    </section>
+    <div id="br-list"></div>
+    <button class="lt-fab-back" id="br-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
   <div id="v-badges" hidden>
     <section class="card">
       <h2>Badges</h2>
@@ -1210,16 +1270,17 @@
 <script src="geo.js?v=12"></script>
 <script src="share.js?v=9"></script>
 <script src="collect.js?v=69"></script>
-<script src="map.js?v=48"></script>
+<script src="map.js?v=49"></script>
 <script src="quest.js?v=6"></script>
 <script src="settings.js?v=10"></script>
-<script src="reviews.js?v=5"></script>
+<script src="reviews.js?v=6"></script>
 <script src="forum.js?v=7"></script>
 <script src="challenges.js?v=6"></script>
 <script src="wiki.js?v=7"></script>
 <script src="cleanups.js?v=5"></script>
 <script src="achievements.js?v=1"></script>
+<script src="bounties.js?v=1"></script>
 <script src="scroll.js?v=9"></script>
-<script src="litter.js?v=50"></script>
+<script src="litter.js?v=51"></script>
 </body>
 </html>

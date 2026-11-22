@@ -1054,6 +1054,19 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 .lt-layer-toggle { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--border, #cbd5e1); background: none; color: inherit; font: inherit; padding: 10px 12px; cursor: pointer; }
 .lt-layer-toggle::before { content: '☐ '; }
 .lt-layer-toggle.on::before { content: '☑ '; }
+
+/* Bounties (S7-P11): the sponsor's part of the top panel, set apart by a heading and a line (|Q792). */
+.lt-sponsor-box { border-top: 3px solid #b45309; }
+.lt-sponsor-head { margin: 0 0 8px; font-size: 1em; color: #92400e; }
+.lt-sponsor-ask { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border, #cbd5e1); }
+.lt-sponsor-ask h3 { margin: 0 0 6px; font-size: 1em; }
+.lt-reward.handed { opacity: 0.7; }
+/* A bounty's segment on The Priority Segment List (|Q791): loud and eye-catching. */
+.lt-seg-item.lt-seg-bounty { background: linear-gradient(135deg, #fef08a, #fb923c); border: 3px solid #c2410c; color: #431407; }
+.lt-seg-item.lt-seg-bounty .lt-col-head { font-weight: 800; }
+.lt-bounty-chip { display: inline-block; margin: 0 6px 4px 0; padding: 2px 10px; border-radius: 999px; background: #c2410c; color: #fff; font: 800 0.8em/1.6 system-ui, sans-serif; letter-spacing: 0.06em; }
+.lt-bounty-line { margin: 4px 0; font-weight: 700; }
+.lt-bounty-pin { background: none; border: 0; font-size: 26px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
 </style>
 </head>
 <body>
@@ -1135,6 +1148,14 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
           <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
           <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
           <p class="err" id="ed-err" role="alert"></p>
+          <!-- At its foot (S7-P11, |M1138): a business or organization asks for the flag; an admin approves it in Reviews. -->
+          <div class="lt-sponsor-ask" id="ed-sponsor">
+            <h3>Business or organization</h3>
+            <p class="muted small" id="ed-sponsor-say"></p>
+            <div class="ig" id="ed-sponsor-row"><label for="ed-sponsor-name">Its name</label><input id="ed-sponsor-name" maxlength="80"></div>
+            <button class="btn btn-secondary" id="ed-sponsor-ask" type="button">Ask for a Business/Organization account</button>
+            <p class="err" id="ed-sponsor-err" role="alert"></p>
+          </div>
         </form>
 
         <section class="card">
@@ -1153,6 +1174,12 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
           <button class="btn btn-secondary" id="me-go-wiki" type="button">Wiki</button>
           <!-- Your badges and weekly streak (S6-P6). -->
           <button class="btn btn-secondary" id="me-go-badges" type="button">Badges</button>
+        </section>
+        <!-- Sponsorship (S7-P11, |Q792): a sponsor's own part, set apart by a heading and a line, in the same look. -->
+        <section class="card lt-sponsor-box" id="sp-box" hidden>
+          <h3 class="lt-sponsor-head">Sponsorship · <span id="sp-name"></span></h3>
+          <button class="btn btn-secondary" id="me-go-sponsor" type="button">Your bounties</button>
+          <button class="btn btn-secondary" id="me-go-sponsor-new" type="button">Sponsor a bounty</button>
         </section>
         <!-- Players' reports (S5-P28, |Q593): each goes to HABO's admins, in the Forum. -->
         <section class="card">
@@ -1180,6 +1207,8 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
           <button class="btn btn-secondary" id="me-go-challenges" type="button" hidden>Quest Drafting Bench</button>
           <!-- Achievements in Admin Mode (S6-P6, |M861, |Q663 (a)): a Builder or above makes them. -->
           <button class="btn btn-secondary" id="me-go-achievements" type="button" hidden>Achievements</button>
+          <!-- Who earned which bounty reward, to hand out (S7-P11, |Q771). -->
+          <button class="btn btn-secondary" id="me-go-rewards" type="button" hidden>Bounty rewards</button>
           <p class="muted small" id="cl-sim-say" hidden>While this is on, on this computer, the page turns dark, Measure again shows on your walks, and Start collecting begins a simulated walk, at any time of day. You draw that walk on the map, clicking point by point; the end of your line is where you are. It's marked Simulated, and nothing it does reaches the map, XP, volunteer hours or the grant.</p>
           <!-- Its Wiki page (S6-P9, |Q665 (a)), shown with the words above. -->
           <div class="muted small" id="cl-sim-wiki" hidden></div>
@@ -1824,6 +1853,9 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
         <select id="seg-sort">
           <option value="need">Greatest need</option>
           <option value="near">Nearest to me</option>
+          <!-- S7-P11 (|Q791): for everyone. -->
+          <option value="xp">XP bonus</option>
+          <option value="bounty">Bounty bonus</option>
         </select>
       </div>
       <div id="segments-list"></div>
@@ -2074,6 +2106,47 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
   </div>
 
   <!-- Your badges (S6-P6): the weekly streak, then each achievement, earned or not yet. -->
+  <!-- A sponsor's bounties, and Sponsor a bounty (S7-P11). -->
+  <div id="v-sponsor" hidden>
+    <section class="card">
+      <h2>Your bounties</h2>
+      <p class="muted small" id="sp-note"></p>
+      <button class="btn btn-primary" id="sp-new" type="button">Sponsor a bounty</button>
+    </section>
+    <section class="card" id="sp-form" hidden>
+      <h2 id="sp-form-title">Sponsor a bounty</h2>
+      <div class="ig"><label for="sp-f-name">Its name</label><input id="sp-f-name" maxlength="80"></div>
+      <div class="ig">
+        <span class="lt-label">Its segments</span>
+        <p class="muted small">Tap a segment on the map to add it, or tap it again to take it off. A segment near you that isn't public yet: draw it as a private segment and propose it, like any player.</p>
+        <div class="lt-qb-map" id="sp-map" aria-label="Map of the public segments"></div>
+        <div class="lt-qb-segs" id="sp-segs"></div>
+      </div>
+      <div class="row2">
+        <div class="ig"><label for="sp-f-from">From</label><input id="sp-f-from" type="date"></div>
+        <div class="ig"><label for="sp-f-to">To</label><input id="sp-f-to" type="date"></div>
+      </div>
+      <div class="ig"><label for="sp-f-players">How many players can earn it</label><input id="sp-f-players" type="number" min="1" max="1000" step="1" inputmode="numeric"></div>
+      <div class="ig"><label for="sp-f-reward">The reward, a line</label><input id="sp-f-reward" maxlength="200" placeholder="10% off a coffee"></div>
+      <div class="ig"><label for="sp-f-xp">Its bonus XP</label><input id="sp-f-xp" type="number" step="1" inputmode="numeric"><p class="muted small" id="sp-f-xp-say"></p></div>
+      <p class="small" id="sp-f-donation"></p>
+      <button class="btn btn-primary" id="sp-f-save" type="button">Send it for approval</button>
+      <button class="btn btn-secondary" id="sp-f-cancel" type="button">Cancel</button>
+      <p class="err" id="sp-f-err" role="alert"></p>
+    </section>
+    <div id="sp-list"></div>
+    <button class="lt-fab-back" id="sp-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+  <!-- Bounty rewards, in Admin Mode (S7-P11, |Q771). -->
+  <div id="v-rewards" hidden>
+    <section class="card">
+      <h2>Bounty rewards</h2>
+      <p class="muted small" id="br-note"></p>
+    </section>
+    <div id="br-list"></div>
+    <button class="lt-fab-back" id="br-back" type="button" aria-label="Back" title="Back">←</button>
+  </div>
+
   <div id="v-badges" hidden>
     <section class="card">
       <h2>Badges</h2>
@@ -6556,6 +6629,7 @@ window.LitterMap = function (app) {
     drawPins();
     // A chosen plan sits above the colour layers (S5-P9, |C685).
     map.createPane('ltPlan').style.zIndex = 450;
+    if (bounties && bounties.length) setTimeout(drawBounties, 0);
     planLayer = L.layerGroup().addTo(map);
     var h = G.cellCenter(HOME_CELL);
     map.setView([h.lat, h.lon], 13);
@@ -6568,6 +6642,7 @@ window.LitterMap = function (app) {
   // The segments and plans from collectLoad, shared by the map and its
   // screens, so no other answer sends them again (S7-P2, item 8).
   function useLists(d) {
+    if (d.bounties) bounties = d.bounties;   // S7-P11
     timeBonus = d.timeBonus || timeBonus;
     aloneBonus = d.aloneBonus || aloneBonus;
     if (d.segments) realSegs = d.segments;
@@ -6575,6 +6650,7 @@ window.LitterMap = function (app) {
     keepBase();
     if (d.plans) drawPlans(d.plans);
     drawSegments();
+    drawBounties();   // 🎯 on each bounty's segments, once the segments are here (S7-P11)
     // The map asked before these came: its rate layer catches up.
     if (layer && loaded && !loaded.chosen && mode === 'rate') draw(lastCells);
   }
@@ -7686,6 +7762,27 @@ window.LitterMap = function (app) {
 
   // One short line each (S5-P13, |Q599 (a)), with the longer words behind its ℹ️.
   var sortBy = 'need', here = null;
+  // Bounties running now (S7-P11): their segments on the list, loud, and on the map, 🎯.
+  var bounties = [], bountyLayer = null;
+  function bountyOn(id) { return bounties.filter(function (b) { return b.segments.indexOf(id) !== -1; }).sort(function (p, q) { return q.xp - p.xp; })[0] || null; }
+  function bountyLine(b) {
+    return b.sponsor + ': ' + b.reward + ' · +' + b.xp + ' XP · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function drawBounties() {
+    if (!map) return;
+    if (!bountyLayer) bountyLayer = L.layerGroup().addTo(map);
+    bountyLayer.clearLayers();
+    bounties.forEach(function (b) {
+      b.segments.forEach(function (id) {
+        var g = segList().filter(function (x) { return x.id === id; })[0];
+        if (!g || !g.squares || !g.squares.length) return;
+        var c = G.cellCenter(g.squares[Math.floor(g.squares.length / 2)]);
+        L.marker([c.lat, c.lon], { icon: L.divIcon({ className: 'lt-bounty-pin', html: '🎯', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false })
+          .bindTooltip('BOUNTY on ' + g.name + ': ' + bountyLine(b)).addTo(bountyLayer);
+      });
+    });
+  }
+  function bonusOf(g) { return Math.max(needOf(g) === 'due' ? timeMult(g) : 1, aloneMult(g)); }
   function needOf(g) {
     if (g.finish) return 'finish';
     if (g.days == null) return 'never';
@@ -7766,10 +7863,15 @@ window.LitterMap = function (app) {
     var list = $('segments-list');
     list.textContent = '';
     var rank = { due: 0, finish: 0, reset: 1, never: 2 };
-    var all = segList().filter(function (g) { return needOf(g); });
+    // A bounty's segment shows whatever its need (S7-P11).
+    var all = segList().filter(function (g) { return needOf(g) || bountyOn(g.id); });
     if (sortBy === 'near' && here) {
       all.forEach(function (g) { g.away = awayOf(g); });
       all.sort(function (a, b) { return a.away - b.away; });
+    } else if (sortBy === 'xp' || sortBy === 'bounty') {
+      // XP bonus: the most now first; Bounty bonus: the bounty's XP first (|Q791).
+      var key = function (g) { var b = bountyOn(g.id); return sortBy === 'xp' ? bonusOf(g) : b && !b.mine ? b.xp : -1; };
+      all.sort(function (a, b) { return key(b) - key(a) || String(a.name).localeCompare(String(b.name)); });
     } else {
       all.sort(function (a, b) {
         var ra = rank[needOf(a)], rb = rank[needOf(b)];
@@ -7782,8 +7884,14 @@ window.LitterMap = function (app) {
     $('segments-none').hidden = !!all.length;
     all.forEach(function (g) {
       var need = needOf(g);
-      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : ''));
+      var bty = bountyOn(g.id);
+      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : '') + (bty ? ' lt-seg-bounty' : ''));
       box.id = 'seg-' + g.id;
+      // A bounty (S7-P11, |Q791): its chip, the sponsor, the reward and the bonus XP.
+      if (bty) {
+        box.appendChild(el('span', 'lt-bounty-chip', '🎯 BOUNTY'));
+        box.appendChild(el('p', 'lt-bounty-line', bountyLine(bty)));
+      }
       // Its kind, Path or Field (Oct 31, field first).
       var head = el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi');
       // On your plan (S7-P16, |M1222): "Added to Plan", and the plan outline's colour on its border.
@@ -7834,7 +7942,7 @@ window.LitterMap = function (app) {
   // Sort (S5-P10, Q561): Nearest to me asks the phone where it is.
   $('seg-sort').addEventListener('change', function () {
     var pick = this.value;
-    if (pick === 'need') { sortBy = 'need'; return drawSegments(); }
+    if (pick === 'need' || pick === 'xp' || pick === 'bounty') { sortBy = pick; return drawSegments(); }
     if (!navigator.geolocation) { this.value = 'need'; return app.notice('This phone can\'t give its location, so the list stays by greatest need.'); }
     var sel = this;
     navigator.geolocation.getCurrentPosition(function (p) {
@@ -8637,6 +8745,13 @@ window.LitterReviews = function (app) {
     var box = el('section', 'card lt-review ' + r.state.toLowerCase());
     box.id = 'rv-' + r.id;
     box.appendChild(el('p', 'lt-col-head', r.name));
+    // A sponsor asking for the flag, or a bounty waiting (S7-P11): approved or declined, no XP to type.
+    if (r.sponsorAsk) box.appendChild(el('p', 'small', 'Asked by ' + r.by + ': the Business/Organization flag, so they can sponsor bounties.'));
+    if (r.bounty) {
+      box.appendChild(el('p', 'small', 'From ' + r.sponsor + ' (' + r.by + ')' + (r.proposed ? ', ' + when(r.proposed) : '')));
+      box.appendChild(el('p', 'small', r.reward + ' · +' + r.xpIf + ' XP · for ' + r.players + (r.players === 1 ? ' player' : ' players') + ' · ' + new Date(r.from).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ' to ' + new Date(r.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })));
+      if (app.smallMap && r.squares.length) box.appendChild(app.smallMap(r.name, r.squares, { kind: 'public' }));
+    }
     if (r.challengeItem) {
       // An item sent for a Challenge (S6-P8): its place, its photo and its note, and the XP it earns.
       box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + (r.near ? 'within reach of ' + r.near : 'not near a public segment') + ' · earns ' + r.xpIf + ' XP if approved'));
@@ -8674,7 +8789,7 @@ window.LitterReviews = function (app) {
     box.appendChild(el('p', 'muted small', (r.addition ? 'Asked by ' : 'Submitted by ') + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
     if (r.addition && r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
     }
-    if (app.smallMap && !r.challengeItem) {
+    if (app.smallMap && !r.challengeItem && !r.bounty && !r.sponsorAsk) {
       // An addition (S5-U17, |M711): the segment in its colour, the piece to add in orange.
       if (r.addition) {
         var colourOf = {};
@@ -8690,7 +8805,7 @@ window.LitterReviews = function (app) {
     }
     if (r.open) box.appendChild(form(r));
     // Talked through in the Forum (S5-P28): its topic, linked both ways.
-    if (app.openForum) {
+    if (app.openForum && !r.bounty && !r.sponsorAsk) {
       var f = el('button', 'btn btn-secondary lt-review-forum', 'Open in the Forum');
       f.type = 'button';
       f.addEventListener('click', function () { app.openForum(r.id); });
@@ -8708,6 +8823,7 @@ window.LitterReviews = function (app) {
     xpRow.appendChild(xpLabel); xpRow.appendChild(xp);
     // A Challenge's item earns the Challenge's XP: nothing to type (S6-P8).
     if (r.challengeItem) { xpRow.hidden = true; xp.value = r.xpIf; }
+    if (r.bounty || r.sponsorAsk) { xpRow.hidden = true; xp.value = ''; }
     var noteRow = el('div', 'ig'), noteLabel = el('label', null, 'Note' + (view.canDecide ? ' (the player sees it if you decline)' : '')), note = el('textarea', 'lt-review-note');
     note.id = 'rv-note-' + r.id; noteLabel.htmlFor = note.id; note.rows = 2; note.maxLength = 1000;
     noteRow.appendChild(noteLabel); noteRow.appendChild(note);
@@ -8728,8 +8844,8 @@ window.LitterReviews = function (app) {
       var yes = el('button', 'btn btn-primary lt-review-approve', 'Approve'), no = el('button', 'btn btn-secondary lt-review-decline', 'Decline');
       yes.type = 'button'; no.type = 'button';
       if (r.challengeItem) yes.textContent = 'Approve (' + r.xpIf + ' XP)';
-      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.challengeItem ? r.name + ' is approved, and ' + r.by + ' earns ' + r.xpIf + ' XP.' : r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
-      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.challengeItem ? r.name + ' is declined. ' + r.by + ' sees your note.' : r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
+      yes.addEventListener('click', function () { go(yes, { move: 'approve' }, r.sponsorAsk ? r.by + ' has the Business/Organization flag now.' : r.bounty ? r.name.replace(/^Bounty: /, '') + ' is approved: players see it now, while it runs.' : r.challengeItem ? r.name + ' is approved, and ' + r.by + ' earns ' + r.xpIf + ' XP.' : r.addition ? r.name.replace(/^Add to /, '') + ' has the piece added now, and ' + r.by + ' earns ' + xp.value + ' XP.' : r.name + ' is public now, and ' + r.by + ' earns ' + xp.value + ' XP.'); });
+      no.addEventListener('click', function () { go(no, { move: 'decline' }, r.sponsorAsk || r.bounty ? r.name + ' is declined.' + (r.bounty ? ' ' + r.by + ' sees your note.' : '') : r.challengeItem ? r.name + ' is declined. ' + r.by + ' sees your note.' : r.addition ? 'Declined: the piece isn\'t added to ' + r.name.replace(/^Add to /, '') + '.' : r.name + ' is declined. ' + r.by + ' sees your note, and can submit it again.'); });
       row.appendChild(yes); row.appendChild(no);
     } else {
       var ry = el('button', 'btn btn-primary lt-review-rec-approve', 'Recommend Approve'), rn = el('button', 'btn btn-secondary lt-review-rec-decline', 'Recommend Decline');
@@ -10951,6 +11067,212 @@ window.LitterAchievements = function (app) {
 };
 </script>
 <script>
+// Bounties from businesses (S7-P11). A sponsor is a player whose account has
+// the Business/Organization flag: asked for at the foot of Change my details
+// (|M1138), approved by an admin in Reviews. A sponsor's Sponsorship part of
+// the top panel (|Q792): Your bounties, with what came of each, and Sponsor a
+// bounty: its name, segments picked on the map, dates, how many players can
+// earn it, the reward, its bonus XP, and "Free for now" where a donation will
+// go (|Q770). In Admin Mode, Bounty rewards: who earned which, to hand out.
+window.LitterBounties = function (app) {
+  'use strict';
+  var $ = app.$, G = window.LitterGeo;
+  var mine = null, picked = [], spMap = null, spLayers = {}, rewards = null;
+
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function button(cls, text, fn) { var b = el('button', cls, text); b.type = 'button'; if (fn) b.addEventListener('click', fn); return b; }
+  function day(ms) { return new Date(ms).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }); }
+  function when(ms) { return new Date(ms).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' }); }
+  function ymd(ms) { var d = new Date(ms); return d.getFullYear() + '-' + ('0' + (d.getMonth() + 1)).slice(-2) + '-' + ('0' + d.getDate()).slice(-2); }
+
+  /* ── The flag, from Change my details (items 1 to 3) ── */
+
+  function fillAsk(a) {
+    var st = a.sponsorState || '';
+    $('ed-sponsor-row').hidden = st === 'Yes' || st === 'Asked';
+    $('ed-sponsor-ask').hidden = st === 'Yes' || st === 'Asked';
+    $('ed-sponsor-err').textContent = '';
+    $('ed-sponsor-say').textContent = st === 'Yes' ? 'Your account has the Business/Organization flag, for ' + a.sponsorName + '. Its Sponsorship part is in the top panel.'
+      : st === 'Asked' ? 'Asked, for ' + a.sponsorName + ': an admin approves it, and then Sponsorship shows in the top panel.'
+      : (st === 'Declined' ? 'Asked before, for ' + a.sponsorName + ', and not approved. You can ask again. ' : '')
+        + 'A business or organization can sponsor bounties: segments for players to collect while it runs, with a reward. Ask for the account here; an admin approves it.';
+    $('ed-sponsor-name').value = st === 'Declined' ? a.sponsorName || '' : '';
+  }
+  $('ed-sponsor-ask').addEventListener('click', function () {
+    var b = this;
+    app.busy(b, 'ed-sponsor-err', function () {
+      return app.api('sponsorAsk', { token: app.myToken(), name: $('ed-sponsor-name').value }).then(function (d) {
+        var a = app.me();
+        a.sponsorName = d.sponsorName; a.sponsorState = d.sponsorState;
+        fillAsk(a);
+        app.notice('Asked: an admin approves it in Reviews.');
+      });
+    });
+  });
+  // The Sponsorship part of the top panel, set apart, in the same look (|Q792).
+  function onAccount(a) {
+    var yes = !!a && a.sponsorState === 'Yes';
+    $('sp-box').hidden = !yes;
+    if (yes) $('sp-name').textContent = a.sponsorName;
+  }
+
+  /* ── Your bounties (item 5) ── */
+
+  function open(andNew) {
+    app.show('v-sponsor');
+    window.scrollTo(0, 0);
+    $('sp-list').textContent = '';
+    $('sp-note').textContent = 'Loading…';
+    return app.api('sponsorLoad', { token: app.myToken() }).then(function (d) {
+      mine = d;
+      draw();
+      if (andNew) edit();
+    }, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      $('sp-note').textContent = err.message;
+    });
+  }
+  function draw() {
+    var box = $('sp-list');
+    box.textContent = '';
+    var list = (mine && mine.bounties) || [];
+    $('sp-note').textContent = list.length ? 'Each bounty, what came of it, and how many players earned it.' : 'No bounties yet. Sponsor a bounty: segments for players to collect, and a reward.';
+    list.forEach(function (b) {
+      var s = el('section', 'card lt-bounty-mine');
+      s.id = 'sp-' + b.id;
+      s.appendChild(el('p', 'lt-col-head', '🎯 ' + b.name));
+      s.appendChild(el('p', 'small', (b.state === 'Waiting' ? 'Waiting for an admin to approve it' : b.state === 'Approved' ? (b.live ? 'Running' : 'Approved') : b.state) + ' · ' + day(b.from) + ' to ' + day(b.to)));
+      s.appendChild(el('p', 'small', b.reward + ' · +' + b.xp + ' XP · for ' + b.players + (b.players === 1 ? ' player' : ' players') + ' · donation: ' + (b.donation || 'Free for now')));
+      s.appendChild(el('p', 'small', 'On ' + b.segments.map(segName).join(', ') + '.'));
+      if (b.state === 'Approved') s.appendChild(el('p', 'small lt-bounty-results', 'So far: ' + b.pounds + ' lb and ' + b.miles + ' mi collected on its segments; earned by ' + b.earnedBy + ' of ' + b.players + '.'));
+      if (b.state === 'Declined' && b.note) s.appendChild(el('p', 'small', 'Why: "' + b.note + '"'));
+      if (b.state === 'Waiting') s.appendChild(button('btn btn-secondary lt-bounty-change', 'Change', function () { edit(b); }));
+      box.appendChild(s);
+    });
+  }
+  function segName(id) { var g = ((mine && mine.segments) || []).filter(function (x) { return x.id === id; })[0]; return g ? g.name : id; }
+
+  /* ── Sponsor a bounty (item 4) ── */
+
+  var editing = null;
+  function edit(b) {
+    editing = b || null;
+    var r = (mine && mine.xpRange) || { min: 5, max: 50 };
+    var v = b || { name: '', segments: [], from: Date.now(), to: Date.now() + 14 * 86400000, players: 5, reward: '', xp: r.min };
+    $('sp-form-title').textContent = b ? 'Change ' + b.name : 'Sponsor a bounty';
+    $('sp-f-name').value = v.name; $('sp-f-from').value = ymd(v.from); $('sp-f-to').value = ymd(v.to);
+    $('sp-f-players').value = v.players; $('sp-f-reward').value = v.reward; $('sp-f-xp').value = v.xp;
+    $('sp-f-xp').min = r.min; $('sp-f-xp').max = r.max;
+    $('sp-f-xp-say').textContent = 'From ' + r.min + ' to ' + r.max + ' XP.';
+    $('sp-f-donation').textContent = 'Donation: ' + ((mine && mine.donation) || 'Free for now') + '. Later, a small donation by how long a bounty runs, for supplies.';
+    $('sp-f-err').textContent = '';
+    picked = v.segments.slice();
+    $('sp-form').hidden = false;
+    drawPicker();
+    $('sp-f-name').focus();
+  }
+  function drawPicker() {
+    var segs = (mine && mine.segments) || [];
+    if (window.L && !spMap) {
+      spMap = L.map('sp-map', { zoomControl: true, attributionControl: true });
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap contributors' }).addTo(spMap);
+    }
+    if (spMap) {
+      Object.keys(spLayers).forEach(function (k) { spMap.removeLayer(spLayers[k]); });
+      spLayers = {};
+      var all = [];
+      segs.forEach(function (g) {
+        var pts = g.squares.map(function (x) { var p = G.cellCenter(x); return [p.lat, p.lon]; });
+        all = all.concat(pts);
+        var on = picked.indexOf(g.id) !== -1;
+        var shape = g.kind === 'Field' && g.outline && g.outline.length > 2
+          ? L.polygon(g.outline, { color: on ? '#b45309' : '#64748b', weight: on ? 5 : 3, fillOpacity: on ? 0.35 : 0.12, className: 'lt-qb-seg' + (on ? ' on' : '') })
+          : L.polyline(pts, { color: on ? '#b45309' : '#64748b', weight: on ? 10 : 7, opacity: on ? 0.9 : 0.55, className: 'lt-qb-seg' + (on ? ' on' : '') });
+        shape.bindTooltip(g.name);
+        shape.on('click', function () { toggle(g.id); });
+        shape.addTo(spMap);
+        spLayers[g.id] = shape;
+      });
+      setTimeout(function () {
+        spMap.invalidateSize();
+        if (all.length) spMap.fitBounds(all, { padding: [16, 16], maxZoom: 17 });
+        else spMap.setView([32.3668, -86.3000], 13);
+      }, 0);
+    }
+    var box = $('sp-segs');
+    box.textContent = '';
+    if (!segs.length) box.appendChild(el('p', 'muted small', 'No public segments yet.'));
+    segs.forEach(function (g) {
+      var lab = el('label', 'choice-row lt-qb-seg-row'), cb = el('input');
+      cb.type = 'checkbox'; cb.checked = picked.indexOf(g.id) !== -1; cb.value = g.id;
+      cb.addEventListener('change', function () { toggle(g.id); });
+      lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + g.name));
+      box.appendChild(lab);
+    });
+  }
+  function toggle(id) {
+    var i = picked.indexOf(id);
+    if (i === -1) picked.push(id); else picked.splice(i, 1);
+    drawPicker();
+  }
+  $('sp-f-cancel').addEventListener('click', function () { $('sp-form').hidden = true; editing = null; });
+  $('sp-f-save').addEventListener('click', function () {
+    var x = { id: editing ? editing.id : '', name: $('sp-f-name').value, from: $('sp-f-from').value, to: $('sp-f-to').value, players: $('sp-f-players').value,
+      reward: $('sp-f-reward').value, xp: $('sp-f-xp').value, segments: picked.slice() };
+    app.busy($('sp-f-save'), 'sp-f-err', function () {
+      return app.api('bountySave', { token: app.myToken(), bounty: x }).then(function (d) {
+        mine.bounties = d.bounties;
+        $('sp-form').hidden = true;
+        editing = null;
+        draw();
+        app.notice('Sent: an admin approves it in Reviews, and then players see it on The Priority Segment List.');
+      });
+    });
+  });
+  $('sp-new').addEventListener('click', function () { edit(null); });
+  $('me-go-sponsor').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(false); });
+  $('me-go-sponsor-new').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); open(true); });
+  $('sp-back').addEventListener('click', function () { if (app.back) app.back(); });
+
+  /* ── Admin Mode: Bounty rewards (item 7) ── */
+
+  function openRewards() {
+    app.show('v-rewards');
+    window.scrollTo(0, 0);
+    $('br-note').textContent = 'Loading…';
+    return app.api('bountyRewards', { token: app.myToken() }).then(useRewards, function (err) {
+      if (err.code === 'signed-out') return app.signedOut();
+      $('br-note').textContent = err.message;
+    });
+  }
+  function useRewards(d) {
+    rewards = d;
+    var box = $('br-list');
+    box.textContent = '';
+    $('br-note').textContent = d.rewards.length ? 'Who earned which reward, to hand out; handed out ones last.' : 'No bounty has been earned yet.';
+    d.rewards.forEach(function (r) {
+      var s = el('section', 'card lt-reward' + (r.handed ? ' handed' : ''));
+      s.id = 'br-' + r.bounty + '-' + r.account;
+      s.appendChild(el('p', 'lt-col-head', r.who + ': ' + r.reward));
+      s.appendChild(el('p', 'small', '🎯 ' + r.name + ', from ' + r.sponsor + ' · earned ' + when(r.earned) + ' · +' + r.xp + ' XP'));
+      if (r.handed) s.appendChild(el('p', 'small', 'Handed out ' + when(r.handed) + (r.handedBy ? ' by ' + r.handedBy : '') + '.'));
+      s.appendChild(button('btn btn-secondary lt-reward-hand', r.handed ? 'Not handed out yet' : 'Handed out', function () {
+        var b = this;
+        b.disabled = true;
+        app.api('bountyHanded', { token: app.myToken(), bounty: r.bounty, account: r.account, undo: !!r.handed }).then(useRewards, function (err) { b.disabled = false; app.notice(err.message); });
+      }));
+      box.appendChild(s);
+    });
+  }
+  function sync() { $('me-go-rewards').hidden = !$('cl-sim').checked; }
+  $('cl-sim').addEventListener('change', sync);
+  $('me-go-rewards').addEventListener('click', function () { if (app.closePanel) app.closePanel(); app.notice(''); openRewards(); });
+  $('br-back').addEventListener('click', function () { if (app.back) app.back(); });
+
+  return { fillAsk: fillAsk, onAccount: onAccount, open: open, sync: sync };
+};
+</script>
+<script>
 // The rolling history (S6-P3 item 3, |Q705 (a), |Q706, |Q707, |Q712 (a),
 // |Q713 (a)): a scroll like MORDORMUD.net's. On the main page, a strip under
 // the top bar with its newest lines; tapped, it opens full screen, with the
@@ -11330,7 +11652,7 @@ window.LitterScroll = function (app) {
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-cleanups', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-cleanups', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-sponsor', 'v-rewards', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -11955,7 +12277,8 @@ window.LitterScroll = function (app) {
   function fillBar(a) {
     if (!a) return;
     $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
-    $('me-handle').textContent = a.handle;
+    // A sponsor's handle shows the Business/Organization flag (S7-P11, item 3).
+    $('me-handle').textContent = a.handle + (a.sponsorState === 'Yes' ? ' 🏢 ' + a.sponsorName : '');
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
     $('me-handle-star').hidden = a.mapShows !== 'Handle';
     $('me-name-star').hidden = a.mapShows !== 'Name';
@@ -11998,6 +12321,7 @@ window.LitterScroll = function (app) {
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount(quick);
+    if (typeof bounties !== 'undefined' && bounties) bounties.onAccount(a);   // a sponsor's Sponsorship part (S7-P11)
     if (!quick) mapper.forgetMine();   // Your collections loads when you open it (S7-P2, item 9)
     if (!quick) cleanups.onAccount();   // your cleanup today (S6-P27)
     mapper.inline(quick);
@@ -12011,6 +12335,7 @@ window.LitterScroll = function (app) {
     $('ed-handle-msg').textContent = '';
     $('ed-err').textContent = '';
     showsChoices('ed-shows', 'ed-shows', a.mapShows);
+    if (typeof bounties !== 'undefined' && bounties) bounties.fillAsk(a);   // the Business/Organization flag (S7-P11)
     $('me-form').hidden = false;
     $('me-edit').hidden = true;
     $('ed-first').focus();
@@ -12067,7 +12392,7 @@ window.LitterScroll = function (app) {
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); if (bounties) bounties.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -12121,6 +12446,15 @@ window.LitterScroll = function (app) {
   });
 
   /* ── Streaks and achievements (S6-P6, achievements.js) ── */
+
+  /* ── Bounties from businesses (S7-P11, bounties.js) ── */
+
+  var bounties = window.LitterBounties({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
+  });
 
   var achievements = window.LitterAchievements({
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
@@ -12254,7 +12588,7 @@ window.LitterScroll = function (app) {
   // opened from, and back where it was once hidden: its buttons, and what
   // they save, stay as they were. Leaving the screen closes it (show above).
   // The Bench's two forms too (S7-P4 item 13, |Q749); the Skill Builder's, the same form, stays where it is (data-nopop).
-  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report', 'qb-form', 'cha-form'];
+  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report', 'qb-form', 'cha-form', 'sp-form'];
   var pops = [];
   POP_FORMS.forEach(function (id) {
     var f = $(id);

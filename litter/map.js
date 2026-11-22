@@ -104,6 +104,7 @@ window.LitterMap = function (app) {
     drawPins();
     // A chosen plan sits above the colour layers (S5-P9, |C685).
     map.createPane('ltPlan').style.zIndex = 450;
+    if (bounties && bounties.length) setTimeout(drawBounties, 0);
     planLayer = L.layerGroup().addTo(map);
     var h = G.cellCenter(HOME_CELL);
     map.setView([h.lat, h.lon], 13);
@@ -116,6 +117,7 @@ window.LitterMap = function (app) {
   // The segments and plans from collectLoad, shared by the map and its
   // screens, so no other answer sends them again (S7-P2, item 8).
   function useLists(d) {
+    if (d.bounties) bounties = d.bounties;   // S7-P11
     timeBonus = d.timeBonus || timeBonus;
     aloneBonus = d.aloneBonus || aloneBonus;
     if (d.segments) realSegs = d.segments;
@@ -123,6 +125,7 @@ window.LitterMap = function (app) {
     keepBase();
     if (d.plans) drawPlans(d.plans);
     drawSegments();
+    drawBounties();   // 🎯 on each bounty's segments, once the segments are here (S7-P11)
     // The map asked before these came: its rate layer catches up.
     if (layer && loaded && !loaded.chosen && mode === 'rate') draw(lastCells);
   }
@@ -1234,6 +1237,27 @@ window.LitterMap = function (app) {
 
   // One short line each (S5-P13, |Q599 (a)), with the longer words behind its ℹ️.
   var sortBy = 'need', here = null;
+  // Bounties running now (S7-P11): their segments on the list, loud, and on the map, 🎯.
+  var bounties = [], bountyLayer = null;
+  function bountyOn(id) { return bounties.filter(function (b) { return b.segments.indexOf(id) !== -1; }).sort(function (p, q) { return q.xp - p.xp; })[0] || null; }
+  function bountyLine(b) {
+    return b.sponsor + ': ' + b.reward + ' · +' + b.xp + ' XP · ' + (b.mine ? 'you\'ve earned it' : b.left + ' of ' + b.players + ' left') + ' · until ' + new Date(b.to).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  }
+  function drawBounties() {
+    if (!map) return;
+    if (!bountyLayer) bountyLayer = L.layerGroup().addTo(map);
+    bountyLayer.clearLayers();
+    bounties.forEach(function (b) {
+      b.segments.forEach(function (id) {
+        var g = segList().filter(function (x) { return x.id === id; })[0];
+        if (!g || !g.squares || !g.squares.length) return;
+        var c = G.cellCenter(g.squares[Math.floor(g.squares.length / 2)]);
+        L.marker([c.lat, c.lon], { icon: L.divIcon({ className: 'lt-bounty-pin', html: '🎯', iconSize: [30, 30], iconAnchor: [15, 15] }), keyboard: false })
+          .bindTooltip('BOUNTY on ' + g.name + ': ' + bountyLine(b)).addTo(bountyLayer);
+      });
+    });
+  }
+  function bonusOf(g) { return Math.max(needOf(g) === 'due' ? timeMult(g) : 1, aloneMult(g)); }
   function needOf(g) {
     if (g.finish) return 'finish';
     if (g.days == null) return 'never';
@@ -1314,10 +1338,15 @@ window.LitterMap = function (app) {
     var list = $('segments-list');
     list.textContent = '';
     var rank = { due: 0, finish: 0, reset: 1, never: 2 };
-    var all = segList().filter(function (g) { return needOf(g); });
+    // A bounty's segment shows whatever its need (S7-P11).
+    var all = segList().filter(function (g) { return needOf(g) || bountyOn(g.id); });
     if (sortBy === 'near' && here) {
       all.forEach(function (g) { g.away = awayOf(g); });
       all.sort(function (a, b) { return a.away - b.away; });
+    } else if (sortBy === 'xp' || sortBy === 'bounty') {
+      // XP bonus: the most now first; Bounty bonus: the bounty's XP first (|Q791).
+      var key = function (g) { var b = bountyOn(g.id); return sortBy === 'xp' ? bonusOf(g) : b && !b.mine ? b.xp : -1; };
+      all.sort(function (a, b) { return key(b) - key(a) || String(a.name).localeCompare(String(b.name)); });
     } else {
       all.sort(function (a, b) {
         var ra = rank[needOf(a)], rb = rank[needOf(b)];
@@ -1330,8 +1359,14 @@ window.LitterMap = function (app) {
     $('segments-none').hidden = !!all.length;
     all.forEach(function (g) {
       var need = needOf(g);
-      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : ''));
+      var bty = bountyOn(g.id);
+      var box = el('div', 'lt-plan-item lt-seg-item' + (need === 'finish' ? ' partly' : need === 'due' ? ' due' : need === 'reset' ? ' past' : '') + (bty ? ' lt-seg-bounty' : ''));
       box.id = 'seg-' + g.id;
+      // A bounty (S7-P11, |Q791): its chip, the sponsor, the reward and the bonus XP.
+      if (bty) {
+        box.appendChild(el('span', 'lt-bounty-chip', '🎯 BOUNTY'));
+        box.appendChild(el('p', 'lt-bounty-line', bountyLine(bty)));
+      }
       // Its kind, Path or Field (Oct 31, field first).
       var head = el('p', 'lt-col-head', g.name + ' · ' + (g.kind === 'Field' ? 'Field' : 'Path') + ' · ' + round(g.miles, 2) + ' mi');
       // On your plan (S7-P16, |M1222): "Added to Plan", and the plan outline's colour on its border.
@@ -1382,7 +1417,7 @@ window.LitterMap = function (app) {
   // Sort (S5-P10, Q561): Nearest to me asks the phone where it is.
   $('seg-sort').addEventListener('change', function () {
     var pick = this.value;
-    if (pick === 'need') { sortBy = 'need'; return drawSegments(); }
+    if (pick === 'need' || pick === 'xp' || pick === 'bounty') { sortBy = pick; return drawSegments(); }
     if (!navigator.geolocation) { this.value = 'need'; return app.notice('This phone can\'t give its location, so the list stays by greatest need.'); }
     var sel = this;
     navigator.geolocation.getCurrentPosition(function (p) {

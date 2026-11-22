@@ -135,6 +135,7 @@ function reviewsView_(account) {
   });
   // Each item sent for a Challenge (S6-P8).
   challengeReviewItems_(handles, rows, now).forEach(function (x) { list.push(x); });
+  bountyReviewItems_(handles).forEach(function (x) { list.push(x); });   // a sponsor asking, a bounty waiting (S7-P11)
   list.sort(function (a, b) { return (b.open - a.open) || (a.open ? a.proposed - b.proposed : b.decidedAt - a.decidedAt); });
   return { reviews: list, rank: account.rank, maxXp: reviewMaxXp_(), canDecide: rankAtLeast_(account.rank, 'Builder') };
 }
@@ -150,7 +151,7 @@ function reviewMove_(req) {
   if (xp != null && (!isFinite(xp) || xp < 0 || xp > max)) throw new Error('The XP is from 0 to ' + max + '.');
   var move;
   // An item sent for a Challenge earns the Challenge's XP, not a typed one (S6-P8).
-  var item = /^CI\d+$/.test(String(req.segmentId || ''));
+  var item = /^CI\d+$/.test(String(req.segmentId || '')) || /^SP-|^BT\d+$/.test(String(req.segmentId || ''));   // and a sponsor or a bounty (S7-P11): no XP typed
   if (kind === 'recommend') {
     move = REVIEW_RECOMMEND[String(req.recommend || '')];
     if (!move) throw new Error('Recommend Approve or Decline.');
@@ -161,6 +162,11 @@ function reviewMove_(req) {
     if (kind === 'approve' && xp == null && !item) throw new Error('Say the XP it earns, from 0 to ' + max + '.');
     if (kind === 'decline' && !note) throw new Error('Say why in the note: the player sees it.');
   } else throw new Error('That isn\'t a move on a review.');
+  // A sponsor's flag, or a bounty (S7-P11): approved or declined, no XP to type.
+  if (/^SP-|^BT\d+$/.test(String(req.segmentId || ''))) {
+    if (kind === 'recommend') throw new Error('A bounty or a sponsor is approved or declined by a Builder or above.');
+    return bountyDecide_(account, String(req.segmentId), kind === 'approve', note);
+  }
   if (item) return challengeItemMove_(account, String(req.segmentId), kind, move, note);
   if (/^AD\d+$/.test(String(req.segmentId || ''))) return additionMove_(account, String(req.segmentId), kind, move, xp, note);
   return withLock_(function () {

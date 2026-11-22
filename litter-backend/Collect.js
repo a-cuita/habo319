@@ -355,7 +355,9 @@ function collectLoad_(req) {
     // Badges just reached, and the weekly streak (S6-P6).
     earned: earned, streak: streakOf_(account.id),
     // What you carried last time, and the bags to choose from (S6-P30).
-    carrying: { bags: CARRY_BAGS, last: lastCarrying_(account.id) }
+    carrying: { bags: CARRY_BAGS, last: lastCarrying_(account.id) },
+    // Bounties running now, for The Priority Segment List and the map (S7-P11).
+    bounties: bountiesFor_(account)
   };
 }
 

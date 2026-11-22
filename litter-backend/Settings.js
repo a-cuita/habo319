@@ -49,7 +49,7 @@ function settingGroups_() {
     [SETTING_CONF_MODERATE, 'Confidence Moderate up to', 'Up to this many, the third name; more, the fourth.', 'number', 'rates', 1, 100],
     [SETTING_CONF_NAMES, 'Confidence names', 'Four names, with commas between: for no rate in the window, then low, moderate and established.', 'names', 4],
     [SETTING_RATE_TOP, 'Rate map top', 'The rate the map\'s top colour stands for.', 'number', 'lb per mile per day', 0.1, 100]] },
-  { key: 'xp', title: 'XP and bonuses', says: 'XP for planning, ratings and litter types; the Recollection and Rescue bonuses; the first quest; a segment made public.', rank: 'Architect', items: [
+  { key: 'xp', title: 'XP and bonuses', says: 'XP for planning, ratings and litter types; the Recollection and Rescue bonuses; the first quest; a segment made public; a bounty\'s bonus XP.', rank: 'Architect', items: [
     [SETTING_PLAN_XP, 'XP for each planned collection', 'A collection started from a plan earns this.', 'number', 'XP', 0, 100],
     [SETTING_RATING_XP_1, 'XP for a visual rating within 1', 'A visual rating within 1 of the Litter Index earns this.', 'number', 'XP', 0, 100],
     [SETTING_RATING_XP_2, 'XP for a visual rating within 2', 'Within 2 of the Litter Index.', 'number', 'XP', 0, 100],
@@ -62,7 +62,10 @@ function settingGroups_() {
     [SETTING_ALONE_MULT, 'Rescue bonus', 'Multiplies that walk\'s rating and litter-type XP by this. Where the Recollection bonus is more, it counts instead.', 'number', '×', 1, 10],
     [SETTING_QUEST_STEP_XP, 'XP for each first quest step', 'Each of the first quest\'s six steps earns this.', 'number', 'XP', 0, 100],
     [SETTING_QUEST_DONE_XP, 'XP for finishing the first quest', 'Finishing all six earns this more.', 'number', 'XP', 0, 100],
-    [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100]] },
+    [SETTING_REVIEW_XP, 'Most XP for a segment approved to be public', 'In Reviews, a segment approved to be public earns its submitter up to this.', 'number', 'XP', 0, 100],
+    // Bounties (S7-P11, |Q786 (b)): the sponsor sets its bonus XP, between these.
+    [SETTING_BOUNTY_XP_MIN, 'A bounty\'s bonus XP, at least', 'A sponsor sets each bounty\'s bonus XP, from this...', 'number', 'XP', 0, 1000],
+    [SETTING_BOUNTY_XP_MAX, 'A bounty\'s bonus XP, at most', '...to this.', 'number', 'XP', 0, 1000]] },
   // Levels and class skills (S5-P29, |Q612 to |Q615): the Levels tab's
   // ranges and each Litter Class Skill's level, kept in their own tabs.
   { key: 'skills', title: 'Levels and skills', says: 'The level table, and the level each Litter Class Skill opens at.', rank: 'Architect', custom: true, items: [] },

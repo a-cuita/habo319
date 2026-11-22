@@ -35,8 +35,8 @@ var TABS = {
     byName: true,
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
       'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Check-in volunteer', 'Updated', 'Status',
-      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320],
+      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken', 'Business or organization', 'Sponsor'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320, 200, 80],
     formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
@@ -262,6 +262,19 @@ var TABS = {
     formats: { 3: '@', 4: '@', 14: 'yyyy-mm-dd', 15: 'yyyy-mm-dd', 19: 'yyyy-mm-dd h:mm' }
   },
   // The Quest Drafting Bench (S6-P8, |M895): each Quest, its segments and its finishing bonus; its Challenges are in Challenges.
+  // Bounties from businesses (S7-P11): each a sponsor's, approved by an admin; and who earned which.
+  bounties: {
+    name: 'Bounties',
+    header: ['Bounty ID', 'Account ID', 'Sponsor', 'Name', 'Segments', 'From', 'To', 'Players', 'Reward', 'Bonus XP', 'Donation', 'State', 'Made', 'Decided by', 'Decided', 'Note'],
+    widths: [80, 90, 180, 200, 220, 100, 100, 70, 260, 70, 100, 80, 150, 100, 150, 260],
+    formats: { 5: '@', 6: 'yyyy-mm-dd', 7: 'yyyy-mm-dd', 13: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm' }
+  },
+  bountyEarned: {
+    name: 'Bounty rewards',
+    header: ['Bounty ID', 'Account ID', 'Earned', 'Bonus XP', 'Reward', 'Handed out', 'Handed out by'],
+    widths: [80, 90, 150, 70, 260, 150, 100],
+    formats: { 3: 'yyyy-mm-dd h:mm', 6: 'yyyy-mm-dd h:mm' }
+  },
   questBench: {
     name: 'Quest Bench',
     // Opens after: the Quest a player finishes first (S7-P4 item 15, |Q848 (a)). Opened: when it was first opened to players.
@@ -377,6 +390,11 @@ function actions_() {
     boardReport: boardReport_,   // a board topic or note reported (S7-P10)
     boardRemove: boardRemove_,   // an admin removes it
     questActive: questActive_,   // Make active, or Stop counting, in Your quests (S7-P4)
+    sponsorAsk: sponsorAsk_,     // Ask for a Business/Organization account (S7-P11)
+    sponsorLoad: sponsorLoad_,   // a sponsor's bounties, and the segments to pick from
+    bountySave: bountySave_,     // Sponsor a bounty
+    bountyRewards: bountyRewards_,   // Admin Mode: who earned which reward
+    bountyHanded: bountyHanded_,     // ...and handed out
     addLitterType: addLitterType_,
     mapLoad: mapLoad_,
     myCollections: myCollections_,
@@ -871,6 +889,8 @@ function missingSettings_(ss) {
     [SETTING_TIME_PEAK, '2'],
     [SETTING_MAP_FADE, '30'],
     [SETTING_TIME_ENDS, '4'],
+    [SETTING_BOUNTY_XP_MIN, '5'],
+    [SETTING_BOUNTY_XP_MAX, '50'],
     [SETTING_ALONE_DAYS, '14'],
     [SETTING_ALONE_MULT, '1.5'],
     [SETTING_QUEST_STEP_XP, '1'],

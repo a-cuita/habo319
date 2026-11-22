@@ -84,7 +84,7 @@
 
   /* ── Screens ── */
 
-  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-cleanups', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
+  var VIEWS = ['v-loading', 'v-soon', 'v-trouble', 'v-welcome', 'v-setup', 'v-setup-code', 'v-resign', 'v-signin', 'v-account', 'v-collections', 'v-plans', 'v-quests', 'v-settings', 'v-reviews', 'v-forum', 'v-forum-topic', 'v-report', 'v-challenges-admin', 'v-wiki', 'v-cleanups', 'v-wiki-page', 'v-wiki-draft', 'v-badges', 'v-ach-admin', 'v-sponsor', 'v-rewards', 'v-collect', 'v-plan', 'v-summary', 'v-map'];
 
   function $(id) { return document.getElementById(id); }
 
@@ -709,7 +709,8 @@
   function fillBar(a) {
     if (!a) return;
     $('me-public').textContent = a.mapShows === 'Name' ? a.firstName + ' ' + a.lastName : a.handle;
-    $('me-handle').textContent = a.handle;
+    // A sponsor's handle shows the Business/Organization flag (S7-P11, item 3).
+    $('me-handle').textContent = a.handle + (a.sponsorState === 'Yes' ? ' 🏢 ' + a.sponsorName : '');
     $('me-name').textContent = a.firstName + ' ' + a.lastName;
     $('me-handle-star').hidden = a.mapShows !== 'Handle';
     $('me-name-star').hidden = a.mapShows !== 'Name';
@@ -752,6 +753,7 @@
     $('me-edit').hidden = false;
     show('v-account');
     collect.onAccount(quick);
+    if (typeof bounties !== 'undefined' && bounties) bounties.onAccount(a);   // a sponsor's Sponsorship part (S7-P11)
     if (!quick) mapper.forgetMine();   // Your collections loads when you open it (S7-P2, item 9)
     if (!quick) cleanups.onAccount();   // your cleanup today (S6-P27)
     mapper.inline(quick);
@@ -765,6 +767,7 @@
     $('ed-handle-msg').textContent = '';
     $('ed-err').textContent = '';
     showsChoices('ed-shows', 'ed-shows', a.mapShows);
+    if (typeof bounties !== 'undefined' && bounties) bounties.fillAsk(a);   // the Business/Organization flag (S7-P11)
     $('me-form').hidden = false;
     $('me-edit').hidden = true;
     $('ed-first').focus();
@@ -821,7 +824,7 @@
     onQuest: function (q, list) { quest.show(q, list); },
     questTick: function (n, auto) { return quest.tick(n, auto); },
     questWorkshop: function () { return quest.workshopOn(); },
-    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); }
+    syncWorkshop: function () { quest.syncWorkshopButton(); settings.sync(); reviews.sync(); forum.sync(); if (challenges) challenges.sync(); if (wiki) wiki.sync(); if (achievements) achievements.sync(); if (cleanups) cleanups.sync(); if (bounties) bounties.sync(); }
   });
 
   /* ── The first quest (S5-P20, quest.js) ── */
@@ -875,6 +878,15 @@
   });
 
   /* ── Streaks and achievements (S6-P6, achievements.js) ── */
+
+  /* ── Bounties from businesses (S7-P11, bounties.js) ── */
+
+  var bounties = window.LitterBounties({
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    me: function () { return state.account; },
+    closePanel: function () { panel(false); },
+    back: function () { showAccount(state.account); }
+  });
 
   var achievements = window.LitterAchievements({
     $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
@@ -1008,7 +1020,7 @@
   // opened from, and back where it was once hidden: its buttons, and what
   // they save, stay as they were. Leaving the screen closes it (show above).
   // The Bench's two forms too (S7-P4 item 13, |Q749); the Skill Builder's, the same form, stays where it is (data-nopop).
-  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report', 'qb-form', 'cha-form'];
+  var POP_FORMS = ['me-form', 'sm-fix', 'cu-form', 'wiki-sec-form', 'aa-form', 'forum-form', 'v-report', 'qb-form', 'cha-form', 'sp-form'];
   var pops = [];
   POP_FORMS.forEach(function (id) {
     var f = $(id);
