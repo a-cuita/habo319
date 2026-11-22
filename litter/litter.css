@@ -829,7 +829,6 @@ body.lt-popform-open { overflow: hidden; }
 
 /* A walk that gave a segment no rate (S6-P34): greyed in the pop-up's table, its reason under it. */
 .lt-pop-walk.none td { color: var(--text-dim); }
-.lt-pop-why td { color: var(--text-dim); font-size: 0.85em; font-style: italic; padding-top: 0; }
 
 /* An admin's tools for a cleanup (S6-P27, |Q781 (a)). */
 .lt-cu-adminbar { display: flex; gap: 8px; margin: 6px 0 10px; }

@@ -344,7 +344,7 @@ window.LitterMap = function (app) {
     var index = cell != null, walks = (g.walks || []).concat((g.noRate || []).map(function (w) { return Object.assign({ none: true }, w); }))
       .sort(function (a, b) { return b.collected - a.collected; });
     if (!walks.length) return null;
-    var t = el('table', 'lt-pop-table'), whyShown = false, starred = false;
+    var t = el('table', 'lt-pop-table'), whyShown = false, starred = [];
     var head = el('tr');
     ['Day', 'By', index ? 'Litter Index' : 'lb/mi·day⁻¹'].forEach(function (h) { head.appendChild(el('th', null, h)); });
     t.appendChild(head);
@@ -356,11 +356,12 @@ window.LitterMap = function (app) {
       var own = index && w.idx ? w.idx[cell] : null, seg = index && own == null ? segReading(w, g) : null;
       var v = index ? (own != null ? Number(own).toFixed(1) : seg != null ? seg.toFixed(1) : '—') : w.none ? '' : String(round(w.rate, 2));
       // Under 24 hours after the clock started: an asterisk, and the footnote under the table (S7-P19, item 3).
-      if (rateNone && w.pickup) starred = true;
+      if (rateNone && w.pickup) starred.push(w);
       [dayWords(w.collected) + (rateNone && w.pickup ? '*' : ''), w.by].forEach(function (x) { tr.appendChild(el('td', null, x)); });
       var last = el('td', null, v);
-      // A walk that gave no rate (S6-P34, |Q782 (a)): greyed, "No rate" and
-      // a link to the Wiki's page on why, in its line; its reason under it.
+      // A walk that gave no rate (S6-P34, |Q782 (a)): "No rate" in its line,
+      // and nothing under it (S7-P19, |C1064, |C1088): the reason lines read
+      // as footnotes of their own, so the Wiki's page behind Why? holds them.
       if (rateNone) {
         if (v) last.appendChild(document.createTextNode(' · '));
         // Why? only on the newest walk that gave no rate (S7-P19, item 2).
@@ -370,18 +371,23 @@ window.LitterMap = function (app) {
       }
       tr.appendChild(last);
       t.appendChild(tr);
-      if (rateNone) {
-        var why = el('tr', 'lt-pop-why'), td = el('td', null, w.why);
-        td.colSpan = 3;
-        why.appendChild(td);
-        t.appendChild(why);
-      }
     });
-    if (!starred) return t;
+    if (!starred.length) return t;
     var box = el('div', 'lt-pop-tables');
     box.appendChild(t);
-    box.appendChild(el('p', 'muted small lt-pop-foot', '* Under 24 hours after the clock started: too soon to measure a rate. Its pounds go into the segment\'s next rate.'));
+    box.appendChild(el('p', 'muted small lt-pop-foot', starFoot(starred)));
     return box;
+  }
+  // The one footnote (S7-P19, items 3 and 4): what the asterisk means, then
+  // each starred walk and the walk its pounds went into, by day and time.
+  // The backend's reason (notCountedWhy_ in Segments.js) ends "its pounds
+  // went into the walk of Nov 15, 1:24 PM." once the next rate is measured.
+  function starFoot(starred) {
+    var each = starred.map(function (w) {
+      var m = /went into the walk of (.+?)\.?$/.exec(w.why || '');
+      return dayWords(w.collected) + ': ' + (m ? 'in the walk of ' + m[1] : 'in the next walk that gives a rate') + '.';
+    });
+    return '* Under 24 hours after the clock started: too soon for a rate of its own, so its pounds count in the next walk\'s rate. ' + each.join(' ');
   }
 
   // A reading fades as it ages, gone after the map's fade days (S6-P1,
