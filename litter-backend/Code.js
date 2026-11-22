@@ -328,9 +328,23 @@ var TABS = {
   },
   cleanupCheckins: {
     name: 'Cleanup check-ins',
-    header: ['Check-in ID', 'Cleanup ID', 'Team ID', 'Segment ID', 'Checked in by', 'In', 'Out', 'There', 'Pounds', 'Collection ID'],
-    widths: [90, 90, 80, 90, 100, 150, 150, 220, 70, 100],
+    header: ['Check-in ID', 'Cleanup ID', 'Team ID', 'Segment ID', 'Checked in by', 'In', 'Out', 'There', 'Pounds', 'Collection ID', 'Weighed with'],
+    widths: [90, 90, 80, 90, 100, 150, 150, 220, 70, 100, 110],
     formats: { 6: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 8: '@' }
+  },
+  // A crew's weighings on a segment, as often as needed (S7-P14 items 1 and 2).
+  cleanupWeighings: {
+    name: 'Cleanup weighings',
+    header: ['Weighing ID', 'Cleanup ID', 'Check-in ID', 'Team ID', 'Segment ID', 'By', 'At', 'Reading (lb)', 'New bags', 'Pounds'],
+    widths: [90, 90, 90, 80, 90, 90, 150, 90, 80, 70],
+    formats: { 7: 'yyyy-mm-dd h:mm' }
+  },
+  // Where a crew left its bags (S7-P14 item 4).
+  cleanupBags: {
+    name: 'Cleanup bags',
+    header: ['Bag ID', 'Cleanup ID', 'Team ID', 'Segment ID', 'By', 'At', 'Latitude', 'Longitude', 'Why'],
+    widths: [80, 90, 80, 90, 90, 150, 90, 90, 200],
+    formats: { 6: 'yyyy-mm-dd h:mm' }
   },
   // Every account set up or changed, by whom, with what it was before.
   changes: {
@@ -437,6 +451,8 @@ function actions_() {
     cleanupCheckIn: cleanupCheckIn_,
     cleanupCheckOut: cleanupCheckOut_,
     cleanupPounds: cleanupPounds_,   // an admin fixes a team's pounds after the day (S6-P27)
+    cleanupWeigh: cleanupWeigh_,   // a crew weighs on its segment (S7-P14)
+    cleanupBag: cleanupBag_,   // where a crew left its bags (S7-P14)
     questState: questState_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,

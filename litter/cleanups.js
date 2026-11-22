@@ -423,14 +423,62 @@ window.LitterCleanups = function (app) {
     // In Admin Mode only, until team mode's workflows are worked out (S7-P14, |M1221).
     box.hidden = !t || !$('cl-sim').checked;
     if (box.hidden) return;
-    $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
+    // Numbered, in the order they're done (S7-P14 item 7, |C1027).
+    $('cu-today-title').textContent = 'Your cleanup: ' + (t.of > 1 ? t.number + '. ' : '') + t.segmentName;
     var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
     $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
-      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.' + next
+      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Weigh as you go, and check out at its end.' + next
       : t.name + '. Check in when your team starts on ' + t.segmentName + '.' + next;
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
+    // Checked in: the word to the crew (item 6), its weighings (items 1, 2), Weigh, and the bags (item 4).
+    var on = !!t.checkin, ws = t.weighings || [];
+    $('cu-today-word').hidden = !on; $('cu-today-word').textContent = t.word || '';
+    $('cu-today-weigh').hidden = !on; $('cu-today-bag').hidden = !on;
+    $('cu-today-weighed').hidden = !on || (!ws.length && !t.withNext);
+    $('cu-today-weighed').textContent = (ws.length ? 'Weighed here: ' + t.weighed + ' lb, from ' + ws.length + (ws.length === 1 ? ' weighing.' : ' weighings.') : '') +
+      (t.withNext ? (ws.length ? ' ' : '') + 'Your last segment had no weighing: its pounds go in with this one\'s, and neither gets a rate.' : '');
   }
+  function last(t) { var ws = (t && t.weighings) || []; return ws.length ? ws[ws.length - 1] : null; }
+  $('cu-today-weigh').addEventListener('click', function () {
+    var t = day0, l = last(t);
+    if (!t) return;
+    $('cu-w-title').textContent = 'Weigh: ' + t.segmentName;
+    $('cu-w-reading').value = ''; $('cu-w-fresh').checked = false; $('cu-w-err').textContent = '';
+    $('cu-w-hint').textContent = l ? 'Your last reading: ' + l.reading + ' lb. Bags carried on are weighed whole; the page takes that away.' : 'Weigh all the crew\'s bags together.';
+    $('cu-w').hidden = false;
+    $('cu-w-reading').focus();
+  });
+  $('cu-w-cancel').addEventListener('click', function () { $('cu-w').hidden = true; });
+  $('cu-w-go').addEventListener('click', function () {
+    var t = day0;
+    return send('cleanupWeigh', { checkinId: t.checkin, reading: $('cu-w-reading').value, fresh: $('cu-w-fresh').checked }, $('cu-w-go'), 'cu-w-err', function () { $('cu-w').hidden = true; });
+  });
+  $('cu-today-bag').addEventListener('click', function () {
+    var t = day0, box = $('cu-b-whys');
+    if (!t) return;
+    box.textContent = '';
+    (t.bagWhys || []).forEach(function (w, i) {
+      var lab = el('label', 'choice-row'), r = el('input');
+      r.type = 'radio'; r.name = 'cu-b-why'; r.value = w; r.id = 'cu-b-why-' + i;
+      lab.appendChild(r); lab.appendChild(document.createTextNode(' ' + w)); box.appendChild(lab);
+    });
+    $('cu-b-err').textContent = '';
+    $('cu-b').hidden = false;
+  });
+  $('cu-b-cancel').addEventListener('click', function () { $('cu-b').hidden = true; });
+  $('cu-b-go').addEventListener('click', function () {
+    var t = day0, pick = document.querySelector('input[name="cu-b-why"]:checked');
+    if (!pick) { $('cu-b-err').textContent = 'Pick where the bags are.'; return; }
+    if (!navigator.geolocation) { $('cu-b-err').textContent = 'This phone can\'t give its location.'; return; }
+    $('cu-b-err').textContent = '';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      send('cleanupBag', { checkinId: t.checkin, lat: pos.coords.latitude, lon: pos.coords.longitude, why: pick.value }, $('cu-b-go'), 'cu-b-err', function () {
+        $('cu-b').hidden = true;
+        if (app.notice) app.notice('Saved: where the bags are, ' + pick.value.toLowerCase() + '.');
+      });
+    }, function () { $('cu-b-err').textContent = 'Your location couldn\'t be found. Try again outside.'; }, { enableHighAccuracy: true, timeout: 15000 });
+  });
   // Only in Admin Mode (S7-P2, item 12, with |S7-P14): players' pages don't ask.
   var asked = false;
   function onAccount() {
@@ -466,15 +514,18 @@ window.LitterCleanups = function (app) {
     var t = day0;
     if (!t) return;
     $('cu-out-title').textContent = 'Check out: ' + t.segmentName;
-    $('cu-out-lbs').value = '';
+    // Its pounds are its weighings' (item 1); with none, it's weighed with the next segment (item 3, |Q892 (a)).
+    var ws = t.weighings || [];
+    $('cu-out-say').textContent = ws.length ? 'This segment: ' + t.weighed + ' lb, from ' + ws.length + (ws.length === 1 ? ' weighing.' : ' weighings.')
+      : 'No weighing here yet. Weigh before you leave this segment. Check out without one, and its pounds go in with your next segment\'s weighing, and neither gets a rate.';
+    $('cu-out-go').textContent = ws.length ? 'Check out' : 'Check out without weighing';
     $('cu-out-err').textContent = '';
     $('cu-out').hidden = false;
-    $('cu-out-lbs').focus();
   });
   $('cu-out-cancel').addEventListener('click', function () { $('cu-out').hidden = true; });
   $('cu-out-go').addEventListener('click', function () {
     var t = day0;
-    return send('cleanupCheckOut', { checkinId: t.checkin, pounds: $('cu-out-lbs').value }, $('cu-out-go'), 'cu-out-err', function () {
+    return send('cleanupCheckOut', { checkinId: t.checkin }, $('cu-out-go'), 'cu-out-err', function () {
       $('cu-out').hidden = true;
     });
   });

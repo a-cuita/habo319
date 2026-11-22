@@ -931,3 +931,5 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 /* A board topic or note in Street Talk (S7-P10, |M1442): a clear break above each, its head in bold. */
 .lt-rh-line.lt-rh-note { border-top: 1px solid rgba(148, 163, 184, 0.45); padding-top: 6px; margin-top: 8px; }
 .lt-rh-note-head { font-weight: 700; }
+/* A cleanup crew's word, on the day (S7-P14 item 6). */
+.lt-cu-word { font-weight: 700; margin: 8px 0; }

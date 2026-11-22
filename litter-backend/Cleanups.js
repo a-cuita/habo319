@@ -13,7 +13,14 @@
 var CLEANUP_COL = { id: 1, name: 2, day: 3, starts: 4, ends: 5, segments: 6, until: 7, state: 8, by: 9, made: 10 };
 var TEAM_COL = { id: 1, cleanup: 2, name: 3, leaders: 4, by: 5, made: 6 };
 var PERSON_COL = { cleanup: 1, account: 2, team: 3, segment: 4, joined: 5 };
-var CHECKIN_COL = { id: 1, cleanup: 2, team: 3, segment: 4, by: 5, inAt: 6, outAt: 7, there: 8, pounds: 9, collection: 10 };
+var CHECKIN_COL = { id: 1, cleanup: 2, team: 3, segment: 4, by: 5, inAt: 6, outAt: 7, there: 8, pounds: 9, collection: 10, withNext: 11 };
+// S7-P14: a crew weighs on its segment as often as needed, all its bags together; a bag
+// carried on is weighed whole, and what was weighed before is taken away (|Q891 (a)).
+var WEIGH_COL = { id: 1, cleanup: 2, checkin: 3, team: 4, segment: 5, by: 6, at: 7, reading: 8, fresh: 9, pounds: 10 };
+// Where a crew left its bags (item 4, |Q890): its pin, and why, like Grab a location's whys.
+var BAG_COL = { id: 1, cleanup: 2, team: 3, segment: 4, by: 5, at: 6, lat: 7, lon: 8, why: 9 };
+var CLEANUP_BAG_WHYS = ['Left for pickup', 'In a bin', 'In a dumpster that was there'];
+var CLEANUP_WEIGH_WORD = 'Weigh before you leave this segment: all the crew\'s bags together.';   // |M1215, item 6
 var CLEANUP_STATES = ['Open', 'Retired'];
 
 function cleanupTime_(day, hm) {
@@ -49,8 +56,23 @@ function cleanupCheckinsAll_() {
   return readRows_(TABS.cleanupCheckins, CHECKIN_COL).map(function (r) {
     var t = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : 0; };
     return { row: r.row, id: r.get('id'), cleanup: r.get('cleanup'), team: r.get('team'), segment: r.get('segment'), by: r.get('by'),
-      inAt: t('inAt'), outAt: t('outAt'), there: idList_(r.get('there')), pounds: r.get('pounds') === '' ? null : Number(r.get('pounds')), collection: r.get('collection') };
+      inAt: t('inAt'), outAt: t('outAt'), there: idList_(r.get('there')), pounds: r.get('pounds') === '' ? null : Number(r.get('pounds')), collection: r.get('collection'),
+      withNext: String(r.get('withNext') || '') };
   });
+}
+function cleanupWeighingsAll_() {
+  return readRows_(TABS.cleanupWeighings, WEIGH_COL).map(function (r) {
+    var at = r.get('at');
+    return { row: r.row, id: r.get('id'), cleanup: r.get('cleanup'), checkin: r.get('checkin'), team: r.get('team'), segment: r.get('segment'), by: r.get('by'),
+      at: at instanceof Date ? at.getTime() : 0, reading: Number(r.get('reading')) || 0, fresh: /^\s*y/i.test(r.get('fresh')), pounds: Number(r.get('pounds')) || 0 };
+  }).filter(function (x) { return x.id; });
+}
+function cleanupBagsAll_() {
+  return readRows_(TABS.cleanupBags, BAG_COL).map(function (r) {
+    var at = r.get('at');
+    return { row: r.row, id: r.get('id'), cleanup: r.get('cleanup'), team: r.get('team'), segment: r.get('segment'), by: r.get('by'),
+      at: at instanceof Date ? at.getTime() : 0, lat: Number(r.get('lat')), lon: Number(r.get('lon')), why: String(r.get('why')) };
+  }).filter(function (x) { return x.id; });
 }
 function isCleanupAdmin_(account) { return !!account.rank && rankAtLeast_(account.rank, 'Builder'); }
 function cleanupFind_(id) {
@@ -82,10 +104,19 @@ function cleanupView_(c, account, names, segs, teams, people, checkins, now) {
   view.lead = leads;
   // Players asking to be placed: for a team's leaders and admins, who place them.
   view.unplaced = admin || leads ? people.filter(function (p) { return p.cleanup === c.id && !p.team; }).map(function (p) { return who(p.account); }) : [];
+  var ws = cleanupWeighingsAll_().filter(function (x) { return x.cleanup === c.id; });
   view.checkins = ins.map(function (k) {
+    var mine = ws.filter(function (x) { return x.checkin === k.id; }).sort(function (a, b) { return a.at - b.at; });
     return { id: k.id, team: k.team, segment: k.segment, segmentName: segName(k.segment), by: names[k.by] || '', inAt: k.inAt, outAt: k.outAt,
-      there: k.there.map(who), pounds: k.pounds };
+      there: k.there.map(who), pounds: k.pounds, withNext: k.withNext,
+      weighings: mine.map(function (x) { return { at: x.at, reading: x.reading, fresh: x.fresh, pounds: x.pounds, by: names[x.by] || '' }; }),
+      weighed: round_(mine.reduce(function (t, x) { return t + x.pounds; }, 0), 2) };
   });
+  view.bags = cleanupBagsAll_().filter(function (x) { return x.cleanup === c.id; }).map(function (x) {
+    return { id: x.id, team: x.team, segment: x.segment, segmentName: segName(x.segment), lat: x.lat, lon: x.lon, why: x.why, at: x.at, by: names[x.by] || '' };
+  });
+  view.weighWord = CLEANUP_WEIGH_WORD;
+  view.bagWhys = CLEANUP_BAG_WHYS;
   // After (item 5): pounds by segment and by team, and each member's hours.
   var bySeg = {}, byTeam = {}, hours = {};
   ins.forEach(function (k) {
@@ -131,9 +162,15 @@ function cleanupsFor_(account) {
     var seg = v.mySegments.filter(isOpen)[0] || v.mySegments.filter(function (s) { return !isDone(s); })[0] || v.mySegments[v.mySegments.length - 1];
     var open = mineK.filter(function (k) { return k.segment === seg && !k.outAt; })[0];
     var team = v.teams.filter(function (t) { return t.id === v.myTeam; })[0];
-    today = { cleanup: v.id, name: v.name, segment: seg, segmentName: segs[seg] ? segs[seg].name : seg,
+    var nameOf = function (s) { return segs[s] ? segs[s].name : s; };
+    today = { cleanup: v.id, name: v.name, segment: seg, segmentName: nameOf(seg),
       checkin: open ? open.id : '', inAt: open ? open.inAt : 0, done: isDone(seg),
-      left: v.mySegments.filter(function (s) { return s !== seg && !isDone(s); }).map(function (s) { return segs[s] ? segs[s].name : s; }),
+      // Numbered, in the order they're done (S7-P14 item 7, |C1027).
+      number: v.mySegments.indexOf(seg) + 1, of: v.mySegments.length,
+      left: v.mySegments.map(function (s, i) { return { n: i + 1, s: s }; }).filter(function (x) { return x.s !== seg && !isDone(x.s); }).map(function (x) { return x.n + '. ' + nameOf(x.s); }),
+      // The crew's weighings here (items 1, 2), and an earlier segment waiting to be weighed with this one (item 3).
+      weighings: open ? open.weighings : [], weighed: open ? open.weighed : 0,
+      withNext: mineK.some(function (k) { return k.withNext === 'Next'; }), word: CLEANUP_WEIGH_WORD, bagWhys: CLEANUP_BAG_WHYS,
       members: team ? team.members.filter(function (m) { return m.segments.indexOf(seg) !== -1; }).map(function (m) { return { id: m.id, handle: m.handle }; }) : [] };
   });
   return { cleanups: views, segments: segList, admin: isCleanupAdmin_(account), me: account.id, today: today };
@@ -324,28 +361,96 @@ function cleanupCheckIn_(req) {
     return cleanupsFor_(account);
   });
 }
+// Check out: the segment's pounds are its weighings' (S7-P14 item 1); with none, it's
+// weighed with the team's next segment, one reading for both, and neither gets a rate
+// (item 3, |Q892 (a)). Pounds typed here still work, as before the weighings.
 function cleanupCheckOut_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
-  var lbs = Number(String(req.pounds == null ? '' : req.pounds).replace(/[^\d.]/g, ''));
-  if (String(req.pounds == null ? '' : req.pounds).trim() === '' || !(lbs >= 0) || lbs > 2000) throw new Error('Type the team\'s pounds for this segment, like 12.5.');
+  var typed = String(req.pounds == null ? '' : req.pounds).trim(), lbsTyped = Number(typed.replace(/[^\d.]/g, ''));
+  if (typed !== '' && (!/\d/.test(typed) || !(lbsTyped >= 0) || lbsTyped > 2000)) throw new Error('Type the team\'s pounds for this segment, like 12.5.');
   return withLock_(function () {
-    var k = cleanupCheckinsAll_().filter(function (x) { return x.id === clean_(req.checkinId, 20); })[0];
+    var all = cleanupCheckinsAll_(), k = all.filter(function (x) { return x.id === clean_(req.checkinId, 20); })[0];
     if (!k || k.outAt) throw new Error('That check-in isn\'t open any more.');
     var c = cleanupFind_(k.cleanup);
     var me = cleanupPeopleAll_().filter(function (p) { return p.cleanup === c.id && p.account === account.id; })[0];
     if ((!me || me.team !== k.team) && !isCleanupAdmin_(account)) throw new Error('Someone on the team checks out.');
-    var now = Date.now(), g = segmentsAll_().filter(function (x) { return x.id === k.segment; })[0];
-    // Kept as a collection whose one weighing is the whole segment, for its rate (|Q721 (a)).
+    var now = Date.now(), sheet = getDb_().getSheetByName(TABS.cleanupCheckins.name);
+    var ws = cleanupWeighingsAll_().filter(function (x) { return x.checkin === k.id; });
+    if (!ws.length && typed === '') {
+      sheet.getRange(k.row, CHECKIN_COL.outAt).setValue(new Date(now));
+      sheet.getRange(k.row, CHECKIN_COL.withNext).setValue('Next');
+      logChange_(account.email, 'Cleanup check-in', k.id, 'Out', '', 'no weighing: with the next segment');
+      forgetReads_();
+      return cleanupsFor_(account);
+    }
+    var lbs = ws.length ? ws.reduce(function (t, x) { return t + x.pounds; }, 0) : lbsTyped;
+    // Earlier segments of this team left without a weighing: in with this one.
+    var waiting = all.filter(function (x) { return x.cleanup === c.id && x.team === k.team && x.outAt && x.withNext === 'Next'; });
+    var segs = segmentsAll_(), segOf = function (id) { return segs.filter(function (x) { return x.id === id; })[0]; };
+    var parts = waiting.concat([k]);
+    // Kept as a collection whose one weighing covers its segments, for their rates (|Q721 (a)).
     var team = cleanupTeamsAll_().filter(function (t) { return t.id === k.team; })[0];
-    var colId = cleanupCollection_(account, c, team, k, g, lbs, now);
-    var sheet = getDb_().getSheetByName(TABS.cleanupCheckins.name);
+    var colId = cleanupCollection_(account, c, team, k, parts.map(function (x) { return segOf(x.segment); }).filter(Boolean), lbs, now, Math.min.apply(null, parts.map(function (x) { return x.inAt; })));
     sheet.getRange(k.row, CHECKIN_COL.outAt).setValue(new Date(now));
     sheet.getRange(k.row, CHECKIN_COL.pounds).setValue(round_(lbs, 2));
     sheet.getRange(k.row, CHECKIN_COL.collection).setValue(colId);
-    logChange_(account.email, 'Cleanup check-in', k.id, 'Out', '', round_(lbs, 2) + ' lb, ' + colId);
+    waiting.forEach(function (x) { sheet.getRange(x.row, CHECKIN_COL.withNext).setValue(k.id); sheet.getRange(x.row, CHECKIN_COL.collection).setValue(colId); });
+    logChange_(account.email, 'Cleanup check-in', k.id, 'Out', '', round_(lbs, 2) + ' lb, ' + colId + (waiting.length ? ', with ' + waiting.map(function (x) { return x.id; }).join(' ') : ''));
     forgetReads_();
     measureWorld_(false, '');
+    return cleanupsFor_(account);
+  });
+}
+
+// A weighing on the crew's open check-in (items 1 and 2): all its bags together. A
+// bag carried on is weighed whole, and the team's last reading is taken away; New
+// bags, since that reading, count whole.
+function cleanupWeigh_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  var reading = Number(String(req.reading == null ? '' : req.reading).replace(/[^\d.]/g, ''));
+  if (String(req.reading == null ? '' : req.reading).trim() === '' || !(reading > 0) || reading > 2000) throw new Error('Type what the scale shows for all the crew\'s bags, like 12.5.');
+  return withLock_(function () {
+    var k = cleanupCheckinsAll_().filter(function (x) { return x.id === clean_(req.checkinId, 20); })[0];
+    if (!k || k.outAt) throw new Error('Check in on the segment first.');
+    var c = cleanupFind_(k.cleanup);
+    var me = cleanupPeopleAll_().filter(function (p) { return p.cleanup === c.id && p.account === account.id; })[0];
+    if ((!me || me.team !== k.team) && !isCleanupAdmin_(account)) throw new Error('Someone on the team weighs.');
+    var fresh = !!req.fresh, before = cleanupWeighingsAll_().filter(function (x) { return x.cleanup === c.id && x.team === k.team; }).sort(function (a, b) { return a.at - b.at; }).pop();
+    var lbs = fresh || !before ? reading : reading - before.reading;
+    if (lbs < 0) throw new Error('Less than your last reading (' + before.reading + ' lb). Started new bags? Tick New bags since the last weighing.');
+    var sheet = getDb_().getSheetByName(TABS.cleanupWeighings.name), row = blankRow_(TABS.cleanupWeighings), now = Date.now();
+    var id = nextId_('CW', cleanupWeighingsAll_().map(function (x) { return x.id; }));
+    row[WEIGH_COL.id - 1] = id; row[WEIGH_COL.cleanup - 1] = c.id; row[WEIGH_COL.checkin - 1] = k.id; row[WEIGH_COL.team - 1] = k.team; row[WEIGH_COL.segment - 1] = k.segment;
+    row[WEIGH_COL.by - 1] = account.id; row[WEIGH_COL.at - 1] = new Date(now); row[WEIGH_COL.reading - 1] = round_(reading, 2); row[WEIGH_COL.fresh - 1] = fresh ? 'Yes' : ''; row[WEIGH_COL.pounds - 1] = round_(lbs, 2);
+    sheet.getRange(lastRowWith_(sheet, WEIGH_COL.id) + 1, 1, 1, row.length).setValues([row]);
+    logChange_(account.email, 'Cleanup weighing', id, 'Weighed', '', k.id + ' ' + round_(reading, 2) + ' lb read, ' + round_(lbs, 2) + ' lb new');
+    forgetReads_();
+    return cleanupsFor_(account);
+  });
+}
+
+// Where the crew left its bags (item 4): a pin, and why.
+function cleanupBag_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  var why = String(req.why || ''), lat = Number(req.lat), lon = Number(req.lon);
+  if (CLEANUP_BAG_WHYS.indexOf(why) === -1) throw new Error('Pick where the bags are: ' + CLEANUP_BAG_WHYS.join(', ') + '.');
+  if (!(isFinite(lat) && isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180 && (lat || lon))) throw new Error('Add its place: press Use my location.');
+  return withLock_(function () {
+    var k = cleanupCheckinsAll_().filter(function (x) { return x.id === clean_(req.checkinId, 20); })[0];
+    if (!k) throw new Error('That check-in isn\'t here any more.');
+    var c = cleanupFind_(k.cleanup);
+    var me = cleanupPeopleAll_().filter(function (p) { return p.cleanup === c.id && p.account === account.id; })[0];
+    if ((!me || me.team !== k.team) && !isCleanupAdmin_(account)) throw new Error('Someone on the team marks where the bags are.');
+    var sheet = getDb_().getSheetByName(TABS.cleanupBags.name), row = blankRow_(TABS.cleanupBags);
+    var id = nextId_('CB', cleanupBagsAll_().map(function (x) { return x.id; }));
+    row[BAG_COL.id - 1] = id; row[BAG_COL.cleanup - 1] = c.id; row[BAG_COL.team - 1] = k.team; row[BAG_COL.segment - 1] = k.segment; row[BAG_COL.by - 1] = account.id;
+    row[BAG_COL.at - 1] = new Date(); row[BAG_COL.lat - 1] = round_(lat, 6); row[BAG_COL.lon - 1] = round_(lon, 6); row[BAG_COL.why - 1] = why;
+    sheet.getRange(lastRowWith_(sheet, BAG_COL.id) + 1, 1, 1, row.length).setValues([row]);
+    logChange_(account.email, 'Cleanup bags', id, 'Left', '', k.id + ': ' + why);
+    forgetReads_();
     return cleanupsFor_(account);
   });
 }
@@ -372,12 +477,15 @@ function cleanupPounds_(req) {
     return cleanupsFor_(account);
   });
 }
-function cleanupCollection_(account, c, team, k, g, lbs, now) {
+function cleanupCollection_(account, c, team, k, g, lbs, now, from) {
+  var gs = Array.isArray(g) ? g : (g ? [g] : []), inAt = from || k.inAt;
   var cols = getDb_().getSheetByName(TABS.collections.name);
   var id = nextId_('L', readRows_(TABS.collections).map(function (q) { return q.get('id'); }));
-  var hours = Math.max(0, now - k.inAt) / 3600000, miles = g ? g.miles : 0;
+  var hours = Math.max(0, now - inAt) / 3600000, miles = gs.reduce(function (t, x) { return t + (x.miles || 0); }, 0);
+  var cells = [];
+  gs.forEach(function (x) { x.squares.forEach(function (q) { if (cells.indexOf(q) === -1) cells.push(q); }); });
   var row = blankRow_(TABS.collections), put = function (key, v) { row[COLLECTION_COL[key] - 1] = v; };
-  put('id', id); put('account', account.id); put('handle', account.handle); put('started', new Date(k.inAt)); put('ended', new Date(now));
+  put('id', id); put('account', account.id); put('handle', account.handle); put('started', new Date(inAt)); put('ended', new Date(now));
   put('status', 'Ended'); put('stretches', 1); put('pounds', round_(lbs, 2)); put('miles', round_(miles, 3));
   put('active', round_(hours * 60, 1)); put('hours', round_(hours, 2));
   put('hoursNote', 'Cleanup ' + c.id + ' (' + c.name + '), team ' + (team ? team.name : k.team) + ', ' + k.there.length + ' there: ' + round_(hours * k.there.length, 2) + ' person-hours');
@@ -386,8 +494,8 @@ function cleanupCollection_(account, c, team, k, g, lbs, now) {
   var st = getDb_().getSheetByName(TABS.stretches.name);
   var sid = nextId_('S', readRows_(TABS.stretches).map(function (q) { return q.get('id'); }));
   var s = blankRow_(TABS.stretches), sp = function (key, v) { s[STRETCH_COL[key] - 1] = v; };
-  sp('id', sid); sp('collection', id); sp('account', account.id); sp('n', 1); sp('started', new Date(k.inAt)); sp('ended', new Date(now));
-  sp('cells', squaresPack_(g ? g.squares.join(' ') : '')); sp('streetMi', round_(miles, 3)); sp('offMi', 0); sp('activeMin', round_(hours * 60, 1));
+  sp('id', sid); sp('collection', id); sp('account', account.id); sp('n', 1); sp('started', new Date(inAt)); sp('ended', new Date(now));
+  sp('cells', squaresPack_(cells.join(' '))); sp('streetMi', round_(miles, 3)); sp('offMi', 0); sp('activeMin', round_(hours * 60, 1));
   sp('pounds', round_(lbs, 2)); sp('received', new Date(now));
   st.getRange(lastRowWith_(st, STRETCH_COL.id) + 1, 1, 1, s.length).setValues([s]);
   return id;

@@ -1078,6 +1078,8 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 /* A board topic or note in Street Talk (S7-P10, |M1442): a clear break above each, its head in bold. */
 .lt-rh-line.lt-rh-note { border-top: 1px solid rgba(148, 163, 184, 0.45); padding-top: 6px; margin-top: 8px; }
 .lt-rh-note-head { font-weight: 700; }
+/* A cleanup crew's word, on the day (S7-P14 item 6). */
+.lt-cu-word { font-weight: 700; margin: 8px 0; }
 </style>
 </head>
 <body>
@@ -1607,10 +1609,34 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
   <div class="lt-scrim" id="cu-out" role="dialog" aria-modal="true" aria-labelledby="cu-out-title" hidden>
     <div class="lt-scrim-box">
       <p class="lt-scrim-title" id="cu-out-title">Check out</p>
-      <div class="ig"><label for="cu-out-lbs">The team's pounds for this segment</label><input id="cu-out-lbs" inputmode="decimal" autocomplete="off"></div>
+      <!-- Its pounds are its weighings' (S7-P14 item 1); with none, it's weighed with the next segment (item 3). -->
+      <p class="small lt-ask-line" id="cu-out-say"></p>
       <button class="btn btn-primary" id="cu-out-go" type="button">Check out</button>
       <p class="err" id="cu-out-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cu-out-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <!-- A crew's weighing (S7-P14 items 1, 2): all its bags together, as a walk's litter pulse. -->
+  <div class="lt-scrim" id="cu-w" role="dialog" aria-modal="true" aria-labelledby="cu-w-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cu-w-title">Weigh</p>
+      <div class="ig"><label for="cu-w-reading">What the scale shows for all the crew's bags (lb)</label><input id="cu-w-reading" inputmode="decimal" autocomplete="off"></div>
+      <p class="muted small" id="cu-w-hint"></p>
+      <label class="choice-row"><input type="checkbox" id="cu-w-fresh"> New bags since the last weighing</label>
+      <button class="btn btn-primary" id="cu-w-go" type="button">Save</button>
+      <p class="err" id="cu-w-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="cu-w-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <!-- Where the bags are left (S7-P14 item 4): a pin, and why. -->
+  <div class="lt-scrim" id="cu-b" role="dialog" aria-modal="true" aria-labelledby="cu-b-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cu-b-title">Leave the bags here</p>
+      <p class="muted small">Stand where the bags are, then pick where they are.</p>
+      <div id="cu-b-whys"></div>
+      <button class="btn btn-primary" id="cu-b-go" type="button">Use my location and save</button>
+      <p class="err" id="cu-b-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="cu-b-cancel" type="button">Cancel</button></div>
     </div>
   </div>
   <!-- The first quest's safety rules (S5-P20, step 2): the waiver's, one screen at a time. -->
@@ -1827,6 +1853,11 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
     <section class="card lt-cu-today" id="cu-today" hidden>
       <h2 id="cu-today-title">Your cleanup</h2>
       <p class="muted small" id="cu-today-say"></p>
+      <!-- Checked in (S7-P14): the word to the crew (item 6), its weighings (items 1, 2), Weigh, and where the bags are left (item 4). -->
+      <p class="lt-cu-word" id="cu-today-word" hidden></p>
+      <p class="small" id="cu-today-weighed" hidden></p>
+      <button class="btn btn-primary" id="cu-today-weigh" type="button" hidden>Weigh</button>
+      <button class="btn btn-secondary" id="cu-today-bag" type="button" hidden>Leave the bags here</button>
       <button class="btn btn-accent" id="cu-today-in" type="button">Check in</button>
       <button class="btn btn-accent" id="cu-today-out" type="button" hidden>Check out</button>
     </section>
@@ -10847,14 +10878,62 @@ window.LitterCleanups = function (app) {
     // In Admin Mode only, until team mode's workflows are worked out (S7-P14, |M1221).
     box.hidden = !t || !$('cl-sim').checked;
     if (box.hidden) return;
-    $('cu-today-title').textContent = 'Your cleanup: ' + t.segmentName;
+    // Numbered, in the order they're done (S7-P14 item 7, |C1027).
+    $('cu-today-title').textContent = 'Your cleanup: ' + (t.of > 1 ? t.number + '. ' : '') + t.segmentName;
     var next = t.left && t.left.length ? ' Then: ' + t.left.join(', ') + '.' : '';
     $('cu-today-say').textContent = t.done ? 'Checked out. Thank you: your team\'s pounds are in.' + next
-      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Check out at its end, with the team\'s pounds.' + next
+      : t.checkin ? 'Checked in at ' + clock(t.inAt) + '. Weigh as you go, and check out at its end.' + next
       : t.name + '. Check in when your team starts on ' + t.segmentName + '.' + next;
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
+    // Checked in: the word to the crew (item 6), its weighings (items 1, 2), Weigh, and the bags (item 4).
+    var on = !!t.checkin, ws = t.weighings || [];
+    $('cu-today-word').hidden = !on; $('cu-today-word').textContent = t.word || '';
+    $('cu-today-weigh').hidden = !on; $('cu-today-bag').hidden = !on;
+    $('cu-today-weighed').hidden = !on || (!ws.length && !t.withNext);
+    $('cu-today-weighed').textContent = (ws.length ? 'Weighed here: ' + t.weighed + ' lb, from ' + ws.length + (ws.length === 1 ? ' weighing.' : ' weighings.') : '') +
+      (t.withNext ? (ws.length ? ' ' : '') + 'Your last segment had no weighing: its pounds go in with this one\'s, and neither gets a rate.' : '');
   }
+  function last(t) { var ws = (t && t.weighings) || []; return ws.length ? ws[ws.length - 1] : null; }
+  $('cu-today-weigh').addEventListener('click', function () {
+    var t = day0, l = last(t);
+    if (!t) return;
+    $('cu-w-title').textContent = 'Weigh: ' + t.segmentName;
+    $('cu-w-reading').value = ''; $('cu-w-fresh').checked = false; $('cu-w-err').textContent = '';
+    $('cu-w-hint').textContent = l ? 'Your last reading: ' + l.reading + ' lb. Bags carried on are weighed whole; the page takes that away.' : 'Weigh all the crew\'s bags together.';
+    $('cu-w').hidden = false;
+    $('cu-w-reading').focus();
+  });
+  $('cu-w-cancel').addEventListener('click', function () { $('cu-w').hidden = true; });
+  $('cu-w-go').addEventListener('click', function () {
+    var t = day0;
+    return send('cleanupWeigh', { checkinId: t.checkin, reading: $('cu-w-reading').value, fresh: $('cu-w-fresh').checked }, $('cu-w-go'), 'cu-w-err', function () { $('cu-w').hidden = true; });
+  });
+  $('cu-today-bag').addEventListener('click', function () {
+    var t = day0, box = $('cu-b-whys');
+    if (!t) return;
+    box.textContent = '';
+    (t.bagWhys || []).forEach(function (w, i) {
+      var lab = el('label', 'choice-row'), r = el('input');
+      r.type = 'radio'; r.name = 'cu-b-why'; r.value = w; r.id = 'cu-b-why-' + i;
+      lab.appendChild(r); lab.appendChild(document.createTextNode(' ' + w)); box.appendChild(lab);
+    });
+    $('cu-b-err').textContent = '';
+    $('cu-b').hidden = false;
+  });
+  $('cu-b-cancel').addEventListener('click', function () { $('cu-b').hidden = true; });
+  $('cu-b-go').addEventListener('click', function () {
+    var t = day0, pick = document.querySelector('input[name="cu-b-why"]:checked');
+    if (!pick) { $('cu-b-err').textContent = 'Pick where the bags are.'; return; }
+    if (!navigator.geolocation) { $('cu-b-err').textContent = 'This phone can\'t give its location.'; return; }
+    $('cu-b-err').textContent = '';
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      send('cleanupBag', { checkinId: t.checkin, lat: pos.coords.latitude, lon: pos.coords.longitude, why: pick.value }, $('cu-b-go'), 'cu-b-err', function () {
+        $('cu-b').hidden = true;
+        if (app.notice) app.notice('Saved: where the bags are, ' + pick.value.toLowerCase() + '.');
+      });
+    }, function () { $('cu-b-err').textContent = 'Your location couldn\'t be found. Try again outside.'; }, { enableHighAccuracy: true, timeout: 15000 });
+  });
   // Only in Admin Mode (S7-P2, item 12, with |S7-P14): players' pages don't ask.
   var asked = false;
   function onAccount() {
@@ -10890,15 +10969,18 @@ window.LitterCleanups = function (app) {
     var t = day0;
     if (!t) return;
     $('cu-out-title').textContent = 'Check out: ' + t.segmentName;
-    $('cu-out-lbs').value = '';
+    // Its pounds are its weighings' (item 1); with none, it's weighed with the next segment (item 3, |Q892 (a)).
+    var ws = t.weighings || [];
+    $('cu-out-say').textContent = ws.length ? 'This segment: ' + t.weighed + ' lb, from ' + ws.length + (ws.length === 1 ? ' weighing.' : ' weighings.')
+      : 'No weighing here yet. Weigh before you leave this segment. Check out without one, and its pounds go in with your next segment\'s weighing, and neither gets a rate.';
+    $('cu-out-go').textContent = ws.length ? 'Check out' : 'Check out without weighing';
     $('cu-out-err').textContent = '';
     $('cu-out').hidden = false;
-    $('cu-out-lbs').focus();
   });
   $('cu-out-cancel').addEventListener('click', function () { $('cu-out').hidden = true; });
   $('cu-out-go').addEventListener('click', function () {
     var t = day0;
-    return send('cleanupCheckOut', { checkinId: t.checkin, pounds: $('cu-out-lbs').value }, $('cu-out-go'), 'cu-out-err', function () {
+    return send('cleanupCheckOut', { checkinId: t.checkin }, $('cu-out-go'), 'cu-out-err', function () {
       $('cu-out').hidden = true;
     });
   });
