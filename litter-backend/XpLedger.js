@@ -205,7 +205,7 @@ function xpLevelRow_(n, at) {
 // (a)); and their total and level on Accounts. `moving`: the once-only
 // move-in (item 8, |Q731), each row at the time it was earned, and each
 // level when it was reached. Returns { total, level, added }.
-function xpSettle_(accountId, moving) {
+function xpSettle_(accountId, moving, again) {
   if (!moving) bountyCheck_(accountId);   // a bounty now collected, while it runs, with room left (S7-P11)
   var rows = xpRows_(accountId), by = xpByKey_(rows), now = Date.now(), add = [];
   var dues = xpDues_(accountId, by);
@@ -246,6 +246,9 @@ function xpSettle_(accountId, moving) {
   if (finished.length) questsAccount_(accountId, all);
   var level = all.reduce(function (m, r) { return r.level != null && r.level > m ? r.level : m; }, 0);
   xpAccount_(accountId, total, level, all.filter(function (r) { return r.kind === 'Level'; }));
+  // A finish taken back (|Q913 (a)): settled once more, so the walks in the
+  // time it was finished count toward it again, and it can finish again now.
+  if (!again && finished.some(function (r) { return r.detail.move === 'undone'; })) return xpSettle_(accountId, moving, true);
   return { total: total, level: level, added: add.length };
 }
 

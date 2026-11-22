@@ -83,7 +83,8 @@ function announceLines_(shown) {
   if (rhOn_(SETTING_RH_BADGE)) badgesAll_().forEach(function (b) {
     if (b.earned) lines.push({ at: b.earned, who: shown[b.account] || 'A volunteer', text: 'earned the badge ' + (b.badge ? b.badge + ' ' : '') + '"' + b.name + '"!', kind: 'badge', account: b.account });
   });
-  return lines.concat(questAnnounceLines_(shown));   // a Quest taken on or finished (S7-P4, |Q884 (a))
+  return lines.concat(questAnnounceLines_(shown))   // a Quest taken on or finished (S7-P4, |Q884 (a))
+    .concat(bountyAnnounceLines_(shown));   // a bounty earned (S7-P11, |Q914 (a))
 }
 
 // gchat (items 2 and 7, |Q764 (a)): a line each, to everyone signed in.
@@ -107,7 +108,7 @@ function gchatLines_(shown, viewer) {
 // Your tells, sent and received, come with them (S7-P10); an admin in Admin
 // Mode also gets every reported tell, to remove.
 function sharedLines_(account, shown, admin) {
-  return announceLines_(shown).concat(gchatLines_(shown, account.id)).filter(function (l) { return !(l.kind === 'end' && l.account === account.id); }).map(function (l) {
+  return announceLines_(shown).concat(gchatLines_(shown, account.id)).filter(function (l) { return !(l.kind === 'end' && l.account === account.id) && (!l.adminOnly || account.rank); }).map(function (l) {
     var o = { at: l.at, who: l.who, text: l.text, mine: l.account === account.id, kind: l.kind };
     if (l.kind === 'gchat') { o.id = l.id; o.reported = l.reported; }
     return o;

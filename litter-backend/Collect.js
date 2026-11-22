@@ -342,6 +342,8 @@ function collectLoad_(req) {
   var earned = badgesNow_(account);
   return {
     collection: col ? collectionView_(col) : null, stretches: col ? stretchesOf_(col.id).map(stretchViewOf_) : [],
+    // A past walk's summary: the skills sent on it, for Share (|C1140).
+    pins: col && col.status === 'Ended' ? walkPins_(account.id, col.id) : [],
     settings: collectSettings_(), types: typesFor_(account), hours: hoursOf_(account.id), pace: paceOf_(account.id),
     plan: planView_(openPlan_(account.id)), planNeeded: planNeeded_(account.id), xp: xpOf_(account.id), level: levelFor_(account.id),
     // Asked with lean (S7-P2, items 8 and 10): the segments without their walks, which
@@ -667,7 +669,9 @@ function hoursOf_(accountId) {
 function walkDone_(out, collectionId, account) {
   out.earned = badgesEarn_(account);
   // XP written down as it's earned (S7-P1): this walk's, any badge's, and any Challenge's.
+  var before = bountyEarnedAll_().length;
   xpSettle_(account.id, false);
+  out.bounties = bountiesNews_(account.id, before);   // a bounty this walk earned, for its notice (S7-P11, |Q914 (a))
   out.walk = walkXp_(collectionId, account.id);
   out.walk.badges = round_(out.earned.reduce(function (t, b) { return t + b.xp; }, 0), 2);
   out.streak = streakOf_(account.id);

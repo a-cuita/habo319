@@ -119,11 +119,13 @@ function skillGoal_(c, accountId, items, scope) {
       return pts.some(function (q) { return LitterGeo.dist(p, q) - LitterGeo.CELL_M / 2 <= metres; });
     };
   }
-  // A Challenge on Grab a location counts every grab, whatever why was picked
-  // (S7-P4, Jeremy in chat, Nov 22, (a)): a grab is sent as its why's skill, marked Grabbed.
-  var grab = toolSkillsAll_().some(function (s) { return s.id === c.skill && s.grab; });
+  // A Challenge on Grab a location counts every use of a skill that's one of
+  // its whys, however it's sent (S7-P4, |Q912 (a)): 🐕 💩 used by itself is a
+  // grab too. Grabbed in Challenge items still says which came through Grab a location.
+  var all = toolSkillsAll_(), grab = all.some(function (s) { return s.id === c.skill && s.grab; }), why = {};
+  all.forEach(function (s) { if (s.whyOf) why[s.id] = true; });
   var n = (items || challengeItemsAll_()).filter(function (x) {
-    return (grab ? x.grabbed : x.skill === c.skill) && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x)) && (!scope.spans || inSpans_(x.sent, scope.spans));
+    return (grab ? why[x.skill] : x.skill === c.skill) && x.account === accountId && x.state === 'Approved' && x.sent >= from && x.sent < to && (!near || near(x)) && (!scope.spans || inSpans_(x.sent, scope.spans));
   }).length;
   var done = c.goal > 0 && n >= c.goal, counted = c.goal > 0 ? Math.min(n, c.goal) : n;
   return { count: n, done: done, xp: round_(counted * c.xpOne * (done ? c.mult : 1), 2) };
@@ -146,6 +148,8 @@ function challengeGains_(accountId, items, snapOf) {
     var sc = challengeScope_(c, quests), q = sc.quest;
     if (q) sc.spans = questSpans_(st, q.id);   // while it's their active Quest (S7-P4)
     if (c.quest && (!q || q.state === 'Draft' || q.test)) return;
+    // A retired Challenge pays nothing new (|C1136): left off, what it paid stays as it is.
+    if (c.state === 'Retired') return;
     var key = 'challenge:' + c.id, sn = snapOf(key), cc = c;
     if (sn) { cc = {}; Object.keys(c).forEach(function (k) { cc[k] = c[k]; }); cc.xpPer = sn.xpPer; cc.xpOne = sn.xpOne; cc.mult = sn.mult; }
     var got = cc.kind === 'Walk goal' ? walkGoal_(cc, accountId, sc) : skillGoal_(cc, accountId, items, sc);

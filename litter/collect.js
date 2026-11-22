@@ -1688,6 +1688,7 @@ window.LitterCollect = function (app) {
     summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), walk: d.walk || null, earned: earnedOf(d), levelTo: null,
       // The walk's plan, to offer the ground collected off it (Q560).
       planCells: c.plan ? planCells(c.plan) : [] };
+    walkNews(d);
     c = null;
     save();
     keep(STREETS_KEY, null);
@@ -2117,6 +2118,7 @@ window.LitterCollect = function (app) {
         pace = d.pace || pace;
         // Its plan's squares, from the segments it lists, so ground off it is offered in pieces again (S5-U17).
         summary = { id: id, collection: d.collection, stretches: d.stretches || [], track: keptTrack(d.collection), planCells: planCellsOf(d.collection && d.collection.plan), walk: d.walk || null };
+        walkNews(d);
         showSummary();
       });
     });
@@ -2369,6 +2371,7 @@ window.LitterCollect = function (app) {
         if (d.walk) summary.walk = d.walk;
         if (app.onEarned) app.onEarned(d);
         summary.earned = (summary.earned || []).concat(earnedOf(d));
+        walkNews(d);
         summary.stretches = summary.stretches.map(function (x) { return x.id === d.stretch.id ? d.stretch : x; });
         if (summary.stops) delete summary.stops[s.id];
         summary.editing = false;
@@ -2459,6 +2462,7 @@ window.LitterCollect = function (app) {
       if (d.walk) summary.walk = d.walk;
       if (app.onEarned) app.onEarned(d);
       summary.earned = (summary.earned || []).concat(earnedOf(d));
+      walkNews(d);
       shareExtras();
       summary.stops = {};
       summary.stretches.forEach(function (s) {
@@ -3047,6 +3051,15 @@ window.LitterCollect = function (app) {
   function shareLook() { if (window.LitterShare && window.LitterShare.setLook && settings && settings.share) window.LitterShare.setLook(settings.share); }
   // Badges a response says were just earned, by name, for the walk's picture (|M1047).
   function earnedOf(d) { return ((d && d.earned) || []).map(function (b) { return { badge: b.badge, name: b.name }; }); }
+  // From each walk response: the skills sent on it, as pins for Share (S7-P4,
+  // |C1140), and any bounty it just earned, told (S7-P11, |Q914 (a)).
+  function walkNews(d) {
+    if (!summary || !d) return;
+    if (d.pins) summary.pins = d.pins;
+    (d.bounties || []).forEach(function (b) {
+      app.notice('🎯 You earned ' + b.sponsor + '\'s bounty, ' + b.name + '! ' + (b.test ? 'A test, so no XP.' : '+' + b.xp + ' XP.') + ' Its reward: ' + b.reward + '.');
+    });
+  }
   // "With its new badges and level": shown when the walk earned any, ticked to start (|M1047).
   function shareExtras() {
     var has = summary && ((summary.earned && summary.earned.length) || summary.levelTo);

@@ -220,6 +220,28 @@ function bountyCheck_(accountId) {
   });
   if (wrote) forgetReads_();
 }
+// A bounty earned, told (S7-P11, |Q914 (a)): a line in Street Talk, like a
+// Quest finished, and a notice on the walk's summary. A test bounty's line
+// reaches admins only, as the bounty does.
+function bountyAnnounceLines_(shown) {
+  var bs = {};
+  bountiesAll_().forEach(function (b) { bs[b.id] = b; });
+  return bountyEarnedAll_().filter(function (e) { return bs[e.bounty] && e.earned; }).map(function (e) {
+    var b = bs[e.bounty];
+    return { at: e.earned, who: shown[e.account] || 'A volunteer', account: e.account, kind: 'bounty', adminOnly: !!b.test,
+      text: 'earned ' + b.sponsor + '\'s bounty ' + b.name + (b.test ? ' (a test)' : '') + '!' };
+  });
+}
+// The bounties this settle earned, for the walk's summary: the earned rows after `before`.
+function bountiesNews_(accountId, before) {
+  var bs = {};
+  bountiesAll_().forEach(function (b) { bs[b.id] = b; });
+  return bountyEarnedAll_().slice(before).filter(function (e) { return e.account === accountId && bs[e.bounty]; }).map(function (e) {
+    var b = bs[e.bounty];
+    return { name: b.name, sponsor: b.sponsor, reward: b.reward, xp: e.xp, test: !!b.test };
+  });
+}
+
 // Its XP, for the XP tab: each bounty earned, with the XP it had then.
 function bountyDues_(accountId) {
   var names = {};

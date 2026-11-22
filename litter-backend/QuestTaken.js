@@ -37,6 +37,19 @@ function inSpans_(at, spans) {
   return false;
 }
 
+// The Quest log rows that hold, in time order. A finish taken back (S7-P4,
+// |Q913 (a)): when a change to a Quest means a player's finish no longer
+// holds, an undone row is written, and the finish before it is as if it never
+// was: the Quest stays their active one through that time, so a walk then counts.
+function questLogLive_(rows) {
+  var log = rows.filter(function (r) { return r.kind === QUEST_LOG && r.detail && r.detail.move; }).sort(function (a, b) { return a.at - b.at; });
+  var undone = {};
+  log.forEach(function (r) { if (r.detail.move === 'undone') (undone[r.detail.quest] = undone[r.detail.quest] || []).push(r.at); });
+  return log.filter(function (r) {
+    if (r.detail.move === 'undone') return false;
+    return r.detail.move !== 'done' || !(undone[r.detail.quest] || []).some(function (t) { return t >= r.at; });
+  });
+}
 // One player's Quests, from the Quest log rows in their tab: { taken: {id: at},
 // finished: {id: at}, active: id or '', spans: {id: [[from, to]]}, order: [ids] }.
 function questsOf_(accountId, rows) {
@@ -46,7 +59,7 @@ function questsOf_(accountId, rows) {
     if (out.active) (out.spans[out.active] = out.spans[out.active] || []).push([out.since, at]);
     out.active = ''; out.since = 0;
   };
-  rows.filter(function (r) { return r.kind === QUEST_LOG && r.detail && r.detail.move; }).sort(function (a, b) { return a.at - b.at; }).forEach(function (r) {
+  questLogLive_(rows).forEach(function (r) {
     var q = r.detail.quest || '', m = r.detail.move;
     if (m === 'take' && q && !out.taken[q]) { out.taken[q] = r.at; out.order.push(q); }
     else if (m === 'active' && q && out.active !== q) { close(r.at); out.active = q; out.since = r.at; }
@@ -93,8 +106,7 @@ function questsAccount_(accountId, rows) {
   var a = readAccounts_().filter(function (x) { return x.id === accountId; })[0];
   if (!a) return;
   var tz = Session.getScriptTimeZone(), parts = [];
-  (rows || xpRows_(accountId)).filter(function (r) { return r.kind === QUEST_LOG && r.detail && (r.detail.move === 'take' || r.detail.move === 'done'); })
-    .sort(function (p, q) { return p.at - q.at; }).forEach(function (r) {
+  questLogLive_(rows || xpRows_(accountId)).filter(function (r) { return r.detail.move === 'take' || r.detail.move === 'done'; }).forEach(function (r) {
       parts.push(r.detail.quest + ' ' + (r.detail.move === 'take' ? 'taken' : 'finished') + ' ' + Utilities.formatDate(new Date(r.at), tz, 'yyyy-MM-dd HH:mm'));
     });
   var text = parts.join('; ');
@@ -112,10 +124,22 @@ function questsTakenText_(text) {
 function questsFinishedRows_(accountId, rows, dues) {
   var st = questsOf_(accountId, rows), names = {}, add = [], now = Date.now();
   questBenchAll_().forEach(function (q) { names[q.id] = q.name; });
+  var again = {};   // finished before, then taken back: a new key for each finish
+  rows.forEach(function (r) { if (r.kind === QUEST_LOG && r.detail && r.detail.move === 'undone') again[r.detail.quest] = true; });
   dues.forEach(function (d) {
-    if (d.kind !== 'Quest' || !d.done || !d.quest || !st.taken[d.quest] || st.finished[d.quest]) return;
-    add.push({ at: now, kind: QUEST_LOG, say: 'Finished the Quest ' + (names[d.quest] || d.quest), xp: 0, key: 'quest-log:' + d.quest + ':done', detail: { quest: d.quest, move: 'done' } });
+    if (d.kind !== 'Quest' || !d.quest || !st.taken[d.quest]) return;
+    if (d.done && !st.finished[d.quest])
+      add.push({ at: now, kind: QUEST_LOG, say: 'Finished the Quest ' + (names[d.quest] || d.quest), xp: 0, key: 'quest-log:' + d.quest + ':done' + (again[d.quest] ? ':' + now : ''), detail: { quest: d.quest, move: 'done' } });
+    // A change to the Quest means its finish no longer holds (|Q913 (a)).
+    else if (!d.done && st.finished[d.quest])
+      add.push({ at: now, kind: QUEST_LOG, say: 'The Quest ' + (names[d.quest] || d.quest) + ' isn\'t finished any more: it was changed', xp: 0, key: 'quest-log:' + d.quest + ':undone:' + now, detail: { quest: d.quest, move: 'undone' } });
   });
+  // Unfinished, it's their active Quest again, unless another is.
+  var back = add.filter(function (r) { return r.detail.move === 'undone'; });
+  if (back.length && !questsOf_(accountId, rows.concat(add)).active) {
+    var q = back[0].detail.quest;
+    add.push({ at: now, kind: QUEST_LOG, say: 'Made ' + (names[q] || q) + ' your active Quest again', xp: 0, key: 'quest-log:' + q + ':active:' + now, detail: { quest: q, move: 'active' } });
+  }
   return add;
 }
 
