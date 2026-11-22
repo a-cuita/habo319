@@ -52,7 +52,10 @@ function whoLines_(account) {
   accounts.forEach(function (a) {
     var at = Number(got['here:' + a.id]) || (a.id === account.id ? now : 0);
     if (!at || now - at > HERE_SECONDS * 1000) return;
-    if (shown[a.id]) named.push(shown[a.id] + (a.id === account.id ? ' (you)' : ''));
+    // A name with its handle after it (|Q898 (a)), so who tells you how to tell
+    // someone: "Carmen Cruz (carmen)". A handle shown alone is already one.
+    var name = shown[a.id] && a.shows === 'Name' && a.handle ? shown[a.id] + ' (' + a.handle + ')' : shown[a.id];
+    if (name) named.push(name + (a.id === account.id ? ' (you)' : ''));
     else unnamed++;
   });
   named.sort(function (p, q) { return p.toLowerCase() < q.toLowerCase() ? -1 : 1; });
