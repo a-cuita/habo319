@@ -854,7 +854,7 @@
     smallMap: function (title, cells, opts) { return mapper.smallMap(title, cells, opts); },
     drawSmallMaps: function (root) { mapper.drawSmallMaps(root); },
     openForum: function (id) { forum.openReview(id); },
-    challengePhoto: function (id, img, button) { return challenges.photoInto(id, img, button); },
+    challengePhoto: function (id, img, button, which) { return challenges.photoInto(id, img, button, which); },
     cellOf: function (lat, lon) { return challenges.cellOf(lat, lon); }
   });
 

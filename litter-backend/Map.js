@@ -156,7 +156,9 @@ function mapLoad_(req) {
     ratings: Object.keys(rated).map(function (cell) { return [cell, round_(rated[cell].sum / rated[cell].n, 1), rated[cell].n]; }),
     mine: viewer ? Object.keys(mine).map(function (cell) { var m = mine[cell]; return [cell, m.rating, m.index == null ? null : round_(m.index, 1), day(m.ended)]; }) : null,
     diffBands: { mark: minutesSetting_(SETTING_DIFF_MARK, 0.5), slight: minutesSetting_(SETTING_DIFF_SLIGHT, 1.5) },
-    rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5 };
+    rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5,
+    // Skills' pins, approved ones with a place, for everyone, without who (S7-P4 item 9, |Q734 (a)).
+    pins: skillPins_() };
   // The days you chose decide the segments' rates and the walks in their pop-ups too (|Q724 (a), |Q725 (a)).
   // Asked with lean (S7-P2, items 8 and 10): the main page already has the segments for its own range,
   // so they come only with chosen days, and without their walks, which come with segmentWalks on a tap;
@@ -213,6 +215,9 @@ function myCollections_(req) {
   // its ratings with their math (|S7-P15, |C1029), its litter types and its bonus.
   var xpRows = {};
   xpRows_(account.id).forEach(function (r) { if (r.walk) (xpRows[r.walk] = xpRows[r.walk] || []).push(r); });
+  // Skills sent on each walk, for its share picture (S7-P4 item 9).
+  var pinsOf = {};
+  walkPins_(account.id, null).forEach(function (p) { (pinsOf[p.walk] = pinsOf[p.walk] || []).push(p); });
   var list = readRows_(TABS.collections).filter(function (q) { return q.get('account') === account.id && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED; })
     .map(function (q) {
       var col = collectionOf_(q);
@@ -227,6 +232,7 @@ function myCollections_(req) {
       col.xpParts = p;
       col.xp = round_(mine.reduce(function (t, r) { return t + r.xp; }, 0), 2);
       col.stretchList = sts.map(stretchViewOf_);
+      col.pins = pinsOf[col.id] || [];
       delete col.row;
       return col;
     })

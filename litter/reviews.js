@@ -52,6 +52,8 @@ window.LitterReviews = function (app) {
       box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + (r.near ? 'within reach of ' + r.near : 'not near a public segment') + ' · earns ' + r.xpIf + ' XP if approved'));
       box.appendChild(el('p', 'muted small', 'Sent by ' + r.by + (r.proposed ? ', ' + when(r.proposed) : '')));
       if (r.askNote) box.appendChild(el('p', 'small', '"' + r.askNote + '"'));
+      // Its count and choice (S7-P4 item 7).
+      if (r.count || r.choice) box.appendChild(el('p', 'small lt-review-sent', [r.count ? 'How many: ' + r.count : '', r.choice ? 'Which: ' + r.choice : ''].filter(String).join(' · ')));
       if (r.lat != null && r.lon != null) {
         box.appendChild(el('p', 'small', 'Place: ' + r.lat.toFixed(5) + ', ' + r.lon.toFixed(5) + (r.acc != null ? ' (within ' + r.acc + ' m)' : '')));
         if (app.smallMap && app.cellOf) box.appendChild(app.smallMap(r.name, [app.cellOf(r.lat, r.lon)], { kind: 'public' }));
@@ -60,11 +62,22 @@ window.LitterReviews = function (app) {
         var img = el('img', 'lt-review-photo');
         img.alt = 'The photo sent for ' + r.name;
         img.hidden = true;
-        var show = el('button', 'btn btn-secondary lt-review-show-photo', 'Show the photo');
+        var show = el('button', 'btn btn-secondary lt-review-show-photo', r.hasAfter ? 'Show the before photo' : 'Show the photo');
         show.type = 'button';
         show.addEventListener('click', function () { app.challengePhoto(r.id, img, show); });
         box.appendChild(show);
         box.appendChild(img);
+      }
+      // A before and after's after photo (S7-P4 item 7).
+      if (r.hasAfter && app.challengePhoto) {
+        var img2 = el('img', 'lt-review-photo lt-review-after');
+        img2.alt = 'The after photo sent for ' + r.name;
+        img2.hidden = true;
+        var show2 = el('button', 'btn btn-secondary lt-review-show-after', 'Show the after photo');
+        show2.type = 'button';
+        show2.addEventListener('click', function () { app.challengePhoto(r.id, img2, show2, 'after'); });
+        box.appendChild(show2);
+        box.appendChild(img2);
       }
     } else {
     box.appendChild(el('p', 'small lt-review-state', r.state + ' · ' + r.kind + ' · ' + r.squares.length + ' squares · ' + Math.round(r.miles * 100) / 100 + ' mi'));

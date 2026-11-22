@@ -162,20 +162,27 @@ window.LitterChallenges = function (app) {
       var row = document.getElementById('skl-' + s.id), box = row && row.querySelector('.lt-skill-tool');
       if (!box) return;
       box.textContent = '';
-      // Usable now: Use first, at the top of the sheet.
-      if (!s.locked && s.state === 'Open') {
-        box.appendChild(button('btn btn-primary lt-skill-use', 'Use', function () { run(s); }));
+      // Usable now: Use first, at the top of the sheet. Not now: why (S7-P4 item 6).
+      if (!s.locked && s.state === 'Open' && !s.blocked) {
+        box.appendChild(button('btn btn-primary lt-skill-use', s.grab ? 'Grab a location' : 'Use', function () { run(s); }));
         row.classList.add('lt-skill-usable');
         if (row.parentNode && row.parentNode.firstChild !== row) row.parentNode.insertBefore(row, row.parentNode.firstChild);
-      }
+      } else if (!s.locked && s.state === 'Open') box.appendChild(el('p', 'small lt-skill-blocked', 'Not now: ' + s.blocked));
+      var due = s.mine.filter(function (x) { return x.state === 'After photo due'; });
+      due.forEach(function (x) {
+        var b = button('btn btn-secondary lt-skill-after', 'Add its after photo (' + when(x.sent) + ')', function () { afterPhoto(s, x); });
+        b.disabled = !x.afterReady;
+        box.appendChild(b);
+        if (!x.afterReady && s.afterSay) box.appendChild(el('p', 'muted small', 'Its after photo comes ' + s.afterSay.charAt(0).toLowerCase() + s.afterSay.slice(1)));
+      });
       if (s.why) box.appendChild(el('p', 'muted small', s.why));
       box.appendChild(el('p', 'small', skillRewards(s)));
       if (s.mine.length) {
         var past = el('details', 'lt-skill-sent');
         past.appendChild(el('summary', 'small', 'What you\'ve sent (' + s.mine.length + ')'));
         s.mine.slice().reverse().forEach(function (x) {
-          past.appendChild(el('p', 'small lt-challenge-item ' + x.state.toLowerCase(), when(x.sent) + ' · ' + (x.state === 'Approved' ? 'Approved, ' + x.xp + ' XP' : x.state === 'Declined' ? 'Declined' + (x.why ? ': "' + x.why + '"' : '') : 'Waiting for a review') +
-            (x.note ? ' · "' + x.note + '"' : '')));
+          past.appendChild(el('p', 'small lt-challenge-item ' + x.state.toLowerCase().replace(/\s+/g, '-'), when(x.sent) + ' · ' + (x.state === 'Approved' ? 'Approved, ' + x.xp + ' XP' : x.state === 'Declined' ? 'Declined' + (x.why ? ': "' + x.why + '"' : '') : x.state === 'After photo due' ? 'Waiting for its after photo' : 'Waiting for a review') +
+            (x.count ? ' · ' + x.count : '') + (x.choice ? ' · ' + x.choice : '') + (x.note ? ' · "' + x.note + '"' : '')));
         });
         box.appendChild(past);
       }
@@ -193,22 +200,70 @@ window.LitterChallenges = function (app) {
 
   // Using a skill, its steps one at a time (|Q668), in a card low on the
   // screen: the map stays in view behind it, with the place's pending pin.
-  var got = null, using = null;
+  var got = null, using = null, afterOf = null;
   function run(s) {
-    using = s;
-    got = { lat: null, lon: null, acc: null, photo: '', note: '' };
+    using = s; afterOf = null;
+    got = { lat: null, lon: null, acc: null, photo: '', note: '', count: '', choice: '', chance: chanceFor(s), grabbed: false };
     if (app.closeSkills) app.closeSkills();
     $('sk-run-title').textContent = s.name;
     $('sk-run-err').textContent = '';
     $('sk-run').hidden = false;
     step(0);
   }
+  // A photo by chance (item 8, |Q735 (a)), decided once, at Use; one not taken isn't sent.
+  function chanceFor(s) { return !s.grab && s.chance > 0 && s.actions.indexOf('Photo') === -1 && s.actions.indexOf('Before and after') === -1 && Math.random() * 100 < s.chance; }
   function steps() {
+    if (afterOf) return ['after'];
     var has = function (a) { return using.actions.indexOf(a) !== -1; }, out = [];
-    if (has('Place')) out.push('place');
-    if (has('Photo')) out.push('photo');
+    if (using.grab) return ['place', 'why'];   // Grab a location (item 10): the place, then why
+    if (has('Place') && !got.grabbed) out.push('place');
+    if (has('Before and after')) out.push('before'); else if (has('Photo')) out.push('photo');
+    if (got.chance) out.push('chance');
+    if (has('Count')) out.push('count');
+    if (has('Choice')) out.push('choice');
     out.push('send');
     return out;
+  }
+  // A why picked: its skill opens, the place kept (|Q870 (b)).
+  function pickWhy(w) {
+    var s = ((skills && skills.skills) || []).filter(function (x) { return x.id === w.skill; })[0];
+    if (!s) return;
+    using = s;
+    got.grabbed = true; got.chance = chanceFor(s);
+    $('sk-run-title').textContent = 'Grab a location: ' + w.why;
+    step(0);
+  }
+  // A before and after's after photo (item 7, |Q743).
+  function afterPhoto(s, x) {
+    using = s; afterOf = x;
+    got = { photo: '' };
+    if (app.closeSkills) app.closeSkills();
+    $('sk-run-title').textContent = s.name + ': its after photo';
+    $('sk-run-err').textContent = '';
+    $('sk-run').hidden = false;
+    step(0);
+  }
+  function photoStep(body, say, next, opt) {
+    body.appendChild(el('p', 'lt-skill-step', say));
+    body.appendChild(el('p', 'small lt-skill-warn', 'Keep people out of the photo, and anything that shows who they are.'));
+    var lab = el('label', 'btn btn-primary lt-challenge-photo-btn', got.photo ? 'Take another photo' : 'Take its photo');
+    var file = el('input', 'lt-challenge-photo');
+    file.type = 'file'; file.accept = 'image/*'; file.setAttribute('capture', 'environment'); file.id = 'sk-run-photo';
+    lab.htmlFor = file.id;
+    var shot = el('img', 'lt-challenge-shot');
+    shot.alt = 'The photo to send';
+    shot.hidden = !got.photo;
+    if (got.photo) shot.src = got.photo;
+    var go2 = opt && opt.go ? opt.go : button('btn btn-secondary lt-skill-next', 'Next', next);
+    go2.disabled = !got.photo;
+    file.addEventListener('change', function () {
+      var fl = file.files && file.files[0];
+      if (!fl) return;
+      shrink(fl).then(function (url) { got.photo = url; shot.src = url; shot.hidden = false; lab.textContent = 'Take another photo'; go2.disabled = false; $('sk-run-err').textContent = ''; },
+        function () { $('sk-run-err').textContent = 'That photo couldn\'t be read. Take it again.'; });
+    });
+    body.appendChild(lab); body.appendChild(file); body.appendChild(shot); body.appendChild(go2);
+    if (opt && opt.skip) body.appendChild(button('link-btn lt-skill-skip', 'Skip the photo', function () { got.photo = ''; next(); }));
   }
   function step(i) {
     var list = steps(), k = list[i], body = $('sk-run-body');
@@ -239,26 +294,50 @@ window.LitterChallenges = function (app) {
       go.disabled = got.lat == null;
       if (got.lat != null) say.textContent = 'Captured, within ' + Math.round(got.acc) + ' m.';
       body.appendChild(cap); body.appendChild(say); body.appendChild(go);
-    } else if (k === 'photo') {
-      body.appendChild(el('p', 'lt-skill-step', 'Now take a few steps back. Take its photo with the landmarks around it in view, so others can find it.'));
-      body.appendChild(el('p', 'small lt-skill-warn', 'Keep people out of the photo, and anything that shows who they are.'));
-      var lab = el('label', 'btn btn-primary lt-challenge-photo-btn', got.photo ? 'Take another photo' : 'Take its photo');
-      var file = el('input', 'lt-challenge-photo');
-      file.type = 'file'; file.accept = 'image/*'; file.setAttribute('capture', 'environment'); file.id = 'sk-run-photo';
-      lab.htmlFor = file.id;
-      var shot = el('img', 'lt-challenge-shot');
-      shot.alt = 'The photo to send';
-      shot.hidden = !got.photo;
-      if (got.photo) shot.src = got.photo;
-      var go2 = button('btn btn-secondary lt-skill-next', 'Next', next);
-      go2.disabled = !got.photo;
-      file.addEventListener('change', function () {
-        var fl = file.files && file.files[0];
-        if (!fl) return;
-        shrink(fl).then(function (url) { got.photo = url; shot.src = url; shot.hidden = false; lab.textContent = 'Take another photo'; go2.disabled = false; $('sk-run-err').textContent = ''; },
-          function () { $('sk-run-err').textContent = 'That photo couldn\'t be read. Take it again.'; });
+    } else if (k === 'why') {
+      // Why you grabbed it (item 10): each why opens its skill; none picked, nothing kept.
+      body.appendChild(el('p', 'lt-skill-step', 'Why did you grab this place?'));
+      var ws = using.whys || [];
+      if (!ws.length) body.appendChild(el('p', 'muted small', 'No whys are set up yet. An admin sets them in Skill Builder.'));
+      ws.forEach(function (w) {
+        var b = button('btn btn-secondary lt-skill-why', w.why, function () { pickWhy(w); });
+        b.disabled = !!w.blocked;
+        body.appendChild(b);
+        if (w.blocked) body.appendChild(el('p', 'muted small', w.why + ': ' + w.blocked));
       });
-      body.appendChild(lab); body.appendChild(file); body.appendChild(shot); body.appendChild(go2);
+      body.appendChild(el('p', 'muted small', 'Closing without a why keeps nothing.'));
+    } else if (k === 'photo') {
+      photoStep(body, 'Now take a few steps back. Take its photo with the landmarks around it in view, so others can find it.', next);
+    } else if (k === 'before') {
+      photoStep(body, 'Take its before photo now, before you collect anything. Its after photo comes ' + (using.afterSay ? using.afterSay.charAt(0).toLowerCase() + using.afterSay.slice(1) : 'once you\'ve collected it.'), next);
+    } else if (k === 'chance') {
+      photoStep(body, 'Also, a photo this time, if you can: step back so the landmarks around it are in view.', next, { skip: true });
+    } else if (k === 'count') {
+      body.appendChild(el('p', 'lt-skill-step', 'How many here?'));
+      var cn = el('input', 'lt-skill-count');
+      cn.type = 'number'; cn.min = '1'; cn.max = '999'; cn.step = '1'; cn.inputMode = 'numeric'; cn.id = 'sk-run-count'; cn.value = got.count || '';
+      body.appendChild(cn);
+      var go3 = button('btn btn-secondary lt-skill-next', 'Next', function () { got.count = cn.value; next(); });
+      go3.disabled = !(Number(cn.value) >= 1);
+      cn.addEventListener('input', function () { go3.disabled = !(Number(cn.value) >= 1 && Math.floor(Number(cn.value)) === Number(cn.value)); });
+      body.appendChild(go3);
+    } else if (k === 'choice') {
+      body.appendChild(el('p', 'lt-skill-step', 'Which?'));
+      (using.choices || []).forEach(function (c) {
+        body.appendChild(button('btn ' + (got.choice === c ? 'btn-primary' : 'btn-secondary') + ' lt-skill-choice', c, function () { got.choice = c; next(); }));
+      });
+    } else if (k === 'after') {
+      var sendA = button('btn btn-primary lt-challenge-go', 'Send', function () {
+        app.busy(sendA, 'sk-run-err', function () {
+          return app.api('toolSkillAfter', { token: app.myToken(), itemId: afterOf.id, photo: got.photo }).then(function (d) {
+            skills = d;
+            body.textContent = '';
+            body.appendChild(el('p', 'lt-challenge-sent', 'Sent, with its before photo. An admin reviews them, and its XP comes once it\'s approved.'));
+            body.appendChild(button('btn btn-secondary', 'Done', close));
+          });
+        });
+      });
+      photoStep(body, 'Take its after photo, from where you took its before.', null, { go: sendA });
     } else {
       var note = null;
       if (using.actions.indexOf('Note') !== -1) {
@@ -271,11 +350,13 @@ window.LitterChallenges = function (app) {
       var send = button('btn btn-primary lt-challenge-go', 'Send', function () {
         if (note) got.note = note.value;
         app.busy(send, 'sk-run-err', function () {
-          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note }).then(function (d) {
+          return app.api('toolSkillSend', { token: app.myToken(), skillId: using.id, lat: got.lat, lon: got.lon, acc: got.acc, photo: got.photo, note: got.note, count: got.count, choice: got.choice }).then(function (d) {
             skills = d;
             if (app.pendingPin) app.pendingPin(null);
             body.textContent = '';
-            body.appendChild(el('p', 'lt-challenge-sent', 'Sent. An admin reviews it, and its XP comes once it\'s approved.'));
+            body.appendChild(el('p', 'lt-challenge-sent', using.actions.indexOf('Before and after') !== -1
+              ? 'Sent, with its before photo. Its after photo comes ' + (using.afterSay ? using.afterSay.charAt(0).toLowerCase() + using.afterSay.slice(1) : 'once you\'ve collected it') + ' Find it in Skills, under ' + using.name + '.'
+              : 'Sent. An admin reviews it, and its XP comes once it\'s approved.'));
             body.appendChild(button('btn btn-secondary', 'Done', close));
           });
         });
@@ -287,7 +368,7 @@ window.LitterChallenges = function (app) {
   function close() {
     $('sk-run').hidden = true;
     if (app.pendingPin) app.pendingPin(null);
-    using = null;
+    using = null; afterOf = null;
   }
   $('sk-run-close').addEventListener('click', close);
 
@@ -345,7 +426,15 @@ window.LitterChallenges = function (app) {
     var s = el('section', 'card lt-cha-item' + (c.state === 'Retired' ? ' retired' : ''));
     s.id = 'cha-' + c.id;
     s.appendChild(el('p', 'lt-col-head', c.name));
-    s.appendChild(el('p', 'small', c.state + ' · ' + c.actions.join(', ') + ' · ' + (c.level ? 'opens at Level ' + c.level : 'open to everyone')));
+    s.appendChild(el('p', 'small', (c.pin ? c.pin + ' ' : '') + c.state + ' · ' + c.actions.join(', ') + ' · ' + (c.level ? 'opens at Level ' + c.level : 'open to everyone') + (c.grab ? ' · its whys open the skills set as one' : c.whyOf ? ' · a why for Grab a location: ' + c.whyOf : '')));
+    var when = [];
+    if (c.collecting) when.push('only while collecting');
+    if (c.onlyNear) when.push('only within ' + c.onlyNear + ' m of a public segment');
+    if (c.after) when.push(c.after === 'Clean' ? 'after a clean weighing' : c.after === 'Litter type' ? 'after a weighing with ' + c.litterType : 'after a weighing with a Litter Index of ' + c.indexAtLeast + ' or more');
+    if (c.everyPlayer) when.push('once for each player every ' + c.everyPlayer + ' min');
+    if (c.everySpot) when.push('once at a spot every ' + c.everySpot + ' min');
+    if (c.chance) when.push('asks for a photo ' + c.chance + '% of the time');
+    if (when.length) s.appendChild(el('p', 'small', 'When: ' + when.join('; ') + '.'));
     s.appendChild(el('p', 'small', skillRewards(c)));
     s.appendChild(el('p', 'muted small', c.sent + ' sent' + (c.waiting ? ', ' + c.waiting + ' waiting in Reviews' : '') + '.'));
     if (canBuild) {
@@ -585,7 +674,8 @@ window.LitterChallenges = function (app) {
     $('cha-copy-row').hidden = true;
     editing = c || null;
     $('qb-form').hidden = true;
-    var v = c || { name: '', says: '', why: '', actions: ['Place', 'Photo'], near: 20, xpEach: 1, xpNear: 0, level: 0 };
+    var v = c || { name: '', says: '', why: '', actions: ['Place', 'Photo'], near: 20, xpEach: 1, xpNear: 0, level: 0, collecting: false, onlyNear: 0, after: '', litterType: '', indexAtLeast: '',
+      everyPlayer: 0, everySpot: 0, choices: [], chance: 0, pin: '', whyOf: '' };
     $('cha-form-title').textContent = c ? 'Change ' + c.name : 'Add a skill';
     $('cha-form-quest').hidden = true;
     $('cha-name-label').textContent = 'Name';
@@ -593,8 +683,16 @@ window.LitterChallenges = function (app) {
     $('cha-name').value = v.name; $('cha-says').value = v.says; $('cha-why').value = v.why || '';
     Array.prototype.forEach.call(document.querySelectorAll('#cha-actions input'), function (x) { x.checked = v.actions.indexOf(x.value) !== -1; });
     $('cha-near').value = v.near; $('cha-xp-each').value = v.xpEach; $('cha-xp-near').value = v.xpNear; $('cha-level').value = v.level;
+    // Round 3 (S7-P4 items 6 to 9, 11).
+    var ty = $('cha-type');
+    ty.textContent = '';
+    ((admin && admin.types) || []).forEach(function (t) { var o = el('option', null, t); o.value = t; ty.appendChild(o); });
+    $('cha-collecting').checked = !!v.collecting; $('cha-only-near').value = v.onlyNear || 0; $('cha-after').value = v.after || '';
+    ty.value = v.litterType || ''; $('cha-index').value = v.indexAtLeast || ''; $('cha-every-player').value = v.everyPlayer || 0; $('cha-every-spot').value = v.everySpot || 0;
+    $('cha-choices').value = (v.choices || []).join(', '); $('cha-chance').value = v.chance || 0; $('cha-pin').value = v.pin || ''; $('cha-why-of').value = v.whyOf || '';
     $('cha-err').textContent = '';
     kindShown();
+    skillFormShown();
     $('cha-form').hidden = false;
     $('cha-form').scrollIntoView({ block: 'start' });
     $('cha-name').focus();
@@ -607,6 +705,17 @@ window.LitterChallenges = function (app) {
     $('cha-skill-box').hidden = sk || walk;
   }
   $('cha-kind').addEventListener('change', kindShown);
+  // What shows with what: its choices with Choice; a photo by chance only without a photo; the litter type or Litter Index with its weighing.
+  function skillFormShown() {
+    var on = function (v) { var i = document.querySelector('#cha-actions input[value="' + v + '"]'); return !!i && i.checked; };
+    Array.prototype.forEach.call(document.querySelectorAll('#cha-actions label'), function (l) { l.classList.toggle('on', l.querySelector('input').checked); });
+    $('cha-choices-row').hidden = !on('Choice');
+    $('cha-chance-row').hidden = on('Photo') || on('Before and after');
+    $('cha-type-row').hidden = $('cha-after').value !== 'Litter type';
+    $('cha-index-row').hidden = $('cha-after').value !== 'Litter Index';
+  }
+  $('cha-actions').addEventListener('change', skillFormShown);
+  $('cha-after').addEventListener('change', skillFormShown);
   $('cha-add').addEventListener('click', function () { if (mode === 'skills') edit(null); else editQuest(null); });
   $('cha-cancel').addEventListener('click', function () { $('cha-form').hidden = true; editing = null; });
   $('cha-save').addEventListener('click', function () {
@@ -614,7 +723,9 @@ window.LitterChallenges = function (app) {
     if (sk) {
       x = { id: editing ? editing.id : '', name: $('cha-name').value, says: $('cha-says').value, why: $('cha-why').value,
         actions: Array.prototype.filter.call(document.querySelectorAll('#cha-actions input'), function (i) { return i.checked; }).map(function (i) { return i.value; }),
-        near: $('cha-near').value, xpEach: $('cha-xp-each').value, xpNear: $('cha-xp-near').value, level: $('cha-level').value };
+        near: $('cha-near').value, xpEach: $('cha-xp-each').value, xpNear: $('cha-xp-near').value, level: $('cha-level').value,
+        collecting: $('cha-collecting').checked, onlyNear: $('cha-only-near').value, after: $('cha-after').value, litterType: $('cha-type').value, indexAtLeast: $('cha-index').value,
+        everyPlayer: $('cha-every-player').value, everySpot: $('cha-every-spot').value, choices: $('cha-choices').value, chance: $('cha-chance').value, pin: $('cha-pin').value, whyOf: $('cha-why-of').value };
     } else {
       var k = $('cha-kind').value, walk = k === 'Walk goal';
       x = { id: editing ? editing.id : '', quest: quest ? quest.id : '', name: $('cha-name').value, kind: walk ? 'Walk goal' : 'Skill goal', says: $('cha-says').value, why: $('cha-why').value,
@@ -641,9 +752,9 @@ window.LitterChallenges = function (app) {
   $('cha-back').addEventListener('click', function () { if (app.back) app.back(); });
 
   // An item's photo in Reviews, fetched when asked for.
-  function photoInto(itemId, img, btn) {
+  function photoInto(itemId, img, btn, which) {
     btn.disabled = true;
-    return app.api('challengePhoto', { token: app.myToken(), itemId: itemId }).then(function (d) {
+    return app.api('challengePhoto', { token: app.myToken(), itemId: itemId, which: which || '' }).then(function (d) {
       img.src = d.photo; img.hidden = false; btn.hidden = true;
     }, function (err) { btn.disabled = false; app.notice(err.message); });
   }

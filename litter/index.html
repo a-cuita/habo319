@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=77">
+<link rel="stylesheet" href="litter.css?v=78">
 </head>
 <body>
 
@@ -684,6 +684,8 @@
               <button class="lt-layer-opt lt-layer-maps" data-layer="rating-mine" type="button" aria-pressed="false" hidden>Visual rating: yours</button>
               <button class="lt-layer-opt lt-layer-maps" data-layer="rating-all" type="button" aria-pressed="false" hidden>Visual rating: everyone's average</button>
               <button class="lt-layer-opt lt-layer-maps" data-layer="diff" type="button" aria-pressed="false" hidden>Your rating against the Litter Index</button>
+              <!-- Skills' pins (S7-P4 item 9, |Q734 (a)): on top of whichever layer shows, turned on and off. -->
+              <button class="lt-layer-toggle" id="mp-pins-toggle" type="button" aria-pressed="true">Skill pins</button>
             </div>
           </div>
           <!-- On the main page, with a plan chosen: take its outline off the map to see the squares under it, and put it back (|M623). The plan stays chosen. -->
@@ -848,10 +850,31 @@
       <div class="ig"><label for="cha-why">Why (shown under it)</label><textarea id="cha-why" rows="2" maxlength="1000"></textarea></div>
       <div id="cha-items-box">
         <fieldset class="ig lt-cha-actions" id="cha-actions"><legend>What players send</legend>
-          <label><input type="checkbox" value="Place"> A place: Capture the place</label>
-          <label><input type="checkbox" value="Photo"> A photo</label>
-          <label><input type="checkbox" value="Note"> A note</label>
+          <label><input type="checkbox" value="Place"> Place</label>
+          <label><input type="checkbox" value="Photo"> Photo</label>
+          <label><input type="checkbox" value="Note"> Note</label>
+          <label><input type="checkbox" value="Count"> Count</label>
+          <label><input type="checkbox" value="Choice"> Choice</label>
+          <label><input type="checkbox" value="Before and after"> Before and after</label>
         </fieldset>
+        <div class="ig" id="cha-choices-row" hidden><label for="cha-choices">Its choices, with commas between</label><input id="cha-choices" maxlength="300" placeholder="Small, Large"></div>
+        <div class="ig" id="cha-chance-row"><label for="cha-chance">Also asks for a photo: this % of the time (0: never)</label><input id="cha-chance" type="number" min="0" max="100" step="1" inputmode="numeric"></div>
+        <fieldset class="ig lt-cha-when"><legend>When it can be used</legend>
+          <label class="choice-row"><input type="checkbox" id="cha-collecting"> Only while collecting</label>
+          <div class="ig"><label for="cha-only-near">Only within this many metres of a public segment (0: anywhere)</label><input id="cha-only-near" type="number" min="0" max="500" step="1" inputmode="numeric"></div>
+          <div class="ig"><label for="cha-after">After a weighing, until the next litter pulse (with Before and after: its after photo)</label><select id="cha-after">
+            <option value="">Any time</option>
+            <option value="Clean">After a clean weighing: no litter, rated 0</option>
+            <option value="Litter type">After a weighing with a litter type picked</option>
+            <option value="Litter Index">After a weighing with a Litter Index at least</option>
+          </select></div>
+          <div class="ig" id="cha-type-row" hidden><label for="cha-type">That litter type</label><select id="cha-type"></select></div>
+          <div class="ig" id="cha-index-row" hidden><label for="cha-index">That Litter Index, at least</label><input id="cha-index" type="number" min="0.1" max="10" step="0.1" inputmode="decimal"></div>
+          <div class="ig"><label for="cha-every-player">At most once for each player every (minutes; 0: no limit)</label><input id="cha-every-player" type="number" min="0" max="10080" step="1" inputmode="numeric"></div>
+          <div class="ig"><label for="cha-every-spot">At most once at the same spot, by anyone, every (minutes; 0: no limit)</label><input id="cha-every-spot" type="number" min="0" max="10080" step="1" inputmode="numeric"></div>
+        </fieldset>
+        <div class="ig"><label for="cha-pin">Its map pin: an emoji (blank: 📍)</label><input id="cha-pin" maxlength="8"></div>
+        <div class="ig"><label for="cha-why-of">A why for Grab a location (blank: none)</label><input id="cha-why-of" maxlength="40" placeholder="Dog poop"></div>
         <div class="ig"><label for="cha-xp-each">XP for each one approved</label><input id="cha-xp-each" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
         <div class="ig"><label for="cha-near">Near a public segment: within (metres)</label><input id="cha-near" type="number" min="0" max="500" step="1" inputmode="numeric"></div>
         <div class="ig"><label for="cha-xp-near">XP for one that near (0: the same as each)</label><input id="cha-xp-near" type="number" min="0" max="100" step="0.5" inputmode="decimal"></div>
@@ -1185,18 +1208,18 @@
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 <script src="config.js?v=2"></script>
 <script src="geo.js?v=12"></script>
-<script src="share.js?v=8"></script>
-<script src="collect.js?v=68"></script>
-<script src="map.js?v=47"></script>
+<script src="share.js?v=9"></script>
+<script src="collect.js?v=69"></script>
+<script src="map.js?v=48"></script>
 <script src="quest.js?v=6"></script>
 <script src="settings.js?v=10"></script>
-<script src="reviews.js?v=4"></script>
+<script src="reviews.js?v=5"></script>
 <script src="forum.js?v=7"></script>
-<script src="challenges.js?v=5"></script>
+<script src="challenges.js?v=6"></script>
 <script src="wiki.js?v=7"></script>
 <script src="cleanups.js?v=5"></script>
 <script src="achievements.js?v=1"></script>
 <script src="scroll.js?v=9"></script>
-<script src="litter.js?v=49"></script>
+<script src="litter.js?v=50"></script>
 </body>
 </html>

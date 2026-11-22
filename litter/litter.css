@@ -887,3 +887,23 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 /* The Bench's cards (S7-P4 item 13): the name, and its ⋯ menu at the right. */
 .lt-qb-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; }
 .lt-qb-head > p { margin: 0; flex: 1; min-width: 0; }
+
+/* Skill Builder (S7-P4 item 5): what players send as small buttons in one row, each lit when it's on. */
+.lt-cha-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.lt-cha-actions legend { width: 100%; }
+.lt-cha-actions label { position: relative; display: inline-flex; align-items: center; padding: 6px 12px; border: 1px solid var(--border-hi, #94a3b8); border-radius: 999px; font-size: 0.9em; cursor: pointer; user-select: none; }
+.lt-cha-actions label input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.lt-cha-actions label.on, .lt-cha-actions label:has(input:checked) { background: #1d4ed8; border-color: #1d4ed8; color: #fff; }
+.lt-cha-actions label:has(input:focus-visible) { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.lt-cha-when { border: 1px solid var(--border, #cbd5e1); border-radius: 8px; padding: 8px 10px; }
+.lt-skill-blocked { color: #92400e; }
+.lt-skill-why, .lt-skill-choice { display: block; width: 100%; margin: 6px 0; }
+.lt-skill-count { width: 120px; font-size: 1.2em; margin: 6px 0; }
+
+/* Skills' pins on the map (S7-P4 item 9): the emoji, with its count in a dot. */
+.lt-skill-pin { background: none; border: 0; }
+.lt-skill-pin .lt-pin-emoji { display: block; font-size: 24px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
+.lt-skill-pin .lt-pin-count { position: absolute; right: -6px; top: -4px; min-width: 16px; padding: 0 4px; border-radius: 8px; background: #1d4ed8; color: #fff; font: 700 11px/16px system-ui, sans-serif; text-align: center; }
+.lt-layer-toggle { display: block; width: 100%; text-align: left; border: 0; border-top: 1px solid var(--border, #cbd5e1); background: none; color: inherit; font: inherit; padding: 10px 12px; cursor: pointer; }
+.lt-layer-toggle::before { content: '☐ '; }
+.lt-layer-toggle.on::before { content: '☑ '; }

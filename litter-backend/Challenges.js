@@ -16,7 +16,7 @@
  */
 var CHALLENGE_COL = { id: 1, name: 2, says: 3, why: 4, kind: 5, actions: 6, near: 7, xpEach: 8, xpNear: 9, milesGoal: 10, segGoal: 11, xpPer: 12, mult: 13,
   from: 14, to: 15, level: 16, state: 17, by: 18, made: 19, skill: 20, goal: 21, xpOne: 22, quest: 23 };
-var ITEM_COL = { id: 1, skill: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12 };
+var ITEM_COL = { id: 1, skill: 2, account: 3, sent: 4, lat: 5, lon: 6, acc: 7, photo: 8, note: 9, state: 10, near: 11, xp: 12, count: 13, choice: 14, after: 15, walk: 16 };
 var CHALLENGE_KINDS = ['Walk goal', 'Skill goal'];
 var SETTING_CHALLENGE_PHOTOS = 'Challenge photos folder';
 var CHALLENGE_PHOTO_MAX = 2500000;   // characters of a photo sent, about 1.8 MB
@@ -40,7 +40,8 @@ function challengeItemsAll_() {
     var t = r.get('sent');
     return { row: r.row, id: r.get('id'), skill: r.get('skill'), account: r.get('account'), sent: t instanceof Date ? t.getTime() : 0,
       lat: r.get('lat') === '' ? null : Number(r.get('lat')), lon: r.get('lon') === '' ? null : Number(r.get('lon')), acc: r.get('acc') === '' ? null : Number(r.get('acc')),
-      photo: r.get('photo'), note: r.get('note'), state: r.get('state') || 'Waiting', near: r.get('near'), xp: Number(r.get('xp')) || 0 };
+      photo: r.get('photo'), note: r.get('note'), state: r.get('state') || 'Waiting', near: r.get('near'), xp: Number(r.get('xp')) || 0,
+      count: Number(r.get('count')) || 0, choice: String(r.get('choice') || ''), after: String(r.get('after') || ''), walk: String(r.get('walk') || '') };
   }).filter(function (x) { return x.id; });
 }
 
@@ -241,9 +242,10 @@ function challengePhoto_(req) {
   ensureSchema_();
   var account = requireAccount_(req.token);
   var x = challengeItemsAll_().filter(function (i) { return i.id === clean_(req.itemId, 20); })[0];
-  if (!x || !x.photo) throw new Error('That photo isn\'t here.');
+  var file = req.which === 'after' ? x && x.after : x && x.photo;   // a before and after's after photo (S7-P4)
+  if (!x || !file) throw new Error('That photo isn\'t here.');
   if (x.account !== account.id && !account.rank) throw new Error('That photo isn\'t yours to see.');
-  var blob = DriveApp.getFileById(x.photo).getBlob();
+  var blob = DriveApp.getFileById(file).getBlob();
   return { photo: 'data:' + (blob.getContentType() || 'image/jpeg') + ';base64,' + Utilities.base64Encode(blob.getBytes()) };
 }
 
@@ -356,6 +358,7 @@ function challengeReviewItems_(handles, rows, now) {
     var open = x.state === 'Waiting';
     return { id: x.id, challengeItem: true, name: c.name + ': ' + x.id, challenge: c.id, kind: 'Item', squares: [], outline: [], miles: 0,
       by: handles[x.account] || x.account, proposed: x.sent, askNote: x.note, lat: x.lat, lon: x.lon, acc: x.acc, hasPhoto: !!x.photo, near: x.near,
+      hasAfter: !!x.after, count: x.count, choice: x.choice,
       xpIf: itemXp_(c, x), state: open ? (rec ? 'Recommended' : 'New') : x.state, recommendedXp: rec ? rec.xp : null,
       decidedAt: decided ? decided.time : 0, open: open, moves: moves.map(function (m) { return { time: m.time, by: m.by, rank: m.rank, move: m.move, xp: m.xp, note: m.note }; }) };
   }).filter(function (r) { return r.open || (r.decidedAt && now - r.decidedAt <= REVIEW_SHOWN_DAYS * DAY_MS); });

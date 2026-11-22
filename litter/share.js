@@ -117,6 +117,18 @@ window.LitterShare = (function () {
         ctx.strokeStyle = run.paused ? 'rgba(107,114,128,0.7)' : '#111827';
         ctx.stroke();
       });
+      // The skills sent on the walk, as their emoji, with a count (S7-P4 item 9), when chosen at Share.
+      if (look.pins && (walk.pins || []).length) walk.pins.forEach(function (p) {
+        var q = at(p.lat, p.lon);
+        ctx.font = '44px system-ui, "Apple Color Emoji", "Segoe UI Emoji", sans-serif';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(p.pin, q.x, q.y);
+        if (p.count) {
+          ctx.fillStyle = '#1d4ed8'; ctx.beginPath(); ctx.arc(q.x + 24, q.y - 20, 15, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff'; ctx.font = '700 18px system-ui, sans-serif'; ctx.fillText(String(p.count), q.x + 24, q.y - 20);
+        }
+        ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      });
       ctx.restore();
       // OpenStreetMap's credit, as its tiles ask.
       ctx.font = '600 22px system-ui, sans-serif';
@@ -344,11 +356,17 @@ window.LitterShare = (function () {
       rr.disabled = !hasRate;
       (current.mapShows === 'Accumulation rate' && hasRate ? rr : ri).checked = true;
       if (!hasRate) box.appendChild(mk('p', 'muted small', 'None of this walk\'s segments has an accumulation rate yet, so the map shows the Litter Index.'));
+      // The skills you sent on this walk, as their pins (S7-P4 item 9, |Q734's addendum): only when you choose them.
+      var pc = null;
+      if ((walk.pins || []).length) {
+        var pl = mk('label', 'choice-row'); pc = mk('input'); pc.type = 'checkbox'; pc.id = 'sh-pins'; pc.checked = false;
+        pl.appendChild(pc); pl.appendChild(document.createTextNode(' Show the skills you sent (' + walk.pins.length + ')')); box.appendChild(pl);
+      }
       var go = mk('button', 'btn btn-primary', 'Share'); go.type = 'button'; go.id = 'sh-go';
       var no = mk('button', 'link-btn', 'Cancel'); no.type = 'button'; no.id = 'sh-cancel';
       box.appendChild(go); var c = mk('div', 'center'); c.appendChild(no); box.appendChild(c);
       var done = function (v) { scrim.remove(); resolve(v); };
-      go.addEventListener('click', function () { done({ track: tc.checked, mapShows: rr.checked && hasRate ? 'Accumulation rate' : 'Litter Index' }); });
+      go.addEventListener('click', function () { done({ track: tc.checked, mapShows: rr.checked && hasRate ? 'Accumulation rate' : 'Litter Index', pins: !!(pc && pc.checked) }); });
       no.addEventListener('click', function () { done(null); });
       document.body.appendChild(scrim);
     });

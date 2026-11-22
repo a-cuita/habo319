@@ -64,11 +64,44 @@ window.LitterMap = function (app) {
 
   /* ── The public map ── */
 
+  // Skills' pins (S7-P4 item 9, |Q734 (a)): approved ones with a place, for
+  // everyone, without who sent them; each skill's emoji, with its count when
+  // one was sent. On top of the colour layers, turned on and off; on to start.
+  var pinLayer = null, pins = [], pinsOn = true;
+  try { pinsOn = localStorage.getItem('litter-pins-on') !== '0'; } catch (e) { pinsOn = true; }
+  function drawPins() {
+    if (!pinLayer) return;
+    pinLayer.clearLayers();
+    pins.forEach(function (p) {
+      var html = '<span class="lt-pin-emoji"></span>' + (p.count ? '<b class="lt-pin-count"></b>' : '');
+      var icon = L.divIcon({ className: 'lt-skill-pin', html: html, iconSize: [30, 30], iconAnchor: [15, 15] });
+      var m = L.marker([p.lat, p.lon], { icon: icon, keyboard: false, title: p.name + (p.count ? ': ' + p.count : '') });
+      m.on('add', function () {
+        var e = m.getElement();
+        if (!e) return;
+        e.querySelector('.lt-pin-emoji').textContent = p.pin;
+        if (p.count) e.querySelector('.lt-pin-count').textContent = String(p.count);
+      });
+      m.bindTooltip(p.name + (p.count ? ': ' + p.count : ''));
+      m.addTo(pinLayer);
+    });
+  }
+  function pinsToggle(on) {
+    pinsOn = on;
+    try { localStorage.setItem('litter-pins-on', on ? '1' : '0'); } catch (e) { /* kept for this visit only */ }
+    var b = $('mp-pins-toggle');
+    if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    if (map && pinLayer) { if (on) pinLayer.addTo(map); else map.removeLayer(pinLayer); }
+  }
+
   function ensureMap() {
     if (map) return;
     map = L.map('mp-map', { zoomControl: true, attributionControl: true });
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
     layer = L.layerGroup().addTo(map);
+    pinLayer = L.layerGroup();
+    pinsToggle(pinsOn);
+    drawPins();
     // A chosen plan sits above the colour layers (S5-P9, |C685).
     map.createPane('ltPlan').style.zIndex = 450;
     planLayer = L.layerGroup().addTo(map);
@@ -109,6 +142,8 @@ window.LitterMap = function (app) {
     rateTop = d.rateTop || rateTop;
     ratingsAll = d.ratings || [];
     ratingsMine = d.mine || null;
+    pins = d.pins || [];
+    drawPins();
     bands = d.diffBands || bands;
     chosen = !!d.chosen;
     showRange(d);
@@ -714,7 +749,7 @@ window.LitterMap = function (app) {
         (c.stretchList || []).forEach(function (st) { if (!st.discarded) (st.cells || []).forEach(function (x) { on[x] = true; }); });
         var segRates = realSegs.filter(function (g) { return g.squares.some(function (x) { return on[x]; }); }).map(function (g) { return { cells: g.squares, rate: g.rate == null ? null : g.rate }; });
         window.LitterShare.walkPicture({ started: c.started, ended: c.ended, pounds: c.pounds, miles: c.miles, track: c.track, stretches: c.stretchList || [],
-          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours, segRates: segRates })
+          handle: me ? me.handle : '', level: app.levelNow ? app.levelNow() : null, colours: colours, segRates: segRates, pins: c.pins || [] })
           .then(function (how) { sh.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
             function (err) { sh.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
       });
@@ -1368,6 +1403,7 @@ window.LitterMap = function (app) {
     $('mp-layers-btn').setAttribute('aria-expanded', show ? 'true' : 'false');
   }
   $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
+  $('mp-pins-toggle').addEventListener('click', function () { pinsToggle(!pinsOn); });
   $('mp-actions-btn').addEventListener('click', function (e) { e.stopPropagation(); actionsMenu($('mp-actions-menu').hidden); });
   $('mp-plan-btn').addEventListener('click', function (e) {
     e.stopPropagation();

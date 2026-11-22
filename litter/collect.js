@@ -3070,7 +3070,7 @@ window.LitterCollect = function (app) {
     (summary.earned || []).forEach(function (x) { if (!seen[x.name]) { seen[x.name] = true; badges.push(x); } });
     window.LitterShare.walkPicture({ started: col.started, ended: col.ended, pounds: col.pounds, miles: col.miles, track: summary.track, stretches: summary.stretches,
       handle: me ? me.handle : '', level: settings.levels && settings.levels.length ? myLevel() : null, colours: settings.colours,
-      segRates: segRatesFor(summary.stretches), extras: all ? { level: summary.levelTo, badges: badges } : null })
+      segRates: segRatesFor(summary.stretches), extras: all ? { level: summary.levelTo, badges: badges } : null, pins: summary.pins || [] })
       .then(function (how) { b.disabled = false; if (how === 'downloaded') app.notice('Your walk\'s picture is downloaded.'); },
         function (err) { b.disabled = false; app.notice(err.message || 'The picture couldn\'t be shared.'); });
   });

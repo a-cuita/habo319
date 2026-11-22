@@ -669,6 +669,7 @@ function walkDone_(out, collectionId, account) {
   out.walk = walkXp_(collectionId, account.id);
   out.walk.badges = round_(out.earned.reduce(function (t, b) { return t + b.xp; }, 0), 2);
   out.streak = streakOf_(account.id);
+  out.pins = walkPins_(account.id, collectionId);   // skills sent on it, for its share picture (S7-P4 item 9)
   return out;
 }
 
