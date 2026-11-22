@@ -105,14 +105,14 @@ window.LitterWiki = function (app) {
   }
   function lineWith(text, q) {
     var lines = [];
-    String(text || '').replace(/\{\{sources\}\}/g, '').split(/\n+/).forEach(function (l) { (l.match(/[^.!?]+[.!?]*/g) || []).forEach(function (x) { lines.push(x); }); });
+    plain(text).split(/\n+/).forEach(function (l) { (l.match(/[^.!?]+[.!?]*/g) || []).forEach(function (x) { lines.push(x); }); });
     var lq = q.toLowerCase();
     for (var i = 0; i < lines.length; i++) if (lines[i].toLowerCase().indexOf(lq) !== -1) return lines[i].replace(/^- /, '').trim();
     return '';
   }
   function drawResults(list, q) {
     var lq = q.toLowerCase();
-    var hits = data.pages.filter(function (p) { return p.title.toLowerCase().indexOf(lq) !== -1 || String(p.text).toLowerCase().indexOf(lq) !== -1; });
+    var hits = data.pages.filter(function (p) { return p.title.toLowerCase().indexOf(lq) !== -1 || plain(p.text).toLowerCase().indexOf(lq) !== -1; });
     var head = el('p', 'muted small lt-wiki-hits', hits.length ? hits.length + ' page' + (hits.length === 1 ? '' : 's') + ' with "' + q + '"' : 'No page has "' + q + '".');
     list.appendChild(head);
     var ul = el('ul', 'lt-wiki-toc lt-wiki-hits-list');
@@ -196,17 +196,79 @@ window.LitterWiki = function (app) {
   // clock is timed:", shows the topic in bold, as a heading for it (|C1017).
   function topicLine(e, line) {
     var m = /^([A-Z][^:.!?]{0,80}):\s+(.*)$/.exec(line);
-    if (!m || m[1].split(/\s+/).length > 9) { e.textContent = line; return e; }
+    if (!m || m[1].split(/\s+/).length > 9) return inline(e, line);
     e.appendChild(el('strong', 'lt-wiki-topic', m[1] + ':'));
-    e.appendChild(document.createTextNode(' ' + m[2]));
+    return inline(e, ' ' + m[2]);
+  }
+
+  /* ── What a page's text can hold (S7-P20): live values, your own day, the
+     waiver's rules, and links: to a page, to your first quest, to an app's store ── */
+
+  // A live value: the setting as it is now (|Q877 (a)).
+  function liveValue(name) {
+    var v = data && data.live && Object.prototype.hasOwnProperty.call(data.live, name) ? String(data.live[name]) : '';
+    if (/^Segment rate shows/.test(name)) return ({ Median: 'median', Average: 'average', Both: 'median and average' })[v] || v.toLowerCase();
+    return v === '' ? '…' : v;
+  }
+  function expand(text) {
+    var me = app.me && app.me();
+    return String(text || '').replace(/\{\{live:([^}]+)\}\}/g, function (m, n) { return liveValue(n); })
+      .replace(/\{\{me:agreed\}\}/g, me && me.waiverSigned ? day(new Date(me.waiverSigned).getTime()) : 'the day you signed it');
+  }
+  // The words as they read, for search.
+  function plain(text) {
+    return expand(text).replace(/\{\{sources\}\}|\{\{waiver:2\}\}/g, '').replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, '$1')
+      .replace(/\{\{first quest\|([^}]+)\}\}/g, '$1').replace(/\{\{store:[^|}]+\|([^}]+)\}\}/g, '$1');
+  }
+  var INLINE = /\[\[([^\]|]+)\|([^\]]+)\]\]|\{\{first quest\|([^}]+)\}\}|\{\{store:([^|}]+)\|([^}]+)\}\}/g;
+  function inline(e, text) {
+    var at = 0, m;
+    INLINE.lastIndex = 0;
+    while ((m = INLINE.exec(text))) {
+      if (m.index > at) e.appendChild(document.createTextNode(text.slice(at, m.index)));
+      e.appendChild(m[1] ? pageLink(m[1], m[2]) : m[3] ? questLink(m[3]) : storeLink(m[4], m[5]));
+      at = INLINE.lastIndex;
+    }
+    if (at < text.length) e.appendChild(document.createTextNode(text.slice(at)));
     return e;
+  }
+  // A page link (|Q886): the words, opening that page.
+  function pageLink(title, words) {
+    var b = el('button', 'link-btn lt-wiki-link', words);
+    b.type = 'button';
+    b.addEventListener('click', function () {
+      var p = data.pages.filter(function (x) { return x.title.toLowerCase() === title.toLowerCase(); })[0];
+      if (p) openPage(p.id); else app.notice('That page isn\'t in the Wiki any more.');
+    });
+    return b;
+  }
+  // Your first quest, from the start (|Q901 #1).
+  function questLink(words) {
+    var b = el('button', 'link-btn lt-wiki-link lt-wiki-quest', words);
+    b.type = 'button';
+    b.addEventListener('click', function () { if (app.firstQuest) app.firstQuest(); });
+    return b;
+  }
+  // An app's store page (|Q889 (a)).
+  function storeLink(href, words) {
+    var a = el('a', 'btn btn-primary lt-wiki-store', words);
+    a.href = href; a.target = '_blank'; a.rel = 'noopener';
+    return a;
+  }
+  // The waiver's section 2, in its current words (|Q888's addendum).
+  function waiverRules() {
+    var box = el('div', 'lt-wiki-waiver');
+    if (data && data.waiverRules) render(box, data.waiverRules);
+    else box.appendChild(el('p', 'muted small', 'The waiver\'s rules can\'t be shown just now.'));
+    return box;
   }
   function render(box, text) {
     box.textContent = '';
-    String(text || '').split(/\n\s*\n/).forEach(function (para) {
+    expand(text).split(/\n\s*\n/).forEach(function (para) {
       para = para.replace(/^\s+|\s+$/g, '');
       if (!para) return;
       if (para === '{{sources}}') { box.appendChild(sources()); return; }
+      if (para === '{{waiver:2}}') { box.appendChild(waiverRules()); return; }
       var ul = null, p = null;
       para.split('\n').forEach(function (line) {
         if (/^- /.test(line)) {
@@ -214,7 +276,7 @@ window.LitterWiki = function (app) {
           ul.appendChild(topicLine(el('li'), line.slice(2)));
         } else {
           if (!p) { p = topicLine(el('p'), line); box.appendChild(p); ul = null; }
-          else p.appendChild(document.createTextNode(' ' + line));
+          else inline(p, ' ' + line);
         }
       });
     });

@@ -356,6 +356,8 @@ window.LitterQuest = function (app) {
     tick: tick,
     showQuests: showQuests,
     workshopOn: function () { return !!workshop; },
+    // From the Wiki's "first quest" (S7-P20, |Q901 #1): from the start again once it's done; before then, the quest as it is.
+    fromWiki: function () { if (quest && quest.done) startAgain(); else { if (app.showAccount) app.showAccount(); render(); $('qs-card').scrollIntoView({ block: 'start' }); } },
     syncWorkshopButton: syncWorkshopButton
   };
 };

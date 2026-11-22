@@ -960,6 +960,7 @@
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); },
     openTopic: function (id) { forum.openTopic(id); },
+    firstQuest: function () { quest.fromWiki(); },   // the Wiki's "first quest" link (S7-P20, |Q901 #1)
     // Where a ℹ️'s link was pressed: ← on its Wiki page comes back to that screen, where it was.
     here: function () {
       var v = VIEWS.filter(function (x) { return !$(x).hidden; })[0], y = window.scrollY;

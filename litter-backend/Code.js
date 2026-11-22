@@ -666,6 +666,7 @@ function ensureSchema_(force) {
     wikiSectionsOnce_();
     wikiConfidenceOnce_();   // Temporal confidence's page (S6-P34, |C963)
     wikiNoRateOnce_();   // why a walk gives no rate (S6-P34, |Q782)
+    wikiS7P20Once_();   // Getting started, Collecting, and five pages rewritten (S7-P20)
     coldFolderOnce_();   // the cold storage folder, made now (S6-P50, |C1022)
     achievementsOnce_();
     squaresPackOnce_();   // last: after the regrids, which read squares as they were (S6-P1)

@@ -118,6 +118,9 @@ function wikiView_(account) {
   var secRows = wikiSectionRows_();
   var sections = secRows.filter(function (s) { return s.state === 'Live'; }).sort(function (a, b) { return a.place - b.place; }).map(function (s) { return { id: s.id, name: s.name, place: s.place }; });
   var out = { pages: pages, sections: sections, sources: wikiSources_(), admin: !!(account && account.rank) };
+  // Live values and the waiver's rules, for the pages that show them (S7-P20).
+  out.live = wikiLive_(pages);
+  if (pages.some(function (p) { return /\{\{waiver:2\}\}/.test(p.text); })) out.waiverRules = waiverSection_(2);
   if (out.admin) {
     out.drafts = rows.filter(function (p) { return p.state !== 'Live'; }).map(function (p) {
       var t = topics[p.topic];
