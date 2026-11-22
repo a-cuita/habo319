@@ -55,7 +55,8 @@ function whoLines_(account) {
     // A name with its handle after it (|Q898 (a)), so who tells you how to tell
     // someone, like "Pat Eng (pat.e)". A handle shown alone is already one.
     var name = shown[a.id] && a.shows === 'Name' && a.handle ? shown[a.id] + ' (' + a.handle + ')' : shown[a.id];
-    if (name) named.push(name + (a.id === account.id ? ' (you)' : ''));
+    // Their level after it (S7-P10, |C1098): "Lothrandir (you) | 7".
+    if (name) named.push(name + (a.id === account.id ? ' (you)' : '') + (a.level ? ' | ' + a.level : ''));
     else unnamed++;
   });
   named.sort(function (p, q) { return p.toLowerCase() < q.toLowerCase() ? -1 : 1; });
@@ -164,8 +165,12 @@ function boardTopics_() {
 function boardShort_(text, n) { return text.length > n ? text.slice(0, n - 1).replace(/\s+\S*$/, '') + '…' : text; }
 // A topic's or a note's line, as the page shows it: Report on someone
 // else's, Remove in Admin Mode.
-function boardLine_(b, text, account, shown) {
-  return { text: text, note: b.id, mine: b.account === account.id, reported: b.reported.split(/\s+/).indexOf(account.id) !== -1 };
+// A topic's or note's line: its head (who and when) apart from its words, so
+// the page can set it in bold with a break above (S7-P10, |M1442).
+function boardLine_(b, text, account, shown, head, body) {
+  var out = { text: text, note: b.id, mine: b.account === account.id, reported: b.reported.split(/\s+/).indexOf(account.id) !== -1 };
+  if (head) { out.head = head; out.body = body; }
+  return out;
 }
 function boardCommand_(account, rest) {
   if (!rhOn_(SETTING_BOARD)) return ['The board is off just now.'];
@@ -196,8 +201,9 @@ function boardCommand_(account, rest) {
       return ['Note ' + added.n + ' is on topic ' + n + '. Type board ' + n + ' to read it.'];
     }
     var notes = topic.notes.filter(function (b) { return !b.removed; });
-    return [boardLine_(topic, 'Topic ' + n + ', by ' + who(topic.account) + ', ' + scrollWhen_(topic.at) + ': ' + topic.text, account, shown)]
-      .concat(notes.map(function (b) { return boardLine_(b, '  Note ' + b.n + ', ' + who(b.account) + ', ' + scrollWhen_(b.at) + ': ' + b.text, account, shown); }))
+    var th = 'Topic ' + n + ', by ' + who(topic.account) + ', ' + scrollWhen_(topic.at);
+    return [boardLine_(topic, th + ': ' + topic.text, account, shown, th, topic.text)]
+      .concat(notes.map(function (b) { var h = 'Note ' + b.n + ', ' + who(b.account) + ', ' + scrollWhen_(b.at); return boardLine_(b, '  ' + h + ': ' + b.text, account, shown, h, b.text); }))
       .concat([notes.length ? 'Type board ' + n + ' write and your words to add a note.' : 'No notes yet. Type board ' + n + ' write and your words to add one.']);
   }
   return ['Type board for the topics, board and a number to read one, or board write and your words to start one.'];

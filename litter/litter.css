@@ -928,3 +928,6 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 .lt-wiki-link { padding: 0; font: inherit; text-decoration: underline; vertical-align: baseline; }
 .lt-wiki-store { display: block; margin: 8px 0 4px; text-decoration: none; text-align: center; }
 .lt-wiki-waiver { margin: 10px 0; padding: 10px 12px; border-left: 4px solid var(--brand, #2563eb); background: rgba(37, 99, 235, 0.06); border-radius: 6px; }
+/* A board topic or note in Street Talk (S7-P10, |M1442): a clear break above each, its head in bold. */
+.lt-rh-line.lt-rh-note { border-top: 1px solid rgba(148, 163, 184, 0.45); padding-top: 6px; margin-top: 8px; }
+.lt-rh-note-head { font-weight: 700; }

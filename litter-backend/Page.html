@@ -1075,6 +1075,9 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 .lt-wiki-link { padding: 0; font: inherit; text-decoration: underline; vertical-align: baseline; }
 .lt-wiki-store { display: block; margin: 8px 0 4px; text-decoration: none; text-align: center; }
 .lt-wiki-waiver { margin: 10px 0; padding: 10px 12px; border-left: 4px solid var(--brand, #2563eb); background: rgba(37, 99, 235, 0.06); border-radius: 6px; }
+/* A board topic or note in Street Talk (S7-P10, |M1442): a clear break above each, its head in bold. */
+.lt-rh-line.lt-rh-note { border-top: 1px solid rgba(148, 163, 184, 0.45); padding-top: 6px; margin-top: 8px; }
+.lt-rh-note-head { font-weight: 700; }
 </style>
 </head>
 <body>
@@ -11416,6 +11419,8 @@ window.LitterScroll = function (app) {
     var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who || l.kind === 'gchat' ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : '') + (l.kind === 'gchat' ? ' gchat' : '') + (/^(start|end|badge)$/.test(l.kind) ? ' news' : ''));
     if (l.at) p.title = when(l.at);
     if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
+    // A board topic or note: its head in bold, with a break above it (S7-P10, |M1442).
+    else if (l.head) { p.classList.add('lt-rh-note'); p.appendChild(el('b', 'lt-rh-note-head', l.head + ':')); p.appendChild(document.createTextNode(' ' + l.body)); }
     else p.textContent = l.text;
     if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
@@ -11647,7 +11652,7 @@ window.LitterScroll = function (app) {
       // A board topic or note comes with its id, for Report and Remove.
       (d.answer || []).forEach(function (t) {
         printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t }
-          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
+          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, head: t.head || '', body: t.body || '', mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
       });
       if (d.lines) lines = d.lines;
       // gchat or tell: your line, in the scroll, as it'll be seen.

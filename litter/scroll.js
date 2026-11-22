@@ -34,6 +34,8 @@ window.LitterScroll = function (app) {
     var p = el('p', 'lt-rh-line ' + (l.kind === 'cmd' ? 'cmd' : l.kind === 'answer' ? 'answer' : l.who || l.kind === 'gchat' ? 'pub' : 'mine') + (l.kind === 'walk' ? ' walk' : '') + (l.kind === 'level' ? ' level' : '') + (l.kind === 'gchat' ? ' gchat' : '') + (/^(start|end|badge)$/.test(l.kind) ? ' news' : ''));
     if (l.at) p.title = when(l.at);
     if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
+    // A board topic or note: its head in bold, with a break above it (S7-P10, |M1442).
+    else if (l.head) { p.classList.add('lt-rh-note'); p.appendChild(el('b', 'lt-rh-note-head', l.head + ':')); p.appendChild(document.createTextNode(' ' + l.body)); }
     else p.textContent = l.text;
     if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
@@ -265,7 +267,7 @@ window.LitterScroll = function (app) {
       // A board topic or note comes with its id, for Report and Remove.
       (d.answer || []).forEach(function (t) {
         printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t }
-          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
+          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, head: t.head || '', body: t.body || '', mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
       });
       if (d.lines) lines = d.lines;
       // gchat or tell: your line, in the scroll, as it'll be seen.
