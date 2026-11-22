@@ -53,7 +53,7 @@ function whoLines_(account) {
     var at = Number(got['here:' + a.id]) || (a.id === account.id ? now : 0);
     if (!at || now - at > HERE_SECONDS * 1000) return;
     // A name with its handle after it (|Q898 (a)), so who tells you how to tell
-    // someone: "Carmen Cruz (carmen)". A handle shown alone is already one.
+    // someone, like "Pat Eng (pat.e)". A handle shown alone is already one.
     var name = shown[a.id] && a.shows === 'Name' && a.handle ? shown[a.id] + ' (' + a.handle + ')' : shown[a.id];
     if (name) named.push(name + (a.id === account.id ? ' (you)' : ''));
     else unnamed++;
@@ -86,11 +86,11 @@ function tellLines_(account, admin) {
   });
   return out;
 }
-// tell, a handle and your words: "tell carmen good morning", the @ optional.
+// tell, a handle and your words: "tell pat.e good morning", the @ optional.
 function tellSay_(account, rest) {
   if (!rhOn_(SETTING_TELL)) throw new Error('tell is off just now.');
   var m = /^@?(\S+)(?:\s+([\s\S]*))?$/.exec(String(rest || '').trim());
-  if (!m) throw new Error('Type tell, a handle, then your words, like "tell carmen good morning!"');
+  if (!m) throw new Error('Type tell, a handle, then your words, like "tell pat.e good morning!"');
   var to = readAccounts_().filter(function (a) { return a.active && a.handle.toLowerCase() === m[1].toLowerCase(); })[0];
   if (!to) throw new Error('Nobody has the handle "' + m[1].slice(0, 40) + '". Check its spelling; who shows who\'s here.');
   if (to.id === account.id) throw new Error('That\'s your own handle.');

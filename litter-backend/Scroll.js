@@ -17,7 +17,7 @@ var SCROLL_LINES = 150;
 var SCROLL_COMMANDS = [
   ['help', 'these commands'],
   ['gchat and your words', 'a line to everyone signed in, like "gchat good morning!"'],
-  ['tell, a handle and your words', 'a line only that player sees, like "tell carmen see you Saturday"'],
+  ['tell, a handle and your words', 'a line only that player sees, like "tell pat.e see you Saturday"'],
   ['board', 'the message board\'s topics; board and a number reads one, like "board 2"'],
   ['board write and your words', 'starts a topic; board, a number, write and your words adds a note to one'],
   ['who', 'who\'s been on the litter page in the last 10 minutes'],
