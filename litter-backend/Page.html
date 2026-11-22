@@ -1066,6 +1066,11 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 .lt-bounty-chip { display: inline-block; margin: 0 6px 4px 0; padding: 2px 10px; border-radius: 999px; background: #c2410c; color: #fff; font: 800 0.8em/1.6 system-ui, sans-serif; letter-spacing: 0.06em; }
 .lt-bounty-line { margin: 4px 0; font-weight: 700; }
 .lt-bounty-pin { background: none; border: 0; font-size: 26px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
+/* The renewal's gear pop-ups (S7-P21, |C1094): its lines read left to right. */
+.lt-ask-pop { text-align: left; }
+.lt-ask-pop .lt-scrim-title { margin-top: 0; }
+.lt-ask-line { margin: 10px 0; }
+.lt-ask-pop .btn { width: 100%; margin-top: 12px; }
 </style>
 </head>
 <body>
@@ -1357,13 +1362,13 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
         <div id="rs-gear-words"></div>
         <label class="choice-row"><input type="checkbox" id="rs-gear-understand"> I understand: going without it is at my own risk</label>
       </div>
-      <!-- A new grabber or scale (S7-P21, |Q865 (c)): the admins get a Report, and the page says where to get one. -->
-      <div class="lt-gear-need" id="rs-need">
-        <p class="muted small">Do you need a new grabber or scale?</p>
-        <label class="choice-row"><input type="checkbox" id="rs-need-grabber"> A new grabber</label>
-        <label class="choice-row"><input type="checkbox" id="rs-need-scale"> A new hanging luggage scale</label>
-        <p class="small" id="rs-need-where" hidden></p>
-      </div>
+    </section>
+    <!-- New gear (S7-P21, |Q865 (c), |C1094): its own card, apart from what you have. Where to get it comes in a pop-up after you sign. -->
+    <section class="card lt-gear-need" id="rs-need">
+      <h3>Do you need new gear?</h3>
+      <p class="muted small">Tick only what you need. The admins will see what you ask for.</p>
+      <label class="choice-row"><input type="checkbox" id="rs-need-grabber"> I need a new grabber</label>
+      <label class="choice-row"><input type="checkbox" id="rs-need-scale"> I need a new hanging luggage scale</label>
     </section>
     <button class="btn btn-accent" id="rs-submit" type="submit">Sign the new waiver</button>
     <p class="err" id="rs-err" role="alert"></p>
@@ -12041,7 +12046,9 @@ window.LitterScroll = function (app) {
   // Anything not ticked: the waiver's words for it, and I understand; shown
   // once they've ticked something, or pressed to sign.
   function gearShow(p) {
-    var not = $(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
+    // Renewing (S7-P21, |C1094): nothing shows here; it's asked in a pop-up after Sign.
+    if (p === 'rs') { $(p + '-gear-without').hidden = true; return; }
+    var not =$(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
     var box = $(p + '-gear-words');
     box.textContent = '';
     not.forEach(function (g) {
@@ -12170,22 +12177,64 @@ window.LitterScroll = function (app) {
     signedAs('rs-signed-as', a.firstName + ' ' + a.lastName);
   }
 
-  // A new grabber or scale (S7-P21): where to get one shows once either is ticked.
-  ['rs-need-grabber', 'rs-need-scale'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
-      var any = $('rs-need-grabber').checked || $('rs-need-scale').checked;
-      $('rs-need-where').hidden = !any;
-      $('rs-need-where').textContent = any ? 'Where to get one: ' + (state.gearWhere || 'ask an admin.') + ' The admins will see you asked.' : '';
+  // A change to your gear after "I understand": asked again at Sign.
+  GEAR.forEach(function (g) { $('rs-gear-' + g[0]).addEventListener('change', function () { $('rs-gear-understand').checked = false; }); });
+
+  // A pop-up with a few lines and its buttons; resolves with the key of the one pressed.
+  function askPop(id, title, lines, buttons) {
+    return new Promise(function (done) {
+      var scrim = document.createElement('div'), box = document.createElement('div');
+      scrim.className = 'lt-scrim'; scrim.id = id; scrim.setAttribute('role', 'dialog'); scrim.setAttribute('aria-modal', 'true');
+      box.className = 'lt-scrim-box lt-ask-pop';
+      var h = document.createElement('p'); h.className = 'lt-scrim-title'; h.textContent = title; box.appendChild(h);
+      lines.forEach(function (t) { var p = document.createElement('p'); p.className = 'lt-ask-line'; p.textContent = t; box.appendChild(p); });
+      buttons.forEach(function (b) {
+        var x = document.createElement('button'); x.type = 'button'; x.className = b[2]; x.textContent = b[1]; x.dataset.key = b[0];
+        x.addEventListener('click', function () { scrim.remove(); done(b[0]); });
+        box.appendChild(x);
+      });
+      scrim.appendChild(box); document.body.appendChild(scrim);
     });
-  });
+  }
+
+  // After Sign the new waiver (S7-P21, |C1094), each asked apart, with the
+  // chance to change your answer: first any safety gear not ticked, in the
+  // waiver's own words; then any new gear asked for, and where to get it.
+  function gearPop() {
+    var g = gearAsk('rs'), not = GEAR.filter(function (x) { return !g[x[0]]; });
+    if (!not.length || g.understood) return Promise.resolve(true);
+    var lines = not.map(function (x) {
+      var say = waiverSays(x[2]);
+      return 'Without ' + x[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
+    });
+    return askPop('rs-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {
+      if (k === 'ok') { $('rs-gear-understand').checked = true; return true; }
+      $('rs-gear').scrollIntoView({ block: 'center' });
+      return false;
+    });
+  }
+  function needPop() {
+    var gr = $('rs-need-grabber').checked, sc = $('rs-need-scale').checked;
+    if (!gr && !sc) return Promise.resolve(true);
+    var what = gr && sc ? 'a new grabber and a new hanging luggage scale' : gr ? 'a new grabber' : 'a new hanging luggage scale';
+    return askPop('rs-need-pop', 'Your new gear', ['You asked for ' + what + '.', 'Where to get it: ' + (state.gearWhere || 'ask an admin.'), 'The admins will see you asked.'],
+      [['ok', 'OK', 'btn btn-primary'], ['back', 'Change my answer', 'btn btn-accent']]).then(function (k) {
+      if (k === 'ok') return true;
+      $('rs-need').scrollIntoView({ block: 'center' });
+      return false;
+    });
+  }
   function submitResign(e) {
     e.preventDefault();
     var err = $('rs-err');
+    err.textContent = '';
     if (!$('rs-agree').checked) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
-    if (gearProblem('rs')) { err.textContent = gearProblem('rs'); return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
+    gearPop().then(function (go) { return go && needPop(); }).then(function (go) { if (go) sendResign(sig); });
+  }
+  function sendResign(sig) {
+    var ask ={ token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
       need: { grabber: $('rs-need-grabber').checked, scale: $('rs-need-scale').checked } };
     busy($('rs-submit'), 'rs-err', function () {
       return api('signWaiver', ask).then(function (d) {

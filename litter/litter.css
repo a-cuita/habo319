@@ -919,3 +919,8 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 .lt-bounty-chip { display: inline-block; margin: 0 6px 4px 0; padding: 2px 10px; border-radius: 999px; background: #c2410c; color: #fff; font: 800 0.8em/1.6 system-ui, sans-serif; letter-spacing: 0.06em; }
 .lt-bounty-line { margin: 4px 0; font-weight: 700; }
 .lt-bounty-pin { background: none; border: 0; font-size: 26px; line-height: 30px; text-align: center; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.5)); }
+/* The renewal's gear pop-ups (S7-P21, |C1094): its lines read left to right. */
+.lt-ask-pop { text-align: left; }
+.lt-ask-pop .lt-scrim-title { margin-top: 0; }
+.lt-ask-line { margin: 10px 0; }
+.lt-ask-pop .btn { width: 100%; margin-top: 12px; }

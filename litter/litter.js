@@ -439,7 +439,9 @@
   // Anything not ticked: the waiver's words for it, and I understand; shown
   // once they've ticked something, or pressed to sign.
   function gearShow(p) {
-    var not = $(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
+    // Renewing (S7-P21, |C1094): nothing shows here; it's asked in a pop-up after Sign.
+    if (p === 'rs') { $(p + '-gear-without').hidden = true; return; }
+    var not =$(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
     var box = $(p + '-gear-words');
     box.textContent = '';
     not.forEach(function (g) {
@@ -568,22 +570,64 @@
     signedAs('rs-signed-as', a.firstName + ' ' + a.lastName);
   }
 
-  // A new grabber or scale (S7-P21): where to get one shows once either is ticked.
-  ['rs-need-grabber', 'rs-need-scale'].forEach(function (id) {
-    $(id).addEventListener('change', function () {
-      var any = $('rs-need-grabber').checked || $('rs-need-scale').checked;
-      $('rs-need-where').hidden = !any;
-      $('rs-need-where').textContent = any ? 'Where to get one: ' + (state.gearWhere || 'ask an admin.') + ' The admins will see you asked.' : '';
+  // A change to your gear after "I understand": asked again at Sign.
+  GEAR.forEach(function (g) { $('rs-gear-' + g[0]).addEventListener('change', function () { $('rs-gear-understand').checked = false; }); });
+
+  // A pop-up with a few lines and its buttons; resolves with the key of the one pressed.
+  function askPop(id, title, lines, buttons) {
+    return new Promise(function (done) {
+      var scrim = document.createElement('div'), box = document.createElement('div');
+      scrim.className = 'lt-scrim'; scrim.id = id; scrim.setAttribute('role', 'dialog'); scrim.setAttribute('aria-modal', 'true');
+      box.className = 'lt-scrim-box lt-ask-pop';
+      var h = document.createElement('p'); h.className = 'lt-scrim-title'; h.textContent = title; box.appendChild(h);
+      lines.forEach(function (t) { var p = document.createElement('p'); p.className = 'lt-ask-line'; p.textContent = t; box.appendChild(p); });
+      buttons.forEach(function (b) {
+        var x = document.createElement('button'); x.type = 'button'; x.className = b[2]; x.textContent = b[1]; x.dataset.key = b[0];
+        x.addEventListener('click', function () { scrim.remove(); done(b[0]); });
+        box.appendChild(x);
+      });
+      scrim.appendChild(box); document.body.appendChild(scrim);
     });
-  });
+  }
+
+  // After Sign the new waiver (S7-P21, |C1094), each asked apart, with the
+  // chance to change your answer: first any safety gear not ticked, in the
+  // waiver's own words; then any new gear asked for, and where to get it.
+  function gearPop() {
+    var g = gearAsk('rs'), not = GEAR.filter(function (x) { return !g[x[0]]; });
+    if (!not.length || g.understood) return Promise.resolve(true);
+    var lines = not.map(function (x) {
+      var say = waiverSays(x[2]);
+      return 'Without ' + x[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
+    });
+    return askPop('rs-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {
+      if (k === 'ok') { $('rs-gear-understand').checked = true; return true; }
+      $('rs-gear').scrollIntoView({ block: 'center' });
+      return false;
+    });
+  }
+  function needPop() {
+    var gr = $('rs-need-grabber').checked, sc = $('rs-need-scale').checked;
+    if (!gr && !sc) return Promise.resolve(true);
+    var what = gr && sc ? 'a new grabber and a new hanging luggage scale' : gr ? 'a new grabber' : 'a new hanging luggage scale';
+    return askPop('rs-need-pop', 'Your new gear', ['You asked for ' + what + '.', 'Where to get it: ' + (state.gearWhere || 'ask an admin.'), 'The admins will see you asked.'],
+      [['ok', 'OK', 'btn btn-primary'], ['back', 'Change my answer', 'btn btn-accent']]).then(function (k) {
+      if (k === 'ok') return true;
+      $('rs-need').scrollIntoView({ block: 'center' });
+      return false;
+    });
+  }
   function submitResign(e) {
     e.preventDefault();
     var err = $('rs-err');
+    err.textContent = '';
     if (!$('rs-agree').checked) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
-    if (gearProblem('rs')) { err.textContent = gearProblem('rs'); return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    var ask = { token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
+    gearPop().then(function (go) { return go && needPop(); }).then(function (go) { if (go) sendResign(sig); });
+  }
+  function sendResign(sig) {
+    var ask ={ token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
       need: { grabber: $('rs-need-grabber').checked, scale: $('rs-need-scale').checked } };
     busy($('rs-submit'), 'rs-err', function () {
       return api('signWaiver', ask).then(function (d) {
