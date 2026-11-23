@@ -22,7 +22,7 @@
  * and it pays no XP. Real bounties keep the rule that a sponsor can't earn
  * their own.
  */
-var BOUNTY_COL = { id: 1, account: 2, sponsor: 3, name: 4, segments: 5, from: 6, to: 7, players: 8, reward: 9, xp: 10, donation: 11, state: 12, made: 13, by: 14, decided: 15, note: 16, test: 17 };
+var BOUNTY_COL = { id: 1, account: 2, sponsor: 3, name: 4, segments: 5, from: 6, to: 7, players: 8, reward: 9, xp: 10, donation: 11, state: 12, made: 13, by: 14, decided: 15, note: 16, test: 17, finalPounds: 18, finalMiles: 19 };
 var EARNED_COL = { bounty: 1, account: 2, earned: 3, xp: 4, reward: 5, handed: 6, handedBy: 7 };
 var SETTING_BOUNTY_XP_MIN = 'Bounties: bonus XP at least';
 var SETTING_BOUNTY_XP_MAX = 'Bounties: bonus XP at most';
@@ -35,7 +35,8 @@ function bountiesAll_() {
     return { row: r.row, id: String(r.get('id')).trim(), account: String(r.get('account')).trim(), sponsor: String(r.get('sponsor')), name: String(r.get('name')),
       segments: String(r.get('segments')).split(/[\s,]+/).filter(String), from: d('from'), to: d('to'), players: Math.max(1, Math.floor(Number(r.get('players')) || 1)),
       reward: String(r.get('reward')), xp: Number(r.get('xp')) || 0, donation: String(r.get('donation') || ''), state: String(r.get('state') || 'Waiting').trim(),
-      made: d('made'), by: String(r.get('by') || ''), decided: d('decided'), note: String(r.get('note') || ''), test: /^\s*y/i.test(r.get('test')) };
+      made: d('made'), by: String(r.get('by') || ''), decided: d('decided'), note: String(r.get('note') || ''), test: /^\s*y/i.test(r.get('test')),
+      finalPounds: String(r.get('finalPounds') == null ? '' : r.get('finalPounds')).trim(), finalMiles: String(r.get('finalMiles') == null ? '' : r.get('finalMiles')).trim() };
   }).filter(function (b) { return b.id; });
 }
 function bountyEarnedAll_() {
@@ -118,7 +119,8 @@ function sponsorView_(account) {
   var earned = bountyEarnedAll_(), now = Date.now();
   var list = bountiesAll_().filter(function (b) { return b.account === account.id; }).map(function (b) {
     var o = bountyOut_(b, now);
-    var m = bountyMeasure_(b);
+    // Over, its pounds and miles are kept on its row (S7-P3): its walks may be in the archive.
+    var m = b.finalPounds !== '' ? { pounds: Number(b.finalPounds) || 0, miles: Number(b.finalMiles) || 0 } : bountyMeasure_(b);
     o.pounds = m.pounds; o.miles = m.miles;
     o.earnedBy = earned.filter(function (e) { return e.bounty === b.id; }).length;
     o.note = b.state === 'Declined' ? b.note : '';

@@ -657,7 +657,9 @@ function retotal_(collectionId) {
 // The account's volunteer hours collecting litter (Q387 (a)).
 function hoursOf_(accountId) {
   var cols = readRows_(TABS.collections).filter(function (q) { return q.get('account') === accountId && q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && q.get('simulated') !== 'Yes'; });
-  return { collections: cols.length, hours: round_(cols.reduce(function (t, q) { return t + (Number(q.get('hours')) || 0); }, 0), 2) };
+  // With what's moved to the archive (S7-P3, |Q927 (a)).
+  var arch = archivedById_(accountId);
+  return { collections: cols.length + arch.collections, hours: round_(cols.reduce(function (t, q) { return t + (Number(q.get('hours')) || 0); }, arch.hours), 2) };
 }
 
 // A collection left alone ends by itself 12 hours (a setting) after the last

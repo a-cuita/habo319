@@ -37,7 +37,8 @@ function settingGroups_() {
     [SETTING_FIELD_COVER, 'Field collected when scanned', 'A walk collects a field when it scans this share of it.', 'number', '%', 1, 100],
     [SETTING_REACH, 'A track scans each side', 'On a field, how far either side of your track counts as scanned.', 'number', 'm', 1, 100],
     [SETTING_PART_M, 'Part of a segment', 'A segment is cut into parts this long, for how it was partly cleaned.', 'number', 'm', 10, 500],
-    [SETTING_APART, 'Plan segments far apart', 'A plan with segments farther apart than this gets a notice.', 'number', 'mi', 0.1, 50]] },
+    [SETTING_APART, 'Plan segments far apart', 'A plan with segments farther apart than this gets a notice.', 'number', 'mi', 0.1, 50],
+    [SETTING_KEEP_DAYS, 'Walks kept in the live tabs', 'Older walks move each night, with their weighings and rates, to the archive: a Sheet for each fiscal year in the cold storage folder. Never fewer than the Rate window\'s days.', 'number', 'days', 1, 3650]] },
   { key: 'rates', title: 'Rates', says: 'When a segment is due, the gap and window for a rate, how a rate shows, confidence, the rate map\'s top.', rank: 'Architect', items: [
     [SETTING_DUE_FROM, 'Segment due from', 'A segment shows on The Priority Segment List from this long after its clock started.', 'number', 'days', 0, 30],
     [SETTING_DUE_TO, 'Segment due until', 'Later than this, it\'s a Rate Reset: the next collection measures no rate and starts the clock again.', 'number', 'days', 1, 60],

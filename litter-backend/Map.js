@@ -127,7 +127,17 @@ function mapLoad_(req) {
   // Each cell's latest reading in those dates: the stretch that ended last;
   // and everyone's visual ratings there, and yours (S6-U26 items 2 and 3).
   var latest = {}, rated = {}, mine = {};
-  readRows_(TABS.stretches).forEach(function (q) {
+  // Days before the live tabs' (S7-P3, |Q857 (a)): the archive's walks and weighings for them too.
+  var stretches = readRows_(TABS.stretches);
+  if (chosen && since < archiveCutoff_()) {
+    var arch = archiveRead_(since, until);
+    Object.keys(arch.cols).forEach(function (id) {
+      var q = arch.cols[id];
+      if (q.get('status') !== 'Collecting' && q.get('status') !== COLLECTION_DISCARDED && !q.get('hidden') && q.get('simulated') !== 'Yes') open[id] = true;
+    });
+    stretches = stretches.concat(arch.stretches);
+  }
+  stretches.forEach(function (q) {
     if (!open[q.get('collection')] || q.get('discarded') === 'Yes') return;
     var ended = q.get('ended') instanceof Date ? q.get('ended').getTime() : 0;
     if (ended < since || ended >= until) return;
@@ -238,7 +248,9 @@ function myCollections_(req) {
     })
     .sort(function (a, b) { return b.started - a.started; });
   var out = { collections: list, colours: mapColours_(), pausedColour: pausedColour_(), dark: darkColours_(), editHours: editHours,
-    timeBonus: timeBonus_(), aloneBonus: aloneBonus_() };
+    timeBonus: timeBonus_(), aloneBonus: aloneBonus_(),
+    // Show older walks, from the archive (S7-P3, |Q858 (b)): its newest quarter of yours, if any.
+    older: archiveNewestOf_(account) };
   // Asked with lean (S7-P2, item 9): only your walks; the page has the plans and segments from collectLoad.
   if (!req.lean) {
     out.plans = myPlans_(account.id);

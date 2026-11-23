@@ -14,13 +14,15 @@
 // (S7-P1): these are only where a new Accounts tab has them.
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
   waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19, quests: 20, sponsorName: 21, sponsorState: 22,
-  title: 23, collecting: 24 };
+  title: 23, collecting: 24, archivedWalks: 25, archivedPounds: 26, archivedMiles: 27, archivedHours: 28, archivedFacts: 29 };
 var ACCOUNT_HEADS = { id: 'Account ID', created: 'Created', first: 'First name', last: 'Last name', email: 'Email', handle: 'Handle',
   shows: 'Map shows', adult: '18 or older', signed: 'Waiver signed', waiver: 'Waiver', waiverPrint: 'Waiver fingerprint',
   volunteer: 'Check-in volunteer', updated: 'Updated', status: 'Status', gear: 'Safety gear', gearAt: 'Safety gear confirmed',
   xp: 'XP', level: 'Level', levels: 'Levels reached', quests: 'Quests taken', sponsorName: 'Business or organization', sponsorState: 'Sponsor',
   // Street Talk's who (S7-P10): a title after their name (|Q916 (a)), and <COLLECTING> on a walk if they choose (|Q917 (a)).
   title: 'Title', collecting: 'Who shows collecting',
+  // What's moved to the archive (S7-P3, |Q927 (a)).
+  archivedWalks: 'Archived walks', archivedPounds: 'Archived pounds', archivedMiles: 'Archived miles', archivedHours: 'Archived hours', archivedFacts: 'Archived for badges',
   // No longer written or read (|Q842 (a)): found only while still there, for the once-only step that copied them.
   quest: 'First quest', questDone: 'First quest finished' };
 function accountColsFrom_(head) {
@@ -287,7 +289,8 @@ function readAccounts_() {
       quests: get('quests'),
       // The Business/Organization flag (S7-P11): its name, and Asked, Yes or Declined.
       sponsorName: get('sponsorName'), sponsorState: get('sponsorState'),
-      title: get('title'), showCollecting: get('collecting') === 'Yes'
+      title: get('title'), showCollecting: get('collecting') === 'Yes',
+      archivedWalks: get('archivedWalks'), archivedPounds: get('archivedPounds'), archivedMiles: get('archivedMiles'), archivedHours: get('archivedHours'), archivedFacts: get('archivedFacts')
     };
   }).filter(function (a) { return a.id; });
 }

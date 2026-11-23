@@ -963,3 +963,5 @@ button.lt-rh-cmdchip:hover, button.lt-rh-cmdchip:focus-visible { border-color: #
 .lt-rh-draft .err { color: #fca5a5; margin: 0; }
 /* A cleanup crew's word, on the day (S7-P14 item 6). */
 .lt-cu-word { font-weight: 700; margin: 8px 0; }
+/* S7-P3: a walk from the archive, in Your collections. */
+.lt-col-archived { margin: 0 0 4px; font-size: 0.8rem; color: #64748b; }

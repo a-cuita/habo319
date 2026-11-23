@@ -76,9 +76,11 @@ function achWalks_(accountId) {
 // start, …): the same working-out as its rates. Kept between requests.
 function achSegEvents_() {
   return kept_('achievements:events', function () {
-    var counted = rateCollections_(false), walks = worldWalks_(counted, readRows_(TABS.stretches)), k = segmentRules_();
+    var counted = rateCollections_(false), walks = worldWalks_(counted, readRows_(TABS.stretches)), k = segmentRules_(), hist = archiveHistory_();
     return segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).map(function (g) {
-      return { g: g.id, field: g.kind === 'Field', ev: pathSequence_(g, walks, k).events.map(function (e) {
+      // With archived collections (S7-P3): its first, and its first rate, are written down there.
+      var h = hist[g.id];
+      return { g: g.id, field: g.kind === 'Field', h: !!(h && h.n), hr: !!(h && h.firstRate.length), ev: pathSequence_(g, walks, k, h).events.map(function (e) {
         return { w: e.pieces && e.pieces.length ? e.pieces : [e.id], r: e.result };
       }) };
     });
@@ -88,16 +90,18 @@ function achSegEvents_() {
 function achFacts_(accountId) {
   var walks = achWalks_(accountId), mine = {};
   walks.forEach(function (w) { mine[w.id] = true; });
-  var f = { walks: walks, pounds: 0, miles: 0, segs: 0, same: 0, first: 0, rates: 0, fields: 0, made: 0 };
+  // With what's moved to the archive (S7-P3, |Q927 (a)): nothing earned toward goes back.
+  var arch = archivedById_(accountId);
+  var f = { walks: walks, pounds: arch.pounds, miles: arch.miles, segs: 0, same: 0, first: 0, rates: 0, fields: 0, made: 0, arch: arch };
   walks.forEach(function (w) { f.pounds += w.pounds; f.miles += w.miles; });
   var me = function (e) { return e.w.some(function (id) { return mine[id]; }); };
-  if (walks.length) achSegEvents_().forEach(function (s) {
-    var n = s.ev.filter(me).length;
+  if (walks.length || arch.any) achSegEvents_().forEach(function (s) {
+    var n = s.ev.filter(me).length + (arch.seg[s.g] || 0);
     if (n) { f.segs++; if (s.field) f.fields++; }
     if (n > f.same) f.same = n;
-    if (s.ev.length && me(s.ev[0])) f.first++;
+    if (s.h ? arch.first.indexOf(s.g) !== -1 : s.ev.length && me(s.ev[0])) f.first++;
     var rate = s.ev.filter(function (e) { return e.r === 'rate'; })[0];
-    if (rate && me(rate)) f.rates++;
+    if (s.hr ? arch.rate.indexOf(s.g) !== -1 : rate && me(rate)) f.rates++;
   });
   // Your segments made public, as Reviews counts them for XP.
   var made = {};
@@ -112,7 +116,7 @@ function achHave_(a, f) {
   switch (a.counts) {
     case 'Pounds': return round_(f.pounds, 2);
     case 'Miles': return round_(f.miles, 2);
-    case 'Walks': return f.walks.length;
+    case 'Walks': return f.walks.length + (f.arch ? f.arch.walks : 0);
     case 'Different segments': return f.segs;
     case 'The same segment': return f.same;
     case 'Segments collected first': return f.first;
@@ -123,8 +127,8 @@ function achHave_(a, f) {
       if (!/^-?\d+_-?\d+$/.test(w.cell) || !w.started) return false;
       var after = w.started - sunFor_(w.cell, new Date(w.started)).sunrise;
       return after >= 0 && after <= a.minutes * 60000;
-    }).length;
-    case 'Walks in one day': return shiftsOf_(f.walks, a.minutes);
+    }).length + (f.arch ? f.arch.sun.filter(function (m) { return m <= a.minutes; }).length : 0);
+    case 'Walks in one day': return Math.max(shiftsOf_(f.walks, a.minutes), f.arch ? archShift_(f.arch, a.minutes) : 0);
   }
   return 0;
 }
@@ -155,9 +159,17 @@ function weekOf_(ms) {
 function weekBefore_(monday) {
   return dayOf_(new Date(Utilities.parseDate(monday + ' 12:00', Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm').getTime() - 7 * DAY_MS));
 }
+// Archived walks' days apart (S7-P3): kept for a few gaps; a badge asking
+// another gets the nearest kept one that's wider, which can only count fewer.
+function archShift_(arch, minutes) {
+  if (arch.shift[minutes] != null) return arch.shift[minutes];
+  var wider = Object.keys(arch.shift).map(Number).filter(function (m) { return m >= minutes; }).sort(function (a, b) { return a - b; })[0];
+  return wider != null ? arch.shift[wider] : (arch.walks ? 1 : 0);
+}
 function streakOf_(accountId, walks) {
   var weeks = {};
   (walks || achWalks_(accountId)).forEach(function (w) { if (w.started) weeks[weekOf_(w.started)] = true; });
+  archivedById_(accountId).weeks.forEach(function (w) { weeks[w] = true; });   // archived walks' weeks (S7-P3)
   var now = weekOf_(Date.now()), wk = weeks[now] ? now : weekBefore_(now), n = 0;
   while (weeks[wk]) { n++; wk = weekBefore_(wk); }
   // The longest it's been.

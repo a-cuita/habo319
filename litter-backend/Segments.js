@@ -438,26 +438,35 @@ function segmentCollections_(g, walks, k, ground) {
 // marked start, pickup (into: the walk its pounds went to), rate, unknown (no
 // rate: some pounds weren't weighed inside it) or reset. A field's miles are
 // the walk it takes to scan all of it.
-function pathSequence_(g, walks, k) {
+// `hist` (S7-P3): what its archived collections left, so its clock and the
+// pounds carried toward its next rate go on from there, exactly as if those
+// collections were still here. Each event keeps the state after it (`state`),
+// for the archive to write down.
+function pathSequence_(g, walks, k, hist) {
   var ground = g.kind === 'Field' ? fieldGround_(g, k) : null;
   var miles = ground ? ground.miles : segmentMiles_(g, k);
   var found = segmentCollections_(g, walks, k, ground);
   var events = found.events;
   var clock = null, carry = 0, carryKnown = true, waiting = [];
+  if (hist && hist.n && hist.clock != null) { clock = hist.clock; carry = hist.carry || 0; carryKnown = hist.known !== false; }
   var settle = function (into) { waiting.forEach(function (e) { e.into = into; }); waiting = []; carry = 0; carryKnown = true; };
+  var keep = function (e) { e.state = { clock: clock, carry: carry, known: carryKnown }; };
   events.forEach(function (e) {
-    if (clock == null) { e.result = 'start'; clock = e.t; settle(null); return; }
+    if (clock == null) { e.result = 'start'; clock = e.t; settle(null); keep(e); return; }
     var days = (e.t - clock) / DAY_MS;
     e.since = days;
-    if (days > k.to) { e.result = 'reset'; settle(e.id); clock = e.t; return; }
-    if (days * 24 < k.minGapH) { e.result = 'pickup'; carry += e.lbs; carryKnown = carryKnown && e.known; waiting.push(e); return; }
+    if (days > k.to) { e.result = 'reset'; settle(e.id); clock = e.t; keep(e); return; }
+    if (days * 24 < k.minGapH) { e.result = 'pickup'; carry += e.lbs; carryKnown = carryKnown && e.known; waiting.push(e); keep(e); return; }
     if (e.known && carryKnown && miles > 0) { e.result = 'rate'; e.days = days; e.pounds = carry + e.lbs; e.rate = e.pounds / miles / days; }
     else e.result = 'unknown';
     settle(e.id);
     clock = e.t;
+    keep(e);
   });
-  return { events: events, clock: clock, pending: found.pending, pendingShare: found.pendingShare, miles: miles, ground: ground };
+  return { events: events, clock: clock, pending: found.pending, pendingShare: found.pendingShare, miles: miles, ground: ground, archived: hist && hist.n ? hist.n : 0 };
 }
+// Each segment's archived history, for the real world only (S7-P3).
+function seqHist_(sim) { return sim ? {} : archiveHistory_(); }
 
 // Why a walk gives a path segment no rate, for the Not counted column.
 // `whenOf` (S7-P19, item 4): where a pickup's pounds went, as that walk's
@@ -481,9 +490,9 @@ function measureWorld_(sim, owner) {
   var rows = readRows_(TABS.stretches);
   var walks = worldWalks_(counted, rows);
   var k = segmentRules_();
-  var made = [], why = {};
+  var made = [], why = {}, hist = seqHist_(sim);
   segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).forEach(function (g) {
-    var seq = pathSequence_(g, walks, k);
+    var seq = pathSequence_(g, walks, k, hist[g.id]);
     seq.events.forEach(function (e) {
       (e.pieces || []).forEach(function (pid) { if (pid !== e.id) why[g.id + '|' + pid] = 'A piece: it adds up with the others to one collection, ending with ' + e.id + ', which holds its pounds.'; });
       if (e.result === 'rate') made.push({ segment: g.id, collection: e.id, collected: e.t, pounds: round_(e.pounds, 2), miles: round_(seq.miles, 3), days: round_(e.days, 2), rate: round_(e.rate, 3), covered: Math.round(e.covered * 100) });
@@ -637,13 +646,25 @@ function segmentSummariesWorked_(sim, accountId, range) {
   var counted = rateCollections_(sim, accountId);
   var rows = readRows_(TABS.stretches);
   var walks = worldWalks_(counted, rows);
+  // Days before the live tabs' (S7-P3, |Q857 (a)): the archive's rates for
+  // them, with their walks and weighings for who and each square's reading.
+  var arch = !sim && range && range.since < archiveCutoff_() ? archiveRead_(range.since, range.until) : null;
+  var whoOf = {};
+  Object.keys(counted).forEach(function (id) { whoOf[id] = counted[id]; });
+  if (arch) Object.keys(arch.cols).forEach(function (id) { if (!whoOf[id] && arch.cols[id].get('status') !== COLLECTION_DISCARDED && arch.cols[id].get('simulated') !== 'Yes') whoOf[id] = arch.cols[id]; });
   // Each walk's weighings with a Litter Index, oldest first, for the map's table.
   var stretchesOf = {};
-  rows.filter(function (q) { return counted[q.get('collection')] && q.get('discarded') !== 'Yes' && q.get('index') !== ''; })
+  rows.concat(arch ? arch.stretches : []).filter(function (q) { return whoOf[q.get('collection')] && q.get('discarded') !== 'Yes' && q.get('index') !== ''; })
     .sort(function (a, b) { return (a.get('ended') instanceof Date ? a.get('ended').getTime() : 0) - (b.get('ended') instanceof Date ? b.get('ended').getTime() : 0); })
     .forEach(function (q) { (stretchesOf[q.get('collection')] = stretchesOf[q.get('collection')] || []).push(q); });
   // Rates the 24-hour rule doesn't give are kept, but not counted (S5-P13).
   var allRates = ratesAll_().filter(function (r) { return r.simulated === !!sim && (!sim || !!counted[r.collection]); });
+  if (arch) arch.rates.forEach(function (r) {
+    var t = r.get('collected');
+    if (!whoOf[r.get('collection')] || /^\s*y/i.test(r.get('simulated'))) return;
+    allRates.push({ segment: r.get('segment'), collection: r.get('collection'), collected: t instanceof Date ? t.getTime() : 0, pounds: Number(r.get('pounds')) || 0,
+      days: Number(r.get('days')) || 0, rate: Number(r.get('rate')) || 0, simulated: false, notCounted: String(r.get('notCounted') || '').trim(), archived: true });
+  });
   var rates = allRates.filter(function (r) { return !r.notCounted; });
   // Who collected each walk, as the public map shows them (S5-P10, |M650).
   var shown = {};
@@ -657,6 +678,7 @@ function segmentSummariesWorked_(sim, accountId, range) {
   if (names.length !== 4 || names.some(function (t) { return !t; })) names = ['No recent rate', 'Low', 'Moderate', 'Established'];
   var shows = /^\s*a/i.test(getSetting_(SETTING_RATE_SHOWS)) ? 'Average' : /^\s*b/i.test(getSetting_(SETTING_RATE_SHOWS)) ? 'Both' : 'Median';
   var level = function (n) { return n === 0 ? 0 : n <= low ? 1 : n <= moderate ? 2 : 3; };
+  var hist = seqHist_(sim);
   return segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).map(function (g) {
     var own = rates.filter(function (r) { return r.segment === g.id; });
     var inside = function (r) { return range ? r.collected >= range.since && r.collected < range.until : now - r.collected <= win; };
@@ -669,7 +691,7 @@ function segmentSummariesWorked_(sim, accountId, range) {
     var onSeg = {};
     g.squares.forEach(function (c) { onSeg[c] = true; });
     var walksGave = recentRows.slice().sort(function (a, b) { return b.collected - a.collected; }).map(function (r) {
-      var q = counted[r.collection], who = q ? shown[q.get('account')] : '';
+      var q = whoOf[r.collection], who = q ? shown[q.get('account')] : '';
       var idx = {};
       (stretchesOf[r.collection] || []).forEach(function (st) {
         String(st.get('cells')).split(/\s+/).forEach(function (c) { if (onSeg[c]) idx[c] = round_(Number(st.get('index')), 1); });
@@ -690,7 +712,7 @@ function segmentSummariesWorked_(sim, accountId, range) {
     // path and, as an area, a field (part 2). Finish it: the share cleaned
     // (a field: scanned) since then by walks that didn't collect all of it.
     var finish = 0, finishLeft = null;
-    var seq = pathSequence_(g, walks, k);
+    var seq = pathSequence_(g, walks, k, hist[g.id]);
     d = seq.clock ? (now - seq.clock) / DAY_MS : null;
     // Walks in the window that collected it but gave it no rate, newest
     // first, each with why (S6-P34, |Q782 (a)): greyed in the pop-up, with a
@@ -707,6 +729,15 @@ function segmentSummariesWorked_(sim, accountId, range) {
       // pickup (S7-P19, item 3): under the shortest gap, marked with an asterisk and a footnote in the pop-up.
       return { collected: e.t, by: who || 'a volunteer', why: notCountedWhy_(e, k, whenOf), pickup: e.result === 'pickup', idx: idx };
     });
+    // The archive's no-rate walks in those days: why, as their rows kept it (S7-P3).
+    if (arch) allRates.filter(function (r) { return r.archived && r.segment === g.id && r.notCounted && inside(r); }).forEach(function (r) {
+      var q = whoOf[r.collection], who = q ? shown[q.get('account')] : '', idx = {};
+      (stretchesOf[r.collection] || []).forEach(function (st) {
+        String(st.get('cells')).split(/\s+/).forEach(function (c) { if (onSeg[c]) idx[c] = round_(Number(st.get('index')), 1); });
+      });
+      noRate.push({ collected: r.collected, by: who || 'a volunteer', why: r.notCounted, pickup: /^Under \d+ hours/.test(r.notCounted), idx: idx });
+    });
+    noRate.sort(function (a, b) { return b.collected - a.collected; });
     // Finish it: pieces still adding up, the last within "Pieces add up within" (Q540).
     var lastPiece = seq.pending.length ? seq.pending[seq.pending.length - 1].t : 0;
     if (lastPiece && now - lastPiece <= k.piecesH * 3600000 && seq.pendingShare >= k.finishFrom) {

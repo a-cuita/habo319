@@ -182,7 +182,16 @@ function xpDues_(accountId, by) {
   items.forEach(function (it) {
     if (it.account === accountId && it.state === 'Approved') out.push({ key: 'item:' + it.id, kind: 'Skill', xp: it.xp, at: it.sent, say: (names[it.skill] || 'A skill') + ', sent and approved' });
   });
+  // A Challenge or Quest that's over, once some of this player's walks are in
+  // the archive (S7-P3): it keeps what it paid, since its walks may have moved.
+  var arch = archivedById_(accountId), editMs = minutesSetting_(SETTING_EDIT_HOURS, 48) * 3600000, finished = null;
   if (challengesAll_().length) challengeGains_(accountId, items, snapOf).forEach(function (g) {
+    if (arch.any && g.to && Date.now() >= g.to + DAY_MS + editMs) {
+      if (!by[g.key]) return;
+      finished = finished || questsOf_(accountId).finished;
+      g.xp = round_(by[g.key].xp, 2);
+      if (g.kind === 'Quest') g.done = !!finished[g.quest];
+    }
     // A Quest always, so a finish that no longer holds is seen (|Q913 (a)); with no XP, it writes no row.
     if (!g.xp && !by[g.key] && !g.done && g.kind !== 'Quest') return;
     var end = Math.min(Date.now(), g.to ? g.to + DAY_MS - 1 : Date.now());

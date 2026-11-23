@@ -35,9 +35,11 @@ var TABS = {
     byName: true,
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
       'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Check-in volunteer', 'Updated', 'Status',
-      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken', 'Business or organization', 'Sponsor', 'Title', 'Who shows collecting'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320, 200, 80, 200, 90],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@', 23: '@' }
+      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken', 'Business or organization', 'Sponsor', 'Title', 'Who shows collecting',
+      // What's moved to the archive (S7-P3, |Q927 (a)): added to what's live, for badges and volunteer hours.
+      'Archived walks', 'Archived pounds', 'Archived miles', 'Archived hours', 'Archived for badges'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320, 200, 80, 200, 90, 100, 110, 100, 100, 320],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@', 23: '@', 29: '@' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
   // words change (Oct 23, in chat), with whether their emailed copy went.
@@ -99,6 +101,15 @@ var TABS = {
     header: ['Segment ID', 'Name', 'Proposed by', 'Proposed', 'Plan', 'Squares', 'Miles', 'Accepted', 'Note', 'Kind', 'Outline'],
     widths: [90, 220, 90, 150, 80, 420, 70, 80, 260, 70, 420],
     formats: { 4: 'yyyy-mm-dd h:mm', 5: '@', 6: '@', 8: '@', 11: '@' }
+  },
+  // Each segment's archived collections (S7-P3): how many, and where its
+  // clock and the pounds toward its next rate stood after them, so its rates
+  // go on exactly; who collected it first, and who gave its first rate.
+  archivedSegments: {
+    name: 'Archived segments',
+    header: ['Segment ID', 'Collections archived', 'Clock', 'Carry (lb)', 'Carry known', 'First collected by', 'First rate by', 'Updated'],
+    widths: [90, 140, 150, 90, 90, 160, 160, 150],
+    formats: { 3: 'yyyy-mm-dd h:mm:ss', 6: '@', 7: '@', 8: 'yyyy-mm-dd h:mm' }
   },
   rates: {
     name: 'Segment rates',
@@ -266,8 +277,9 @@ var TABS = {
   bounties: {
     name: 'Bounties',
     // A test (S7-P11, Jeremy in chat, Nov 22, (a)): Yes, set by an admin in Admin Mode.
-    header: ['Bounty ID', 'Account ID', 'Sponsor', 'Name', 'Segments', 'From', 'To', 'Players', 'Reward', 'Bonus XP', 'Donation', 'State', 'Made', 'Decided by', 'Decided', 'Note', 'A test'],
-    widths: [80, 90, 180, 200, 220, 100, 100, 70, 260, 70, 100, 80, 150, 100, 150, 260, 60],
+    // Pounds and Miles (S7-P3): written once it's over, before its walks can move to the archive.
+    header: ['Bounty ID', 'Account ID', 'Sponsor', 'Name', 'Segments', 'From', 'To', 'Players', 'Reward', 'Bonus XP', 'Donation', 'State', 'Made', 'Decided by', 'Decided', 'Note', 'A test', 'Pounds', 'Miles'],
+    widths: [80, 90, 180, 200, 220, 100, 100, 70, 260, 70, 100, 80, 150, 100, 150, 260, 60, 80, 80],
     formats: { 5: '@', 6: 'yyyy-mm-dd', 7: 'yyyy-mm-dd', 13: 'yyyy-mm-dd h:mm', 15: 'yyyy-mm-dd h:mm' }
   },
   bountyEarned: {
@@ -404,6 +416,7 @@ function actions_() {
     tellReport: tellReport_,     // a tell reported by the player it was sent to (S7-P10)
     tellRemove: tellRemove_,     // an admin removes a reported one
     boardPost: boardPost_,       // a topic or note from Street Talk's drafting box (S7-P10, |Q920 (a))
+    collectionsOlder: collectionsOlder_,   // Your collections' Show older walks, from the archive (S7-P3, |Q858 (b))
     boardReport: boardReport_,   // a board topic or note reported (S7-P10)
     boardRemove: boardRemove_,   // an admin removes it
     questActive: questActive_,   // Make active, or Stop counting, in Your quests (S7-P4)
@@ -635,7 +648,7 @@ function ensureSchema_(force) {
   var tzWrong = ss.getSpreadsheetTimeZone() !== Session.getScriptTimeZone();
   // The once-only changes, until each is marked done.
   var props = PropertiesService.getScriptProperties();
-  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE') || !props.getProperty('XP_TABS_MOVED') || !props.getProperty('QUESTS_TAKEN_FROM') || !props.getProperty('GRAB_SEEDED');
+  var onceLeft = !props.getProperty('READINGS_REWORKED') || !props.getProperty('GRID_HALVED') || !props.getProperty('GRID_10M') || !props.getProperty('GRID_10M_TRACK') || !props.getProperty('SIMULATIONS_TAB') || !props.getProperty('QUESTS_TAB') || !props.getProperty('LEVELS_SEEDED') || !props.getProperty('CLASS_SKILLS_SEEDED') || !props.getProperty('RATES_24H') || !props.getProperty('FIELDS_AREA') || !props.getProperty('CHALLENGES_SEEDED') || !props.getProperty('WIKI_SEEDED') || !props.getProperty('WIKI_SECTIONS_SEEDED') || !props.getProperty('ACHIEVEMENTS_SEEDED') || !props.getProperty('SKILLS_SPLIT') || !props.getProperty('MILES_ONE_RULE') || (SQUARES_PACK_ON && !props.getProperty('SQUARES_PACKED')) || !props.getProperty('WIKI_CONFIDENCE') || !props.getProperty('WIKI_NO_RATE') || !props.getProperty('COLD_FOLDER_MADE') || !props.getProperty('XP_TABS_MOVED') || !props.getProperty('QUESTS_TAKEN_FROM') || !props.getProperty('GRAB_SEEDED') || !props.getProperty('ARCHIVE_TIMER') || String(props.getProperty('ARCHIVE_TIMER')).indexOf('later') === 0;
   if (!tabsMissing && !colsMissing && !tzWrong && !onceLeft && !missingSettings_(ss).length) {
     cache.put(cacheKey, '1', 600);
     return;
@@ -690,6 +703,7 @@ function ensureSchema_(force) {
     xpTabsOnce_();   // each player's XP tab, moved in once, after everything else (S7-P1, item 8)
     questsTakenOnce_();   // from now, Quests count once taken on and active (S7-P4)
     grabOnce_();   // Grab a location, and its first whys (S7-P4 items 10, 11)
+    archiveTimerOnce_();   // the archive's nightly timer (S7-P3)
     fillSettingNotes_(ss);
   });
   cache.put(cacheKey, '1', 600);
@@ -895,6 +909,7 @@ function missingSettings_(ss) {
     [SETTING_NO_START, '15'],
     [SETTING_AUTO_END, '12'],
     [SETTING_EDIT_HOURS, '48'],
+    [SETTING_KEEP_DAYS, '90'],
     [SETTING_COLOUR_0, MOCISN_COLOURS[0]],
     [SETTING_COLOUR_5, MOCISN_COLOURS[1]],
     [SETTING_COLOUR_10, MOCISN_COLOURS[2]],

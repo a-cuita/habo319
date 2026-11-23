@@ -621,6 +621,22 @@ window.LitterMap = function (app) {
     setTimeout(function () { drawSmallMaps(list); }, 0);
     $('my-more').hidden = showAll || cols.length <= SHOW_FIRST;
     $('my-more').textContent = 'Show all ' + cols.length;
+    // Older walks, from the archive (S7-P3, |Q858 (b)): once all of these show.
+    $('my-older').hidden = !mine.older || !(showAll || cols.length <= SHOW_FIRST);
+  }
+  function showOlder() {
+    var b = $('my-older');
+    b.disabled = true;
+    b.textContent = 'Loading older walks…';
+    app.api('collectionsOlder', { token: app.myToken(), before: mine.older }).then(function (d) {
+      b.disabled = false;
+      b.textContent = 'Show older walks';
+      // In date order with what's live: a walk held live can be older than one archived.
+      mine.collections = mine.collections.concat(d.collections || []).sort(function (a, b) { return b.started - a.started; });
+      mine.older = d.next || '';
+      showAll = true;
+      drawMine();
+    }, function (err) { b.disabled = false; b.textContent = 'Show older walks'; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
   }
 
   // Compact (S6-P28, |M963, |Q715 (a)): a walk is two short lines, its day,
@@ -632,6 +648,8 @@ window.LitterMap = function (app) {
     var box = el('div', 'lt-col lt-col-compact' + (c.simulated ? ' lt-sim-walk' : ''));
     box.id = 'my-' + c.id;
     if (c.simulated) box.appendChild(el('p', 'lt-sim-label', 'Simulated walk'));
+    // From the archive (S7-P3, |Q859 (a)): opened and shared, not changed.
+    if (c.archived) box.appendChild(el('p', 'lt-col-archived', 'From the archive, ' + c.archived + ': it can be opened and shared, not changed.'));
     var top = el('div', 'lt-col-top');
     var lines = el('div', 'lt-col-lines');
     lines.setAttribute('role', 'button');
@@ -727,7 +745,7 @@ window.LitterMap = function (app) {
     // Measure again (Oct 31, field first): its segment rates worked out again,
     // with the Settings and each segment's Kind as they are now. A Head
     // Builder's, only while Admin Mode is on (S5-P13, Q555, Q564).
-    if (c.track && c.track.length > 1 && app.builderMode && app.builderMode()) {
+    if (c.track && c.track.length > 1 && !c.archived && app.builderMode && app.builderMode()) {
       var ma = el('button', 'lt-seg-menu-item lt-col-measure', 'Measure again');
       ma.type = 'button';
       ma.addEventListener('click', function () {
@@ -1420,6 +1438,7 @@ window.LitterMap = function (app) {
 
   $('mp-back').addEventListener('click', function () { if (back) back(); else app.showStart(); });
   $('my-more').addEventListener('click', function () { showAll = true; drawMine(); });
+  $('my-older').addEventListener('click', showOlder);
   // Sort (S5-P10, Q561): Nearest to me asks the phone where it is.
   $('seg-sort').addEventListener('change', function () {
     var pick = this.value;
