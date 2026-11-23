@@ -35,9 +35,9 @@ var TABS = {
     byName: true,
     header: ['Account ID', 'Created', 'First name', 'Last name', 'Email', 'Handle', 'Map shows', '18 or older',
       'Waiver signed', 'Waiver', 'Waiver fingerprint', 'Check-in volunteer', 'Updated', 'Status',
-      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken', 'Business or organization', 'Sponsor'],
-    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320, 200, 80],
-    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@' }
+      'Safety gear', 'Safety gear confirmed', 'XP', 'Level', 'Levels reached', 'Quests taken', 'Business or organization', 'Sponsor', 'Title', 'Who shows collecting'],
+    widths: [90, 150, 130, 130, 220, 150, 100, 90, 150, 280, 130, 130, 150, 80, 260, 150, 80, 60, 320, 320, 200, 80, 200, 90],
+    formats: { 2: 'yyyy-mm-dd h:mm', 6: '@', 9: 'yyyy-mm-dd h:mm', 13: 'yyyy-mm-dd h:mm', 15: '@', 16: 'yyyy-mm-dd h:mm', 19: '@', 20: '@', 23: '@' }
   },
   // Every time someone signs the waiver: setting up, and again each time its
   // words change (Oct 23, in chat), with whether their emailed copy went.
@@ -197,8 +197,8 @@ var TABS = {
   // Street Talk's message board (S7-P10, |Q893): a topic, or a note on one (its Topic).
   board: {
     name: 'Board',
-    header: ['Note ID', 'Topic', 'Account ID', 'Written', 'Text', 'Removed by', 'Removed', 'Reported by', 'Reported'],
-    widths: [80, 80, 90, 150, 420, 90, 150, 120, 150],
+    header: ['Note ID', 'Topic', 'Account ID', 'Written', 'Text', 'Removed by', 'Removed', 'Reported by', 'Reported', 'Subject', 'Re'],
+    widths: [80, 80, 90, 150, 420, 90, 150, 120, 150, 220, 80],
     formats: { 4: 'yyyy-mm-dd h:mm', 7: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm' }
   },
   forumReads: {
@@ -403,6 +403,7 @@ function actions_() {
     gchatRemove: gchatRemove_,   // an admin removes it
     tellReport: tellReport_,     // a tell reported by the player it was sent to (S7-P10)
     tellRemove: tellRemove_,     // an admin removes a reported one
+    boardPost: boardPost_,       // a topic or note from Street Talk's drafting box (S7-P10, |Q920 (a))
     boardReport: boardReport_,   // a board topic or note reported (S7-P10)
     boardRemove: boardRemove_,   // an admin removes it
     questActive: questActive_,   // Make active, or Stop counting, in Your quests (S7-P4)

@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=84">
+<link rel="stylesheet" href="litter.css?v=85">
 </head>
 <body>
 
@@ -43,6 +43,25 @@
       <span class="lt-rh-caret" aria-hidden="true">&gt;</span>
       <input id="rh-in" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="send" maxlength="1010" placeholder="Type a command, or help">
       <button class="lt-rh-enter" type="submit">Enter</button>
+    </form>
+    <!-- The board's drafting box (S7-P10, |Q920 (a)): board write, board 1 write and board re T1N3 open it, over Street Talk. -->
+    <form class="lt-rh-draft" id="rh-draft" novalidate hidden>
+      <h3 id="rh-draft-title">A new topic</h3>
+      <label for="rh-draft-subject" id="rh-draft-subject-label">Its subject</label>
+      <input id="rh-draft-subject" maxlength="80" autocomplete="off">
+      <label for="rh-draft-text" id="rh-draft-text-label">Your note</label>
+      <div class="lt-rh-draft-tools" role="toolbar" aria-label="Formatting">
+        <button type="button" id="rh-draft-b" aria-label="Bold" title="Bold"><b>B</b></button>
+        <button type="button" id="rh-draft-i" aria-label="Italic" title="Italic"><i>I</i></button>
+        <button type="button" id="rh-draft-u" aria-label="Underline" title="Underline"><u>U</u></button>
+      </div>
+      <textarea id="rh-draft-text" rows="7" maxlength="1000"></textarea>
+      <p class="lt-rh-draft-say"><span id="rh-draft-count"></span> · |T1N3 in your words links to that note.</p>
+      <div class="lt-rh-draft-go">
+        <button class="btn btn-primary" id="rh-draft-post" type="submit">Post</button>
+        <button class="btn btn-secondary" id="rh-draft-cancel" type="button">Cancel</button>
+      </div>
+      <p class="err" id="rh-draft-err" role="alert"></p>
     </form>
   </div>
 
@@ -85,6 +104,13 @@
           </div>
           <p class="lt-label">On the public map, show</p>
           <div id="ed-shows"></div>
+          <!-- Street Talk's who (S7-P10): a title after your name (|Q916 (a)), and <COLLECTING> on a walk, hidden to start (|Q917 (a)). -->
+          <div class="ig">
+            <label for="ed-title">Your title in Street Talk (if you want one)</label>
+            <input id="ed-title" maxlength="30" autocomplete="off" placeholder="like the Litter Warrior">
+            <p class="small muted">who shows it after your name, up to 30 characters.</p>
+          </div>
+          <label class="choice-row"><input type="checkbox" id="ed-collecting"> In Street Talk's who, show &lt;COLLECTING&gt; after my name while I'm on a walk</label>
           <button class="btn btn-primary" id="ed-save" type="submit">Save</button>
           <button class="btn btn-secondary" id="ed-cancel" type="button">Cancel</button>
           <p class="err" id="ed-err" role="alert"></p>
@@ -1309,7 +1335,7 @@
 <script src="cleanups.js?v=6"></script>
 <script src="achievements.js?v=1"></script>
 <script src="bounties.js?v=2"></script>
-<script src="scroll.js?v=10"></script>
-<script src="litter.js?v=54"></script>
+<script src="scroll.js?v=11"></script>
+<script src="litter.js?v=55"></script>
 </body>
 </html>

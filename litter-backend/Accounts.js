@@ -13,11 +13,14 @@
 // Accounts' columns, found by their headings each time the tab is read
 // (S7-P1): these are only where a new Accounts tab has them.
 var ACCOUNT_COL = { id: 1, created: 2, first: 3, last: 4, email: 5, handle: 6, shows: 7, adult: 8, signed: 9,
-  waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19, quests: 20, sponsorName: 21, sponsorState: 22 };
+  waiver: 10, waiverPrint: 11, volunteer: 12, updated: 13, status: 14, gear: 15, gearAt: 16, xp: 17, level: 18, levels: 19, quests: 20, sponsorName: 21, sponsorState: 22,
+  title: 23, collecting: 24 };
 var ACCOUNT_HEADS = { id: 'Account ID', created: 'Created', first: 'First name', last: 'Last name', email: 'Email', handle: 'Handle',
   shows: 'Map shows', adult: '18 or older', signed: 'Waiver signed', waiver: 'Waiver', waiverPrint: 'Waiver fingerprint',
   volunteer: 'Check-in volunteer', updated: 'Updated', status: 'Status', gear: 'Safety gear', gearAt: 'Safety gear confirmed',
   xp: 'XP', level: 'Level', levels: 'Levels reached', quests: 'Quests taken', sponsorName: 'Business or organization', sponsorState: 'Sponsor',
+  // Street Talk's who (S7-P10): a title after their name (|Q916 (a)), and <COLLECTING> on a walk if they choose (|Q917 (a)).
+  title: 'Title', collecting: 'Who shows collecting',
   // No longer written or read (|Q842 (a)): found only while still there, for the once-only step that copied them.
   quest: 'First quest', questDone: 'First quest finished' };
 function accountColsFrom_(head) {
@@ -214,6 +217,9 @@ function updateMe_(req) {
     handle: clean_(req.handle, 40),
     shows: MAP_SHOWS.indexOf(req.mapShows) === -1 ? '' : req.mapShows
   };
+  // Street Talk's who (S7-P10): a title, and <COLLECTING> on a walk; left as they are when not sent.
+  var title = req.title == null ? null : titleClean_(req.title);
+  var collecting = req.showCollecting == null ? null : (req.showCollecting === true || req.showCollecting === 'true' ? 'Yes' : '');
   if (!next.first || !next.last) throw new Error('Please enter your first and last name.');
   if (!HANDLE_RULE.test(next.handle)) throw new Error(handleRuleWords_());
   if (!next.shows) throw new Error('Please pick what the map shows.');
@@ -232,6 +238,16 @@ function updateMe_(req) {
       logChange_(who, 'Changed', now.id + ' ' + now.handle, f[1], now[f[0]], next[f[0]]);
       changed = true;
     });
+    if (title != null && title !== now.title) {
+      setAccountCells_(now.row, { title: safeCell_(title) });
+      logChange_(who, 'Changed', now.id + ' ' + now.handle, 'Title', now.title, title);
+      changed = true;
+    }
+    if (collecting != null && collecting !== (now.showCollecting ? 'Yes' : '')) {
+      setAccountCells_(now.row, { collecting: collecting });
+      logChange_(who, 'Changed', now.id + ' ' + now.handle, 'Who shows collecting', now.showCollecting ? 'Yes' : '', collecting);
+      changed = true;
+    }
     if (changed) sheet.getRange(now.row, ACCOUNT_COL.updated).setValue(new Date());
     return accountView_(readAccounts_().filter(function (x) { return x.id === account.id; })[0]);
   });
@@ -265,7 +281,8 @@ function readAccounts_() {
       // Each Quest taken on and finished, with when (S7-P4), for Street Talk's lines about everyone.
       quests: get('quests'),
       // The Business/Organization flag (S7-P11): its name, and Asked, Yes or Declined.
-      sponsorName: get('sponsorName'), sponsorState: get('sponsorState')
+      sponsorName: get('sponsorName'), sponsorState: get('sponsorState'),
+      title: get('title'), showCollecting: get('collecting') === 'Yes'
     };
   }).filter(function (a) { return a.id; });
 }
@@ -289,7 +306,8 @@ function accountView_(a) {
     waiverRenew: !!w.fingerprint && a.waiverPrint === w.fingerprint && waiverRenewDue_(a),
     renewMonths: minutesSetting_(SETTING_WAIVER_RENEW, 2), gear: a.gear || '', gearAt: a.gearAt || '',
     matched: !!a.volunteer, rank: a.rank || '',
-    sponsorName: a.sponsorName || '', sponsorState: a.sponsorState || ''
+    sponsorName: a.sponsorName || '', sponsorState: a.sponsorState || '',
+    title: a.title || '', showCollecting: !!a.showCollecting
   };
 }
 

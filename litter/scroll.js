@@ -35,7 +35,14 @@ window.LitterScroll = function (app) {
     if (l.at) p.title = when(l.at);
     if (l.who || l.kind === 'gchat') { p.appendChild(el('b', 'lt-rh-who', l.who || 'A volunteer')); p.appendChild(document.createTextNode(l.kind === 'gchat' ? ': ' + l.text : ' ' + l.text)); }
     // A board topic or note: its head in bold, with a break above it (S7-P10, |M1442).
-    else if (l.head) { p.classList.add('lt-rh-note'); p.appendChild(el('b', 'lt-rh-note-head', l.head + ':')); p.appendChild(document.createTextNode(' ' + l.body)); }
+    else if (l.head) noteEl(p, l, full);
+    // A way to the screen to change it, like Change my details from privacy (|Q917).
+    else if (l.open) {
+      if (!full) p.textContent = l.text;
+      else { var go = el('button', 'lt-rh-go', l.text); go.type = 'button'; go.addEventListener('click', function () { openScreen(l.open); }); p.appendChild(go); }
+    }
+    // HABO's own words: a command in them in its own style (|Q923 (a)).
+    else if (l.kind === 'answer') marked(p, l.text, full);
     else p.textContent = l.text;
     if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
@@ -55,6 +62,75 @@ window.LitterScroll = function (app) {
       if (acts.childNodes.length) p.appendChild(acts);
     }
     return p;
+  }
+  // A command in HABO's words, in `backticks`: shown in its own style, and in
+  // the full screen tapping it types it at the prompt for you (|Q923 (a)).
+  function marked(p, text, full) {
+    String(text).split(/`([^`]+)`/).forEach(function (part, i) {
+      if (!(i % 2)) { if (part) p.appendChild(document.createTextNode(part)); return; }
+      if (!full) { p.appendChild(el('code', 'lt-rh-cmdchip', part)); return; }
+      var b = el('button', 'lt-rh-cmdchip', part);
+      b.type = 'button';
+      b.title = 'Type it at the prompt';
+      b.addEventListener('click', function () { typeIt(part); });
+      p.appendChild(b);
+    });
+  }
+  function typeIt(cmd) {
+    var i = $('rh-in');
+    i.value = cmd + ' ';
+    i.focus();
+    try { i.setSelectionRange(i.value.length, i.value.length); } catch (e) { /* some inputs can't */ }
+  }
+  // A note's name, T1N3, or a topic's, T1: the command that reads it.
+  function readCmd(name) { var m = /^T(\d+)$/i.exec(name); return m ? 'board ' + m[1] : 'board ' + String(name).toUpperCase(); }
+  // A note's words as written in the drafting box (|Q920 (a)): **bold**,
+  // *italic*, __underline__ and line breaks; |T1N3 a link that opens it (|Q922 (a)).
+  var RICH = /(\*\*[^*\n]+\*\*|__[^_\n]+__|\*[^*\s][^*\n]*\*|\|T\d+(?:N\d+)?\b)/i;
+  function rich(box, text, full) {
+    String(text).split('\n').forEach(function (line, k) {
+      if (k) box.appendChild(document.createElement('br'));
+      line.split(RICH).forEach(function (part, i) {
+        if (!part) return;
+        if (!(i % 2)) { box.appendChild(document.createTextNode(part)); return; }
+        if (part.charAt(0) === '|') {
+          var name = part.slice(1).toUpperCase();
+          if (!full) { box.appendChild(document.createTextNode(name)); return; }
+          var a = el('button', 'lt-rh-link', name);
+          a.type = 'button';
+          a.addEventListener('click', function () { run(readCmd(name), true); });
+          box.appendChild(a);
+        } else if (part.slice(0, 2) === '**') box.appendChild(el('b', '', part.slice(2, -2)));
+        else if (part.slice(0, 2) === '__') box.appendChild(el('u', '', part.slice(2, -2)));
+        else box.appendChild(el('i', '', part.slice(1, -1)));
+      });
+    });
+  }
+  // A topic or a note: its name, a link that opens it, and its subject, in
+  // bold; who and when; then its words, whole when read, its first words in a
+  // list. A note answering another is indented under it (|Q918).
+  function noteEl(p, l, full) {
+    p.classList.add('lt-rh-note');
+    if (!l.meta) { p.appendChild(el('b', 'lt-rh-note-head', l.head + ':')); p.appendChild(document.createTextNode(' ' + l.body)); return; }
+    if (l.depth) p.classList.add('lt-rh-depth', 'lt-rh-depth-' + Math.min(3, l.depth));
+    var h = el('b', 'lt-rh-note-head');
+    if (full && l.name) {
+      var a = el('button', 'lt-rh-link', l.name);
+      a.type = 'button';
+      a.addEventListener('click', function () { run(readCmd(l.name), true); });
+      h.appendChild(a);
+      h.appendChild(document.createTextNode(l.head.slice(l.name.length)));
+    } else h.textContent = l.head;
+    p.appendChild(h);
+    p.appendChild(el('span', 'lt-rh-note-meta', l.meta));
+    if (l.body) {
+      var b = el('span', 'lt-rh-note-body' + (l.whole ? ' whole' : ''));
+      if (l.whole) rich(b, l.body, full); else b.textContent = l.body;
+      p.appendChild(b);
+    }
+  }
+  function openScreen(which) {
+    if (which === 'details' && app.openDetails) { close(); app.openDetails(); }
   }
   function tellEl(l, full) {
     var p = el('p', 'lt-rh-line pub tell');
@@ -91,8 +167,8 @@ window.LitterScroll = function (app) {
       var name = el(full ? 'button' : 'b', 'lt-rh-who lt-rh-qm-name', l.who);
       if (full) { name.type = 'button'; name.addEventListener('click', function () { run('quests', true); }); }
       p.appendChild(name);
-      p.appendChild(document.createTextNode(l.kind === 'qm' ? ' ' + l.text : ': ' + l.text));
-    } else p.textContent = l.text;
+      marked(p, l.kind === 'qm' ? ' ' + l.text : ': ' + l.text, full);
+    } else marked(p, l.text, full);
     if (full && l.actions && l.actions.length) {
       var acts = el('span', 'lt-rh-acts');
       l.actions.forEach(function (a) {
@@ -233,6 +309,7 @@ window.LitterScroll = function (app) {
     poll();
   }
   function close() {
+    if (draft) shutDraft(true);
     if (timer) { clearInterval(timer); timer = null; }
     $('rh').hidden = true;
     document.body.classList.remove('lt-rh-open');
@@ -250,6 +327,9 @@ window.LitterScroll = function (app) {
   // `tapped`: from a button, so the keyboard stays down on a phone.
   function run(typed, tapped) {
     if (asking) return;
+    // board write, board 1 write and board re T1N3 open the drafting box (|Q920 (a)).
+    var d = draftFor(typed);
+    if (d) { openDraft(d, typed); return; }
     asking = true;
     var at = Date.now();
     printed.push({ kind: 'cmd', typed: true, at: at, text: '> ' + typed });
@@ -267,8 +347,11 @@ window.LitterScroll = function (app) {
       // A board topic or note comes with its id, for Report and Remove.
       (d.answer || []).forEach(function (t) {
         printed.push(typeof t === 'string' ? { kind: 'answer', typed: true, at: at, text: t }
-          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, head: t.head || '', body: t.body || '', mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
+          : { kind: 'answer', typed: true, at: at, text: t.text, note: t.note, head: t.head || '', body: t.body || '', meta: t.meta || '', name: t.name || '', whole: !!t.whole, depth: t.depth || 0, open: t.open || '',
+            mine: !!t.mine, reported: !!t.reported, qm: !!t.qm, who: t.qm ? t.who : '', actions: t.actions || null });
       });
+      // title and privacy change your account: the page keeps it (|Q916, |Q917).
+      if (d.account && app.account) app.account(d.account);
       if (d.lines) lines = d.lines;
       // gchat or tell: your line, in the scroll, as it'll be seen.
       if (d.line) { printed = printed.filter(function (x) { return x.text !== '> ' + typed; }); merge([d.line]); paintStrip(); }
@@ -277,9 +360,81 @@ window.LitterScroll = function (app) {
     }).then(function () { asking = false; paintFull(true); if (!tapped) $('rh-in').focus(); });
   }
 
+  /* ── The drafting box (S7-P10, |Q920 (a)): over Street Talk, a subject, the
+     words with Bold, Italic and Underline, then Post or Cancel. Cancel keeps
+     the draft until it's posted, for as long as the page is open. ── */
+  var drafts = {}, draft = null;
+  function draftFor(typed) {
+    var t = String(typed).trim(), m;
+    if ((m = /^board\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: '', subject: (m[1] || '').trim(), text: '' };
+    if ((m = /^board\s+T?(\d+)\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: m[1], re: '', subject: '', text: (m[2] || '').trim() };
+    if ((m = /^board\s+(?:re\s+(T\d+N\d+)|(T\d+N\d+)\s+re|(\d+)\s+re\s+(\d+))(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: (m[1] || m[2] || ('T' + m[3] + 'N' + m[4])).toUpperCase(), subject: '', text: (m[5] || '').trim() };
+    return null;
+  }
+  function draftKey(d) { return d.re ? 're ' + d.re : d.topic ? 'topic ' + d.topic : 'new'; }
+  function openDraft(d, typed) {
+    var kept = drafts[draftKey(d)];
+    draft = { topic: d.topic, re: d.re, typed: typed };
+    $('rh-draft-title').textContent = d.re ? 'Answering ' + d.re : d.topic ? 'A note on topic ' + d.topic : 'A new topic';
+    $('rh-draft-subject-label').textContent = d.re ? 'Subject (leave it empty for "re:" and its subject)' : d.topic ? 'Subject' : 'Its subject';
+    $('rh-draft-text-label').textContent = d.topic || d.re ? 'Your note' : 'Its first words (if you want any)';
+    $('rh-draft-subject').value = d.subject || (kept ? kept.subject : '');
+    $('rh-draft-text').value = d.text || (kept ? kept.text : '');
+    $('rh-draft-text').maxLength = gchatMax;
+    $('rh-draft-err').textContent = '';
+    count();
+    $('rh-draft').hidden = false;
+    (d.re || (d.topic && $('rh-draft-subject').value) ? $('rh-draft-text') : $('rh-draft-subject')).focus();
+  }
+  function keepDraft() {
+    if (!draft) return;
+    var s = $('rh-draft-subject').value, t = $('rh-draft-text').value;
+    if (s.trim() || t.trim()) drafts[draftKey(draft)] = { subject: s, text: t };
+    else delete drafts[draftKey(draft)];
+  }
+  function shutDraft(keep) {
+    if (keep) keepDraft();
+    draft = null;
+    $('rh-draft').hidden = true;
+  }
+  function count() { $('rh-draft-count').textContent = $('rh-draft-text').value.length + ' of ' + gchatMax + ' characters'; }
+  // Bold, Italic or Underline: around what's chosen, or a pair to type between.
+  function wrap(mark) {
+    var t = $('rh-draft-text'), a = t.selectionStart, b = t.selectionEnd, v = t.value;
+    if (v.length + 2 * mark.length > gchatMax) return;
+    t.value = v.slice(0, a) + mark + v.slice(a, b) + mark + v.slice(b);
+    t.focus();
+    t.setSelectionRange(a + mark.length, b + mark.length);
+    count();
+  }
+  function postDraft(e) {
+    e.preventDefault();
+    if (!draft || asking) return;
+    var d = draft, go = $('rh-draft-post'), at = Date.now();
+    go.disabled = true;
+    $('rh-draft-err').textContent = '';
+    app.api('boardPost', { token: app.myToken(), topic: d.topic, re: d.re, subject: $('rh-draft-subject').value, text: $('rh-draft-text').value }).then(function (r) {
+      delete drafts[draftKey(d)];
+      shutDraft(false);
+      printed.push({ kind: 'cmd', typed: true, at: at, text: '> ' + d.typed });
+      (r.answer || []).forEach(function (t) { printed.push({ kind: 'answer', typed: true, at: at, text: t }); });
+      paintFull(true);
+    }, function (er) {
+      $('rh-draft-err').textContent = String((er && er.message) || 'That didn\'t go through just now. Try again.').replace(/`/g, '');
+    }).then(function () { go.disabled = false; });
+  }
+  $('rh-draft').addEventListener('submit', postDraft);
+  $('rh-draft-cancel').addEventListener('click', function () { shutDraft(true); $('rh-in').focus(); });
+  $('rh-draft-text').addEventListener('input', count);
+  [['rh-draft-b', '**'], ['rh-draft-i', '*'], ['rh-draft-u', '__']].forEach(function (x) {
+    // Pressed without taking the focus from the words, so what's chosen stays chosen.
+    $(x[0]).addEventListener('mousedown', function (e) { e.preventDefault(); });
+    $(x[0]).addEventListener('click', function () { wrap(x[1]); });
+  });
+
   $('rh-strip').addEventListener('click', open);
   $('rh-close').addEventListener('click', close);
-  $('rh').addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
+  $('rh').addEventListener('keydown', function (e) { if (e.key === 'Escape') { if (draft) shutDraft(true); else close(); } });
   $('rh-form').addEventListener('submit', ask);
 
   return {

@@ -167,7 +167,7 @@ function qmTells_(account) {
   return questBenchAll_().filter(function (q) { return !st.taken[q.id] && questOpenTo_(q, account, st, now, live); }).map(function (q) {
     var n = questNum_(q.id);
     return { at: questOpenedAt_(q, st), kind: 'qm', who: name, id: 'qm-' + q.id, mine: false,
-      text: 'tells you, "' + q.name + ' is open to you now. Type about ' + n + ' to hear of it."', actions: [{ label: 'Tell me more', command: 'about ' + n }] };
+      text: 'tells you, "' + q.name + ' is open to you now. Type `about ' + n + '` to hear of it."', actions: [{ label: 'Tell me more', command: 'about ' + n }] };
   }).filter(function (l) { return l.at; });
 }
 
@@ -204,7 +204,7 @@ function qmFind_(account, n) {
 }
 function qmAbout_(account, n) {
   var q = qmFind_(account, n), st = questsOf_(account.id), now = Date.now(), live = questsWithChallenges_();
-  if (!q || (!st.taken[q.id] && !questOpenTo_(q, account, st, now, live))) return [qmLine_('"I know of no Quest ' + n + ' for you. Type quests for the ones open to you."')];
+  if (!q || (!st.taken[q.id] && !questOpenTo_(q, account, st, now, live))) return [qmLine_('"I know of no Quest ' + n + ' for you. Type `quests` for the ones open to you."')];
   var names = {}, skills = {};
   segmentsAll_().forEach(function (g) { names[g.id] = g.name; });
   toolSkillsAll_().forEach(function (s) { skills[s.id] = s.name; });
@@ -228,7 +228,7 @@ function qmAccept_(account, n) {
   var q = qmFind_(account, n);
   return withLock_(function () {
     var st = questsOf_(account.id), now = Date.now(), live = questsWithChallenges_();
-    if (!q || (!st.taken[q.id] && !questOpenTo_(q, account, st, now, live))) return [qmLine_('"I know of no Quest ' + n + ' for you. Type quests for the ones open to you."')];
+    if (!q || (!st.taken[q.id] && !questOpenTo_(q, account, st, now, live))) return [qmLine_('"I know of no Quest ' + n + ' for you. Type `quests` for the ones open to you."')];
     if (st.taken[q.id]) return [qmLine_('"You\'ve taken on ' + q.name + ' already: it\'s ' + questState_word_(st, q.id) + '."')];
     questLog_(account, 'take', q, 'Took on the Quest ' + q.name);
     if (!st.active) {
@@ -245,14 +245,14 @@ function qmAccept_(account, n) {
 function qmActive_(account, which) {
   return withLock_(function () {
     var st = questsOf_(account.id), all = questBenchAll_(), name = function (id) { var q = all.filter(function (x) { return x.id === id; })[0]; return q ? q.name : id; };
-    if (!which) return [qmLine_(st.active ? '"Your active Quest is ' + name(st.active) + '."' : '"You have no active Quest: your walks count toward none. Type active and a number to pick one."')];
+    if (!which) return [qmLine_(st.active ? '"Your active Quest is ' + name(st.active) + '."' : '"You have no active Quest: your walks count toward none. Type `active` and a number to pick one."')];
     if (which === 'none') {
       if (!st.active) return [qmLine_('"You have no active Quest already."')];
       questLog_(account, 'none', null, 'Stopped counting on ' + name(st.active));
       return [qmLine_('"So be it: no active Quest. ' + name(st.active) + ' waits, its progress kept, and your walks count toward none until you pick one."')];
     }
     var q = qmFind_(account, Number(which));
-    if (!q || !st.taken[q.id]) return [qmLine_('"You haven\'t taken on Quest ' + which + '. Type quests to see what\'s open."')];
+    if (!q || !st.taken[q.id]) return [qmLine_('"You haven\'t taken on Quest ' + which + '. Type `quests` to see what\'s open."')];
     if (st.finished[q.id]) return [qmLine_('"You\'ve finished ' + q.name + ' already."')];
     if (st.active === q.id) return [qmLine_('"' + q.name + ' is your active Quest already."')];
     var was = st.active;

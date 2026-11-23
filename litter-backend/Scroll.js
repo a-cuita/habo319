@@ -14,22 +14,30 @@
  */
 
 var SCROLL_LINES = 150;
+// Each command's words, then what it does. In `backticks`, a command: the
+// page shows it in its own style, and tapping it types it at the prompt (|Q923 (a)).
 var SCROLL_COMMANDS = [
-  ['help', 'these commands'],
-  ['gchat and your words', 'a line to everyone signed in, like "gchat good morning!"'],
-  ['tell, a handle and your words', 'a line only that player sees, like "tell pat.e see you Saturday"'],
-  ['board', 'the message board\'s topics; board and a number reads one, like "board 2"'],
-  ['board write and your words', 'starts a topic; board, a number, write and your words adds a note to one'],
-  ['who', 'who\'s been on the litter page in the last 10 minutes'],
-  ['quests', 'the Questmaster, with the Quests open to you; or tap the Questmaster\'s name'],
-  ['about and a number', 'the Questmaster tells you of that Quest, like "about 3"'],
-  ['accept and a number', 'take that Quest on'],
-  ['active and a number', 'make a Quest you\'ve taken on your active one; active none for no active Quest'],
-  ['xp history', 'each XP you\'ve earned, newest first'],
-  ['level', 'your level, and the XP to the next'],
-  ['walks', 'your last walks, a line each'],
-  ['due', 'segments due now, from The Priority Segment List, with their bonus']
+  ['`help`', 'these commands'],
+  ['`gchat` and your words', 'a line to everyone signed in, like `gchat good morning!`'],
+  ['`tell`, a handle and your words', 'a line only that player sees, like `tell pat.e see you Saturday`'],
+  ['`board`', 'the message board\'s topics; `board 1` reads topic 1, a line for each note'],
+  ['`board T1N3`', 'reads topic 1\'s note 3 whole, with the notes answering it'],
+  ['`board write`', 'starts a topic; `board 1 write` adds a note to topic 1; each opens a box to write it in'],
+  ['`board re T1N3`', 'answers note T1N3: yours shows under it'],
+  ['`who`', 'who\'s been on the litter page in the last 10 minutes'],
+  ['`title` and your words', 'your title in who, after your name, like `title the Litter Warrior`; `title none` takes it off'],
+  ['`privacy`', 'what others see of you, and how to change it'],
+  ['`quests`', 'the Questmaster, with the Quests open to you; or tap the Questmaster\'s name'],
+  ['`about` and a number', 'the Questmaster tells you of that Quest, like `about 3`'],
+  ['`accept` and a number', 'take that Quest on'],
+  ['`active` and a number', 'make a Quest you\'ve taken on your active one; `active none` for no active Quest'],
+  ['`xp history`', 'each XP you\'ve earned, newest first'],
+  ['`level`', 'your level, and the XP to the next'],
+  ['`walks`', 'your last walks, a line each'],
+  ['`due`', 'segments due now, from The Priority Segment List, with their bonus']
 ];
+// The first words of each command, for "Did you mean" (|Q924 (a)).
+var SCROLL_WORDS = ['help', 'gchat', 'tell', 'board', 'who', 'title', 'privacy', 'quests', 'about', 'accept', 'active', 'xp', 'level', 'walks', 'due'];
 
 /* ── The rolling history for everyone (S6-P38, |Q762 to |Q766) ── */
 
@@ -127,7 +135,7 @@ function scrollOut_(l) {
 function gchatSay_(account, words) {
   if (!rhOn_(SETTING_GCHAT)) throw new Error('gchat is off just now.');
   var text = String(words || '').replace(/\s+/g, ' ').trim();
-  if (!text) throw new Error('Type gchat, then what you want to say to everyone, like "gchat good morning!"');
+  if (!text) throw new Error('Type `gchat`, then what you want to say to everyone, like `gchat good morning!`');
   var max = gchatMax_();
   if (text.length > max) throw new Error('Keep it to ' + max + ' characters: that was ' + text.length + '.');
   return forumLock_(function () {
@@ -240,6 +248,8 @@ function scrollCommand_(account, typed) {
   }
   if (c === 'who') return whoLines_(account);
   if (c === 'board' || c.indexOf('board ') === 0) return boardCommand_(account, String(typed).trim().slice(5));
+  if (c === 'title' || c.indexOf('title ') === 0) return titleCommand_(account, String(typed).trim().slice(5));
+  if (c === 'privacy' || c.indexOf('privacy ') === 0) return privacyCommand_(account, String(typed).trim().slice(7));
   if (c === 'level') {
     var ranges = levelRanges_(), xp = xpOf_(account.id);
     if (!ranges.length) return ['Levels aren\'t set up yet. You have ' + xp + ' XP.'];
@@ -287,7 +297,47 @@ function scrollCommand_(account, typed) {
     }
     return out.length ? out : ['Nothing\'s due right now.'];
   }
-  return ['"' + String(typed).trim().slice(0, 40) + '" isn\'t a command. Type help for the commands.'];
+  var meant = scrollMeant_(String(typed).trim().replace(/\s+/g, ' '));
+  return ['"' + String(typed).trim().slice(0, 40) + '" isn\'t a command. ' + (meant ? 'Did you mean `' + meant + '`?' : 'Type `help` for the commands.')];
+}
+// What a player most likely meant (|Q924 (a)): Street Talk's own words, like
+// "topic 1" or "note 4", and a command's first word a letter or two off.
+function scrollMeant_(typed) {
+  var c = typed.toLowerCase(), m;
+  if ((m = /^(?:read|open|show|view|see)\s+(.+)$/.exec(c))) return scrollMeant_(m[1]) || (/^(t\d+(?:n\d+)?|\d+)$/.test(m[1]) ? 'board ' + m[1].toUpperCase() : '');
+  if (/^(topics?|notes|boards?|messages)$/.test(c)) return 'board';
+  if ((m = /^(?:topic|thread)\s*#?(\d+)$/.exec(c))) return 'board ' + m[1];
+  if ((m = /^t(\d+)n(\d+)$/.exec(c))) return 'board T' + m[1] + 'N' + m[2];
+  if ((m = /^t(\d+)$/.exec(c))) return 'board ' + m[1];
+  if ((m = /^(?:note|post)\s*#?(\d+)$/.exec(c))) {
+    // The topic with that note, when only one has it.
+    var n = Number(m[1]), has = boardTopics_().topics.filter(function (t) { return !t.removed && t.notes.some(function (b) { return b.n === n && !b.removed; }); });
+    return has.length === 1 ? 'board T' + has[0].n + 'N' + n : '';
+  }
+  if ((m = /^(?:re|reply|answer)\s+(t\d+n\d+)\b/.exec(c))) return 'board re ' + m[1].toUpperCase();
+  if (/^(?:write|post|new topic)\b/.test(c)) return 'board write';
+  if ((m = /^(?:say|chat|shout|ooc|g)\s+(.+)$/.exec(typed))) return 'gchat ' + m[1];
+  if ((m = /^(?:msg|whisper|dm|pm|message|t)\s+(.+)$/.exec(typed))) return 'tell ' + m[1];
+  if (/^(?:commands|menu|h)$/.test(c)) return 'help';
+  if (/^(?:quest|questmaster)$/.test(c)) return 'quests';
+  // A command's first word, a letter or two off: "gchst hello" meant "gchat hello".
+  var w = /^(\S+)([\s\S]*)$/.exec(typed), first = w[1].toLowerCase(), best = '', d = 9;
+  SCROLL_WORDS.forEach(function (x) { var k = editDistance_(first, x); if (k < d) { d = k; best = x; } });
+  return best && d <= (first.length >= 5 ? 2 : 1) ? best + w[2] : '';
+}
+function editDistance_(a, b) {
+  var row = [];
+  for (var j = 0; j <= b.length; j++) row[j] = j;
+  for (var i = 1; i <= a.length; i++) {
+    var prev = row[0];
+    row[0] = i;
+    for (var k = 1; k <= b.length; k++) {
+      var keep = row[k];
+      row[k] = Math.min(row[k] + 1, row[k - 1] + 1, prev + (a[i - 1] === b[k - 1] ? 0 : 1));
+      prev = keep;
+    }
+  }
+  return row[b.length];
 }
 
 // Called from the page: the scroll, and a command's answer when one was typed.
@@ -306,7 +356,10 @@ function scroll_(req) {
     if (t) return { answer: [], line: tellSay_(account, t[1]) };
     var qa = questCommand_(account, typed);   // the Questmaster (S7-P4)
     if (qa) return { answer: qa };
-    return { answer: scrollCommand_(account, req.command) };
+    var said = { answer: scrollCommand_(account, req.command) };
+    // title and privacy change the account: the page gets it back to keep (S7-P10).
+    if (/^(title|privacy)\b/i.test(typed)) said.account = accountView_(readAccounts_().filter(function (a) { return a.id === account.id; })[0]);
+    return said;
   }
   // While it's open, the page asks every few seconds (item 6, |Q765 (a)):
   // only everyone's lines since, which is quick; levels come with a full load.

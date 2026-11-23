@@ -811,6 +811,8 @@
     $('ed-handle-msg').textContent = '';
     $('ed-err').textContent = '';
     showsChoices('ed-shows', 'ed-shows', a.mapShows);
+    $('ed-title').value = a.title || '';   // Street Talk's who (S7-P10, |Q916, |Q917)
+    $('ed-collecting').checked = !!a.showCollecting;
     if (typeof bounties !== 'undefined' && bounties) bounties.fillAsk(a);   // the Business/Organization flag (S7-P11)
     $('me-form').hidden = false;
     $('me-edit').hidden = true;
@@ -822,7 +824,8 @@
     busy($('ed-save'), 'ed-err', function () {
       return api('updateMe', {
         token: myToken(), firstName: $('ed-first').value, lastName: $('ed-last').value,
-        handle: $('ed-handle').value, mapShows: picked('ed-shows')
+        handle: $('ed-handle').value, mapShows: picked('ed-shows'),
+        title: $('ed-title').value, showCollecting: $('ed-collecting').checked
       }).then(function (a) {
         showAccount(a);
         notice('Saved.');
@@ -950,7 +953,10 @@
 
   /* ── The rolling history (S6-P3, scroll.js) ── */
 
-  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken, adminMode: adminMode });
+  var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken, adminMode: adminMode,
+    // privacy's way to Change my details (S7-P10, |Q917); title and privacy's account, kept.
+    openDetails: function () { panel(true); startEdit(); },
+    account: function (a) { if (state.account && a && a.id === state.account.id) state.account = a; } });
 
   /* ── The Wiki (S6-P9, wiki.js) ── */
 

@@ -931,5 +931,35 @@ b.lt-rh-qm-name { text-decoration: none; cursor: default; }
 /* A board topic or note in Street Talk (S7-P10, |M1442): a clear break above each, its head in bold. */
 .lt-rh-line.lt-rh-note { border-top: 1px solid rgba(148, 163, 184, 0.45); padding-top: 6px; margin-top: 8px; }
 .lt-rh-note-head { font-weight: 700; }
+/* S7-P10: a note's who and when under its head; its words; one answering another indented under it (|Q918). */
+.lt-rh-note-meta { display: block; color: #94a3b8; font-size: 0.85em; }
+.lt-rh-note-body { display: block; color: #cbd5e1; }
+.lt-rh-note-body.whole { color: #e2e8f0; margin-top: 2px; }
+.lt-rh-line.lt-rh-depth { border-top: 0; margin-top: 4px; padding-left: 10px; border-left: 2px solid #334155; }
+.lt-rh-depth-1 { margin-left: 1.2em; }
+.lt-rh-depth-2 { margin-left: 2.4em; }
+.lt-rh-depth-3 { margin-left: 3.6em; }
+/* A command in HABO's words, in its own style; tapped, it's typed at the prompt (|Q923 (a)). */
+.lt-rh-cmdchip { display: inline; font: inherit; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.92em; color: #7dd3fc; background: #172033; border: 1px solid #334155; border-radius: 4px; padding: 0 5px; margin: 0 1px; cursor: pointer; white-space: nowrap; }
+code.lt-rh-cmdchip { cursor: inherit; }
+button.lt-rh-cmdchip:hover, button.lt-rh-cmdchip:focus-visible { border-color: #7dd3fc; outline: none; }
+/* A note's name, and |T1N3 in its words: a link that opens it (|Q922 (a)). */
+.lt-rh-link { background: none; border: 0; padding: 0; font: inherit; font-weight: inherit; color: #7dd3fc; text-decoration: underline; cursor: pointer; }
+.lt-rh-go { background: #1e293b; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; font: inherit; padding: 4px 12px; margin: 4px 0; cursor: pointer; }
+/* The drafting box, over Street Talk (|Q920 (a)). */
+.lt-rh-draft { position: absolute; left: 0; right: 0; bottom: 0; top: 56px; z-index: 2; overflow-y: auto; background: #0f172a; border-top: 1px solid #334155; padding: 14px 16px 24px; display: flex; flex-direction: column; gap: 6px; }
+.lt-rh-draft[hidden] { display: none; }
+.lt-rh-draft h3 { margin: 0 0 4px; color: #fbbf24; font-size: 1rem; }
+.lt-rh-draft label { color: #cbd5e1; font-size: 0.9rem; margin-top: 6px; }
+.lt-rh-draft input, .lt-rh-draft textarea { background: #0b1120; color: #f8fafc; border: 1px solid #334155; border-radius: 6px; font: inherit; font-size: 16px; padding: 8px; }
+.lt-rh-draft textarea { min-height: 9em; resize: vertical; }
+.lt-rh-draft input:focus, .lt-rh-draft textarea:focus { border-color: #7dd3fc; outline: none; }
+.lt-rh-draft-tools { display: flex; gap: 6px; }
+.lt-rh-draft-tools button { min-width: 40px; height: 36px; background: #1e293b; color: #e2e8f0; border: 1px solid #475569; border-radius: 6px; font: inherit; cursor: pointer; }
+.lt-rh-draft-say { margin: 0; color: #94a3b8; font-size: 0.82rem; }
+.lt-rh-draft-go { display: flex; gap: 8px; margin-top: 6px; align-items: stretch; }
+.lt-rh-draft-go .btn { flex: 1; margin: 0; }
+.lt-rh-draft-go .btn-secondary { background: #1e293b; color: #e2e8f0; border: 1px solid #475569; }
+.lt-rh-draft .err { color: #fca5a5; margin: 0; }
 /* A cleanup crew's word, on the day (S7-P14 item 6). */
 .lt-cu-word { font-weight: 700; margin: 8px 0; }
