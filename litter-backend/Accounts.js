@@ -162,7 +162,12 @@ function setUp_(req) {
   // record, found or made, once the account is there.
   linkVolunteer_(made.account);
   var copy = emailWaiverCopy_(made.account, made.signing);
-  return { token: made.token, account: accountView_(readAccounts_().filter(function (x) { return x.id === made.account.id; })[0]), copySent: copy.ok };
+  // A new grabber or scale asked for when setting up, as at the renewal (S7-P21, |Q925 (a)): a Report for the admins in the Forum.
+  var need = gearNeeds_(req);
+  if (need.length) forumLock_(function () {
+    topicNew_(made.account, 'Report', 'Needs ' + need.join(' and '), (made.account.handle || 'A new player') + ' asked for ' + need.join(' and ') + ', setting up their account.', 'New', 'Issue');
+  });
+  return { token: made.token, account: accountView_(readAccounts_().filter(function (x) { return x.id === made.account.id; })[0]), copySent: copy.ok, needSent: need.length > 0 };
 }
 
 // Signs the waiver's new words (Oct 23, in chat): asked for the next time

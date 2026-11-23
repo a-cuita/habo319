@@ -438,35 +438,15 @@
 
   // Anything not ticked: the waiver's words for it, and I understand; shown
   // once they've ticked something, or pressed to sign.
-  function gearShow(p) {
-    // Renewing (S7-P21, |C1094): nothing shows here; it's asked in a pop-up after Sign.
-    if (p === 'rs') { $(p + '-gear-without').hidden = true; return; }
-    var not =$(p + '-gear').dataset.touched ? GEAR.filter(function (g) { return !$(p + '-gear-' + g[0]).checked; }) : [];
-    var box = $(p + '-gear-words');
-    box.textContent = '';
-    not.forEach(function (g) {
-      var say = waiverSays(g[2]);
-      var line = document.createElement('p');
-      line.className = 'lt-gear-say';
-      line.textContent = 'Without ' + g[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
-      box.appendChild(line);
-    });
-    $(p + '-gear-without').hidden = !not.length;
-  }
+  // Renewing (S7-P21, |C1094), and setting up the same way (|Q925 (a)):
+  // nothing shows under the list; what's not ticked is asked in a pop-up after you press to sign.
+  function gearShow(p) { $(p + '-gear-without').hidden = true; }
 
   function gearAsk(p) {
     var g = {};
     GEAR.forEach(function (x) { g[x[0]] = $(p + '-gear-' + x[0]).checked; });
     g.understood = $(p + '-gear-understand').checked;
     return g;
-  }
-
-  function gearProblem(p) {
-    var g = gearAsk(p);
-    if (GEAR.every(function (x) { return g[x[0]]; }) || g.understood) return '';
-    $(p + '-gear').dataset.touched = '1';
-    gearShow(p);
-    return 'Tick what you have, or tick "I understand" under your safety gear.';
   }
 
   /* ── Setting up ── */
@@ -498,9 +478,15 @@
     if (!ask.handle.trim()) { err.textContent = 'Please pick a handle.'; return; }
     if (!ask.adult) { err.textContent = 'Accounts are for people 18 or older. A family collects under a parent\'s account.'; return; }
     if (!ask.agree) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
-    if (gearProblem('su')) { err.textContent = gearProblem('su'); return; }
     var sig = sigs['su-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
+    err.textContent = '';
+    // As at the renewal (S7-P21, |Q925 (a)): any safety gear not ticked, then any new gear asked for, each in a pop-up.
+    gearPop('su').then(function (go) { return go && needPop('su'); }).then(function (go) { if (go) sendSetup(ask, sig); });
+  }
+  function sendSetup(ask, sig) {
+    ask.gear = gearAsk('su');
+    ask.need = { grabber: $('su-need-grabber').checked, scale: $('su-need-scale').checked };
     ask.signature = sig.canvas.toDataURL('image/png');
     busy($('su-submit'), 'su-err', function () {
       return api('setUp', ask).then(function (d) {
@@ -527,8 +513,8 @@
         $('v-setup').reset();
         clearSignature('su-sig');
         showAccount(d.account);
-        notice(d.copySent ? 'Your account is set up. A copy of the waiver you signed is on its way to your email.'
-          : 'Your account is set up. Your copy of the waiver couldn\'t be emailed just now; HABO keeps it.');
+        notice((d.copySent ? 'Your account is set up. A copy of the waiver you signed is on its way to your email.'
+          : 'Your account is set up. Your copy of the waiver couldn\'t be emailed just now; HABO keeps it.') + (d.needSent ? ' The admins know what gear you need.' : ''));
       }, function (er) {
         if (er.code !== 'waiver-changed') throw er;
         // The words changed while the code was on its way: back to the form.
@@ -571,7 +557,9 @@
   }
 
   // A change to your gear after "I understand": asked again at Sign.
-  GEAR.forEach(function (g) { $('rs-gear-' + g[0]).addEventListener('change', function () { $('rs-gear-understand').checked = false; }); });
+  ['rs', 'su'].forEach(function (p) {
+    GEAR.forEach(function (g) { $(p + '-gear-' + g[0]).addEventListener('change', function () { $(p + '-gear-understand').checked = false; }); });
+  });
 
   // A pop-up with a few lines and its buttons; resolves with the key of the one pressed.
   function askPop(id, title, lines, buttons) {
@@ -593,27 +581,28 @@
   // After Sign the new waiver (S7-P21, |C1094), each asked apart, with the
   // chance to change your answer: first any safety gear not ticked, in the
   // waiver's own words; then any new gear asked for, and where to get it.
-  function gearPop() {
-    var g = gearAsk('rs'), not = GEAR.filter(function (x) { return !g[x[0]]; });
+  // `p`: rs renewing, su setting up (|Q925 (a)).
+  function gearPop(p) {
+    var g = gearAsk(p), not = GEAR.filter(function (x) { return !g[x[0]]; });
     if (!not.length || g.understood) return Promise.resolve(true);
     var lines = not.map(function (x) {
       var say = waiverSays(x[2]);
       return 'Without ' + x[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
     });
-    return askPop('rs-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {
-      if (k === 'ok') { $('rs-gear-understand').checked = true; return true; }
-      $('rs-gear').scrollIntoView({ block: 'center' });
+    return askPop(p + '-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {
+      if (k === 'ok') { $(p + '-gear-understand').checked = true; return true; }
+      $(p + '-gear').scrollIntoView({ block: 'center' });
       return false;
     });
   }
-  function needPop() {
-    var gr = $('rs-need-grabber').checked, sc = $('rs-need-scale').checked;
+  function needPop(p) {
+    var gr = $(p + '-need-grabber').checked, sc = $(p + '-need-scale').checked;
     if (!gr && !sc) return Promise.resolve(true);
     var what = gr && sc ? 'a new grabber and a new hanging luggage scale' : gr ? 'a new grabber' : 'a new hanging luggage scale';
-    return askPop('rs-need-pop', 'Your new gear', ['You asked for ' + what + '.', 'Where to get it: ' + (state.gearWhere || 'ask an admin.'), 'The admins will see you asked.'],
+    return askPop(p + '-need-pop', 'Your new gear', ['You asked for ' + what + '.', 'Where to get it: ' + (state.gearWhere || 'ask an admin.'), 'The admins will see you asked.'],
       [['ok', 'OK', 'btn btn-primary'], ['back', 'Change my answer', 'btn btn-accent']]).then(function (k) {
       if (k === 'ok') return true;
-      $('rs-need').scrollIntoView({ block: 'center' });
+      $(p + '-need').scrollIntoView({ block: 'center' });
       return false;
     });
   }
@@ -624,7 +613,7 @@
     if (!$('rs-agree').checked) { err.textContent = 'Please read the waiver and tick "I\'ve read this, and I agree".'; return; }
     var sig = sigs['rs-sig'];
     if (!sig || sig.ink < 40) { err.textContent = 'Please sign with your finger in the signature box.'; return; }
-    gearPop().then(function (go) { return go && needPop(); }).then(function (go) { if (go) sendResign(sig); });
+    gearPop('rs').then(function (go) { return go && needPop('rs'); }).then(function (go) { if (go) sendResign(sig); });
   }
   function sendResign(sig) {
     var ask ={ token: myToken(), agree: true, waiverPrint: (state.waiver || {}).fingerprint || '', signature: sig.canvas.toDataURL('image/png'), gear: gearAsk('rs'),
