@@ -224,6 +224,8 @@ function archivePick_(now, limit) {
     base[id] = { q: q, real: real, t: t };
   });
   var ids = Object.keys(base).sort(function (a, b) { return base[a].t - base[b].t; });
+  // Nothing old enough (every night until the oldest walk passes the days): done, without working out every segment.
+  if (!ids.length) return { ids: [], base: base, seqs: [], hist: {}, walks: {}, k: null, cutoff: cutoff };
   var ok = {};
   ids.slice(0, limit || ids.length).forEach(function (id) { ok[id] = true; });
   // Each segment's cleanings, as its rates see them, to keep them in order.
