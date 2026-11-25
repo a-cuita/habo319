@@ -12448,9 +12448,12 @@ window.LitterScroll = function (app) {
   // each line of the waiver goes to the gear it names first, so a line about
   // bright clothing that also names gloves and shoes stays with bright
   // clothing. A piece with no line of its own quotes any line naming it; none
-  // at all, nothing quoted.
+  // at all, nothing quoted. A waiver written as one paragraph is read sentence
+  // by sentence instead, so no piece ever quotes the whole waiver.
   function waiverSays(key) {
-    var lines = String((state.waiver || {}).text || '').split(/\n+/).map(function (x) { return x.trim().replace(/^[-•]\s*/, ''); }).filter(String);
+    var text = String((state.waiver || {}).text || '');
+    var lines = (/\n/.test(text.trim()) ? text.split(/\n+/) : (text.replace(/\s+/g, ' ').match(/[^.!?]+[.!?]+/g) || [text]))
+      .map(function (x) { return x.trim().replace(/^[-•]\s*/, ''); }).filter(String);
     var firstNamed = function (l) {
       var best = '', at = Infinity;
       GEAR.forEach(function (g) { var m = g[2].exec(l); if (m && m.index < at) { at = m.index; best = g[0]; } });
