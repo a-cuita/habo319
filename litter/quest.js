@@ -17,7 +17,7 @@ window.LitterQuest = function (app) {
   var workshop = null;   // a run that saves nothing: { steps, gear, again }. A workshop run in Admin Mode, or a player going through it again (again: true)
   var pending = {};
   // One gear list (S7-P21, |Q841, |Q864 (a)): the safety items in the waiver check's own words, then what you collect with.
-  var GEAR = [['gloves', 'Gloves, with you (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt'], ['bags', 'Bags'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
+  var GEAR = [['gloves', 'Gloves, with you (worn or packed)'], ['shoes', 'Closed-toe/heel shoes'], ['visible', 'Safety vest or similar bright clothing'], ['bags', 'Bags'], ['scale', 'A hanging luggage scale'], ['grabber', 'A grabber']];
   var STEPS = [
     { n: 1, title: 'Set up your account', say: 'Your name, email, handle, how you show on the public map, and the waiver signed.' },
     { n: 2, title: 'The safety rules', say: 'Your waiver\'s safety rules, one screen at a time.', button: 'Read the safety rules', go: openSafety },

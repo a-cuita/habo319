@@ -467,17 +467,24 @@ window.LitterCleanups = function (app) {
     $('cu-b').hidden = false;
   });
   $('cu-b-cancel').addEventListener('click', function () { $('cu-b').hidden = true; });
+  // One press, one pin (|C1171): finding where you are can take a few
+  // seconds, so the button says so and takes no second press until it's saved.
+  var bagBusy = false;
   $('cu-b-go').addEventListener('click', function () {
-    var t = day0, pick = document.querySelector('input[name="cu-b-why"]:checked');
+    var t = day0, pick = document.querySelector('input[name="cu-b-why"]:checked'), go = $('cu-b-go');
+    if (bagBusy) return;
     if (!pick) { $('cu-b-err').textContent = 'Pick where the bags are.'; return; }
     if (!navigator.geolocation) { $('cu-b-err').textContent = 'This phone can\'t give its location.'; return; }
     $('cu-b-err').textContent = '';
+    var label = go.textContent, done = function () { bagBusy = false; go.disabled = false; go.textContent = label; };
+    bagBusy = true; go.disabled = true; go.textContent = 'Finding where you are…';
     navigator.geolocation.getCurrentPosition(function (pos) {
-      send('cleanupBag', { checkinId: t.checkin, lat: pos.coords.latitude, lon: pos.coords.longitude, why: pick.value }, $('cu-b-go'), 'cu-b-err', function () {
+      go.textContent = label;
+      Promise.resolve(send('cleanupBag', { checkinId: t.checkin, lat: pos.coords.latitude, lon: pos.coords.longitude, why: pick.value }, go, 'cu-b-err', function () {
         $('cu-b').hidden = true;
         if (app.notice) app.notice('Saved: where the bags are, ' + pick.value.toLowerCase() + '.');
-      });
-    }, function () { $('cu-b-err').textContent = 'Your location couldn\'t be found. Try again outside.'; }, { enableHighAccuracy: true, timeout: 15000 });
+      })).then(done, done);
+    }, function () { done(); $('cu-b-err').textContent = 'Your location couldn\'t be found. Try again outside.'; }, { enableHighAccuracy: true, timeout: 15000 });
   });
   // Only in Admin Mode (S7-P2, item 12, with |S7-P14): players' pages don't ask.
   var asked = false;

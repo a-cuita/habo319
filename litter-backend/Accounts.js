@@ -65,7 +65,7 @@ var SETTING_GEAR_WHERE = 'Where to get a new grabber or scale';
 var DEFAULT_GEAR_WHERE = 'Ask an admin, or at the next cleanup.';
 // What the two-month check can ask for again: not safety gear, the gear to collect with (S7-P21, |Q841).
 var GEAR_NEEDS = [['grabber', 'a new grabber'], ['scale', 'a new hanging luggage scale']];
-var SAFETY_GEAR = [['gloves', 'Gloves, with me (worn or packed)'], ['shoes', 'Closed-toe shoes'], ['visible', 'A safety vest, or a brightly coloured shirt']];
+var SAFETY_GEAR = [['gloves', 'Gloves, with me (worn or packed)'], ['shoes', 'Closed-toe/heel shoes'], ['visible', 'Safety vest or similar bright clothing']];
 function waiverRenewDue_(a) {
   var months = minutesSetting_(SETTING_WAIVER_RENEW, 2);
   // Signed, as the Sheet shows it: yyyy-mm-dd, or m/d/yyyy.

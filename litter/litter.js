@@ -421,7 +421,8 @@
   /* ── Your safety gear, with the waiver (S6-P30) ── */
 
   // Each piece, and how to find what the waiver says of it (|Q414, |Q417).
-  var GEAR = [['gloves', 'gloves', /glove/i], ['shoes', 'closed-toe shoes', /shoe|footwear/i], ['visible', 'a safety vest or a brightly coloured shirt', /vest|bright|visib|reflective/i]];
+  // Its words (S7-P21, |Q941): the waiver's, said short.
+  var GEAR = [['gloves', 'gloves', /glove/i], ['shoes', 'closed-toe/heel shoes', /shoe|footwear/i], ['visible', 'a safety vest or similar bright clothing', /vest|bright|visib|reflective/i]];
 
   function gearReset(p) {
     GEAR.forEach(function (g) { $(p + '-gear-' + g[0]).checked = false; });
@@ -430,10 +431,22 @@
     gearShow(p);
   }
 
-  // The waiver's own sentences on it, word for word; none found, nothing quoted.
-  function waiverSays(re) {
-    var t = String((state.waiver || {}).text || '').replace(/\s+/g, ' ');
-    return (t.match(/[^.!?]+[.!?]+/g) || []).map(function (x) { return x.trim().replace(/^[-•]\s*/, ''); }).filter(function (x) { return re.test(x); });
+  // The waiver's own rule for a piece of gear, word for word (S7-P21, |Q942 (a)):
+  // each line of the waiver goes to the gear it names first, so a line about
+  // bright clothing that also names gloves and shoes stays with bright
+  // clothing. A piece with no line of its own quotes any line naming it; none
+  // at all, nothing quoted.
+  function waiverSays(key) {
+    var lines = String((state.waiver || {}).text || '').split(/\n+/).map(function (x) { return x.trim().replace(/^[-•]\s*/, ''); }).filter(String);
+    var firstNamed = function (l) {
+      var best = '', at = Infinity;
+      GEAR.forEach(function (g) { var m = g[2].exec(l); if (m && m.index < at) { at = m.index; best = g[0]; } });
+      return best;
+    };
+    var own = lines.filter(function (l) { return firstNamed(l) === key; });
+    if (own.length) return own;
+    var g = GEAR.filter(function (x) { return x[0] === key; })[0];
+    return g ? lines.filter(function (l) { return g[2].test(l); }) : [];
   }
 
   // Anything not ticked: the waiver's words for it, and I understand; shown
@@ -568,7 +581,10 @@
       scrim.className = 'lt-scrim'; scrim.id = id; scrim.setAttribute('role', 'dialog'); scrim.setAttribute('aria-modal', 'true');
       box.className = 'lt-scrim-box lt-ask-pop';
       var h = document.createElement('p'); h.className = 'lt-scrim-title'; h.textContent = title; box.appendChild(h);
-      lines.forEach(function (t) { var p = document.createElement('p'); p.className = 'lt-ask-line'; p.textContent = t; box.appendChild(p); });
+      // Its lines scroll on their own, so a long one never pushes the buttons off the screen (S7-P21, |C1189).
+      var body = document.createElement('div'); body.className = 'lt-ask-lines';
+      lines.forEach(function (t) { var p = document.createElement('p'); p.className = 'lt-ask-line'; p.textContent = t; body.appendChild(p); });
+      box.appendChild(body);
       buttons.forEach(function (b) {
         var x = document.createElement('button'); x.type = 'button'; x.className = b[2]; x.textContent = b[1]; x.dataset.key = b[0];
         x.addEventListener('click', function () { scrim.remove(); done(b[0]); });
@@ -586,7 +602,7 @@
     var g = gearAsk(p), not = GEAR.filter(function (x) { return !g[x[0]]; });
     if (!not.length || g.understood) return Promise.resolve(true);
     var lines = not.map(function (x) {
-      var say = waiverSays(x[2]);
+      var say = waiverSays(x[0]);
       return 'Without ' + x[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
     });
     return askPop(p + '-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {

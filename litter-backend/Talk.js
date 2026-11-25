@@ -128,7 +128,8 @@ function privacyCommand_(account, rest) {
   var shows = { Handle: 'your handle', Name: 'your name', Neither: 'neither your handle nor your name' }[account.shows] || 'your handle';
   return ['Your privacy:',
     '  The public map, gchat and who show ' + shows + '.',
-    '  who shows <COLLECTING> while you\'re on a walk: ' + (account.showCollecting ? 'yes. `privacy collecting off` hides it.' : 'no, to start. `privacy collecting on` shows it.'),
+    // Your words (|C1155): the flag, ON or OFF, and how to change it.
+    '  Your <COLLECTING> flag: ' + (account.showCollecting ? 'ON' : 'OFF') + '. To change it, enter `privacy collecting on` or `privacy collecting off`.',
     'Both are in Change my details, too:',
     { text: 'Change my details', open: 'details' }];
 }
