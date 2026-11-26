@@ -161,6 +161,27 @@ function archiveKeys_() {
   archiveYears_().forEach(function (fy) { for (var q = 0; q < 4; q++) keys.push(fy + '-' + q); });
   return keys.sort(function (a, b) { return archiveKeyRank_(b) - archiveKeyRank_(a); });
 }
+// The latest a walk the archive holds ended (0: it holds none). Rates and Maps
+// read the archive for any days up to it (S7-P3 round 2, |Q959 (a)), so a
+// raised Rate window or "Walks kept" brings walks already moved back into them.
+// Kept as each run moves walks; worked out once from the archive's newest
+// quarters for one made before.
+function archiveReach_() {
+  var props = PropertiesService.getScriptProperties(), v = Number(props.getProperty('ARCHIVE_REACH'));
+  if (v > 0) return v;
+  if (!archiveYears_().length) return 0;
+  var reach = 0;
+  archiveKeys_().filter(function (key) { return archiveRows_(key, 'walks').length; }).slice(0, 2).forEach(function (key) {
+    archiveRows_(key, 'walks').forEach(function (q) { var t = archiveWalkEnd_(q); if (t > reach) reach = t; });
+  });
+  if (reach) props.setProperty('ARCHIVE_REACH', String(reach));
+  return reach;
+}
+// When a walk ended, as the move reads it: ended, else its last press, else its start.
+function archiveWalkEnd_(q) {
+  var e = q.get('ended'), l = q.get('lastPressed'), s = q.get('started');
+  return e instanceof Date ? e.getTime() : l instanceof Date ? l.getTime() : s instanceof Date ? s.getTime() : 0;
+}
 // What the archive has for a span of days: its walks by id, weighings and rates.
 function archiveRead_(since, until) {
   var out = { cols: {}, stretches: [], rates: [] };
@@ -203,52 +224,63 @@ function archivedById_(accountId) {
 /* ── Which walks move ── */
 
 // Each walk that can move now, by the rules at the top. `limit`: at most this many, oldest first.
+// `why` (S7-P3 round 2, |Q960 (a)): for each real walk old enough that stays, the rule that keeps it:
+// { rule: 'span', name, kind, to } | { rule: 'last', seg } | { rule: 'order', seg, after } |
+// { rule: 'pieces', seg, with } | { rule: 'day', with } | { rule: 'batch' }.
 function archivePick_(now, limit) {
   var cutoff = archiveCutoff_(now), editMs = minutesSetting_(SETTING_EDIT_HOURS, 48) * 3600000;
-  var when = function (q) {
-    var e = q.get('ended'), l = q.get('lastPressed'), s = q.get('started');
-    return e instanceof Date ? e.getTime() : l instanceof Date ? l.getTime() : s instanceof Date ? s.getTime() : 0;
-  };
+  var when = archiveWalkEnd_;
   // Running Quests, bounties and Challenges of their own (|Q928 (a)): their dates, until over and past the time to fix a walk.
   var spans = [], running = function (to) { return !to || now < to + DAY_MS + editMs; };
-  questBenchAll_().forEach(function (q) { if (q.state === 'Open' && running(q.to)) spans.push([q.from || 0, q.to ? q.to + DAY_MS : Infinity]); });
-  bountiesAll_().forEach(function (b) { if (b.state === 'Approved' && running(b.to)) spans.push([b.from || 0, b.to ? b.to + DAY_MS : Infinity]); });
-  challengesAll_().forEach(function (c) { if (!c.quest && c.state === 'Open' && running(c.to)) spans.push([c.from || 0, c.to ? c.to + DAY_MS : Infinity]); });
-  var base = {}, byDay = {};
+  questBenchAll_().forEach(function (q) { if (q.state === 'Open' && running(q.to)) spans.push([q.from || 0, q.to ? q.to + DAY_MS : Infinity, q.name, 'Quest', q.to]); });
+  bountiesAll_().forEach(function (b) { if (b.state === 'Approved' && running(b.to)) spans.push([b.from || 0, b.to ? b.to + DAY_MS : Infinity, b.name, 'bounty', b.to]); });
+  challengesAll_().forEach(function (c) { if (!c.quest && c.state === 'Open' && running(c.to)) spans.push([c.from || 0, c.to ? c.to + DAY_MS : Infinity, c.name, 'Challenge', c.to]); });
+  var base = {}, byDay = {}, why = {}, all = {};
   readRows_(TABS.collections).forEach(function (q) {
     var id = q.get('id'), st = q.get('status'), t = when(q), real = q.get('simulated') !== 'Yes' && st !== COLLECTION_DISCARDED;
     var s = q.get('started');
+    all[id] = { q: q, real: real, t: t };
     if (real && st !== 'Collecting' && s instanceof Date) (byDay[q.get('account') + '|' + dayOf_(s)] = byDay[q.get('account') + '|' + dayOf_(s)] || []).push(id);
     if (st === 'Collecting' || !t || t >= cutoff) return;
-    if (real && spans.some(function (x) { return t >= x[0] && t < x[1]; })) return;
+    var inSpan = real ? spans.filter(function (x) { return t >= x[0] && t < x[1]; })[0] : null;
+    if (inSpan) { why[id] = { rule: 'span', name: String(inSpan[2] || ''), kind: inSpan[3], to: inSpan[4] || 0 }; return; }
     base[id] = { q: q, real: real, t: t };
   });
   var ids = Object.keys(base).sort(function (a, b) { return base[a].t - base[b].t; });
   // Nothing old enough (every night until the oldest walk passes the days): done, without working out every segment.
-  if (!ids.length) return { ids: [], base: base, seqs: [], hist: {}, walks: {}, k: null, cutoff: cutoff };
+  if (!ids.length) return { ids: [], base: base, seqs: [], hist: {}, walks: {}, k: null, cutoff: cutoff, why: why, all: all };
   var ok = {};
-  ids.slice(0, limit || ids.length).forEach(function (id) { ok[id] = true; });
+  ids.forEach(function (id, i) { if (!limit || i < limit) ok[id] = true; else if (base[id].real) why[id] = { rule: 'batch' }; });
   // Each segment's cleanings, as its rates see them, to keep them in order.
   var counted = rateCollections_(false), walks = worldWalks_(counted, readRows_(TABS.stretches)), k = segmentRules_(), hist = archiveHistory_();
   var seqs = segmentsAll_().filter(function (g) { return g.accepted && g.squares.length; }).map(function (g) { return { g: g, seq: pathSequence_(g, walks, k, hist[g.id]) }; });
-  var hold = function (id) { if (ok[id] && base[id] && base[id].real) { delete ok[id]; return true; } return false; };
+  // The first rule to keep a walk is the one it's told.
+  var hold = function (id, w) { if (ok[id] && base[id] && base[id].real) { delete ok[id]; if (!why[id]) why[id] = w; return true; } return false; };
   for (var changed = true, guard = 0; changed && guard < 100; guard++) {
     changed = false;
     seqs.forEach(function (s) {
-      var ev = s.seq.events, open = true;
+      var ev = s.seq.events, open = true, stop = null;
       ev.forEach(function (e, i) {
         var unit = e.pieces && e.pieces.length ? e.pieces : [e.id];
-        if (open && i < ev.length - 1 && unit.every(function (id) { return ok[id]; })) return;
-        open = false;
-        unit.forEach(function (id) { if (hold(id)) changed = true; });
+        var stays = unit.filter(function (id) { return !ok[id]; });
+        if (open && i < ev.length - 1 && !stays.length) return;
+        if (open) {
+          open = false;
+          stop = stays.length ? stays[0] : unit[unit.length - 1];
+          // The last cleaning stays (the card's item 3); a collection made of pieces leaves whole.
+          unit.forEach(function (id) { if (hold(id, stays.length ? { rule: 'pieces', seg: s.g, with: stays[0] } : { rule: 'last', seg: s.g })) changed = true; });
+          return;
+        }
+        // A segment's cleanings leave in order: none after one that stays.
+        unit.forEach(function (id) { if (hold(id, { rule: 'order', seg: s.g, after: stop })) changed = true; });
       });
     });
     Object.keys(byDay).forEach(function (key) {
-      var list = byDay[key];
-      if (list.some(function (id) { return !ok[id]; })) list.forEach(function (id) { if (hold(id)) changed = true; });
+      var list = byDay[key], stays = list.filter(function (id) { return !ok[id]; });
+      if (stays.length) list.forEach(function (id) { if (hold(id, { rule: 'day', with: stays[0] })) changed = true; });
     });
   }
-  return { ids: Object.keys(ok).sort(function (a, b) { return base[a].t - base[b].t; }), base: base, seqs: seqs, hist: hist, walks: walks, k: k, cutoff: cutoff };
+  return { ids: Object.keys(ok).sort(function (a, b) { return base[a].t - base[b].t; }), base: base, seqs: seqs, hist: hist, walks: walks, k: k, cutoff: cutoff, why: why, all: all };
 }
 
 /* ── Moving them ── */
@@ -258,13 +290,19 @@ function archiveNightly() {
   ensureSchema_();
   return archiveRun_(Date.now());
 }
-function archiveRun_(now, limit) {
+// `by`: who asked, for the Changes tab: HABO for the nightly run, or the Head
+// Builder who pressed Move old walks now (|Q960 (a)). Returns what moved; the
+// pick it moved by is kept in archiveLastPick_, for that press to say which
+// stayed and why.
+var archiveLastPick_ = null;
+function archiveRun_(now, limit, by) {
   return withLock_(function () {
     settingsMemo_ = null;
     var pick = archivePick_(now, limit || ARCHIVE_BATCH);
     var ids = pick.ids;
     archiveBountiesOver_(now);
-    if (!ids.length) return { moved: 0 };
+    archiveLastPick_ = pick;
+    if (!ids.length) return { moved: 0, ids: [] };
     var moving = {};
     ids.forEach(function (id) { moving[id] = true; });
     // Each player with walks moving, settled first, so their XP is written down.
@@ -276,15 +314,78 @@ function archiveRun_(now, limit) {
     ids = pick.ids;
     moving = {};
     ids.forEach(function (id) { moving[id] = true; });
-    if (!ids.length) return { moved: 0 };
+    archiveLastPick_ = pick;
+    if (!ids.length) return { moved: 0, ids: [] };
     archiveHistoryWrite_(pick, moving, now);
     archiveFactsWrite_(pick, moving, now);
     var moved = archiveMoveRows_(moving, now, pick);
-    logChange_('HABO', 'Archived', ids.length + (ids.length === 1 ? ' walk' : ' walks'), 'To the archive', '', ids.join(' '));
+    // How far the archive now reaches, for rates and Maps (|Q959 (a)).
+    var reach = archiveReach_();
+    ids.forEach(function (id) { if (pick.base[id].t > reach) reach = pick.base[id].t; });
+    PropertiesService.getScriptProperties().setProperty('ARCHIVE_REACH', String(reach));
+    logChange_(by || 'HABO', 'Archived', ids.length + (ids.length === 1 ? ' walk' : ' walks'), 'To the archive', '', ids.join(' '));
     forgetReads_();
     dataVersion_(true);
-    return { moved: ids.length, rows: moved };
+    return { moved: ids.length, rows: moved, ids: ids };
   });
+}
+
+// Move old walks now (S7-P3 round 2, |Q960 (a)): a Head Builder runs the
+// night's move at once, from Admin Mode's Settings, under "Walks kept in the
+// live tabs". It says which walks moved, and which stayed though old enough,
+// and why. Asked with `look`, it only says what a press would do.
+function archiveNow_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (account.rank !== 'Head Builder') throw new Error('Only a Head Builder can move old walks now.');
+  var now = Date.now();
+  if (req.look) {
+    settingsMemo_ = null;
+    var days = keepDays_();
+    return { keep: days, cutoff: now - days * DAY_MS, lines: archiveLookLines_(now - days * DAY_MS, days) };
+  }
+  var r = archiveRun_(now, ARCHIVE_BATCH, account.email);
+  return archiveReport_(r, archiveLastPick_);
+}
+function archiveWhenSay_(ms) { return Utilities.formatDate(new Date(ms), Session.getScriptTimeZone(), 'MMM d, h:mm a'); }
+function archiveLookLines_(cutoff, days) {
+  return ['Walks kept in the live tabs is ' + days + (days === 1 ? ' day' : ' days') + ' now' + (days > Number(getSetting_(SETTING_KEEP_DAYS) || 0) ? ' (never fewer than the Rate window\'s days, or the time a walk can be fixed)' : '') + '.',
+    'Walks that ended before ' + archiveWhenSay_(cutoff) + ' move to the archive now, with their weighings and rates, as the nightly run would move them.',
+    'Some stay, though old enough: each segment\'s last cleaning, the walks in a running Quest\'s, bounty\'s or Challenge\'s dates, and the rest of a player\'s walks that day while one of them stays. You\'ll see which, and why.',
+    'From the archive, a walk can be opened and shared, not changed.'];
+}
+// What a press did, in plain lines: { moved, title, lines }.
+function archiveReport_(r, pick) {
+  var all = pick.all || {}, shown = {}, segName = function (g) { return g.id + (g.name ? ' (' + g.name + ')' : ''); };
+  readAccounts_().forEach(function (a) { shown[a.id] = a.handle || a.id; });
+  var walkSay = function (id) {
+    var w = all[id] || pick.base[id];
+    if (!w) return id;
+    return id + ', ' + archiveWhenSay_(w.t) + ', ' + (shown[w.q.get('account')] || w.q.get('account'));
+  };
+  var editH = minutesSetting_(SETTING_EDIT_HOURS, 48);
+  var whySay = function (w) {
+    if (w.rule === 'span') return 'in ' + (w.name ? w.name + '\'s' : 'a ' + w.kind + '\'s') + ' dates (a ' + w.kind + (w.to ? ', to ' + Utilities.formatDate(new Date(w.to), Session.getScriptTimeZone(), 'MMM d') : ', with no end') + '): its walks stay while it runs, and until the ' + editH + ' hours to fix a walk after it have passed.';
+    if (w.rule === 'last') return 'the last cleaning of ' + segName(w.seg) + ': it stays, so the segment\'s clock and its left-alone bonus stay right.';
+    if (w.rule === 'order') return 'on ' + segName(w.seg) + ', a cleaning before it stays (' + w.after + '), and a segment\'s cleanings leave in order.';
+    if (w.rule === 'pieces') return 'a piece of one collection on ' + segName(w.seg) + ', with ' + w.with + ', which stays: a collection made of pieces leaves whole.';
+    if (w.rule === 'day') return 'another walk of that player\'s that day stays (' + w.with + '): a player\'s walks of one day leave together.';
+    return 'a run moves at most ' + ARCHIVE_BATCH + ' walks: it goes on the next.';
+  };
+  var lines = [], movedReal = r.ids.filter(function (id) { return pick.base[id] && pick.base[id].real; }), others = r.ids.length - movedReal.length;
+  lines.push(r.moved ? 'Moved to the archive: ' + movedReal.length + (movedReal.length === 1 ? ' walk' : ' walks') + ', with their weighings and rates.' : 'Nothing moved: no walk ended before ' + archiveWhenSay_(pick.cutoff) + ' can move yet.');
+  movedReal.forEach(function (id) {
+    var q = pick.base[id].q;
+    lines.push('• ' + walkSay(id) + ': ' + round_(Number(q.get('pounds')) || 0, 2) + ' lb, ' + round_(Number(q.get('miles')) || 0, 2) + ' mi.');
+  });
+  if (others) lines.push('Also moved: ' + others + ' simulated or discarded ' + (others === 1 ? 'walk' : 'walks') + '.');
+  var stayed = Object.keys(pick.why).filter(function (id) { return all[id] && r.ids.indexOf(id) === -1; }).sort(function (a, b) { return all[a].t - all[b].t; });
+  lines.push(stayed.length ? 'Stayed, though old enough: ' + stayed.length + (stayed.length === 1 ? ' walk' : ' walks') + '.' : 'Every walk old enough moved.');
+  stayed.forEach(function (id) { lines.push('• ' + walkSay(id) + ': ' + whySay(pick.why[id])); });
+  var young = Object.keys(all).filter(function (id) { var w = all[id]; return w.real && w.q.get('status') !== 'Collecting' && w.t >= pick.cutoff; });
+  lines.push('Not old enough yet: ' + young.length + (young.length === 1 ? ' walk' : ' walks') + ', ended from ' + archiveWhenSay_(pick.cutoff) + ' on.');
+  if (r.moved) lines.push('In the Changes tab: "Archived", with each walk\'s ID.');
+  return { moved: movedReal.length, title: r.moved ? 'Old walks moved' : 'Nothing moved', lines: lines };
 }
 
 // Each segment whose oldest cleanings are moving: its history, carried on to just after them.

@@ -127,9 +127,11 @@ function mapLoad_(req) {
   // Each cell's latest reading in those dates: the stretch that ended last;
   // and everyone's visual ratings there, and yours (S6-U26 items 2 and 3).
   var latest = {}, rated = {}, mine = {};
-  // Days before the live tabs' (S7-P3, |Q857 (a)): the archive's walks and weighings for them too.
+  // Days the archive holds (S7-P3, |Q857 (a)): its walks and weighings for them too. Any days
+  // it holds, on Maps or the main page's map (round 2, |Q959 (a)), so a raised "Walks kept"
+  // brings walks already moved back.
   var stretches = readRows_(TABS.stretches);
-  if (chosen && since < archiveCutoff_()) {
+  if (since <= archiveReach_()) {
     var arch = archiveRead_(since, until);
     Object.keys(arch.cols).forEach(function (id) {
       var q = arch.cols[id];

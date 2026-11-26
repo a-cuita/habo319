@@ -412,6 +412,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-set-unit { color: var(--text-dim); font-size: 0.92rem; }
 .lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
 .lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
+/* Move old walks now, under its setting (S7-P3 round 2). */
+.lt-set-act { width: auto; min-height: 40px; padding: 8px 12px; margin: 4px 0 0; }
 .lt-set-save { margin-top: 10px; }
 
 /* Reviews in Admin Mode (S5-P19 B). */

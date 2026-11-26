@@ -46,6 +46,18 @@ window.LitterScroll = function (app) {
     else p.textContent = l.text;
     if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
+      // Answer (S7-P10 round 2, |Q949 (a)): the box, already answering this
+      // note, or adding a note to this topic, with nothing to type first.
+      if (l.kind === 'answer' && l.name) {
+        var ans = el('button', 'lt-rh-act', 'Answer');
+        ans.type = 'button';
+        ans.addEventListener('click', function () {
+          var t = /^T(\d+)$/i.exec(l.name);
+          openDraft(t ? { topic: t[1], re: '', subject: '', text: '' } : { topic: '', re: String(l.name).toUpperCase(), subject: '', text: '' },
+            t ? 'board ' + t[1] + ' write' : 'board re ' + String(l.name).toUpperCase());
+        });
+        acts.appendChild(ans);
+      }
       if (!l.mine) {
         var rep = el('button', 'lt-rh-act', l.reported ? 'Reported' : 'Report');
         rep.type = 'button';
@@ -367,8 +379,9 @@ window.LitterScroll = function (app) {
   function draftFor(typed) {
     var t = String(typed).trim(), m;
     if ((m = /^board\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: '', subject: (m[1] || '').trim(), text: '' };
-    if ((m = /^board\s+T?(\d+)\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: m[1], re: '', subject: '', text: (m[2] || '').trim() };
-    if ((m = /^board\s+(?:re\s+(T\d+N\d+)|(T\d+N\d+)\s+re|(\d+)\s+re\s+(\d+))(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: (m[1] || m[2] || ('T' + m[3] + 'N' + m[4])).toUpperCase(), subject: '', text: (m[5] || '').trim() };
+    // Words typed after any of the three go in Subject (S7-P10 round 2, |Q948 (a)).
+    if ((m = /^board\s+T?(\d+)\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: m[1], re: '', subject: (m[2] || '').trim(), text: '' };
+    if ((m = /^board\s+(?:re\s+(T\d+N\d+)|(T\d+N\d+)\s+re|(\d+)\s+re\s+(\d+))(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: (m[1] || m[2] || ('T' + m[3] + 'N' + m[4])).toUpperCase(), subject: (m[5] || '').trim(), text: '' };
     return null;
   }
   function draftKey(d) { return d.re ? 're ' + d.re : d.topic ? 'topic ' + d.topic : 'new'; }
@@ -384,7 +397,8 @@ window.LitterScroll = function (app) {
     $('rh-draft-err').textContent = '';
     count();
     $('rh-draft').hidden = false;
-    (d.re || (d.topic && $('rh-draft-subject').value) ? $('rh-draft-text') : $('rh-draft-subject')).focus();
+    // Into the words once there's a subject, or when answering (its subject can stay empty).
+    (d.re || $('rh-draft-subject').value ? $('rh-draft-text') : $('rh-draft-subject')).focus();
   }
   function keepDraft() {
     if (!draft) return;

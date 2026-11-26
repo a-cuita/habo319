@@ -559,6 +559,8 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-set-unit { color: var(--text-dim); font-size: 0.92rem; }
 .lt-set-line { display: flex; gap: 8px; margin: 6px 0; }
 .lt-set-line .btn, .lt-set-add { width: auto; min-height: 40px; padding: 8px 12px; margin: 0; }
+/* Move old walks now, under its setting (S7-P3 round 2). */
+.lt-set-act { width: auto; min-height: 40px; padding: 8px 12px; margin: 4px 0 0; }
 .lt-set-save { margin-top: 10px; }
 
 /* Reviews in Admin Mode (S5-P19 B). */
@@ -8773,7 +8775,37 @@ window.LitterSettings = function (app) {
       value = function () { return Array.prototype.map.call(list.querySelectorAll('.lt-set-line-text'), function (x) { return x.value; }).filter(function (x) { return x.trim(); }); };
     }
     box.appendChild(row);
+    if (it.action === 'archiveNow') archiveButton(box, it, value);
     return { box: box, name: it.name, value: value };
+  }
+
+  // Move old walks now (S7-P3 round 2, |Q960 (a)): a Head Builder's, under
+  // "Walks kept in the live tabs". It says what it will do and asks first,
+  // then runs the night's move at once and says which walks moved, and which
+  // stayed though old enough, and why. It moves by the days as saved.
+  function archiveButton(box, it, value) {
+    var go = el('button', 'btn btn-secondary lt-set-act', 'Move old walks now');
+    go.type = 'button';
+    go.id = 'set-archive-now';
+    var err = el('p', 'err');
+    err.id = 'set-archive-now-err';
+    err.setAttribute('role', 'alert');
+    box.appendChild(el('p', 'muted small lt-set-say', 'A Head Builder\'s: the nightly move, now, by the days as saved. It says which walks moved and which stayed, and why.'));
+    box.appendChild(go);
+    box.appendChild(err);
+    go.addEventListener('click', function () {
+      if (String(value()).trim() !== String(it.value).trim()) { err.textContent = 'Save first: a move goes by the days as saved (' + it.value + '), and the box says ' + value() + '.'; return; }
+      app.busy(go, err.id, function () {
+        return app.api('archiveNow', { token: app.myToken(), look: true }).then(function (d) {
+          return app.askPop('set-archive-ask', 'Move old walks now?', d.lines, [['go', 'Move them now', 'btn btn-primary'], ['no', 'Cancel', 'btn btn-secondary']]);
+        }).then(function (k) {
+          if (k !== 'go') return null;
+          return app.api('archiveNow', { token: app.myToken() }).then(function (r) {
+            return app.askPop('set-archive-done', r.title, r.lines, [['ok', 'OK', 'btn btn-primary']]);
+          });
+        });
+      });
+    });
   }
 
   // Levels and class skills (S5-P29, |Q612 to |Q615): the level ranges, each
@@ -11609,6 +11641,18 @@ window.LitterScroll = function (app) {
     else p.textContent = l.text;
     if (full && ((l.kind === 'gchat' && l.id) || (l.kind === 'answer' && l.note))) {
       var acts = el('span', 'lt-rh-acts');
+      // Answer (S7-P10 round 2, |Q949 (a)): the box, already answering this
+      // note, or adding a note to this topic, with nothing to type first.
+      if (l.kind === 'answer' && l.name) {
+        var ans = el('button', 'lt-rh-act', 'Answer');
+        ans.type = 'button';
+        ans.addEventListener('click', function () {
+          var t = /^T(\d+)$/i.exec(l.name);
+          openDraft(t ? { topic: t[1], re: '', subject: '', text: '' } : { topic: '', re: String(l.name).toUpperCase(), subject: '', text: '' },
+            t ? 'board ' + t[1] + ' write' : 'board re ' + String(l.name).toUpperCase());
+        });
+        acts.appendChild(ans);
+      }
       if (!l.mine) {
         var rep = el('button', 'lt-rh-act', l.reported ? 'Reported' : 'Report');
         rep.type = 'button';
@@ -11930,8 +11974,9 @@ window.LitterScroll = function (app) {
   function draftFor(typed) {
     var t = String(typed).trim(), m;
     if ((m = /^board\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: '', subject: (m[1] || '').trim(), text: '' };
-    if ((m = /^board\s+T?(\d+)\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: m[1], re: '', subject: '', text: (m[2] || '').trim() };
-    if ((m = /^board\s+(?:re\s+(T\d+N\d+)|(T\d+N\d+)\s+re|(\d+)\s+re\s+(\d+))(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: (m[1] || m[2] || ('T' + m[3] + 'N' + m[4])).toUpperCase(), subject: '', text: (m[5] || '').trim() };
+    // Words typed after any of the three go in Subject (S7-P10 round 2, |Q948 (a)).
+    if ((m = /^board\s+T?(\d+)\s+write(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: m[1], re: '', subject: (m[2] || '').trim(), text: '' };
+    if ((m = /^board\s+(?:re\s+(T\d+N\d+)|(T\d+N\d+)\s+re|(\d+)\s+re\s+(\d+))(?:\s+([\s\S]*))?$/i.exec(t))) return { topic: '', re: (m[1] || m[2] || ('T' + m[3] + 'N' + m[4])).toUpperCase(), subject: (m[5] || '').trim(), text: '' };
     return null;
   }
   function draftKey(d) { return d.re ? 're ' + d.re : d.topic ? 'topic ' + d.topic : 'new'; }
@@ -11947,7 +11992,8 @@ window.LitterScroll = function (app) {
     $('rh-draft-err').textContent = '';
     count();
     $('rh-draft').hidden = false;
-    (d.re || (d.topic && $('rh-draft-subject').value) ? $('rh-draft-text') : $('rh-draft-subject')).focus();
+    // Into the words once there's a subject, or when answering (its subject can stay empty).
+    (d.re || $('rh-draft-subject').value ? $('rh-draft-text') : $('rh-draft-subject')).focus();
   }
   function keepDraft() {
     if (!draft) return;
@@ -12910,7 +12956,7 @@ window.LitterScroll = function (app) {
   /* ── Settings in Admin Mode (S5-P19 A, settings.js) ── */
 
   var settings = window.LitterSettings({
-    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut, askPop: askPop,
     me: function () { return state.account; },
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }

@@ -234,7 +234,37 @@ window.LitterSettings = function (app) {
       value = function () { return Array.prototype.map.call(list.querySelectorAll('.lt-set-line-text'), function (x) { return x.value; }).filter(function (x) { return x.trim(); }); };
     }
     box.appendChild(row);
+    if (it.action === 'archiveNow') archiveButton(box, it, value);
     return { box: box, name: it.name, value: value };
+  }
+
+  // Move old walks now (S7-P3 round 2, |Q960 (a)): a Head Builder's, under
+  // "Walks kept in the live tabs". It says what it will do and asks first,
+  // then runs the night's move at once and says which walks moved, and which
+  // stayed though old enough, and why. It moves by the days as saved.
+  function archiveButton(box, it, value) {
+    var go = el('button', 'btn btn-secondary lt-set-act', 'Move old walks now');
+    go.type = 'button';
+    go.id = 'set-archive-now';
+    var err = el('p', 'err');
+    err.id = 'set-archive-now-err';
+    err.setAttribute('role', 'alert');
+    box.appendChild(el('p', 'muted small lt-set-say', 'A Head Builder\'s: the nightly move, now, by the days as saved. It says which walks moved and which stayed, and why.'));
+    box.appendChild(go);
+    box.appendChild(err);
+    go.addEventListener('click', function () {
+      if (String(value()).trim() !== String(it.value).trim()) { err.textContent = 'Save first: a move goes by the days as saved (' + it.value + '), and the box says ' + value() + '.'; return; }
+      app.busy(go, err.id, function () {
+        return app.api('archiveNow', { token: app.myToken(), look: true }).then(function (d) {
+          return app.askPop('set-archive-ask', 'Move old walks now?', d.lines, [['go', 'Move them now', 'btn btn-primary'], ['no', 'Cancel', 'btn btn-secondary']]);
+        }).then(function (k) {
+          if (k !== 'go') return null;
+          return app.api('archiveNow', { token: app.myToken() }).then(function (r) {
+            return app.askPop('set-archive-done', r.title, r.lines, [['ok', 'OK', 'btn btn-primary']]);
+          });
+        });
+      });
+    });
   }
 
   // Levels and class skills (S5-P29, |Q612 to |Q615): the level ranges, each

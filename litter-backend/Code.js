@@ -417,6 +417,7 @@ function actions_() {
     tellRemove: tellRemove_,     // an admin removes a reported one
     boardPost: boardPost_,       // a topic or note from Street Talk's drafting box (S7-P10, |Q920 (a))
     collectionsOlder: collectionsOlder_,   // Your collections' Show older walks, from the archive (S7-P3, |Q858 (b))
+    archiveNow: archiveNow_,     // Move old walks now, a Head Builder's, in Settings (S7-P3 round 2, |Q960 (a))
     boardReport: boardReport_,   // a board topic or note reported (S7-P10)
     boardRemove: boardRemove_,   // an admin removes it
     questActive: questActive_,   // Make active, or Stop counting, in Your quests (S7-P4)

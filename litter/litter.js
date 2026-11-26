@@ -897,7 +897,7 @@
   /* ── Settings in Admin Mode (S5-P19 A, settings.js) ── */
 
   var settings = window.LitterSettings({
-    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut,
+    $: $, api: api, notice: notice, busy: busy, show: show, myToken: myToken, signedOut: signedOut, askPop: askPop,
     me: function () { return state.account; },
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); }

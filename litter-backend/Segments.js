@@ -646,9 +646,14 @@ function segmentSummariesWorked_(sim, accountId, range) {
   var counted = rateCollections_(sim, accountId);
   var rows = readRows_(TABS.stretches);
   var walks = worldWalks_(counted, rows);
-  // Days before the live tabs' (S7-P3, |Q857 (a)): the archive's rates for
-  // them, with their walks and weighings for who and each square's reading.
-  var arch = !sim && range && range.since < archiveCutoff_() ? archiveRead_(range.since, range.until) : null;
+  // Days the archive holds (S7-P3, |Q857 (a)): its rates for them, with their
+  // walks and weighings for who and each square's reading. Any days it holds,
+  // the Rate window's too (round 2, |Q959 (a)): a raised Rate window or "Walks
+  // kept" brings walks already moved back into rates. Without chosen days, from
+  // the Rate window's start two weeks ago, for the arrow's comparison.
+  var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
+  var from = range ? range.since : now - 14 * DAY_MS - win;
+  var arch = !sim && from <= archiveReach_() ? archiveRead_(from, range ? range.until : Infinity) : null;
   var whoOf = {};
   Object.keys(counted).forEach(function (id) { whoOf[id] = counted[id]; });
   if (arch) Object.keys(arch.cols).forEach(function (id) { if (!whoOf[id] && arch.cols[id].get('status') !== COLLECTION_DISCARDED && arch.cols[id].get('simulated') !== 'Yes') whoOf[id] = arch.cols[id]; });
@@ -670,7 +675,6 @@ function segmentSummariesWorked_(sim, accountId, range) {
   var shown = {};
   readAccounts_().forEach(function (a) { shown[a.id] = a.shows === 'Name' ? (a.first + ' ' + a.last).trim() : a.shows === 'Neither' ? '' : a.handle; });
   var k = segmentRules_();
-  var win = minutesSetting_(SETTING_RATE_WINDOW, 60) * DAY_MS;
   // When each square was last collected, for the left-alone bonus (S6-P3 item 4).
   var lastClean = cleanedTimes_(counted, null, null, rows);
   var low = minutesSetting_(SETTING_CONF_LOW, 2), moderate = minutesSetting_(SETTING_CONF_MODERATE, 5);

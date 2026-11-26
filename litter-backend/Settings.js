@@ -135,6 +135,8 @@ function settingsGroupsFor_(account) {
         min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null,
         value: kind === 'lines' ? String(v).split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String) : String(v).trim() };
     }) };
+    // Move old walks now (S7-P3 round 2, |Q960 (a)): a Head Builder's button under "Walks kept in the live tabs".
+    if (g.key === 'walks' && account.rank === 'Head Builder') out.items.forEach(function (it) { if (it.name === SETTING_KEEP_DAYS) it.action = 'archiveNow'; });
     // The share picture's preview (S6-P5, |C914): what each layout shows, and
     // which setting is which part, so the page draws it from the boxes as they are.
     if (g.key === 'share') out.preview = { layoutSetting: SETTING_SHARE_LAYOUT, nameSetting: SETTING_APP_NAME, showsSetting: SETTING_SHARE_SHOWS, rateTop: minutesSetting_(SETTING_RATE_TOP, 5) || 5, layouts: SHARE_LAYOUT_PARTS,
