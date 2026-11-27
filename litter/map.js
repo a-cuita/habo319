@@ -99,7 +99,9 @@ window.LitterMap = function (app) {
     if (shedLayer) { shedLayer.addTo(map); return; }
     if (shedsAsked) return;
     shedsAsked = true;
-    fetch('watersheds.json?v=1').then(function (r) { if (!r.ok) throw new Error('The watersheds didn\'t load.'); return r.json(); }).then(function (gj) {
+    // On the Apps Script's own link the page has no files beside it, so it reads them from the public site.
+    var shedsUrl = /(googleusercontent|script\.google)\.com$/.test(location.hostname) ? 'https://a-cuita.github.io/habo319/litter/watersheds.json?v=1' : 'watersheds.json?v=1';
+    fetch(shedsUrl).then(function (r) { if (!r.ok) throw new Error('The watersheds didn\'t load.'); return r.json(); }).then(function (gj) {
       shedLayer = L.layerGroup();
       // Outlines only, so a tap on a square still reaches the square; the name on the line, and in the middle once you zoom in.
       L.geoJSON(gj, { pane: 'ltSheds', style: function () { return { color: '#1d4ed8', weight: 2, opacity: 0.8, fill: false, className: 'lt-shed' }; },
