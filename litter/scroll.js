@@ -143,6 +143,9 @@ window.LitterScroll = function (app) {
   }
   function openScreen(which) {
     if (which === 'details' && app.openDetails) { close(); app.openDetails(); }
+    // The Questmaster's greeting in Admin Mode (S7-P26): its Forum and Reviews, tapped.
+    if (which === 'forum' && app.openForumList) { close(); app.openForumList(); }
+    if (which === 'reviews' && app.openReviews) { close(); app.openReviews(); }
   }
   function tellEl(l, full) {
     var p = el('p', 'lt-rh-line pub tell');
@@ -186,7 +189,7 @@ window.LitterScroll = function (app) {
       l.actions.forEach(function (a) {
         var b = el('button', 'lt-rh-act', a.label);
         b.type = 'button';
-        b.addEventListener('click', function () { run(a.command, true); });
+        b.addEventListener('click', function () { if (a.open) { openScreen(a.open); return; } run(a.command, true); });
         acts.appendChild(b);
       });
       p.appendChild(acts);
@@ -455,6 +458,13 @@ window.LitterScroll = function (app) {
     refresh: refresh, landed: landed, open: open,
     // Your quests' "Talk to the Questmaster": Street Talk, open, asking for the Quests.
     questmaster: function () { open(); run('quests', true); },
+    // The Questmaster greets an admin as Admin Mode turns on (S7-P26, |Q984 (a)): a line of its own, here only.
+    greet: function (text, actions) {
+      printed.push({ qm: true, kind: 'answer', who: 'Questmaster', at: Date.now(), text: text, actions: actions || [] });
+      pending.push({ qm: true, kind: 'answer', who: 'Questmaster', at: Date.now(), text: text });
+      paintStrip();
+      if (!$('rh').hidden) paintFull(true);
+    },
     // Where a "+N XP" lands: the strip, while it's on the screen.
     target: function () { var s = $('rh-strip'); return s && !s.hidden && s.offsetParent !== null ? s : null; },
     signedOut: function () { if (timer) { clearInterval(timer); timer = null; } lines = []; pending = []; printed = []; loaded = false; $('rh-strip').hidden = true; }

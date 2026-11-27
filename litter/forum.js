@@ -7,9 +7,9 @@ window.LitterForum = function (app) {
   'use strict';
   var $ = app.$;
   var list = null, topic = null, told = false;
-  var CLOSED = ['Done', 'Passed', 'Failed', 'Withdrawn', 'Won\'t do', 'Approved', 'Declined', 'Closed'];
+  var CLOSED = ['Done', 'Passed', 'Failed', 'Withdrawn', 'No Action Taken', 'Approved', 'Declined', 'Closed'];
   var MOVE_WORDS = { Open: 'Reopen', Done: 'Mark Done', Voting: 'Put to a vote', Withdrawn: 'Withdraw', New: 'Mark New', Seen: 'Mark Seen',
-    Planned: 'Mark Planned', 'Won\'t do': 'Mark Won\'t do', Decision: 'Make it a Decision' };
+    Planned: 'Mark Planned', Active: 'Mark Active', 'No Action Taken': 'Mark No Action Taken', Decision: 'Make it a Decision' };   // a report's six states (S7-P26, |Q1014)
 
   function el(tag, cls, text) {
     var e = document.createElement(tag);
@@ -327,6 +327,18 @@ window.LitterForum = function (app) {
   $('ft-send').addEventListener('click', reply);
   $('me-report-issue').addEventListener('click', function () { openReport('Issue'); });
   $('me-report-idea').addEventListener('click', function () { openReport('Idea'); });
+  // Your reports (S7-P26, |Q983, |Q1000): each one you've sent, newest first, and where it stands.
+  $('me-reports').addEventListener('click', function () {
+    var b = $('me-reports');
+    b.disabled = true;
+    app.api('reportsMine', { token: app.myToken() }).then(function (d) {
+      b.disabled = false;
+      var rs = d.reports || [];
+      var lines = rs.length ? rs.map(function (r) { return [r.state + ':', ' ' + r.of + ', "' + r.title + '"' + (r.note ? '. ' + r.note : '')]; })
+        : ['No reports from you yet. Report an Issue and Submit an Idea are just above.'];
+      return app.askPop('my-reports', 'Your reports', lines, [['ok', 'OK', 'btn btn-primary']]);
+    }, function (err) { b.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });
+  });
   $('v-report').addEventListener('submit', sendReport);
   $('rp-cancel').addEventListener('click', function () { $('v-report').hidden = true; });
 

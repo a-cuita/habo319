@@ -442,6 +442,8 @@ function actions_() {
     forumUnread: forumUnread_,
     forumDigestSave: forumDigestSave_,
     reportSend: reportSend_,
+    reportsMine: reportsMine_,   // Your reports, a player's (S7-P26)
+    adminWaiting: adminWaiting_,   // the Questmaster's greeting in Admin Mode (S7-P26)
     // Challenges (S6-P8).
     challengesLoad: challengesLoad_,
     // Litter Class Skills built from the toolbox (S6-P8's rework).

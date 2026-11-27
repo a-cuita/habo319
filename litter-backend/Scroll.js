@@ -20,6 +20,7 @@ var SCROLL_COMMANDS = [
   ['`help`', 'these commands'],
   ['`gchat` and your words', 'a line to everyone signed in, like `gchat good morning!`'],
   ['`tell`, a handle and your words', 'a line only that player sees, like `tell pat.e see you Saturday`'],
+  ['`reports`', 'the issues and ideas you\'ve sent, and where each stands'],
   ['`board`', 'the message board\'s topics; `board 1` reads topic 1, a line for each note'],
   ['`board T1N3`', 'reads topic 1\'s note 3 whole, with the notes answering it'],
   ['`board write`', 'starts a topic; `board 1 write` adds a note to topic 1; each opens a box to write it in'],
@@ -223,12 +224,12 @@ function walkLines_(accountId) {
 function scrollLines_(account, admin) {
   var mine = xpLines_(account.id), shown = shownNames_();
   var lines = levelLines_(shown).map(function (l) { return { at: l.at, who: l.who, text: l.text, mine: l.account === account.id, kind: 'level' }; });
-  lines = lines.concat(walkLines_(account.id)).concat(sharedLines_(account, shown, admin));
+  lines = lines.concat(walkLines_(account.id)).concat(sharedLines_(account, shown, admin)).concat(reportLines_(account.id));   // your reports' changes (S7-P26)
   mine.forEach(function (e, i) {
     lines.push({ at: e.at, mine: true, kind: 'xp', walk: e.walk, text: (e.xp < 0 ? '' : '+') + e.xp + ' XP: ' + e.say, seq: i });
   });
   // At the same moment: a walk's summary, then its XP, then any level it reached.
-  var rank = { start: 0, gchat: 0, tell: 0, qm: 0, quest: 0, end: 0, walk: 0, xp: 1, level: 2, badge: 3 };
+  var rank = { start: 0, gchat: 0, tell: 0, qm: 0, quest: 0, end: 0, walk: 0, report: 0, xp: 1, level: 2, badge: 3 };
   lines.sort(function (a, b) { return a.at - b.at || rank[a.kind] - rank[b.kind] || (a.seq || 0) - (b.seq || 0); });
   return { lines: lines.slice(-SCROLL_LINES).map(scrollOut_), events: mine };
 }
@@ -245,6 +246,11 @@ function scrollCommand_(account, typed) {
     var total = round_(ev.reduce(function (t, e) { return t + e.xp; }, 0), 2);
     return ['Your XP, newest first (' + total + ' XP in all):'].concat(ev.slice(0, 100).map(function (e) { return '  ' + (e.xp < 0 ? '' : '+') + e.xp + ' XP · ' + scrollWhen_(e.at) + ' · ' + e.say; }))
       .concat(ev.length > 100 ? ['  …and ' + (ev.length - 100) + ' more before these.'] : []);
+  }
+  if (c === 'reports') {   // Your reports, as on the main page (S7-P26, |Q1000)
+    var rs = reportsOf_(account.id);
+    if (!rs.length) return ['No reports from you yet. Report an Issue and Submit an Idea are on the main page.'];
+    return ['Your reports, newest first:'].concat(rs.map(function (r) { return '  ' + r.state + ' · ' + r.of + ': "' + r.title + '" · ' + scrollWhen_(r.opened) + (r.note ? ' · ' + r.note : ''); }));
   }
   if (c === 'who') return whoLines_(account);
   if (c === 'board' || c.indexOf('board ') === 0) return boardCommand_(account, String(typed).trim().slice(5));

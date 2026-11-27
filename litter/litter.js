@@ -34,7 +34,9 @@
     // The rolling history only reads (S6-P3).
     'scroll',
     // Cleanups, read for the list and your cleanup today (S6-P27).
-    'cleanupsLoad'];
+    'cleanupsLoad',
+    // Your reports, and what waits on an admin, only read (S7-P26).
+    'reportsMine', 'adminWaiting'];
   var changedAt = Date.now();
   function marks(action, d) {
     // Badges only reads, unless it just earned one: that changes your XP.
@@ -135,6 +137,27 @@
     if (!state.account || state.account.rank !== 'Head Builder') return false;
     try { return JSON.parse(localStorage.getItem(SIM_KEY) || 'null') === true; } catch (e) { return false; }
   }
+  // The Questmaster greets you as Admin Mode turns on (S7-P26, |Q984 (a) and its
+  // addendum): so you know you're in Admin Mode, and what waits on you, each
+  // part tappable. Two ways of saying it, taking turns.
+  var GREET_KEY = 'litter-greet-turn';
+  function greetAdmin() {
+    api('adminWaiting', { token: myToken() }).then(function (d) {
+      if (!adminMode() || typeof scroll === 'undefined' || !scroll) return;
+      var turn = 0;
+      try { turn = (Number(localStorage.getItem(GREET_KEY)) || 0) % 2; localStorage.setItem(GREET_KEY, String(turn + 1)); } catch (e) { turn = 0; }
+      var rank = d.rank || 'Builder', f = d.forum || 0, r = d.reviews || 0;
+      var forumSay = f === 1 ? '1 new in the Forum' : f + ' new in the Forum', revSay = r === 1 ? '1 Review waiting on you' : r + ' Reviews waiting on you';
+      var text = !f && !r ? 'Admin Mode is on, ' + rank + '. Nothing waits on you in the Forum or Reviews.'
+        : turn === 0 ? 'Welcome to Admin Mode, ' + rank + '. ' + forumSay + (r ? ', and ' + revSay : '') + '.'
+        : 'Admin Mode is yours, ' + rank + '. ' + (f ? 'The Forum has ' + (f === 1 ? '1 new topic or reply' : f + ' new topics and replies') : 'The Forum is quiet') + (r ? '; ' + (r === 1 ? '1 Review needs you' : r + ' Reviews need you') : '') + '.';
+      var acts = [];
+      if (f) acts.push({ label: 'Forum', open: 'forum' });
+      if (r) acts.push({ label: 'Reviews', open: 'reviews' });
+      scroll.greet(text, acts);
+    }, function () { /* the greeting waits for next time */ });
+  }
+
   // Admin Mode's dark look, for every rank (S5-P28, |Q639 (a)); builderMode()
   // above stays a Head Builder's, for simulated walks and Measure again.
   function adminMode() {
@@ -146,6 +169,7 @@
     document.documentElement.classList.toggle('lt-builder', adminMode());
     // Street Talk again when Admin Mode turns on or off: reported tells are an admin's in it (S7-P10).
     if (paintedAdmin !== null && paintedAdmin !== adminMode() && typeof scroll !== 'undefined' && scroll && state.account) scroll.refresh();
+    if (paintedAdmin === false && adminMode() && state.account) greetAdmin();
     paintedAdmin = adminMode();
     // Admin Mode turned off on an admin screen: straight to the main page (S6-P19, |M888).
     if (!adminMode() && state.account && ADMIN_VIEWS.some(function (v) { return !$(v).hidden; })) { showAccount(state.account); return; }
@@ -970,6 +994,9 @@
   var scroll = window.LitterScroll({ $: $, api: api, myToken: myToken, adminMode: adminMode,
     // privacy's way to Change my details (S7-P10, |Q917); title and privacy's account, kept.
     openDetails: function () { panel(true); startEdit(); },
+    // The Questmaster's greeting in Admin Mode, tapped (S7-P26).
+    openForumList: function () { forum.open(); },
+    openReviews: function () { reviews.open(); },
     account: function (a) { if (state.account && a && a.id === state.account.id) state.account = a; } });
 
   /* ── The Wiki (S6-P9, wiki.js) ── */
@@ -1004,7 +1031,8 @@
     me: function () { return state.account; },
     closePanel: function () { panel(false); },
     back: function () { showAccount(state.account); },
-    openReviews: function () { reviews.open(); }
+    openReviews: function () { reviews.open(); },
+    askPop: function (id, title, lines, buttons) { return askPop(id, title, lines, buttons); }
   });
 
   /* ── The map and your collections (S3-P22, map.js) ── */

@@ -23,7 +23,8 @@ var FORUM_KINDS = ['Discussion', 'Decision', 'Report', 'Review'];
 var FORUM_STATES = {
   Discussion: ['Open', 'Done'],
   Decision: ['Discussing', 'Voting', 'Passed', 'Failed', 'Withdrawn'],
-  Report: ['New', 'Seen', 'Planned', 'Done', 'Won\'t do']
+  // A player's report, its states the same words for admins and players (S7-P26, |Q1014): Won't do became No Action Taken.
+  Report: ['New', 'Seen', 'Planned', 'Active', 'Done', 'No Action Taken']
 };
 var FORUM_VOTES = ['Approve', 'Reject', 'Abstain'];
 var REPORT_OF = { Issue: 'Report an Issue', Idea: 'Submit an Idea' };
@@ -39,7 +40,9 @@ var FORUM_TEXT_MAX = 4000, FORUM_TITLE_MAX = 100;
 function ms_(v) { return v instanceof Date ? v.getTime() : 0; }
 function forumTopics_() {
   return readRows_(TABS.forumTopics, TOPIC_COL).map(function (r) {
-    return { row: r.row, id: r.get('id'), kind: r.get('kind'), title: r.get('title'), state: r.get('state'), by: r.get('by'), opened: ms_(r.get('opened')),
+    var state = r.get('state');
+    if (r.get('kind') === 'Report' && state === 'Won\'t do') state = 'No Action Taken';   // S7-P26, |Q1014
+    return { row: r.row, id: r.get('id'), kind: r.get('kind'), title: r.get('title'), state: state, by: r.get('by'), opened: ms_(r.get('opened')),
       updated: ms_(r.get('updated')), text: r.get('text'), of: r.get('of'), link: r.get('link'), closes: String(r.get('closes') instanceof Date ? dayOf_(r.get('closes')) : r.get('closes')) };
   });
 }
@@ -215,6 +218,12 @@ function forumTopic_(req) {
   var id = clean_(req.topicId, 20);
   return forumLock_(function () {
     closeVotes_();
+    // A player's report is Seen the first time an admin opens it (S7-P26): the player hears it in Street Talk.
+    var t = forumTopics_().filter(function (x) { return x.id === id; })[0];
+    if (t && t.kind === 'Report' && t.state === 'New') {
+      topicSet_(t, { state: 'Seen', updated: new Date() });
+      forumHistoryAdd_(t.id, account, 'Moved', 'New', 'Seen', '');
+    }
     var out = topicView_(account, id);
     markRead_(account.id, id);
     return { topic: out };
@@ -368,6 +377,52 @@ function forumUnread_(req) {
   return { replies: news.length, topics: Object.keys(topics).length };
 }
 
+/* ── A player's reports (S7-P26) ──
+ * Players have no Forum. Each report they send keeps a state they can see
+ * (|Q983), from Your reports on the main page and `reports` in Street Talk
+ * (|Q1000: both), and each change is a line to them in Street Talk, with the
+ * admin's note if there is one (|Q1001 (a)). The lines come from the Forum's
+ * own history, so nothing new is kept for them.
+ */
+function reportsOf_(accountId) {
+  var hist = forumHistory_();
+  return forumTopics_().filter(function (t) { return t.kind === 'Report' && t.by === accountId; }).map(function (t) {
+    var moves = hist.filter(function (h) { return h.topic === t.id && h.move === 'Moved' && h.to; });
+    var last = moves[moves.length - 1];
+    return { id: t.id, of: REPORT_OF[t.of] || t.of, title: t.title, state: t.state, opened: t.opened, updated: t.updated,
+      note: last && last.note ? last.note : '', moves: moves.map(function (h) { return { at: h.time, to: h.to === 'Won\'t do' ? 'No Action Taken' : h.to, note: h.note || '' }; }) };
+  }).sort(function (a, b) { return b.opened - a.opened; });
+}
+function reportsMine_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return { reports: reportsOf_(account.id) };
+}
+// Street Talk's lines for one player: each change to a report of theirs.
+function reportLines_(accountId) {
+  var out = [];
+  reportsOf_(accountId).forEach(function (r) {
+    r.moves.forEach(function (m) {
+      out.push({ at: m.at, mine: true, kind: 'report', text: 'Your report "' + r.title + '" is ' + m.to + (m.note ? ': ' + m.note : '.') });
+    });
+  });
+  return out;
+}
+// What waits on an admin, for the Questmaster's greeting when Admin Mode
+// turns on (S7-P26, |Q984 (a)): topics not opened yet and new replies in the
+// Forum, and what's open in Reviews.
+function adminWaiting_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  if (!account.rank) throw new Error('This is for HABO\'s admins.');
+  var reads = forumReads_(account.id);
+  var fresh = forumTopics_().filter(function (t) { return t.by !== account.id && !(reads[t.id] && reads[t.id].read >= t.opened); }).length;
+  var u = forumUnread_(req);
+  var reviews = 0;
+  try { reviews = (reviewsView_(account).reviews || []).filter(function (r) { return r.open; }).length; } catch (e) { reviews = 0; }
+  return { forum: fresh + u.topics, reviews: reviews, rank: account.rank };
+}
+
 /* ── The email digest (S5-P28 round 2, |Q634 to |Q638, all (a)) ──
  * Each admin's digest is Off, Daily or Weekly, asked the first time they
  * open the Forum, and changed there (no link in the email changes it, since
@@ -495,34 +550,49 @@ function digestDueAt_(cadence, now, hour) {
 // the most recently active first.
 function digestItems_(account, since, topics, replies, people) {
   var reads = forumReads_(account.id), byTopic = {};
+  // New topics you haven't opened, your own included (S7-P26, |Q982), listed first.
+  var fresh = topics.filter(function (t) { return t.opened > since && (t.by === account.id || !(reads[t.id] && reads[t.id].read >= t.opened)); }).map(function (t) {
+    var p = people[t.by], text = String(t.text || '');
+    return { id: t.id, title: t.title, kind: t.kind, last: t.opened, isNew: true, by: p ? (p.handle || p.first) : t.by, opened: t.opened,
+      text: text.length > 300 ? text.slice(0, 299) + '…' : text, replies: [] };
+  }).sort(function (a, b) { return b.last - a.last; });
   replies.forEach(function (r) {
     var read = reads[r.topic] ? reads[r.topic].read : 0;
     if (r.by === account.id || r.written <= since || r.written <= read) return;
     (byTopic[r.topic] = byTopic[r.topic] || []).push(r);
   });
-  return Object.keys(byTopic).map(function (id) {
+  var olds = Object.keys(byTopic).map(function (id) {
     var t = topics.filter(function (x) { return x.id === id; })[0] || { id: id, title: id, kind: '' };
     var list = byTopic[id].sort(function (a, b) { return a.written - b.written; });
     return { id: id, title: t.title, kind: t.kind, last: list[list.length - 1].written,
       replies: list.map(function (r) { var p = people[r.by]; return { by: p ? (p.handle || p.first) : r.by, written: r.written, text: r.text.length > 300 ? r.text.slice(0, 299) + '…' : r.text }; }) };
   }).sort(function (a, b) { return b.last - a.last; });
+  fresh.forEach(function (g) { var o = olds.filter(function (x) { return x.id === g.id; })[0]; if (o) g.replies = o.replies; });
+  return fresh.concat(olds.filter(function (o) { return !fresh.some(function (g) { return g.id === o.id; }); }));
 }
 
 function digestMail_(account, groups) {
-  var n = groups.reduce(function (t, g) { return t + g.replies.length; }, 0);
+  var n = groups.reduce(function (t, g) { return t + g.replies.length; }, 0), fresh = groups.filter(function (g) { return g.isNew; }).length;
   var url = String(getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL).trim();
   var tz = Session.getScriptTimeZone();
   var when = function (ms) { return Utilities.formatDate(new Date(ms), tz, 'MMM d, h:mm a'); };
   var link = function (g) { return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'forum=' + encodeURIComponent(g.id); };
-  var subject = 'HABO Forum: ' + (n === 1 ? '1 new reply' : n + ' new replies') + ' in ' + (groups.length === 1 ? '1 topic' : groups.length + ' topics');
+  var parts = [];
+  if (fresh) parts.push(fresh === 1 ? '1 new topic' : fresh + ' new topics');
+  if (n) parts.push((n === 1 ? '1 new reply' : n + ' new replies') + (fresh ? '' : ' in ' + (groups.length === 1 ? '1 topic' : groups.length + ' topics')));
+  var subject = 'HABO Forum: ' + parts.join(' and ');
+  var head = fresh ? 'New in the HABO Forum: topics you haven\'t opened, then new replies by others in topics you haven\'t read since.' : 'New replies in the HABO Forum, by others, in topics you haven\'t read since.';
+  var topicLine = function (g) { return g.isNew ? 'New ' + (g.kind || 'topic').toLowerCase() + ' by ' + g.by + ', ' + when(g.opened) + ': ' + g.text : ''; };
   var foot = 'To change this email or turn it off, open the Forum in Admin Mode: Your email digest. Replying to this email doesn\'t post in the Forum.';
-  var plain = ['New replies in the HABO Forum, by others, in topics you haven\'t read since.', '']
+  var plain = [head, '']
     .concat([].concat.apply([], groups.map(function (g) {
-      return [g.title + ' (' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')', link(g)]
+      return [g.title + (g.isNew ? ' (new topic' + (g.replies.length ? ', ' + g.replies.length + ' new ' + (g.replies.length === 1 ? 'reply' : 'replies') : '') + ')' : ' (' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')'), link(g)].concat(g.isNew ? ['  ' + topicLine(g)] : [])
         .concat(g.replies.map(function (r) { return '  ' + r.by + ', ' + when(r.written) + ': ' + r.text; })).concat(['']);
     }))).concat([foot]).join('\n');
-  var html = '<p>New replies in the HABO Forum, by others, in topics you haven\'t read since.</p>' + groups.map(function (g) {
-    return '<h3 style="margin:16px 0 4px"><a href="' + htmlEscape_(link(g)) + '">' + htmlEscape_(g.title) + '</a> <span style="color:#666;font-weight:normal">(' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')</span></h3>' +
+  var html = '<p>' + htmlEscape_(head) + '</p>' + groups.map(function (g) {
+    var tag = g.isNew ? 'new topic' + (g.replies.length ? ', ' + g.replies.length + ' new ' + (g.replies.length === 1 ? 'reply' : 'replies') : '') : (g.replies.length === 1 ? '1 new' : g.replies.length + ' new');
+    return '<h3 style="margin:16px 0 4px"><a href="' + htmlEscape_(link(g)) + '">' + htmlEscape_(g.title) + '</a> <span style="color:#666;font-weight:normal">(' + tag + ')</span></h3>' +
+      (g.isNew ? '<p style="margin:4px 0 8px">' + htmlEscape_(topicLine(g)).replace(/\n/g, '<br>') + '</p>' : '') +
       g.replies.map(function (r) { return '<p style="margin:4px 0 8px"><b>' + htmlEscape_(r.by) + '</b>, ' + htmlEscape_(when(r.written)) + '<br>' + htmlEscape_(r.text).replace(/\n/g, '<br>') + '</p>'; }).join('');
   }).join('') + '<p style="color:#666;font-size:13px;margin-top:20px">' + htmlEscape_(foot) + '</p>';
   // sendMail_ answers { ok, why } rather than throwing: a failure keeps the cutoff.
@@ -559,8 +629,8 @@ function forumDigestTick() {
     var groups = digestItems_(account, d.since, topics, replies, people);
     if (!groups.length) { digestWrite_(d, { sent: now, since: now, result: 'Nothing new: no email.' }); return; }
     try {
-      var n = digestMail_(account, groups);
-      digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + n + (n === 1 ? ' reply.' : ' replies.') });
+      var n = digestMail_(account, groups), fresh = groups.filter(function (g) { return g.isNew; }).length;
+      digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + (fresh ? fresh + (fresh === 1 ? ' new topic, ' : ' new topics, ') : '') + n + (n === 1 ? ' reply.' : ' replies.') });
       sent++;
       room--;
     } catch (e) {
