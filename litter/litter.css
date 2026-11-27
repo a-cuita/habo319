@@ -970,3 +970,8 @@ button.lt-rh-cmdchip:hover, button.lt-rh-cmdchip:focus-visible { border-color: #
 .lt-cu-word { font-weight: 700; margin: 8px 0; }
 /* S7-P3: a walk from the archive, in Your collections. */
 .lt-col-archived { margin: 0 0 4px; font-size: 0.8rem; color: #64748b; }
+
+/* Watersheds (S7-P8): each one's name in its middle, once the map is zoomed in. */
+.lt-shed-name { pointer-events: none; }
+.lt-shed-name span { display: none; transform: translate(-50%, -50%); white-space: nowrap; font: 600 11px/1.2 system-ui, sans-serif; color: #1d4ed8; background: rgba(255,255,255,0.75); padding: 1px 4px; border-radius: 4px; }
+.lt-sheds-near .lt-shed-name span { display: inline-block; }

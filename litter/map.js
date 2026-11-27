@@ -68,6 +68,9 @@ window.LitterMap = function (app) {
   // everyone, without who sent them; each skill's emoji, with its count when
   // one was sent. On top of the colour layers, turned on and off; on to start.
   var pinLayer = null, pins = [], pinsOn = true;
+  // Watersheds (S7-P8, |Q767, |M1649): the HUC-12s around Montgomery County, from
+  // USGS's Watershed Boundary Dataset, outlined and named; off to start.
+  var shedLayer = null, shedsOn = (function () { try { return localStorage.getItem('litter-sheds-on') === '1'; } catch (e) { return false; } })(), shedsAsked = false;
   try { pinsOn = localStorage.getItem('litter-pins-on') !== '0'; } catch (e) { pinsOn = true; }
   function drawPins() {
     if (!pinLayer) return;
@@ -86,6 +89,29 @@ window.LitterMap = function (app) {
       m.addTo(pinLayer);
     });
   }
+  function shedsToggle(on) {
+    shedsOn = on;
+    try { localStorage.setItem('litter-sheds-on', on ? '1' : '0'); } catch (e) { /* kept for this visit only */ }
+    var b = $('mp-sheds-toggle');
+    if (b) { b.classList.toggle('on', on); b.setAttribute('aria-pressed', on ? 'true' : 'false'); }
+    if (!map) return;
+    if (!on) { if (shedLayer) map.removeLayer(shedLayer); return; }
+    if (shedLayer) { shedLayer.addTo(map); return; }
+    if (shedsAsked) return;
+    shedsAsked = true;
+    fetch('watersheds.json?v=1').then(function (r) { if (!r.ok) throw new Error('The watersheds didn\'t load.'); return r.json(); }).then(function (gj) {
+      shedLayer = L.layerGroup();
+      // Outlines only, so a tap on a square still reaches the square; the name on the line, and in the middle once you zoom in.
+      L.geoJSON(gj, { pane: 'ltSheds', style: function () { return { color: '#1d4ed8', weight: 2, opacity: 0.8, fill: false, className: 'lt-shed' }; },
+        onEachFeature: function (f, l) {
+          var name = (f.properties && f.properties.name) || 'Watershed';
+          l.bindTooltip(name + ' watershed', { sticky: true });
+          var c = l.getBounds().getCenter();
+          L.marker(c, { pane: 'ltSheds', interactive: false, keyboard: false, icon: L.divIcon({ className: 'lt-shed-name', html: '<span>' + name.replace(/[&<>]/g, '') + '</span>', iconSize: null }) }).addTo(shedLayer);
+        } }).addTo(shedLayer);
+      if (shedsOn) shedLayer.addTo(map);
+    }).catch(function (err) { shedsAsked = false; app.notice(err.message || 'The watersheds didn\'t load.'); shedsToggle(false); });
+  }
   function pinsToggle(on) {
     pinsOn = on;
     try { localStorage.setItem('litter-pins-on', on ? '1' : '0'); } catch (e) { /* kept for this visit only */ }
@@ -101,6 +127,12 @@ window.LitterMap = function (app) {
     layer = L.layerGroup().addTo(map);
     pinLayer = L.layerGroup();
     pinsToggle(pinsOn);
+    map.createPane('ltSheds');
+    map.getPane('ltSheds').style.zIndex = 410;
+    var shedZoom = function () { map.getContainer().classList.toggle('lt-sheds-near', map.getZoom() >= 12); };
+    map.on('zoomend', shedZoom);
+    shedZoom();
+    shedsToggle(shedsOn);
     drawPins();
     // A chosen plan sits above the colour layers (S5-P9, |C685).
     map.createPane('ltPlan').style.zIndex = 450;
@@ -1464,6 +1496,7 @@ window.LitterMap = function (app) {
   }
   $('mp-layers-btn').addEventListener('click', function () { layersMenu($('mp-layers-menu').hidden); });
   $('mp-pins-toggle').addEventListener('click', function () { pinsToggle(!pinsOn); });
+  $('mp-sheds-toggle').addEventListener('click', function () { shedsToggle(!shedsOn); });
   $('mp-actions-btn').addEventListener('click', function (e) { e.stopPropagation(); actionsMenu($('mp-actions-menu').hidden); });
   $('mp-plan-btn').addEventListener('click', function (e) {
     e.stopPropagation();

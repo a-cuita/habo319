@@ -7,7 +7,7 @@
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌱</text></svg>">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 <link rel="stylesheet" href="../assets/app.css?v=9">
-<link rel="stylesheet" href="litter.css?v=88">
+<link rel="stylesheet" href="litter.css?v=89">
 </head>
 <body>
 
@@ -759,6 +759,8 @@
               <button class="lt-layer-opt lt-layer-maps" data-layer="diff" type="button" aria-pressed="false" hidden>Your rating against the Litter Index</button>
               <!-- Skills' pins (S7-P4 item 9, |Q734 (a)): on top of whichever layer shows, turned on and off. -->
               <button class="lt-layer-toggle" id="mp-pins-toggle" type="button" aria-pressed="true">Skill pins</button>
+              <!-- Watersheds (S7-P8): the HUC-12s around Montgomery County, outlined and named, off to start. -->
+              <button class="lt-layer-toggle" id="mp-sheds-toggle" type="button" aria-pressed="false">Watersheds</button>
             </div>
           </div>
           <!-- On the main page, with a plan chosen: take its outline off the map to see the squares under it, and put it back (|M623). The plan stays chosen. -->
@@ -1334,7 +1336,7 @@
 <script src="geo.js?v=12"></script>
 <script src="share.js?v=9"></script>
 <script src="collect.js?v=70"></script>
-<script src="map.js?v=53"></script>
+<script src="map.js?v=54"></script>
 <script src="quest.js?v=8"></script>
 <script src="settings.js?v=11"></script>
 <script src="reviews.js?v=7"></script>
