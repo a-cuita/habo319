@@ -334,7 +334,7 @@ window.LitterForum = function (app) {
     app.api('reportsMine', { token: app.myToken() }).then(function (d) {
       b.disabled = false;
       var rs = d.reports || [];
-      var lines = rs.length ? rs.map(function (r) { return [r.state + ':', ' ' + r.of + ', "' + r.title + '"' + (r.note ? '. ' + r.note : '')]; })
+      var lines = rs.length ? rs.map(function (r) { return [r.state + ':', ' "' + r.title + '"' + (r.note ? '. ' + r.note : '')]; })
         : ['No reports from you yet. Report an Issue and Submit an Idea are just above.'];
       return app.askPop('my-reports', 'Your reports', lines, [['ok', 'OK', 'btn btn-primary']]);
     }, function (err) { b.disabled = false; if (err.code === 'signed-out') return app.signedOut(); app.notice(err.message); });

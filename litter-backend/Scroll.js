@@ -250,7 +250,7 @@ function scrollCommand_(account, typed) {
   if (c === 'reports') {   // Your reports, as on the main page (S7-P26, |Q1000)
     var rs = reportsOf_(account.id);
     if (!rs.length) return ['No reports from you yet. Report an Issue and Submit an Idea are on the main page.'];
-    return ['Your reports, newest first:'].concat(rs.map(function (r) { return '  ' + r.state + ' · ' + r.of + ': "' + r.title + '" · ' + scrollWhen_(r.opened) + (r.note ? ' · ' + r.note : ''); }));
+    return ['Your reports, newest first:'].concat(rs.map(function (r) { return '  ' + r.state + ' · "' + r.title + '" · ' + scrollWhen_(r.opened) + (r.note ? ' · ' + r.note : ''); }));
   }
   if (c === 'who') return whoLines_(account);
   if (c === 'board' || c.indexOf('board ') === 0) return boardCommand_(account, String(typed).trim().slice(5));
