@@ -27,6 +27,22 @@ var FORUM_STATES = {
   Report: ['New', 'Seen', 'Planned', 'Active', 'Done', 'No Action Taken']
 };
 var FORUM_VOTES = ['Approve', 'Reject', 'Abstain'];
+// A topic needs no one once it's in one of these (a Review's state is its review's).
+var FORUM_CLOSED = ['Done', 'Passed', 'Failed', 'Withdrawn', 'No Action Taken', 'Approved', 'Declined', 'Closed'];
+// Topics you haven't opened that wait on you (S7-P26, the plan's item 1, |C1190's
+// "if I hadn't read it"): someone else's, still open, until you open it; a
+// closed one only if it's new since `since`. Your own, once, if new since `since` (|Q982).
+function topicsUnopened_(account, topics, reads, since) {
+  var reviews = null;
+  return topics.filter(function (t) {
+    if (t.by === account.id) return since != null && t.opened > since;
+    if (reads[t.id] && reads[t.id].read >= t.opened) return false;
+    if (since != null && t.opened > since) return true;
+    var state = t.state;
+    if (t.kind === 'Review') { reviews = reviews || reviewStates_(); state = (reviews[t.link] || {}).state || 'Closed'; }
+    return FORUM_CLOSED.indexOf(state) === -1;
+  });
+}
 var REPORT_OF = { Issue: 'Report an Issue', Idea: 'Submit an Idea' };
 var TOPIC_COL = { id: 1, kind: 2, title: 3, state: 4, by: 5, opened: 6, updated: 7, text: 8, of: 9, link: 10, closes: 11 };
 var FREPLY_COL = { id: 1, topic: 2, by: 3, written: 4, text: 5 };
@@ -416,7 +432,7 @@ function adminWaiting_(req) {
   var account = requireAccount_(req.token);
   if (!account.rank) throw new Error('This is for HABO\'s admins.');
   var reads = forumReads_(account.id);
-  var fresh = forumTopics_().filter(function (t) { return t.by !== account.id && !(reads[t.id] && reads[t.id].read >= t.opened); }).length;
+  var fresh = topicsUnopened_(account, forumTopics_(), reads, null).length;
   var u = forumUnread_(req);
   var reviews = 0;
   try { reviews = (reviewsView_(account).reviews || []).filter(function (r) { return r.open; }).length; } catch (e) { reviews = 0; }
@@ -550,10 +566,10 @@ function digestDueAt_(cadence, now, hour) {
 // the most recently active first.
 function digestItems_(account, since, topics, replies, people) {
   var reads = forumReads_(account.id), byTopic = {};
-  // New topics you haven't opened, your own included (S7-P26, |Q982), listed first.
-  var fresh = topics.filter(function (t) { return t.opened > since && (t.by === account.id || !(reads[t.id] && reads[t.id].read >= t.opened)); }).map(function (t) {
+  // Topics you haven't opened, your own new ones included (S7-P26, |Q982), listed first.
+  var fresh = topicsUnopened_(account, topics, reads, since).map(function (t) {
     var p = people[t.by], text = String(t.text || '');
-    return { id: t.id, title: t.title, kind: t.kind, last: t.opened, isNew: true, by: p ? (p.handle || p.first) : t.by, opened: t.opened,
+    return { id: t.id, title: t.title, kind: t.kind, last: t.opened, isNew: true, older: t.opened <= since, by: p ? (p.handle || p.first) : t.by, opened: t.opened,
       text: text.length > 300 ? text.slice(0, 299) + '…' : text, replies: [] };
   }).sort(function (a, b) { return b.last - a.last; });
   replies.forEach(function (r) {
@@ -572,25 +588,29 @@ function digestItems_(account, since, topics, replies, people) {
 }
 
 function digestMail_(account, groups) {
-  var n = groups.reduce(function (t, g) { return t + g.replies.length; }, 0), fresh = groups.filter(function (g) { return g.isNew; }).length;
+  var n = groups.reduce(function (t, g) { return t + g.replies.length; }, 0), fresh = groups.filter(function (g) { return g.isNew && !g.older; }).length,
+    waiting = groups.filter(function (g) { return g.older; }).length;
   var url = String(getSetting_(SETTING_PUBLIC_URL) || DEFAULT_PUBLIC_URL).trim();
   var tz = Session.getScriptTimeZone();
   var when = function (ms) { return Utilities.formatDate(new Date(ms), tz, 'MMM d, h:mm a'); };
   var link = function (g) { return url + (url.indexOf('?') >= 0 ? '&' : '?') + 'forum=' + encodeURIComponent(g.id); };
   var parts = [];
   if (fresh) parts.push(fresh === 1 ? '1 new topic' : fresh + ' new topics');
-  if (n) parts.push((n === 1 ? '1 new reply' : n + ' new replies') + (fresh ? '' : ' in ' + (groups.length === 1 ? '1 topic' : groups.length + ' topics')));
-  var subject = 'HABO Forum: ' + parts.join(' and ');
-  var head = fresh ? 'New in the HABO Forum: topics you haven\'t opened, then new replies by others in topics you haven\'t read since.' : 'New replies in the HABO Forum, by others, in topics you haven\'t read since.';
-  var topicLine = function (g) { return g.isNew ? 'New ' + (g.kind || 'topic').toLowerCase() + ' by ' + g.by + ', ' + when(g.opened) + ': ' + g.text : ''; };
+  if (waiting) parts.push((waiting === 1 ? '1 topic' : waiting + ' topics') + ' not opened yet');
+  if (n) parts.push((n === 1 ? '1 new reply' : n + ' new replies') + (fresh || waiting ? '' : ' in ' + (groups.length === 1 ? '1 topic' : groups.length + ' topics')));
+  var subject = 'HABO Forum: ' + (parts.length > 1 ? parts.slice(0, -1).join(', ') + ' and ' + parts[parts.length - 1] : parts[0]);
+  var head = fresh || waiting ? 'New in the HABO Forum: topics you haven\'t opened, then new replies by others in topics you haven\'t read since.' : 'New replies in the HABO Forum, by others, in topics you haven\'t read since.';
+  var kindOf = function (g) { return (g.kind || 'topic').toLowerCase(); };
+  var topicLine = function (g) { return !g.isNew ? '' : (g.older ? kindOf(g).charAt(0).toUpperCase() + kindOf(g).slice(1) : 'New ' + kindOf(g)) + ' by ' + g.by + ', ' + when(g.opened) + ': ' + g.text; };
+  var tagOf = function (g) { return (g.older ? 'not opened yet' : 'new topic') + (g.replies.length ? ', ' + g.replies.length + ' new ' + (g.replies.length === 1 ? 'reply' : 'replies') : ''); };
   var foot = 'To change this email or turn it off, open the Forum in Admin Mode: Your email digest. Replying to this email doesn\'t post in the Forum.';
   var plain = [head, '']
     .concat([].concat.apply([], groups.map(function (g) {
-      return [g.title + (g.isNew ? ' (new topic' + (g.replies.length ? ', ' + g.replies.length + ' new ' + (g.replies.length === 1 ? 'reply' : 'replies') : '') + ')' : ' (' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')'), link(g)].concat(g.isNew ? ['  ' + topicLine(g)] : [])
+      return [g.title + (g.isNew ? ' (' + tagOf(g) + ')' : ' (' + (g.replies.length === 1 ? '1 new' : g.replies.length + ' new') + ')'), link(g)].concat(g.isNew ? ['  ' + topicLine(g)] : [])
         .concat(g.replies.map(function (r) { return '  ' + r.by + ', ' + when(r.written) + ': ' + r.text; })).concat(['']);
     }))).concat([foot]).join('\n');
   var html = '<p>' + htmlEscape_(head) + '</p>' + groups.map(function (g) {
-    var tag = g.isNew ? 'new topic' + (g.replies.length ? ', ' + g.replies.length + ' new ' + (g.replies.length === 1 ? 'reply' : 'replies') : '') : (g.replies.length === 1 ? '1 new' : g.replies.length + ' new');
+    var tag = g.isNew ? tagOf(g) : (g.replies.length === 1 ? '1 new' : g.replies.length + ' new');
     return '<h3 style="margin:16px 0 4px"><a href="' + htmlEscape_(link(g)) + '">' + htmlEscape_(g.title) + '</a> <span style="color:#666;font-weight:normal">(' + tag + ')</span></h3>' +
       (g.isNew ? '<p style="margin:4px 0 8px">' + htmlEscape_(topicLine(g)).replace(/\n/g, '<br>') + '</p>' : '') +
       g.replies.map(function (r) { return '<p style="margin:4px 0 8px"><b>' + htmlEscape_(r.by) + '</b>, ' + htmlEscape_(when(r.written)) + '<br>' + htmlEscape_(r.text).replace(/\n/g, '<br>') + '</p>'; }).join('');
@@ -629,8 +649,9 @@ function forumDigestTick() {
     var groups = digestItems_(account, d.since, topics, replies, people);
     if (!groups.length) { digestWrite_(d, { sent: now, since: now, result: 'Nothing new: no email.' }); return; }
     try {
-      var n = digestMail_(account, groups), fresh = groups.filter(function (g) { return g.isNew; }).length;
-      digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + (fresh ? fresh + (fresh === 1 ? ' new topic, ' : ' new topics, ') : '') + n + (n === 1 ? ' reply.' : ' replies.') });
+      var n = digestMail_(account, groups), fresh = groups.filter(function (g) { return g.isNew && !g.older; }).length, waiting = groups.filter(function (g) { return g.older; }).length;
+      digestWrite_(d, { sent: now, since: now, result: 'Sent ' + Utilities.formatDate(now, Session.getScriptTimeZone(), 'MMM d, h:mm a') + ': ' + (fresh ? fresh + (fresh === 1 ? ' new topic, ' : ' new topics, ') : '') +
+        (waiting ? waiting + ' not opened yet, ' : '') + n + (n === 1 ? ' reply.' : ' replies.') });
       sent++;
       room--;
     } catch (e) {
