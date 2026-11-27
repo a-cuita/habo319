@@ -586,7 +586,13 @@
       var h = document.createElement('p'); h.className = 'lt-scrim-title'; h.textContent = title; box.appendChild(h);
       // Its lines scroll on their own, so a long one never pushes the buttons off the screen (S7-P21, |C1189).
       var body = document.createElement('div'); body.className = 'lt-ask-lines';
-      lines.forEach(function (t) { var p = document.createElement('p'); p.className = 'lt-ask-line'; p.textContent = t; body.appendChild(p); });
+      // A line given as [lead, rest] starts in bold (S7-P21, |C1219): "Without gloves:" and its rule.
+      lines.forEach(function (t) {
+        var p = document.createElement('p'); p.className = 'lt-ask-line';
+        if (Array.isArray(t)) { var s = document.createElement('strong'); s.textContent = t[0]; p.appendChild(s); p.appendChild(document.createTextNode(t[1])); }
+        else p.textContent = t;
+        body.appendChild(p);
+      });
       box.appendChild(body);
       buttons.forEach(function (b) {
         var x = document.createElement('button'); x.type = 'button'; x.className = b[2]; x.textContent = b[1]; x.dataset.key = b[0];
@@ -606,7 +612,7 @@
     if (!not.length || g.understood) return Promise.resolve(true);
     var lines = not.map(function (x) {
       var say = waiverSays(x[0]);
-      return 'Without ' + x[1] + ': ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.');
+      return ['Without ' + x[1] + ':', ' ' + (say.length ? 'your waiver says, "' + say.join(' ') + '"' : 'going without is at your own risk.')];
     });
     return askPop(p + '-gear-pop', 'Your safety gear', lines, [['back', 'Go back and tick it', 'btn btn-primary'], ['ok', 'I understand, at my own risk', 'btn btn-accent']]).then(function (k) {
       if (k === 'ok') { $(p + '-gear-understand').checked = true; return true; }
