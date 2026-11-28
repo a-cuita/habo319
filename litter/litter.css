@@ -407,6 +407,7 @@ html.lt-builder .lt-seg-more { background: #1f2937; }
 .lt-set-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .lt-set-number { width: 110px; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
 .lt-set-names, .lt-set-line-text { flex: 1 1 200px; min-width: 0; padding: 8px 10px; font: inherit; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); }
+.lt-set-ticks { display: flex; flex-wrap: wrap; gap: 6px 14px; } .lt-set-tick { display: inline-flex; align-items: center; gap: 4px; font-weight: 600; }
 .lt-set-choice { padding: 8px 10px; font: inherit; border-radius: var(--radius-sm); }
 .lt-set-colour { width: 52px; height: 40px; padding: 2px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); }
 .lt-set-unit { color: var(--text-dim); font-size: 0.92rem; }
@@ -975,3 +976,8 @@ button.lt-rh-cmdchip:hover, button.lt-rh-cmdchip:focus-visible { border-color: #
 .lt-shed-name { pointer-events: none; }
 .lt-shed-name span { display: none; transform: translate(-50%, -50%); white-space: nowrap; font: 600 11px/1.2 system-ui, sans-serif; color: #1d4ed8; background: rgba(255,255,255,0.75); padding: 1px 4px; border-radius: 4px; }
 .lt-sheds-near .lt-shed-name span { display: inline-block; }
+/* Cleanup templates (S7-P14 round 2) */
+.lt-cu-templates { display: grid; gap: 6px; }
+.lt-cu-tpl { align-items: flex-start; }
+.lt-cu-tpl span { line-height: 1.35; }
+.lt-cu-template .link-btn { font-size: inherit; }

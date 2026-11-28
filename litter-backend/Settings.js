@@ -105,6 +105,11 @@ function settingGroups_() {
     [SETTING_RH_EVERY, 'New lines every', 'While Street Talk is open, it looks for new lines this often.', 'number', 'seconds', 5, 300],
     [SETTING_GCHAT_MAX, 'gchat line length', 'The most characters a gchat line, a tell or a board note can have.', 'number', 'characters', 50, 5000],
     [SETTING_GCHAT_COLD, 'Cold storage after', 'Past this many gchat lines, or tells, the oldest move to the Gchat or Tells Sheet in the HABO Litter Cold Storage folder, the newest 1,000 staying.', 'number', 'lines', 1100, 100000]] },
+  // Cleanups (S7-P14 round 2, |Q1022 (a)): one list of what a team can ask for with Need,
+  // kept here, and which of it each template offers.
+  { key: 'cleanups', title: 'Cleanups', says: 'What a team can ask for with its Need button, and which each template offers.', rank: 'Builder', items: [
+    [SETTING_CLEANUP_NEEDS, 'Things a team can ask for', 'The Need button offers these, as each template ticks them below. Add one here, Save, then tick it for the templates that offer it.', 'lines', 20, 'Add a need']]
+    .concat(CLEANUP_TEMPLATES.map(function (t) { return [needsOfferedSetting_(t), 'Needs offered: ' + t.name, 'Which of the list ' + t.name + '\'s Need button offers.', 'ticks']; })) },
   { key: 'sayings', title: 'Sayings', says: 'What the page says while a walk starts.', rank: 'Builder', items: [
     [SETTING_START_SAYINGS, 'Sayings while a collection starts', 'One shows at random while a collection starts.', 'lines', 50]] }
   ];
@@ -131,9 +136,11 @@ function settingsGroupsFor_(account) {
     var note = g.key === 'forum' ? digestTimerState_() : (g.key === 'rates' || g.key === 'xp') && pastDue ? { say: pastDue, ok: false } : null;
     var out = { key: g.key, title: g.title, says: g.says || '', rank: g.rank, note: note ? note.say : '', noteWarn: !!note && !note.ok, items: g.items.map(function (it) {
       var v = getSetting_(it[0]), kind = it[3];
-      return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '', choices: kind === 'choice' ? it[4] : null,
-        min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null,
-        value: kind === 'lines' ? String(v).split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String) : String(v).trim() };
+      return { name: it[0], label: it[1], say: it[2], kind: kind, unit: kind === 'number' ? it[4] : '',
+        choices: kind === 'choice' ? it[4] : kind === 'ticks' ? cleanupNeeds_() : null,
+        min: kind === 'number' ? it[5] : null, max: kind === 'number' ? it[6] : kind === 'text' ? it[4] : null, addLabel: kind === 'lines' ? (it[5] || '') : '',
+        value: kind === 'lines' ? String(v).split(/\r?\n/).map(function (t) { return t.trim(); }).filter(String)
+          : kind === 'ticks' ? String(v).split(',').map(function (t) { return t.trim(); }).filter(String) : String(v).trim() };
     }) };
     // Move old walks now (S7-P3 round 2, |Q960 (a)): a Head Builder's button under "Walks kept in the live tabs".
     if (g.key === 'walks' && account.rank === 'Head Builder') out.items.forEach(function (it) { if (it.name === SETTING_KEEP_DAYS) it.action = 'archiveNow'; });
@@ -167,9 +174,12 @@ function settingsSave_(req) {
   }
   var wasPastDue = bonusPastDue_();
   var out = [];
+  // Ticks are checked against the list as it's being saved (a need added and ticked in one Save).
+  var needsNow = Object.prototype.hasOwnProperty.call(values, SETTING_CLEANUP_NEEDS)
+    ? String(settingValue_(g.items.filter(function (it) { return it[0] === SETTING_CLEANUP_NEEDS; })[0], values[SETTING_CLEANUP_NEEDS])).split('\n').filter(String) : null;
   g.items.forEach(function (it) {
     if (!Object.prototype.hasOwnProperty.call(values, it[0])) return;
-    out.push([it, settingValue_(it, values[it[0]])]);
+    out.push([it, settingValue_(it, values[it[0]], needsNow)]);
   });
   var changed = withLock_(function () {
     var n = 0;
@@ -253,8 +263,15 @@ function rangesText_(list) {
 }
 
 // A value from the page, checked for its kind; throws with what's wrong.
-function settingValue_(it, v) {
+function settingValue_(it, v, ticksFrom) {
   var label = it[1], kind = it[3];
+  if (kind === 'ticks') {
+    var from = ticksFrom || cleanupNeeds_();
+    var ticked = (Array.isArray(v) ? v : String(v || '').split(',')).map(function (x) { return String(x).trim(); }).filter(String);
+    var odd = ticked.filter(function (x) { return from.indexOf(x) === -1; });
+    if (odd.length) throw new Error(label + ': ' + odd.join(', ') + ' isn\'t on the list of things a team can ask for.');
+    return from.filter(function (x) { return ticked.indexOf(x) !== -1; }).join(', ');
+  }
   if (kind === 'number') {
     var t = String(v == null ? '' : v).trim(), n = Number(t);
     if (t === '' || !isFinite(n)) throw new Error(label + ' needs a number.');

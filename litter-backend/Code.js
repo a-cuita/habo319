@@ -322,21 +322,25 @@ var TABS = {
   // Team mode (S6-P27): cleanups, their teams, who's in which and on which segment, and the day's check-ins.
   cleanups: {
     name: 'Cleanups',
-    header: ['Cleanup ID', 'Name', 'Day', 'Starts', 'Ends', 'Segments', 'Teams register until', 'State', 'Made by', 'Made'],
-    widths: [90, 200, 100, 70, 70, 220, 150, 70, 100, 150],
-    formats: { 3: '@', 4: '@', 5: '@', 6: '@', 7: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm' }
+    // S7-P14 round 2: the templates a team may pick, and the Need button for the cleanup (|Q1021 (a)).
+    header: ['Cleanup ID', 'Name', 'Day', 'Starts', 'Ends', 'Segments', 'Teams register until', 'State', 'Made by', 'Made', 'Templates', 'Need button'],
+    widths: [90, 200, 100, 70, 70, 220, 150, 70, 100, 150, 220, 90],
+    formats: { 3: '@', 4: '@', 5: '@', 6: '@', 7: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm', 11: '@', 12: '@' }
   },
   cleanupTeams: {
     name: 'Cleanup teams',
-    header: ['Team ID', 'Cleanup ID', 'Name', 'Leaders', 'Registered by', 'Registered'],
-    widths: [80, 90, 180, 200, 100, 150],
-    formats: { 3: '@', 4: '@', 6: 'yyyy-mm-dd h:mm' }
+    // S7-P14 round 2: the template its Team Leader picked, and its Need button on the day (|Q1021 (a)).
+    header: ['Team ID', 'Cleanup ID', 'Name', 'Leaders', 'Registered by', 'Registered', 'Template', 'Need'],
+    widths: [80, 90, 180, 200, 100, 150, 120, 70],
+    formats: { 3: '@', 4: '@', 6: 'yyyy-mm-dd h:mm', 7: '@', 8: '@' }
   },
   cleanupPeople: {
     name: 'Cleanup people',
-    header: ['Cleanup ID', 'Account ID', 'Team ID', 'Segment', 'Joined'],
-    widths: [90, 90, 80, 90, 150],
-    formats: { 5: 'yyyy-mm-dd h:mm' }
+    // S7-P14 round 2 (items 7 to 9): each member's state on the day and its note, when they were last
+    // seen in the app, where their hours stop if changed (and why), and anyone under 18 with them.
+    header: ['Cleanup ID', 'Account ID', 'Team ID', 'Segment', 'Joined', 'State', 'State note', 'State at', 'Last seen', 'Hours to', 'Hours why', 'Under 18 with them'],
+    widths: [90, 90, 80, 90, 150, 110, 220, 150, 150, 150, 220, 90],
+    formats: { 5: 'yyyy-mm-dd h:mm', 6: '@', 7: '@', 8: 'yyyy-mm-dd h:mm', 9: 'yyyy-mm-dd h:mm', 10: 'yyyy-mm-dd h:mm', 11: '@' }
   },
   cleanupCheckins: {
     name: 'Cleanup check-ins',
@@ -470,6 +474,9 @@ function actions_() {
     cleanupPounds: cleanupPounds_,   // an admin fixes a team's pounds after the day (S6-P27)
     cleanupWeigh: cleanupWeigh_,   // a crew weighs on its segment (S7-P14)
     cleanupBag: cleanupBag_,   // where a crew left its bags (S7-P14)
+    cleanupNeedSwitch: cleanupNeedSwitch_,   // a Team Leader turns the team's Need button on or off on the day (S7-P14 round 2)
+    cleanupMember: cleanupMember_,   // a Team Leader's menu for a member, and their state on the day (S7-P14 round 2)
+    cleanupLeave: cleanupLeave_,   // I'm leaving, on a member's own phone (S7-P14 round 2)
     questState: questState_,
     // The Wiki (S6-P9).
     wikiLoad: wikiLoad_,
@@ -935,8 +942,9 @@ function missingSettings_(ss) {
     [SETTING_QUEST_STEP_XP, '1'],
     [SETTING_QUEST_DONE_XP, '5'],
     [SETTING_REVIEW_XP, '15'],
-    [SETTING_START_SAYINGS, '']
-  ].concat(DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS,
+    [SETTING_START_SAYINGS, ''],
+    [SETTING_CLEANUP_NEEDS, CLEANUP_NEEDS_SEED.join('\n')]
+  ].concat(CLEANUP_TEMPLATES.map(function (t) { return [needsOfferedSetting_(t), CLEANUP_NEEDS_SEED.join(', ')]; }), DARK_SETTINGS.map(function (d) { return [d[1], d[2]]; }), SEGMENT_SETTINGS,
     SHARE_PARTS.map(function (p) { return [p[1], 'As the layout']; })).filter(function (s) { return have.indexOf(s[0]) === -1; });
 }
 

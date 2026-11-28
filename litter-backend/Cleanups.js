@@ -10,9 +10,12 @@
  * for any walk (|Q721 (a)), with no Litter Index and no XP; its time is kept
  * as person-hours (members there × hours), shown on the cleanup on its own.
  */
-var CLEANUP_COL = { id: 1, name: 2, day: 3, starts: 4, ends: 5, segments: 6, until: 7, state: 8, by: 9, made: 10 };
-var TEAM_COL = { id: 1, cleanup: 2, name: 3, leaders: 4, by: 5, made: 6 };
-var PERSON_COL = { cleanup: 1, account: 2, team: 3, segment: 4, joined: 5 };
+var CLEANUP_COL = { id: 1, name: 2, day: 3, starts: 4, ends: 5, segments: 6, until: 7, state: 8, by: 9, made: 10, templates: 11, need: 12 };
+var TEAM_COL = { id: 1, cleanup: 2, name: 3, leaders: 4, by: 5, made: 6, template: 7, need: 8 };
+var PERSON_COL = { cleanup: 1, account: 2, team: 3, segment: 4, joined: 5, state: 6, note: 7, stateAt: 8, seen: 9, hoursTo: 10, hoursWhy: 11, minors: 12 };
+// A member's state set on the day (item 8): Not here today (the Team Leader's menu), Gone home
+// (I'm leaving, or the leader), Unknown (the leader, with a note), Removed (from the team).
+var CLEANUP_SET_STATES = ['Not here today', 'Gone home', 'Unknown', 'Removed'];
 var CHECKIN_COL = { id: 1, cleanup: 2, team: 3, segment: 4, by: 5, inAt: 6, outAt: 7, there: 8, pounds: 9, collection: 10, withNext: 11 };
 // S7-P14: a crew weighs on its segment as often as needed, all its bags together; a bag
 // carried on is weighed whole, and what was weighed before is taken away (|Q891 (a)).
@@ -22,6 +25,39 @@ var BAG_COL = { id: 1, cleanup: 2, team: 3, segment: 4, by: 5, at: 6, lat: 7, lo
 var CLEANUP_BAG_WHYS = ['Left for pickup', 'In a bin', 'In a dumpster that was there'];
 var CLEANUP_WEIGH_WORD = 'Weigh before you leave this segment: all the crew\'s bags together.';   // |M1215, item 6
 var CLEANUP_STATES = ['Open', 'Retired'];
+
+// Templates (S7-P14 round 2, items 1 to 5, |Q985 (a), |Q992): how a team runs its day. An
+// admin allows some when making a cleanup; each Team Leader picks one when registering.
+// weighs: who weighs (the crew on its segment, the floating Team Leader for any of the
+// team's segments, the pickup, or the leader at the table); checkin: each crew, or the
+// table; need: whether its Need button starts on (|Q1021 (a)); miles: whether drive miles are kept.
+var CLEANUP_TEMPLATES = [
+  { key: 'every-hand', name: 'Every hand a bag', weighs: 'crew', checkin: 'crew', need: false, miles: false,
+    says: 'Everyone carries a bag, and the Team Leader the scale. The crew weighs on each segment. No pickup.' },
+  { key: 'leapfrog', name: 'Leapfrog', weighs: 'leader', checkin: 'crew', need: true, miles: false,
+    says: 'Pairs on neighbouring segments. The Team Leader floats with the scale and weighs for any of the team\'s segments, picking which.' },
+  { key: 'truck', name: 'Truck pickup', weighs: 'pickup', checkin: 'crew', need: true, miles: true,
+    says: 'Crews don\'t weigh: they leave piles with a pin. The pickup, with no segment of their own, sees every pile not yet picked up, nearest first, and weighs each as they pick it up.' },
+  { key: 'base-table', name: 'Base table', weighs: 'table', checkin: 'table', need: false, miles: false,
+    says: 'The Team Leader, at a table, checks each group in and out, and weighs their bags for their segment. A walk-in signs the waiver on the leader\'s phone.' }
+];
+var CLEANUP_TEMPLATE_KEYS = CLEANUP_TEMPLATES.map(function (t) { return t.key; });
+// What Need can ask for (|Q1022 (a)): one list, in Settings; each template ticks which it offers.
+var SETTING_CLEANUP_NEEDS = 'Cleanup needs';
+var CLEANUP_NEEDS_SEED = ['Water', 'Gloves', 'Bags', 'First aid'];
+function needsOfferedSetting_(t) { return 'Needs offered: ' + t.name; }
+function cleanupTemplate_(key) { return CLEANUP_TEMPLATES.filter(function (t) { return t.key === key; })[0] || CLEANUP_TEMPLATES[0]; }
+function cleanupNeeds_() { return String(getSetting_(SETTING_CLEANUP_NEEDS) || '').split(/\r?\n/).map(function (x) { return x.trim(); }).filter(String); }
+function needsOffered_(t) {
+  var list = cleanupNeeds_();
+  return String(getSetting_(needsOfferedSetting_(t)) || '').split(',').map(function (x) { return x.trim(); }).filter(function (x) { return x && list.indexOf(x) !== -1; });
+}
+// Whether a team's Need button is on: the Team Leader's switch on the day, else the cleanup's,
+// else the template's (|Q1021 (a)).
+function needOn_(c, t) {
+  var v = (t && t.need) || c.need;
+  return v === 'On' ? true : v === 'Off' ? false : cleanupTemplate_(t && t.template).need;
+}
 
 function cleanupTime_(day, hm) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(day) || !/^\d{1,2}:\d{2}$/.test(hm)) return 0;
@@ -34,22 +70,32 @@ function cleanupsAll_() {
   return readRows_(TABS.cleanups, CLEANUP_COL).map(function (r) {
     var day = r.get('day') instanceof Date ? cleanupDayOf_(r.get('day').getTime()) : String(r.get('day'));
     var u = r.get('until');
+    var allowed = idList_(r.get('templates')).filter(function (k) { return CLEANUP_TEMPLATE_KEYS.indexOf(k) !== -1; });
     var c = { row: r.row, id: r.get('id'), name: r.get('name'), day: day, starts: String(r.get('starts')), ends: String(r.get('ends')),
-      segments: idList_(r.get('segments')), until: u instanceof Date ? u.getTime() : 0, state: r.get('state') === 'Retired' ? 'Retired' : 'Open', by: r.get('by') };
+      segments: idList_(r.get('segments')), until: u instanceof Date ? u.getTime() : 0, state: r.get('state') === 'Retired' ? 'Retired' : 'Open', by: r.get('by'),
+      // A cleanup made before templates allows them all.
+      templates: allowed.length ? allowed : CLEANUP_TEMPLATE_KEYS.slice(), need: /^(On|Off)$/.test(r.get('need')) ? r.get('need') : '' };
     c.startAt = cleanupTime_(c.day, c.starts); c.endAt = cleanupTime_(c.day, c.ends);
     return c;
   });
 }
 function cleanupTeamsAll_() {
   return readRows_(TABS.cleanupTeams, TEAM_COL).map(function (r) {
-    return { row: r.row, id: r.get('id'), cleanup: r.get('cleanup'), name: r.get('name'), leaders: idList_(r.get('leaders')) };
+    var tk = String(r.get('template') || '');
+    return { row: r.row, id: r.get('id'), cleanup: r.get('cleanup'), name: r.get('name'), leaders: idList_(r.get('leaders')),
+      // A team registered before templates runs as Every hand a bag, as teams did.
+      template: CLEANUP_TEMPLATE_KEYS.indexOf(tk) !== -1 ? tk : 'every-hand', need: /^(On|Off)$/.test(r.get('need')) ? r.get('need') : '' };
   });
 }
 function cleanupPeopleAll_() {
   return readRows_(TABS.cleanupPeople, PERSON_COL).map(function (r) {
     // A member can have several segments (S6-P27, |C1012): their ids, space-separated, in the order given.
     var segsOf = String(r.get('segment') || '').split(/\s+/).filter(String);
-    return { row: r.row, cleanup: r.get('cleanup'), account: r.get('account'), team: r.get('team'), segments: segsOf, segment: segsOf[0] || '' };
+    var t = function (k) { var v = r.get(k); return v instanceof Date ? v.getTime() : 0; };
+    var st = String(r.get('state') || '');
+    return { row: r.row, cleanup: r.get('cleanup'), account: r.get('account'), team: r.get('team'), segments: segsOf, segment: segsOf[0] || '',
+      state: CLEANUP_SET_STATES.indexOf(st) !== -1 ? st : '', note: String(r.get('note') || ''), stateAt: t('stateAt'), seen: t('seen'),
+      hoursTo: t('hoursTo'), hoursWhy: String(r.get('hoursWhy') || ''), minors: Math.max(0, Math.round(Number(r.get('minors')) || 0)) };
   });
 }
 function cleanupCheckinsAll_() {
@@ -81,6 +127,33 @@ function cleanupFind_(id) {
   return c;
 }
 
+/* ── A member on the day (items 7 to 9) ── */
+
+// A member's chip on the roster (item 8): set on the day (Gone home, Unknown, Not here today), or
+// from the team's check-ins: Not here yet, On segment N, Checked in (between segments), Done.
+function memberChip_(p, ins) {
+  if (p.state === 'Removed') return null;
+  if (p.state) return { chip: p.state, note: p.note, at: p.stateAt };
+  var mine = ins.filter(function (k) { return k.team === p.team && k.there.indexOf(p.account) !== -1; });
+  var open = mine.filter(function (k) { return !k.outAt; })[0];
+  if (open) { var n = p.segments.indexOf(open.segment) + 1; return { chip: n ? 'On segment ' + n : 'Checked in' }; }
+  if (!mine.length) return { chip: 'Not here yet' };
+  var done = p.segments.length > 0 && p.segments.every(function (s) { return mine.some(function (k) { return k.segment === s && k.outAt; }); });
+  return { chip: done ? 'Done' : 'Checked in' };
+}
+// A member's hours (item 8): on each segment from check-in to check-out (or now, while it's open),
+// stopping when they went home; an Unknown member's stop when they were last seen in the app,
+// unless an admin changed it, with a reason (|M1545).
+function memberStop_(p) { return p.hoursTo || (p.state === 'Gone home' && p.stateAt) || (p.state === 'Unknown' && (p.seen || p.stateAt)) || 0; }
+function memberHours_(p, ins, now) {
+  var stop = memberStop_(p);
+  return ins.filter(function (k) { return k.team === p.team && k.there.indexOf(p.account) !== -1; }).reduce(function (h, k) {
+    var end = k.outAt || now;
+    if (stop) end = Math.min(end, stop);
+    return h + Math.max(0, end - k.inAt) / 3600000;
+  }, 0);
+}
+
 /* ── What a player sees ── */
 
 function cleanupView_(c, account, names, segs, teams, people, checkins, now) {
@@ -92,18 +165,29 @@ function cleanupView_(c, account, names, segs, teams, people, checkins, now) {
   var ins = checkins.filter(function (k) { return k.cleanup === c.id; });
   var view = { id: c.id, name: c.name, day: c.day, starts: c.starts, ends: c.ends, segments: c.segments, until: c.until, state: c.state,
     registerOpen: now < (c.until || c.endAt), joinOpen: now < c.endAt, past: now >= c.endAt, today: cleanupDayOf_(now) === c.day,
-    myTeam: mine ? mine.team : '', placeMe: !!mine && !mine.team, mySegment: mine ? mine.segment : '', mySegments: mine ? mine.segments : [], admin: admin };
+    myTeam: mine ? mine.team : '', placeMe: !!mine && !mine.team, mySegment: mine ? mine.segment : '', mySegments: mine ? mine.segments : [], admin: admin,
+    templates: c.templates.map(function (k) { var t = cleanupTemplate_(k); return { key: t.key, name: t.name, says: t.says }; }), need: c.need,
+    myChip: mine ? (memberChip_(mine, checkins.filter(function (k) { return k.cleanup === c.id; })) || {}).chip || '' : '' };
   view.teams = myTeams.map(function (t) {
     var lead = t.leaders.indexOf(account.id) !== -1;
-    var members = people.filter(function (p) { return p.cleanup === c.id && p.team === t.id; }).map(function (p) {
-      var w = who(p.account); w.segment = p.segment; w.segments = p.segments; w.segmentName = p.segments.map(segName).join(', '); w.leader = t.leaders.indexOf(p.account) !== -1; return w;
+    var members = people.filter(function (p) { return p.cleanup === c.id && p.team === t.id && p.state !== 'Removed'; }).map(function (p) {
+      var w = who(p.account); w.segment = p.segment; w.segments = p.segments; w.segmentName = p.segments.map(segName).join(', '); w.leader = t.leaders.indexOf(p.account) !== -1;
+      // Numbered, in the order they'll be done (item 6, |C1027); its chip and hours so far (item 8); under 18 with them (item 9).
+      w.numbered = p.segments.map(function (s, i) { return { n: i + 1, id: s, name: segName(s) }; });
+      var chip = memberChip_(p, ins);
+      w.chip = chip ? chip.chip : ''; w.chipNote = chip && chip.note || ''; w.chipAt = chip && chip.at || 0;
+      w.hours = round_(memberHours_(p, ins, now), 2); w.minors = p.minors; w.seen = p.seen;
+      w.hoursTo = p.hoursTo; w.hoursWhy = p.hoursWhy;
+      return w;
     });
-    return { id: t.id, name: t.name, leaders: t.leaders.map(who), members: members, mine: !!mine && mine.team === t.id, lead: lead };
+    var tp = cleanupTemplate_(t.template);
+    return { id: t.id, name: t.name, leaders: t.leaders.map(who), members: members, mine: !!mine && mine.team === t.id, lead: lead,
+      template: tp.key, templateName: tp.name, weighs: tp.weighs, checkin: tp.checkin, needOn: needOn_(c, t), needSet: t.need, needs: needsOffered_(tp) };
   });
   var leads = view.teams.some(function (t) { return t.lead; });
   view.lead = leads;
   // Players asking to be placed: for a team's leaders and admins, who place them.
-  view.unplaced = admin || leads ? people.filter(function (p) { return p.cleanup === c.id && !p.team; }).map(function (p) { return who(p.account); }) : [];
+  view.unplaced = admin || leads ? people.filter(function (p) { return p.cleanup === c.id && !p.team && p.state !== 'Removed'; }).map(function (p) { return who(p.account); }) : [];
   var ws = cleanupWeighingsAll_().filter(function (x) { return x.cleanup === c.id; });
   view.checkins = ins.map(function (k) {
     var mine = ws.filter(function (x) { return x.checkin === k.id; }).sort(function (a, b) { return a.at - b.at; });
@@ -118,25 +202,43 @@ function cleanupView_(c, account, names, segs, teams, people, checkins, now) {
   view.weighWord = CLEANUP_WEIGH_WORD;
   view.bagWhys = CLEANUP_BAG_WHYS;
   // After (item 5): pounds by segment and by team, and each member's hours.
-  var bySeg = {}, byTeam = {}, hours = {};
+  var bySeg = {}, byTeam = {};
   ins.forEach(function (k) {
     if (!k.outAt || k.pounds == null) return;
     bySeg[k.segment] = (bySeg[k.segment] || 0) + k.pounds;
     byTeam[k.team] = (byTeam[k.team] || 0) + k.pounds;
-    var h = Math.max(0, k.outAt - k.inAt) / 3600000;
-    k.there.forEach(function (a) { hours[a] = (hours[a] || 0) + h; });
   });
+  // Hours (item 8): each member's, on closed check-ins, stopping where they went home or were last
+  // seen; anyone under 18 with them counts their hours too, under the adult, unnamed (item 9).
+  var hrs = people.filter(function (p) { return p.cleanup === c.id && p.team; }).map(function (p) {
+    var h = memberHours_(p, ins.filter(function (k) { return k.outAt; }), now);
+    return { id: p.account, handle: names[p.account] || 'a volunteer', hours: round_(h, 2), minors: p.minors, personHours: round_(h * (1 + p.minors), 2) };
+  }).filter(function (x) { return x.hours > 0; });
   view.results = {
     bySegment: Object.keys(bySeg).map(function (s) { return { segment: s, name: segName(s), pounds: round_(bySeg[s], 2) }; }),
     byTeam: Object.keys(byTeam).map(function (t) { var x = myTeams.filter(function (y) { return y.id === t; })[0]; return { team: t, name: x ? x.name : t, pounds: round_(byTeam[t], 2) }; }),
-    hours: Object.keys(hours).map(function (a) { return { id: a, handle: names[a] || 'a volunteer', hours: round_(hours[a], 2) }; }),
-    personHours: round_(Object.keys(hours).reduce(function (s, a) { return s + hours[a]; }, 0), 2) };
+    hours: hrs,
+    personHours: round_(hrs.reduce(function (s, x) { return s + x.personHours; }, 0), 2),
+    minors: hrs.reduce(function (s, x) { return s + x.minors; }, 0) };
   return view;
 }
 
 function cleanupsLoad_(req) {
   ensureSchema_();
-  return cleanupsFor_(requireAccount_(req.token));
+  var account = requireAccount_(req.token);
+  cleanupSeen_(account);
+  return cleanupsFor_(account);
+}
+// When a member was last seen in the app on a cleanup's day (item 8): an Unknown member's hours stop there.
+function cleanupSeen_(account) {
+  var now = Date.now(), today = cleanupDayOf_(now);
+  var open = cleanupsAll_().filter(function (c) { return c.state === 'Open' && c.day === today && now >= c.startAt - 3600000 && now <= c.endAt + 3 * 3600000; });
+  if (!open.length) return;
+  var ids = open.map(function (c) { return c.id; });
+  var stale = cleanupPeopleAll_().filter(function (p) { return ids.indexOf(p.cleanup) !== -1 && p.account === account.id && p.team && now - p.seen > 5 * 60000; });
+  if (!stale.length) return;
+  withLock_(function () { stale.forEach(function (p) { cleanupPersonPut_(p, { seen: now }); }); });
+  forgetReads_();
 }
 function cleanupsFor_(account) {
   var now = Date.now(), names = {};
@@ -173,7 +275,9 @@ function cleanupsFor_(account) {
       withNext: mineK.some(function (k) { return k.withNext === 'Next'; }), word: CLEANUP_WEIGH_WORD, bagWhys: CLEANUP_BAG_WHYS,
       members: team ? team.members.filter(function (m) { return m.segments.indexOf(seg) !== -1; }).map(function (m) { return { id: m.id, handle: m.handle }; }) : [] };
   });
-  return { cleanups: views, segments: segList, admin: isCleanupAdmin_(account), me: account.id, today: today };
+  return { cleanups: views, segments: segList, admin: isCleanupAdmin_(account), me: account.id, today: today,
+    // Every template, for New cleanup's ticks (S7-P14 round 2, item 1).
+    templates: CLEANUP_TEMPLATES.map(function (t) { return { key: t.key, name: t.name, says: t.says, need: t.need }; }) };
 }
 
 /* ── An admin's: making a cleanup ── */
@@ -200,6 +304,11 @@ function cleanupSave_(req) {
   segmentsAll_().forEach(function (g) { if (g.accepted) accepted[g.id] = true; });
   var segments = (Array.isArray(x.segments) ? x.segments : []).map(String).filter(function (id, i, a) { return accepted[id] && a.indexOf(id) === i; });
   if (!segments.length) throw new Error('Pick its segments on the map.');
+  // The templates its teams may pick (item 1), and its Need button (|Q1021 (a)): as each template has it, or on or off for all.
+  var templates = (Array.isArray(x.templates) ? x.templates : CLEANUP_TEMPLATE_KEYS).map(String).filter(function (k, i, a) { return CLEANUP_TEMPLATE_KEYS.indexOf(k) !== -1 && a.indexOf(k) === i; });
+  if (!templates.length) throw new Error('Allow at least one template.');
+  var need = String(x.need || '');
+  if (need && !/^(On|Off)$/.test(need)) throw new Error('The Need button is as each template has it, On, or Off.');
   return withLock_(function () {
     var sheet = getDb_().getSheetByName(TABS.cleanups.name), all = cleanupsAll_();
     var id = clean_(x.id, 20), had = id ? all.filter(function (c) { return c.id === id; })[0] : null;
@@ -207,12 +316,14 @@ function cleanupSave_(req) {
     var row = had ? sheet.getRange(had.row, 1, 1, TABS.cleanups.header.length).getValues()[0] : blankRow_(TABS.cleanups);
     row[CLEANUP_COL.name - 1] = safeCell_(name); row[CLEANUP_COL.day - 1] = day; row[CLEANUP_COL.starts - 1] = starts; row[CLEANUP_COL.ends - 1] = ends;
     row[CLEANUP_COL.segments - 1] = segments.join(' '); row[CLEANUP_COL.until - 1] = until ? new Date(until) : '';
+    row[CLEANUP_COL.templates - 1] = templates.join(' '); row[CLEANUP_COL.need - 1] = need;
     if (!had) {
       row[CLEANUP_COL.id - 1] = nextId_('CU', all.map(function (c) { return c.id; }));
       row[CLEANUP_COL.state - 1] = 'Open'; row[CLEANUP_COL.by - 1] = account.handle || account.email; row[CLEANUP_COL.made - 1] = new Date();
     }
     sheet.getRange(had ? had.row : lastRowWith_(sheet, CLEANUP_COL.id) + 1, 1, 1, row.length).setValues([row]);
-    logChange_(account.email, 'Cleanup', row[CLEANUP_COL.id - 1], had ? 'Changed' : 'Made', had ? had.name : '', name + ', ' + day + ' ' + starts + ' to ' + ends + ', ' + segments.join(' '));
+    logChange_(account.email, 'Cleanup', row[CLEANUP_COL.id - 1], had ? 'Changed' : 'Made', had ? had.name : '', name + ', ' + day + ' ' + starts + ' to ' + ends + ', ' + segments.join(' ') +
+      '; templates ' + templates.join(' ') + (need ? '; Need ' + need : ''));
     return cleanupsFor_(account);
   });
 }
@@ -235,7 +346,12 @@ function cleanupPersonSet_(cleanupId, accountId, team, segment) {
   if (Array.isArray(segment)) segment = segment.join(' ');
   var sheet = getDb_().getSheetByName(TABS.cleanupPeople.name);
   var had = cleanupPeopleAll_().filter(function (p) { return p.cleanup === cleanupId && p.account === accountId; })[0];
-  if (had) { sheet.getRange(had.row, PERSON_COL.team, 1, 2).setValues([[team, segment]]); return; }
+  if (had) {
+    sheet.getRange(had.row, PERSON_COL.team, 1, 2).setValues([[team, segment]]);
+    // Removed from a team, then in one again (S7-P14 round 2, item 7): no longer Removed.
+    if (had.state === 'Removed' && team) sheet.getRange(had.row, PERSON_COL.state, 1, 3).setValues([['', '', '']]);
+    return;
+  }
   var row = blankRow_(TABS.cleanupPeople);
   row[PERSON_COL.cleanup - 1] = cleanupId; row[PERSON_COL.account - 1] = accountId; row[PERSON_COL.team - 1] = team;
   row[PERSON_COL.segment - 1] = segment; row[PERSON_COL.joined - 1] = new Date();
@@ -258,6 +374,9 @@ function cleanupRegister_(req) {
     });
     // One leader is enough (Jeremy, |S6-U47: there won't always be two).
     if (!leaders.length) throw new Error('A team needs a leader: give their handle.');
+    // The template its Team Leader picks, from those the cleanup allows (item 1).
+    var template = String(req.template || '') || c.templates[0];
+    if (c.templates.indexOf(template) === -1) throw new Error('Pick one of ' + c.name + '\'s templates: ' + c.templates.map(function (k) { return cleanupTemplate_(k).name; }).join(', ') + '.');
     var teams = cleanupTeamsAll_().filter(function (t) { return t.cleanup === c.id; });
     if (teams.some(function (t) { return t.name.toLowerCase() === name.toLowerCase(); })) throw new Error('A team in this cleanup is called ' + name + ' already.');
     var busy = teams.filter(function (t) { return t.leaders.some(function (l) { return leaders.indexOf(l) !== -1; }); })[0];
@@ -265,11 +384,11 @@ function cleanupRegister_(req) {
     var sheet = getDb_().getSheetByName(TABS.cleanupTeams.name), row = blankRow_(TABS.cleanupTeams);
     var id = nextId_('TM', cleanupTeamsAll_().map(function (t) { return t.id; }));
     row[TEAM_COL.id - 1] = id; row[TEAM_COL.cleanup - 1] = c.id; row[TEAM_COL.name - 1] = safeCell_(name); row[TEAM_COL.leaders - 1] = leaders.join(' ');
-    row[TEAM_COL.by - 1] = account.id; row[TEAM_COL.made - 1] = new Date();
+    row[TEAM_COL.by - 1] = account.id; row[TEAM_COL.made - 1] = new Date(); row[TEAM_COL.template - 1] = template;
     sheet.getRange(lastRowWith_(sheet, TEAM_COL.id) + 1, 1, 1, row.length).setValues([row]);
     // Its leaders are its first members, and so is whoever registered it.
     leaders.concat(leaders.indexOf(account.id) === -1 ? [account.id] : []).forEach(function (a) { cleanupPersonSet_(c.id, a, id, ''); });
-    logChange_(account.email, 'Cleanup team', id, 'Registered', '', name + ' for ' + c.id + ', led by ' + leaders.join(' '));
+    logChange_(account.email, 'Cleanup team', id, 'Registered', '', name + ' for ' + c.id + ', led by ' + leaders.join(' ') + ', ' + cleanupTemplate_(template).name);
     return cleanupsFor_(account);
   });
 }
@@ -287,6 +406,115 @@ function cleanupJoin_(req) {
     if (teamId && !team) throw new Error('That team isn\'t here any more.');
     cleanupPersonSet_(c.id, account.id, team ? team.id : '', '');
     logChange_(account.email, 'Cleanup', c.id, 'Joined', '', team ? team.name : 'Asked to be placed');
+    return cleanupsFor_(account);
+  });
+}
+
+// A Team Leader turns the team's Need button on or off on the day; an admin can too (|Q1021 (a)).
+function cleanupNeedSwitch_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return withLock_(function () {
+    var c = cleanupFind_(clean_(req.cleanupId, 20));
+    var t = cleanupTeamsAll_().filter(function (x) { return x.id === clean_(req.teamId, 20) && x.cleanup === c.id; })[0];
+    if (!t) throw new Error('That team isn\'t in this cleanup.');
+    if (t.leaders.indexOf(account.id) === -1 && !isCleanupAdmin_(account)) throw new Error('Only ' + t.name + '\'s leaders turn its Need button on or off.');
+    var v = req.on ? 'On' : 'Off';
+    getDb_().getSheetByName(TABS.cleanupTeams.name).getRange(t.row, TEAM_COL.need).setValue(v);
+    logChange_(account.email, 'Cleanup team', t.id, 'Need button', t.need || (needOn_(c, t) ? 'On' : 'Off'), v);
+    forgetReads_();
+    return cleanupsFor_(account);
+  });
+}
+
+/* ── A Team Leader's menu for a member (item 7), and their state on the day (item 8) ── */
+
+// Writes some of a member's columns: { state, note, stateAt, team, segments, hoursTo, hoursWhy, minors, seen }.
+function cleanupPersonPut_(p, fields) {
+  var sheet = getDb_().getSheetByName(TABS.cleanupPeople.name);
+  Object.keys(fields).forEach(function (k) {
+    var col = k === 'segments' ? PERSON_COL.segment : PERSON_COL[k], v = fields[k];
+    if (k === 'segments') v = (v || []).join(' ');
+    if ((k === 'stateAt' || k === 'hoursTo' || k === 'seen') && v) v = new Date(v);
+    sheet.getRange(p.row, col).setValue(v == null ? '' : v);
+  });
+}
+var CLEANUP_MEMBER_ACTS = ['promote', 'stepDown', 'notHere', 'here', 'unknown', 'goneHome', 'remove', 'move', 'hoursTo'];
+function cleanupMember_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  var act = String(req.act || '');
+  if (CLEANUP_MEMBER_ACTS.indexOf(act) === -1) throw new Error('That isn\'t something to do for a member.');
+  return withLock_(function () {
+    var c = cleanupFind_(clean_(req.cleanupId, 20)), now = Date.now();
+    var who = clean_(req.accountId, 20);
+    var p = cleanupPeopleAll_().filter(function (x) { return x.cleanup === c.id && x.account === who && x.state !== 'Removed'; })[0];
+    if (!p || !p.team) throw new Error('They aren\'t in a team in this cleanup.');
+    var teams = cleanupTeamsAll_().filter(function (t) { return t.cleanup === c.id; });
+    var t = teams.filter(function (x) { return x.id === p.team; })[0];
+    var admin = isCleanupAdmin_(account), lead = t && t.leaders.indexOf(account.id) !== -1;
+    // Changing an Unknown member's hours is an admin's, with a reason (|M1545); the rest, the team's leaders' or an admin's.
+    if (act === 'hoursTo' ? !admin : (!lead && !admin)) throw new Error(act === 'hoursTo' ? 'Changing someone\'s hours is for HABO\'s admins.' : 'Only ' + t.name + '\'s leaders do that.');
+    var isLeader = t.leaders.indexOf(who) !== -1, teamSheet = getDb_().getSheetByName(TABS.cleanupTeams.name);
+    var name = (readAccounts_().filter(function (a) { return a.id === who; })[0] || {}).handle || who;
+    var before = p.state || '', after = '';
+    if (act === 'promote') {
+      if (isLeader) throw new Error(name + ' leads ' + t.name + ' already.');
+      teamSheet.getRange(t.row, TEAM_COL.leaders).setValue(t.leaders.concat([who]).join(' '));
+      before = 'Member'; after = 'Team Leader';
+    } else if (act === 'stepDown') {
+      if (!isLeader) throw new Error(name + ' isn\'t one of ' + t.name + '\'s leaders.');
+      if (t.leaders.length < 2) throw new Error(t.name + ' needs a leader: promote someone else first.');
+      teamSheet.getRange(t.row, TEAM_COL.leaders).setValue(t.leaders.filter(function (x) { return x !== who; }).join(' '));
+      before = 'Team Leader'; after = 'Member';
+    } else if (act === 'notHere' || act === 'goneHome') {
+      after = act === 'notHere' ? 'Not here today' : 'Gone home';
+      cleanupPersonPut_(p, { state: after, note: clean_(req.note, 300), stateAt: now });
+    } else if (act === 'unknown') {
+      // Unknown asks for a note before it saves (item 8): what's known, so someone can follow up.
+      var note = clean_(req.note, 300);
+      if (!note) throw new Error('Say what you know before marking them Unknown: when and where they were last seen.');
+      after = 'Unknown';
+      cleanupPersonPut_(p, { state: after, note: note, stateAt: now });
+    } else if (act === 'here') {
+      cleanupPersonPut_(p, { state: '', note: '', stateAt: '' });
+    } else if (act === 'remove' || act === 'move') {
+      if (isLeader) throw new Error(name + ' leads ' + t.name + ': step them down first.');
+      if (act === 'remove') {
+        cleanupPersonPut_(p, { state: 'Removed', team: '', segments: [], stateAt: now });
+        before = t.name; after = 'Removed';
+      } else {
+        var to = teams.filter(function (x) { return x.id === clean_(req.teamId, 20) && x.id !== t.id; })[0];
+        if (!to) throw new Error('Pick another team in this cleanup.');
+        cleanupPersonPut_(p, { team: to.id, segments: [], state: '', note: '', stateAt: '' });
+        before = t.name; after = to.name;
+      }
+    } else if (act === 'hoursTo') {
+      var m = /^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2})$/.exec(String(req.hoursTo || ''));
+      var why = clean_(req.why, 300);
+      if (!m) throw new Error('Give the time their hours stop, like ' + c.day + ' 11:30.');
+      if (!why) throw new Error('Say why their hours stop then.');
+      var stop = cleanupTime_(m[1], m[2]);
+      cleanupPersonPut_(p, { hoursTo: stop, hoursWhy: why });
+      before = p.hoursTo ? Utilities.formatDate(new Date(p.hoursTo), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm') : (memberStop_(p) ? 'last seen' : '');
+      after = m[1] + ' ' + m[2] + ': ' + why;
+    }
+    logChange_(account.email, 'Cleanup member', c.id + ' ' + who, act === 'hoursTo' ? 'Hours to' : act === 'promote' || act === 'stepDown' ? 'Role' : act === 'remove' || act === 'move' ? 'Team' : 'State', before, after);
+    forgetReads_();
+    return cleanupsFor_(account);
+  });
+}
+// I'm leaving, on a member's own phone (item 8): Gone home, now.
+function cleanupLeave_(req) {
+  ensureSchema_();
+  var account = requireAccount_(req.token);
+  return withLock_(function () {
+    var c = cleanupFind_(clean_(req.cleanupId, 20)), now = Date.now();
+    var p = cleanupPeopleAll_().filter(function (x) { return x.cleanup === c.id && x.account === account.id && x.team && x.state !== 'Removed'; })[0];
+    if (!p) throw new Error('You aren\'t in a team in ' + c.name + '.');
+    cleanupPersonPut_(p, { state: 'Gone home', note: 'Said so in the app', stateAt: now });
+    logChange_(account.email, 'Cleanup member', c.id + ' ' + account.id, 'State', p.state || '', 'Gone home');
+    forgetReads_();
     return cleanupsFor_(account);
   });
 }
@@ -342,7 +570,7 @@ function cleanupCheckIn_(req) {
       if (!me || !me.team || !me.segments.length) throw new Error('Your team\'s leaders haven\'t assigned you a segment yet.');
       seg = clean_(req.segmentId, 20) || me.segment;
       if (me.segments.indexOf(seg) === -1) throw new Error('That isn\'t one of your segments.');
-      crew = people.filter(function (p) { return p.team === me.team && p.segments.indexOf(seg) !== -1; }).map(function (p) { return p.account; });
+      crew = people.filter(function (p) { return p.team === me.team && p.segments.indexOf(seg) !== -1 && p.state !== 'Removed'; }).map(function (p) { return p.account; });
     }
     var there = (Array.isArray(req.there) ? req.there : crew).map(String).filter(function (a, i, arr) { return crew.indexOf(a) !== -1 && arr.indexOf(a) === i; });
     if (!there.length) throw new Error('Tick who\'s there.');
@@ -356,6 +584,20 @@ function cleanupCheckIn_(req) {
     if (forTeam) there.forEach(function (a) {
       var p = people.filter(function (x) { return x.account === a; })[0], had = p && p.team === forTeam ? p.segments : [];
       cleanupPersonSet_(c.id, a, forTeam, had.indexOf(seg) === -1 ? had.concat([seg]) : had);
+    });
+    // Anyone under 18 with a member (item 9): a number beside each, counted under them.
+    var minors = req.minors && typeof req.minors === 'object' ? req.minors : {};
+    people.forEach(function (p) {
+      if (there.indexOf(p.account) === -1) return;
+      var fields = {};
+      if (Object.prototype.hasOwnProperty.call(minors, p.account)) {
+        var n = Math.round(Number(minors[p.account]));
+        if (!(n >= 0 && n <= 30)) throw new Error('Under 18 with someone: a number from 0 to 30.');
+        fields.minors = n;
+      }
+      // Ticked at check-in: here after all.
+      if (p.state === 'Not here today' || p.state === 'Unknown') { fields.state = ''; fields.note = ''; fields.stateAt = ''; }
+      if (Object.keys(fields).length) cleanupPersonPut_(p, fields);
     });
     logChange_(account.email, 'Cleanup check-in', id, 'In', '', c.id + ' ' + seg + ', ' + there.length + ' there' + (forTeam ? ', by an admin' : ''));
     return cleanupsFor_(account);

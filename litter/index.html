@@ -1010,6 +1010,15 @@
         <div class="lt-qb-map" id="cu-f-map" aria-label="Map of the public segments"></div>
         <div class="lt-qb-segs" id="cu-f-segs"></div>
       </div>
+      <!-- S7-P14 round 2: the templates a team may pick (item 1), and the Need button (|Q1021 (a)). -->
+      <div class="ig">
+        <span class="lt-label">Templates teams can pick</span>
+        <p class="muted small">How a team runs its day. Each Team Leader picks one of these when registering.</p>
+        <div class="lt-cu-templates" id="cu-f-templates"></div>
+      </div>
+      <div class="ig"><label for="cu-f-need">The Need button</label>
+        <select class="lt-select" id="cu-f-need"><option value="">As each template has it</option><option value="On">On for every team</option><option value="Off">Off for every team</option></select>
+        <p class="muted small">A Team Leader can still turn it on or off on the day.</p></div>
       <button class="btn btn-primary" id="cu-f-save" type="button">Save</button>
       <button class="btn btn-secondary" id="cu-f-cancel" type="button">Cancel</button>
       <p class="err" id="cu-f-err" role="alert"></p>
@@ -1047,6 +1056,8 @@
         <div class="ig"><label for="cu-reg-name">Team name</label><input id="cu-reg-name" maxlength="60"></div>
         <div class="ig"><label for="cu-reg-l1">A leader's handle</label><input id="cu-reg-l1" maxlength="40" autocomplete="off"></div>
         <div class="ig"><label for="cu-reg-l2">Another leader's handle (if there is one)</label><input id="cu-reg-l2" maxlength="40" autocomplete="off"></div>
+        <div class="ig"><label for="cu-reg-template">How your team runs its day</label><select class="lt-select" id="cu-reg-template"></select>
+          <p class="muted small" id="cu-reg-template-says"></p></div>
         <button class="btn btn-primary" id="cu-reg-go" type="button">Register the team</button>
       </div>
       <!-- An admin's tools on the day and after (S6-P27 items 3, 4 and 8, |Q781 (a)). -->

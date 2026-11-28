@@ -173,6 +173,18 @@ window.LitterCleanups = function (app) {
       var card = el('div', 'lt-cu-team' + (t.mine ? ' mine' : ''));
       card.appendChild(el('p', 'lt-cu-team-name', t.name + (t.mine ? ' (your team)' : '')));
       card.appendChild(el('p', 'muted small', 'Leaders: ' + t.leaders.map(function (l) { return l.handle; }).join(', ')));
+      // Its template (item 1), and its Need button: its leaders turn it on or off on the day (|Q1021 (a)).
+      var tp = el('p', 'muted small lt-cu-template');
+      tp.appendChild(document.createTextNode('Template: ' + t.templateName + ' · Need button: ' + (t.needOn ? 'On' : 'Off')));
+      if ((t.lead || admin()) && !c.past) {
+        var sw = button('link-btn lt-cu-need', t.needOn ? 'Turn it off' : 'Turn it on', function () {
+          send('cleanupNeedSwitch', { cleanupId: c.id, teamId: t.id, on: !t.needOn }, sw, 'cu-one-err');
+        });
+        sw.id = 'cu-need-' + t.id;
+        tp.appendChild(document.createTextNode(' '));
+        tp.appendChild(sw);
+      }
+      card.appendChild(tp);
       var ul = el('ul', 'lt-cu-members');
       t.members.forEach(function (m) {
         var li = el('li');
@@ -221,6 +233,14 @@ window.LitterCleanups = function (app) {
     // In Admin Mode, a player's actions as well as an admin's tools (|C968): Cleanups is
     // Admin Mode's only for now, so an admin can play a team through it (S7-P14, |M1221).
     $('cu-register').hidden = !c.registerOpen || !!leadOf;
+    // The templates this cleanup allows: the Team Leader picks one (item 1).
+    var ts = $('cu-reg-template'), keep = ts.value;
+    ts.textContent = '';
+    (c.templates || []).forEach(function (t) { var o = el('option', null, t.name); o.value = t.key; ts.appendChild(o); });
+    if (keep && (c.templates || []).some(function (t) { return t.key === keep; })) ts.value = keep;
+    var says = function () { var t = (c.templates || []).filter(function (x) { return x.key === ts.value; })[0]; $('cu-reg-template-says').textContent = t ? t.says : ''; };
+    ts.onchange = says;
+    says();
     var me = app.me && app.me();
     if (me && !$('cu-reg-l1').value) $('cu-reg-l1').value = me.handle || '';   // you, to start
     $('cu-join').hidden = !c.joinOpen || !!leadOf;
@@ -357,7 +377,7 @@ window.LitterCleanups = function (app) {
   }
   $('cu-reg-go').addEventListener('click', function () {
     var c = current();
-    return send('cleanupRegister', { cleanupId: c.id, name: $('cu-reg-name').value, leaders: [$('cu-reg-l1').value, $('cu-reg-l2').value] }, $('cu-reg-go'), 'cu-one-err',
+    return send('cleanupRegister', { cleanupId: c.id, name: $('cu-reg-name').value, leaders: [$('cu-reg-l1').value, $('cu-reg-l2').value], template: $('cu-reg-template').value }, $('cu-reg-go'), 'cu-one-err',
       function () { $('cu-reg-name').value = ''; $('cu-reg-l2').value = ''; });
   });
   $('cu-join-go').addEventListener('click', function () { var c = current(); return send('cleanupJoin', { cleanupId: c.id, teamId: $('cu-join-team').value }, $('cu-join-go'), 'cu-one-err'); });
@@ -379,6 +399,20 @@ window.LitterCleanups = function (app) {
     $('cu-f-err').textContent = '';
     picked = c ? c.segments.slice() : [];
     drawPicker();
+    // Its templates: all ticked for a new cleanup (item 1); its Need button (|Q1021 (a)).
+    var box = $('cu-f-templates'), allowed = c ? (c.templates || []).map(function (t) { return t.key; }) : null;
+    box.textContent = '';
+    (data.templates || []).forEach(function (t) {
+      var lab = el('label', 'choice-row lt-cu-tpl'), cb = el('input');
+      cb.type = 'checkbox'; cb.value = t.key; cb.checked = !allowed || allowed.indexOf(t.key) !== -1;
+      lab.appendChild(cb);
+      var words = el('span');
+      words.appendChild(el('b', null, t.name));
+      words.appendChild(document.createTextNode(' (Need button ' + (t.need ? 'on' : 'off') + '): ' + t.says));
+      lab.appendChild(words);
+      box.appendChild(lab);
+    });
+    $('cu-f-need').value = c ? (c.need || '') : '';
     $('cu-f-name').focus();
   }
   function drawPicker() {
@@ -406,7 +440,9 @@ window.LitterCleanups = function (app) {
   $('cu-f-save').addEventListener('click', function () {
     var was = editing;
     return send('cleanupSave', { cleanup: { id: was ? was.id : '', name: $('cu-f-name').value, day: $('cu-f-day').value, starts: $('cu-f-starts').value,
-      ends: $('cu-f-ends').value, until: $('cu-f-until').value, segments: picked } }, $('cu-f-save'), 'cu-f-err', function () {
+      ends: $('cu-f-ends').value, until: $('cu-f-until').value, segments: picked,
+      templates: Array.prototype.filter.call($('cu-f-templates').querySelectorAll('input'), function (x) { return x.checked; }).map(function (x) { return x.value; }),
+      need: $('cu-f-need').value } }, $('cu-f-save'), 'cu-f-err', function () {
       editing = null;
       $('cu-form').hidden = true;
       if (was) openId = was.id;

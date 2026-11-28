@@ -205,6 +205,20 @@ window.LitterSettings = function (app) {
       tx.id = id; tx.value = it.value; tx.autocomplete = 'off'; tx.maxLength = it.max || 60;
       row.appendChild(tx);
       value = function () { return tx.value; };
+    } else if (it.kind === 'ticks') {
+      // Which of a list, ticked (S7-P14 round 2, |Q1022 (a)): the needs each cleanup template offers.
+      var ticks = el('div', 'lt-set-ticks');
+      ticks.id = id;
+      (it.choices || []).forEach(function (o) {
+        var lab = el('label', 'lt-set-tick');
+        var cb = el('input');
+        cb.type = 'checkbox'; cb.value = o; cb.checked = (it.value || []).indexOf(o) !== -1;
+        lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + o));
+        ticks.appendChild(lab);
+      });
+      if (!(it.choices || []).length) ticks.appendChild(el('p', 'muted small', 'Nothing on the list yet.'));
+      row.appendChild(ticks);
+      value = function () { return Array.prototype.filter.call(ticks.querySelectorAll('input'), function (x) { return x.checked; }).map(function (x) { return x.value; }); };
     } else if (it.kind === 'names') {
       var t = el('input', 'lt-set-names');
       t.id = id; t.value = it.value; t.autocomplete = 'off';
@@ -216,7 +230,7 @@ window.LitterSettings = function (app) {
       var add = function (text) {
         var line = el('div', 'lt-set-line');
         var inp = el('input', 'lt-set-line-text');
-        inp.value = text || ''; inp.maxLength = 300; inp.setAttribute('aria-label', 'A saying');
+        inp.value = text || ''; inp.maxLength = 300; inp.setAttribute('aria-label', it.addLabel ? it.addLabel.replace(/^Add /, '').replace(/^a /, 'A ') : 'A saying');
         var rm = el('button', 'btn btn-secondary lt-set-remove', 'Remove');
         rm.type = 'button';
         rm.addEventListener('click', function () { line.remove(); });
@@ -225,7 +239,7 @@ window.LitterSettings = function (app) {
         return inp;
       };
       (it.value || []).forEach(function (x) { add(x); });
-      var more = el('button', 'btn btn-secondary lt-set-add', 'Add a saying');
+      var more = el('button', 'btn btn-secondary lt-set-add', it.addLabel || 'Add a saying');
       more.type = 'button';
       more.id = id;
       more.addEventListener('click', function () { add('').focus(); });
