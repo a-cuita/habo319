@@ -187,15 +187,38 @@ window.LitterCleanups = function (app) {
       card.appendChild(tp);
       var ul = el('ul', 'lt-cu-members');
       t.members.forEach(function (m) {
-        var li = el('li');
-        var label = m.handle + (m.leader ? ' ★' : '') + ': ' + (m.segmentName || 'no segment yet');
-        if (t.lead && !c.past) {
-          var b = button('lt-cu-member' + (pick === m.id ? ' on' : ''), label, function () { pick = pick === m.id ? '' : m.id; drawOne(); });
-          b.id = 'cu-member-' + m.id;
-          li.appendChild(b);
-        } else li.textContent = label;
-        // An admin moves someone to another team (S6-P27 item 1, |Q781 (a)).
-        if (admin() && !c.past && c.teams.length > 1) li.appendChild(moveSelect(c, m.id, t.id));
+        var li = el('li', 'lt-cu-mrow');
+        var canLead = (t.lead || admin()) && !c.past;
+        // Tap a member's name for their menu (S7-P14 round 2, item 7).
+        var nameEl = canLead ? button('lt-cu-member' + (pick === m.id ? ' on' : ''), m.handle + (m.leader ? ' ★' : ''), function () { memberMenu(c, t, m); })
+          : el('span', 'lt-cu-mname', m.handle + (m.leader ? ' ★' : ''));
+        nameEl.id = 'cu-member-' + m.id;
+        li.appendChild(nameEl);
+        // Their chip (item 8), and anyone under 18 with them (item 9).
+        if (m.chip) { var ch = el('span', 'lt-cu-chip lt-cu-chip-' + m.chip.replace(/[^a-z0-9]+/gi, '-').toLowerCase(), m.chip); ch.id = 'cu-chip-' + m.id; li.appendChild(ch); }
+        if (m.minors) li.appendChild(el('span', 'muted small lt-cu-minors', '+' + m.minors + ' under 18'));
+        // Their segments, numbered in the order they'll be done, each with × (item 6); a list to add one.
+        var segRow = el('div', 'lt-cu-msegs');
+        (m.numbered || []).forEach(function (x) {
+          var chip = el('span', 'lt-cu-seg', x.n + '. ' + x.name);
+          if (canLead) {
+            var rm = button('lt-cu-seg-x', '×', function () { assign(m.id, x.id, true, rm); });
+            rm.id = 'cu-segx-' + m.id + '-' + x.id; rm.setAttribute('aria-label', 'Take ' + x.name + ' off ' + m.handle);
+            chip.appendChild(rm);
+          }
+          segRow.appendChild(chip);
+        });
+        if (canLead) {
+          var sel = el('select', 'lt-select lt-cu-addseg');
+          sel.id = 'cu-addseg-' + m.id; sel.setAttribute('aria-label', 'Assigned segment for ' + m.handle);
+          var o0 = el('option', null, (m.numbered || []).length ? 'Add a segment…' : 'None assigned yet');
+          o0.value = ''; sel.appendChild(o0);
+          c.segments.forEach(function (sid) { if ((m.segments || []).indexOf(sid) === -1) { var o = el('option', null, segName(sid)); o.value = sid; sel.appendChild(o); } });
+          sel.addEventListener('change', function () { if (sel.value) assign(m.id, sel.value, true, sel); });
+          segRow.appendChild(sel);
+        } else if (!(m.numbered || []).length) segRow.appendChild(el('span', 'muted small', 'None assigned yet'));
+        li.appendChild(segRow);
+        if (m.chipNote && (m.chip === 'Unknown' || m.chip === 'Not here today')) li.appendChild(el('p', 'small lt-cu-chipnote', m.chipNote));
         ul.appendChild(li);
       });
       card.appendChild(ul);
@@ -254,7 +277,8 @@ window.LitterCleanups = function (app) {
     res.hidden = !r.bySegment.length;
     $('cu-res-segs').textContent = r.bySegment.map(function (x) { return x.name + ': ' + x.pounds + ' lb'; }).join(' · ');
     $('cu-res-teams').textContent = r.byTeam.map(function (x) { return x.name + ': ' + x.pounds + ' lb'; }).join(' · ');
-    $('cu-res-hours').textContent = r.hours.map(function (x) { return x.handle + ': ' + x.hours + ' h'; }).join(' · ') + (r.hours.length ? ' (' + r.personHours + ' person-hours in all)' : '');
+    $('cu-res-hours').textContent = r.hours.map(function (x) { return x.handle + ': ' + x.hours + ' h' + (x.minors ? ' (+' + x.minors + ' under 18)' : ''); }).join(' · ') +
+      (r.hours.length ? ' (' + r.personHours + ' person-hours in all' + (r.minors ? ', ' + r.minors + ' of them under 18' : '') + ')' : '');
     // An admin's: change or retire it, at the top; and the tools below.
     $('cu-admin').hidden = !admin();
     drawAdmin(c);
@@ -366,11 +390,77 @@ window.LitterCleanups = function (app) {
     setTimeout(function () { URL.revokeObjectURL(url); a.remove(); }, 1000);
   }
   // keep: stay on this member, to tap more segments (|C1012).
-  function assign(accountId, segmentId, keep) {
+  function assign(accountId, segmentId, keep, btn) {
     var c = current();
     if (!keep) pick = '';
-    return send('cleanupAssign', { cleanupId: c.id, accountId: accountId, segmentId: segmentId }, $('cu-assign-segs').firstChild, 'cu-one-err');
+    return send('cleanupAssign', { cleanupId: c.id, accountId: accountId, segmentId: segmentId }, btn || $('cu-assign-segs').firstChild, 'cu-one-err');
   }
+
+  /* ── A Team Leader's menu for a member (S7-P14 round 2, items 7 and 8) ── */
+
+  var mm = null;
+  function memberMenu(c, t, m) {
+    mm = { c: c, t: t, m: m };
+    $('cu-mm-title').textContent = m.handle + (m.leader ? ', Team Leader' : '') + (m.chip ? ': ' + m.chip : '');
+    $('cu-mm-say').textContent = m.chipNote ? m.chipNote : (m.numbered || []).length ? 'Segments: ' + m.numbered.map(function (x) { return x.n + '. ' + x.name; }).join(', ') + '.' : 'No segment yet.';
+    var acts = $('cu-mm-acts');
+    acts.textContent = '';
+    ['cu-mm-unknown', 'cu-mm-move', 'cu-mm-hours'].forEach(function (k) { $(k).hidden = true; });
+    $('cu-mm-err').textContent = '';
+    var act = function (label, key, cls, extra) {
+      var b = button('btn ' + (cls || 'btn-secondary'), label, function () {
+        return app.busy(b, 'cu-mm-err', function () {
+          return app.api('cleanupMember', Object.assign({ token: app.myToken(), cleanupId: c.id, accountId: m.id, act: key }, extra || {})).then(function (d) {
+            data = d; $('cu-mm').hidden = true; drawOne(); today(d);
+          });
+        });
+      });
+      b.id = 'cu-mm-' + key; acts.appendChild(b); return b;
+    };
+    var setBy = ['Not here today', 'Gone home', 'Unknown'].indexOf(m.chip) !== -1;
+    if (m.leader) act('Step down', 'stepDown'); else act('Promote to Team Leader', 'promote');
+    if (setBy) act('Here after all', 'here');
+    if (m.chip !== 'Not here today') act('Not here today', 'notHere');
+    if (m.chip !== 'Gone home') act('Gone home', 'goneHome');
+    if (m.chip !== 'Unknown') { var u = button('btn btn-secondary', 'Unknown…', function () { $('cu-mm-unknown').hidden = false; $('cu-mm-note').focus(); }); u.id = 'cu-mm-unknown-open'; acts.appendChild(u); }
+    if (!m.leader && c.teams.length > 1) {
+      var mv = button('btn btn-secondary', 'Move to another team', function () {
+        var s = $('cu-mm-team'); s.textContent = '';
+        c.teams.forEach(function (x) { if (x.id !== t.id) { var o = el('option', null, x.name); o.value = x.id; s.appendChild(o); } });
+        $('cu-mm-move').hidden = false;
+      });
+      mv.id = 'cu-mm-move-open'; acts.appendChild(mv);
+    }
+    if (!m.leader) act('Remove from the team', 'remove', 'btn-secondary lt-cu-remove');
+    // On the map: tap their segments there (S6-P27's way, kept).
+    var onMap = button('btn btn-secondary', 'Assign on the map', function () { pick = m.id; $('cu-mm').hidden = true; drawOne(); });
+    onMap.id = 'cu-mm-map'; acts.appendChild(onMap);
+    // An admin changes an Unknown or gone-home member's hours, with a reason (|M1545).
+    if (admin() && (m.chip === 'Unknown' || m.chip === 'Gone home')) {
+      var hb = button('btn btn-secondary', 'Change their hours…', function () {
+        var at = m.hoursTo || m.seen || m.chipAt, d = at ? new Date(at) : null, two = function (n) { return (n < 10 ? '0' : '') + n; };
+        $('cu-mm-hours-to').value = d ? two(d.getHours()) + ':' + two(d.getMinutes()) : '';
+        $('cu-mm-hours-why').value = m.hoursWhy || '';
+        $('cu-mm-hours').hidden = false;
+      });
+      hb.id = 'cu-mm-hours-open'; acts.appendChild(hb);
+    }
+    $('cu-mm').hidden = false;
+  }
+  function mmSend(key, extra, btn) {
+    var c = mm.c, m = mm.m;
+    return app.busy(btn, 'cu-mm-err', function () {
+      return app.api('cleanupMember', Object.assign({ token: app.myToken(), cleanupId: c.id, accountId: m.id, act: key }, extra)).then(function (d) {
+        data = d; $('cu-mm').hidden = true; drawOne(); today(d);
+      });
+    });
+  }
+  $('cu-mm-unknown-go').addEventListener('click', function () { mmSend('unknown', { note: $('cu-mm-note').value }, $('cu-mm-unknown-go')); });
+  $('cu-mm-move-go').addEventListener('click', function () { mmSend('move', { teamId: $('cu-mm-team').value }, $('cu-mm-move-go')); });
+  $('cu-mm-hours-go').addEventListener('click', function () {
+    mmSend('hoursTo', { hoursTo: mm.c.day + 'T' + $('cu-mm-hours-to').value, why: $('cu-mm-hours-why').value }, $('cu-mm-hours-go'));
+  });
+  $('cu-mm-close').addEventListener('click', function () { $('cu-mm').hidden = true; });
   function place(accountId, teamId, b) {
     var c = current();
     return send('cleanupAssign', { cleanupId: c.id, accountId: accountId, teamId: teamId, segmentId: '' }, b, 'cu-one-err');
@@ -467,6 +557,10 @@ window.LitterCleanups = function (app) {
       : t.name + '. Check in when your team starts on ' + t.segmentName + '.' + next;
     $('cu-today-in').hidden = !!t.checkin || t.done;
     $('cu-today-out').hidden = !t.checkin;
+    // Going home, on your own phone (item 8): Gone home, and your hours stop now.
+    var gone = t.chip === 'Gone home';
+    $('cu-today-leave').hidden = gone || t.chip === 'Not here yet' || t.chip === 'Not here today';
+    if (gone) { $('cu-today-say').textContent = 'You\'ve gone home. Thank you!'; $('cu-today-in').hidden = true; }
     // Checked in: the word to the crew (item 6), its weighings (items 1, 2), Weigh, and the bags (item 4).
     var on = !!t.checkin, ws = t.weighings || [];
     $('cu-today-word').hidden = !on; $('cu-today-word').textContent = t.word || '';
@@ -538,20 +632,37 @@ window.LitterCleanups = function (app) {
     var list = $('cu-in-list');
     list.textContent = '';
     t.members.forEach(function (m) {
+      var line = el('div', 'lt-cu-inrow');
       var lab = el('label', 'choice-row'), cb = el('input');
       cb.type = 'checkbox'; cb.checked = true; cb.value = m.id;
       lab.appendChild(cb); lab.appendChild(document.createTextNode(' ' + m.handle));
-      list.appendChild(lab);
+      line.appendChild(lab);
+      // "+6 under 18, with me" (item 9): counted under them, unnamed.
+      var kids = el('label', 'lt-cu-kids');
+      var n = el('input'); n.type = 'number'; n.min = '0'; n.max = '30'; n.inputMode = 'numeric'; n.value = ''; n.placeholder = '0';
+      n.className = 'lt-cu-kids-n'; n.setAttribute('data-id', m.id); n.setAttribute('aria-label', 'Under 18 with ' + m.handle);
+      kids.appendChild(document.createTextNode('+ '));
+      kids.appendChild(n);
+      kids.appendChild(document.createTextNode(' under 18'));
+      line.appendChild(kids);
+      list.appendChild(line);
     });
     $('cu-in-err').textContent = '';
     $('cu-in').hidden = false;
   });
   $('cu-in-cancel').addEventListener('click', function () { $('cu-in').hidden = true; });
   $('cu-in-go').addEventListener('click', function () {
-    var t = day0, there = Array.prototype.map.call($('cu-in-list').querySelectorAll('input:checked'), function (i) { return i.value; });
-    return send('cleanupCheckIn', { cleanupId: t.cleanup, segmentId: t.segment, there: there }, $('cu-in-go'), 'cu-in-err', function () {
+    var t = day0, there = Array.prototype.map.call($('cu-in-list').querySelectorAll('input[type=checkbox]:checked'), function (i) { return i.value; });
+    var minors = {};
+    Array.prototype.forEach.call($('cu-in-list').querySelectorAll('.lt-cu-kids-n'), function (i) { if (i.value !== '') minors[i.getAttribute('data-id')] = Number(i.value); });
+    return send('cleanupCheckIn', { cleanupId: t.cleanup, segmentId: t.segment, there: there, minors: minors }, $('cu-in-go'), 'cu-in-err', function () {
       $('cu-in').hidden = true;
     });
+  });
+  $('cu-today-leave').addEventListener('click', function () {
+    var t = day0;
+    if (!t || !window.confirm('Leaving now? Your team sees you\'ve gone home, and your hours stop now.')) return;
+    return send('cleanupLeave', { cleanupId: t.cleanup }, $('cu-today-leave'), 'cu-today-say');
   });
   $('cu-today-out').addEventListener('click', function () {
     var t = day0;

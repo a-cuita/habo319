@@ -981,3 +981,23 @@ button.lt-rh-cmdchip:hover, button.lt-rh-cmdchip:focus-visible { border-color: #
 .lt-cu-tpl { align-items: flex-start; }
 .lt-cu-tpl span { line-height: 1.35; }
 .lt-cu-template .link-btn { font-size: inherit; }
+/* The roster (S7-P14 round 2, items 6 to 9) */
+.lt-cu-mrow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 0; border-bottom: 1px solid var(--border); }
+.lt-cu-mname { font-weight: 700; }
+.lt-cu-chip { font-size: 0.78rem; font-weight: 700; padding: 1px 8px; border-radius: 99px; background: var(--surface-2, #eef2f7); border: 1px solid var(--border); }
+.lt-cu-chip-on-segment-1, .lt-cu-chip-on-segment-2, .lt-cu-chip-on-segment-3, .lt-cu-chip-on-segment-4, .lt-cu-chip-checked-in { background: #dcfce7; border-color: #86efac; color: #166534; }
+.lt-cu-chip-done { background: #e0e7ff; border-color: #a5b4fc; color: #3730a3; }
+.lt-cu-chip-gone-home, .lt-cu-chip-not-here-today { background: #f1f5f9; color: #475569; }
+.lt-cu-chip-unknown { background: #fee2e2; border-color: #fca5a5; color: #991b1b; }
+.lt-cu-msegs { flex-basis: 100%; display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.lt-cu-seg { display: inline-flex; align-items: center; gap: 2px; font-size: 0.82rem; padding: 1px 4px 1px 8px; border-radius: 99px; background: #fff7ed; border: 1px solid #fdba74; }
+.lt-cu-seg-x { border: 0; background: transparent; font-size: 1rem; line-height: 1; padding: 2px 6px; cursor: pointer; min-height: 28px; }
+.lt-cu-addseg { max-width: 220px; font-size: 0.85rem; }
+.lt-cu-chipnote { flex-basis: 100%; margin: 0; color: #991b1b; }
+.lt-cu-mm-acts { display: grid; gap: 6px; margin: 8px 0; }
+#cu-mm-unknown, #cu-mm-move, #cu-mm-hours { display: grid; gap: 6px; margin-top: 8px; }
+#cu-mm-unknown[hidden], #cu-mm-move[hidden], #cu-mm-hours[hidden] { display: none; }
+.lt-cu-inrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; }
+.lt-cu-kids { display: inline-flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+.lt-cu-kids-n { width: 3.6em; padding: 4px 6px; font: inherit; }
+.lt-cu-leave { display: block; margin-top: 8px; }

@@ -560,11 +560,38 @@
   <div class="lt-scrim" id="cu-in" role="dialog" aria-modal="true" aria-labelledby="cu-in-title" hidden>
     <div class="lt-scrim-box">
       <p class="lt-scrim-title" id="cu-in-title">Check in</p>
-      <p class="lt-modal-say">Untick anyone who isn't here. Their hours count from now.</p>
+      <p class="lt-modal-say">Untick anyone who isn't here. Their hours count from now. Anyone under 18 with someone: the number beside them, counted under them, unnamed.</p>
       <div id="cu-in-list"></div>
       <button class="btn btn-primary" id="cu-in-go" type="button">Check in</button>
       <p class="err" id="cu-in-err" role="alert"></p>
       <div class="center"><button class="link-btn" id="cu-in-cancel" type="button">Cancel</button></div>
+    </div>
+  </div>
+  <!-- A Team Leader's menu for a member (S7-P14 round 2, items 7 and 8). -->
+  <div class="lt-scrim" id="cu-mm" role="dialog" aria-modal="true" aria-labelledby="cu-mm-title" hidden>
+    <div class="lt-scrim-box">
+      <p class="lt-scrim-title" id="cu-mm-title"></p>
+      <p class="lt-modal-say" id="cu-mm-say"></p>
+      <div class="lt-cu-mm-acts" id="cu-mm-acts"></div>
+      <div id="cu-mm-unknown" hidden>
+        <label for="cu-mm-note">What you know: when and where they were last seen</label>
+        <textarea id="cu-mm-note" rows="3" maxlength="300"></textarea>
+        <button class="btn btn-primary" id="cu-mm-unknown-go" type="button">Mark Unknown</button>
+      </div>
+      <div id="cu-mm-move" hidden>
+        <label for="cu-mm-team">Move to</label>
+        <select class="lt-select" id="cu-mm-team"></select>
+        <button class="btn btn-primary" id="cu-mm-move-go" type="button">Move</button>
+      </div>
+      <div id="cu-mm-hours" hidden>
+        <label for="cu-mm-hours-to">Their hours stop at</label>
+        <input id="cu-mm-hours-to" type="time">
+        <label for="cu-mm-hours-why">Why</label>
+        <input id="cu-mm-hours-why" maxlength="300">
+        <button class="btn btn-primary" id="cu-mm-hours-go" type="button">Change their hours</button>
+      </div>
+      <p class="err" id="cu-mm-err" role="alert"></p>
+      <div class="center"><button class="link-btn" id="cu-mm-close" type="button">Close</button></div>
     </div>
   </div>
   <!-- Check out: the team's pounds for the segment. -->
@@ -824,6 +851,8 @@
       <button class="btn btn-secondary" id="cu-today-bag" type="button" hidden>Leave the bags here</button>
       <button class="btn btn-accent" id="cu-today-in" type="button">Check in</button>
       <button class="btn btn-accent" id="cu-today-out" type="button" hidden>Check out</button>
+      <!-- S7-P14 round 2, item 8: on your own phone, you're going home. -->
+      <button class="link-btn lt-cu-leave" id="cu-today-leave" type="button" hidden>I'm leaving</button>
     </section>
     <!-- The first quest (S5-P20, Q579-Q581): six steps from setting up an account to the first collection,
          ticked as they're done, shown until they all are. Start collecting waits for them. -->

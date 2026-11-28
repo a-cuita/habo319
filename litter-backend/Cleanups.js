@@ -265,7 +265,7 @@ function cleanupsFor_(account) {
     var open = mineK.filter(function (k) { return k.segment === seg && !k.outAt; })[0];
     var team = v.teams.filter(function (t) { return t.id === v.myTeam; })[0];
     var nameOf = function (s) { return segs[s] ? segs[s].name : s; };
-    today = { cleanup: v.id, name: v.name, segment: seg, segmentName: nameOf(seg),
+    today = { cleanup: v.id, name: v.name, segment: seg, segmentName: nameOf(seg), chip: v.myChip,
       checkin: open ? open.id : '', inAt: open ? open.inAt : 0, done: isDone(seg),
       // Numbered, in the order they're done (S7-P14 item 7, |C1027).
       number: v.mySegments.indexOf(seg) + 1, of: v.mySegments.length,
